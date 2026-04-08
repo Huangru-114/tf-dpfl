@@ -1,0 +1,79 @@
+{
+  "os": "Linux-4.18.0-553.109.1.el8_10.x86_64-x86_64-with-glibc2.28",
+  "python": "CPython 3.11.3",
+  "startedAt": "2026-04-03T03:04:10.668752Z",
+  "args": [
+    "--sweep"
+  ],
+  "program": "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/wideres_sweep.py",
+  "codePath": "wideres_sweep.py",
+  "codePathLocal": "wideres_sweep.py",
+  "email": "3445339138@qq.com",
+  "root": "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg",
+  "host": "alvis5-07",
+  "executable": "/cephyr/users/ziangg/Alvis/TF_DPFL_2026/bin/python",
+  "cpu_count": 64,
+  "cpu_count_logical": 64,
+  "gpu": "NVIDIA A40",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "18843648000",
+      "used": "12351737856"
+    }
+  },
+  "memory": {
+    "total": "269549371392"
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA A40",
+      "memoryTotal": "48305799168",
+      "cudaCores": 10752,
+      "architecture": "Ampere",
+      "uuid": "GPU-d32c438b-6fbb-826e-b5ab-a2a838a324eb"
+    }
+  ],
+  "cudaVersion": "13.1",
+  "slurm": {
+    "cluster_name": "alvis",
+    "conf": "/tmp/slurmd/conf-cache/slurm.conf",
+    "cpus_on_node": "16",
+    "gpus_on_node": "1",
+    "gpus_per_node": "A40:1",
+    "gtids": "0",
+    "job_account": "naiss2026-4-650",
+    "job_cpus_per_node": "16",
+    "job_end_time": "1775269223",
+    "job_gid": "10225343",
+    "job_gpus": "2",
+    "job_id": "6303423",
+    "job_name": "HierFLcifar10",
+    "job_nodelist": "alvis5-07",
+    "job_num_nodes": "1",
+    "job_partition": "alvis",
+    "job_qos": "normal",
+    "job_start_time": "1775182822",
+    "job_uid": "10225343",
+    "job_user": "ziangg",
+    "jobid": "6303423",
+    "localid": "0",
+    "mem_per_node": "62496",
+    "mpi_type": "pmix",
+    "nnodes": "1",
+    "nodeid": "0",
+    "nodelist": "alvis5-07",
+    "oom_kill_step": "0",
+    "pmix_direct_conn_ucx": "false",
+    "prio_process": "0",
+    "procid": "0",
+    "script_context": "prolog_task",
+    "submit_dir": "/cephyr/users/ziangg/Alvis",
+    "submit_host": "alvis1",
+    "task_pid": "250322",
+    "tasks_per_node": "1",
+    "topology_addr": "eth-root.eth-sw05.alvis5-07",
+    "topology_addr_pattern": "switch.switch.node"
+  },
+  "writerId": "9pozlyzhavaqyl6hcw5zi2wg2euad6p4"
+}

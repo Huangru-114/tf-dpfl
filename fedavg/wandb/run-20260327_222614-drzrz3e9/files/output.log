@@ -1,0 +1,286 @@
+
+====================================================
+ HierFAVG Training Start
+====================================================
+
+[Round   1] Phase 1: Cloud broadcasting to 2 edges...
+  [Client  0] Round 1 | loss=1.2514 | time=14.5s
+  [Client  1] Round 1 | loss=1.1386 | time=18.6s
+  [Client  2] Round 1 | loss=1.0323 | time=10.0s
+  [Client  3] Round 1 | loss=1.1528 | time=9.9s
+  [Client  4] Round 1 | loss=1.0879 | time=21.5s
+  [Edge 0] G-Round 1 | E-Round 1 | loss=1.1298
+  [Client  0] Round 1 | loss=0.9512 | time=11.2s
+  [Client  1] Round 1 | loss=0.8115 | time=17.9s
+  [Client  2] Round 1 | loss=0.7528 | time=9.1s
+  [Client  3] Round 1 | loss=0.7827 | time=9.1s
+  [Client  4] Round 1 | loss=0.7498 | time=20.6s
+  [Edge 0] G-Round 1 | E-Round 2 | loss=0.8045
+  [Client  5] Round 1 | loss=1.0731 | time=15.0s
+  [Client  6] Round 1 | loss=0.9853 | time=25.8s
+  [Client  7] Round 1 | loss=0.9666 | time=14.6s
+  [Client  8] Round 1 | loss=1.5082 | time=13.0s
+  [Client  9] Round 1 | loss=1.0962 | time=28.9s
+  [Edge 1] G-Round 1 | E-Round 1 | loss=1.0967
+  [Client  5] Round 1 | loss=0.6926 | time=13.2s
+  [Client  6] Round 1 | loss=0.5811 | time=25.7s
+  [Client  7] Round 1 | loss=0.5973 | time=13.1s
+  [Client  8] Round 1 | loss=0.8922 | time=11.9s
+  [Client  9] Round 1 | loss=0.7274 | time=28.2s
+  [Edge 1] G-Round 1 | E-Round 2 | loss=0.6844
+[Round   1] Phase 2: Cloud aggregating...
+  [Cloud] acc=0.5344 | loss=1.3155 | time=333.8s | comm=368.1MB (total=368MB)
+
+[Round   2] Phase 1: Cloud broadcasting to 2 edges...
+  [Client  0] Round 2 | loss=0.6113 | time=11.7s
+  [Client  1] Round 2 | loss=0.5087 | time=18.5s
+  [Client  2] Round 2 | loss=0.4573 | time=9.4s
+  [Client  3] Round 2 | loss=0.4457 | time=9.3s
+  [Client  4] Round 2 | loss=0.4704 | time=21.1s
+  [Edge 0] G-Round 2 | E-Round 1 | loss=0.4990
+  [Client  0] Round 2 | loss=0.4016 | time=11.7s
+  [Client  1] Round 2 | loss=0.2832 | time=18.5s
+  [Client  2] Round 2 | loss=0.2508 | time=9.4s
+  [Client  3] Round 2 | loss=0.2765 | time=9.3s
+  [Client  4] Round 2 | loss=0.2709 | time=21.1s
+  [Edge 0] G-Round 2 | E-Round 2 | loss=0.2940
+  [Client  5] Round 2 | loss=0.5001 | time=13.2s
+  [Client  6] Round 2 | loss=0.4151 | time=25.8s
+  [Client  7] Round 2 | loss=0.3857 | time=13.1s
+  [Client  8] Round 2 | loss=0.5881 | time=12.0s
+  [Client  9] Round 2 | loss=0.5441 | time=28.3s
+  [Edge 1] G-Round 2 | E-Round 1 | loss=0.4850
+  [Client  5] Round 2 | loss=0.3089 | time=13.3s
+  [Client  6] Round 2 | loss=0.2336 | time=25.7s
+  [Client  7] Round 2 | loss=0.2261 | time=13.1s
+  [Client  8] Round 2 | loss=0.3658 | time=11.9s
+  [Client  9] Round 2 | loss=0.3247 | time=28.2s
+  [Edge 1] G-Round 2 | E-Round 2 | loss=0.2883
+[Round   2] Phase 2: Cloud aggregating...
+  [Cloud] acc=0.6542 | loss=1.0011 | time=325.3s | comm=368.1MB (total=736MB)
+
+[Round   3] Phase 1: Cloud broadcasting to 2 edges...
+  [Client  0] Round 3 | loss=0.3223 | time=11.6s
+  [Client  1] Round 3 | loss=0.2460 | time=18.4s
+  [Client  2] Round 3 | loss=0.2134 | time=9.3s
+  [Client  3] Round 3 | loss=0.2102 | time=9.3s
+  [Client  4] Round 3 | loss=0.2279 | time=21.0s
+  [Edge 0] G-Round 3 | E-Round 1 | loss=0.2442
+  [Client  0] Round 3 | loss=0.2435 | time=11.6s
+  [Client  1] Round 3 | loss=0.1556 | time=18.4s
+  [Client  2] Round 3 | loss=0.1480 | time=9.3s
+  [Client  3] Round 3 | loss=0.1638 | time=9.2s
+  [Client  4] Round 3 | loss=0.1483 | time=20.9s
+  [Edge 0] G-Round 3 | E-Round 2 | loss=0.1681
+  [Client  5] Round 3 | loss=0.2589 | time=13.2s
+  [Client  6] Round 3 | loss=0.1976 | time=25.6s
+  [Client  7] Round 3 | loss=0.1739 | time=13.0s
+  [Client  8] Round 3 | loss=0.2910 | time=11.8s
+  [Client  9] Round 3 | loss=0.2714 | time=27.9s
+  [Edge 1] G-Round 3 | E-Round 1 | loss=0.2377
+  [Client  5] Round 3 | loss=0.1979 | time=13.1s
+  [Client  6] Round 3 | loss=0.1312 | time=25.5s
+  [Client  7] Round 3 | loss=0.1328 | time=12.9s
+  [Client  8] Round 3 | loss=0.2286 | time=11.7s
+  [Client  9] Round 3 | loss=0.1864 | time=27.8s
+  [Edge 1] G-Round 3 | E-Round 2 | loss=0.1705
+[Round   3] Phase 2: Cloud aggregating...
+  [Cloud] acc=0.6835 | loss=0.9875 | time=322.5s | comm=368.1MB (total=1104MB)
+
+[Round   4] Phase 1: Cloud broadcasting to 2 edges...
+  [Client  0] Round 4 | loss=0.2257 | time=11.5s
+  [Client  1] Round 4 | loss=0.1647 | time=18.3s
+  [Client  2] Round 4 | loss=0.1564 | time=9.2s
+  [Client  3] Round 4 | loss=0.1580 | time=9.1s
+  [Client  4] Round 4 | loss=0.1528 | time=20.7s
+  [Edge 0] G-Round 4 | E-Round 1 | loss=0.1693
+  [Client  0] Round 4 | loss=0.1812 | time=11.5s
+  [Client  1] Round 4 | loss=0.1124 | time=18.3s
+  [Client  2] Round 4 | loss=0.1146 | time=9.2s
+  [Client  3] Round 4 | loss=0.1263 | time=9.1s
+  [Client  4] Round 4 | loss=0.1059 | time=20.8s
+  [Edge 0] G-Round 4 | E-Round 2 | loss=0.1241
+  [Client  5] Round 4 | loss=0.1916 | time=13.0s
+  [Client  6] Round 4 | loss=0.1259 | time=25.3s
+  [Client  7] Round 4 | loss=0.1238 | time=12.9s
+  [Client  8] Round 4 | loss=0.2032 | time=11.7s
+  [Client  9] Round 4 | loss=0.1789 | time=27.8s
+  [Edge 1] G-Round 4 | E-Round 1 | loss=0.1613
+  [Client  5] Round 4 | loss=0.1599 | time=13.1s
+  [Client  6] Round 4 | loss=0.0961 | time=25.3s
+  [Client  7] Round 4 | loss=0.1075 | time=12.9s
+  [Client  8] Round 4 | loss=0.1773 | time=11.8s
+  [Client  9] Round 4 | loss=0.1365 | time=28.0s
+  [Edge 1] G-Round 4 | E-Round 2 | loss=0.1297
+[Round   4] Phase 2: Cloud aggregating...
+  [Cloud] acc=0.7022 | loss=0.9717 | time=320.5s | comm=368.1MB (total=1473MB)
+
+[Round   5] Phase 1: Cloud broadcasting to 2 edges...
+  [Client  0] Round 5 | loss=0.1852 | time=11.6s
+  [Client  1] Round 5 | loss=0.1268 | time=18.4s
+  [Client  2] Round 5 | loss=0.1268 | time=9.3s
+  [Client  3] Round 5 | loss=0.1316 | time=9.2s
+  [Client  4] Round 5 | loss=0.1170 | time=20.9s
+  [Edge 0] G-Round 5 | E-Round 1 | loss=0.1342
+  [Client  0] Round 5 | loss=0.1556 | time=11.7s
+  [Client  1] Round 5 | loss=0.0885 | time=18.3s
+  [Client  2] Round 5 | loss=0.1011 | time=9.3s
+  [Client  3] Round 5 | loss=0.1088 | time=9.2s
+  [Client  4] Round 5 | loss=0.0845 | time=21.0s
+  [Edge 0] G-Round 5 | E-Round 2 | loss=0.1029
+  [Client  5] Round 5 | loss=0.1558 | time=13.1s
+  [Client  6] Round 5 | loss=0.0941 | time=25.4s
+  [Client  7] Round 5 | loss=0.0973 | time=13.0s
+  [Client  8] Round 5 | loss=0.1671 | time=11.9s
+  [Client  9] Round 5 | loss=0.1254 | time=28.1s
+  [Edge 1] G-Round 5 | E-Round 1 | loss=0.1224
+  [Client  5] Round 5 | loss=0.1329 | time=13.1s
+  [Client  6] Round 5 | loss=0.0742 | time=25.5s
+  [Client  7] Round 5 | loss=0.0883 | time=13.0s
+  [Client  8] Round 5 | loss=0.1491 | time=11.9s
+  [Client  9] Round 5 | loss=0.1025 | time=28.1s
+  [Edge 1] G-Round 5 | E-Round 2 | loss=0.1030
+[Round   5] Phase 2: Cloud aggregating...
+  [Cloud] acc=0.7107 | loss=0.9905 | time=322.7s | comm=368.1MB (total=1841MB)
+
+[Round   6] Phase 1: Cloud broadcasting to 2 edges...
+  [Client  0] Round 6 | loss=0.1630 | time=11.6s
+  [Client  1] Round 6 | loss=0.1050 | time=18.5s
+  [Client  2] Round 6 | loss=0.1142 | time=9.3s
+  [Client  3] Round 6 | loss=0.1166 | time=9.2s
+  [Client  4] Round 6 | loss=0.0962 | time=20.9s
+  [Edge 0] G-Round 6 | E-Round 1 | loss=0.1148
+  [Client  0] Round 6 | loss=0.1178 | time=11.5s
+  [Client  1] Round 6 | loss=0.0743 | time=18.4s
+  [Client  2] Round 6 | loss=0.0948 | time=9.3s
+  [Client  3] Round 6 | loss=0.1003 | time=9.2s
+  [Client  4] Round 6 | loss=0.0729 | time=20.9s
+  [Edge 0] G-Round 6 | E-Round 2 | loss=0.0873
+  [Client  5] Round 6 | loss=0.1356 | time=13.1s
+  [Client  6] Round 6 | loss=0.0741 | time=25.6s
+  [Client  7] Round 6 | loss=0.0851 | time=13.0s
+  [Client  8] Round 6 | loss=0.1393 | time=11.8s
+  [Client  9] Round 6 | loss=0.0978 | time=27.9s
+  [Edge 1] G-Round 6 | E-Round 1 | loss=0.1002
+  [Client  5] Round 6 | loss=0.1167 | time=13.2s
+  [Client  6] Round 6 | loss=0.0613 | time=25.4s
+  [Client  7] Round 6 | loss=0.0750 | time=12.9s
+  [Client  8] Round 6 | loss=0.1283 | time=11.8s
+  [Client  9] Round 6 | loss=0.0855 | time=28.1s
+  [Edge 1] G-Round 6 | E-Round 2 | loss=0.0872
+[Round   6] Phase 2: Cloud aggregating...
+  [Cloud] acc=0.7142 | loss=1.0182 | time=322.7s | comm=368.1MB (total=2209MB)
+
+[Round   7] Phase 1: Cloud broadcasting to 2 edges...
+  [Client  0] Round 7 | loss=0.1720 | time=11.6s
+  [Client  1] Round 7 | loss=0.0905 | time=18.4s
+  [Client  2] Round 7 | loss=0.1003 | time=9.3s
+  [Client  3] Round 7 | loss=0.1125 | time=9.2s
+  [Client  4] Round 7 | loss=0.0831 | time=20.9s
+  [Edge 0] G-Round 7 | E-Round 1 | loss=0.1061
+  [Client  0] Round 7 | loss=0.1118 | time=11.5s
+  [Client  1] Round 7 | loss=0.0636 | time=18.3s
+  [Client  2] Round 7 | loss=0.0821 | time=9.3s
+  [Client  3] Round 7 | loss=0.0903 | time=9.3s
+  [Client  4] Round 7 | loss=0.0627 | time=20.9s
+  [Edge 0] G-Round 7 | E-Round 2 | loss=0.0774
+  [Client  5] Round 7 | loss=0.1199 | time=13.1s
+  [Client  6] Round 7 | loss=0.0636 | time=25.5s
+  [Client  7] Round 7 | loss=0.0739 | time=13.0s
+  [Client  8] Round 7 | loss=0.1233 | time=11.8s
+  [Client  9] Round 7 | loss=0.0966 | time=27.9s
+  [Edge 1] G-Round 7 | E-Round 1 | loss=0.0910
+  [Client  5] Round 7 | loss=0.1031 | time=13.1s
+  [Client  6] Round 7 | loss=0.0529 | time=25.4s
+  [Client  7] Round 7 | loss=0.0665 | time=12.9s
+  [Client  8] Round 7 | loss=0.1149 | time=11.8s
+  [Client  9] Round 7 | loss=0.0647 | time=28.1s
+  [Edge 1] G-Round 7 | E-Round 2 | loss=0.0737
+[Round   7] Phase 2: Cloud aggregating...
+  [Cloud] acc=0.7209 | loss=1.0256 | time=322.2s | comm=368.1MB (total=2577MB)
+
+[Round   8] Phase 1: Cloud broadcasting to 2 edges...
+  [Client  0] Round 8 | loss=0.1246 | time=11.5s
+  [Client  1] Round 8 | loss=0.0770 | time=18.3s
+  [Client  2] Round 8 | loss=0.0938 | time=9.2s
+  [Client  3] Round 8 | loss=0.0986 | time=9.2s
+  [Client  4] Round 8 | loss=0.0724 | time=21.0s
+  [Edge 0] G-Round 8 | E-Round 1 | loss=0.0887
+  [Client  0] Round 8 | loss=0.1029 | time=11.5s
+  [Client  1] Round 8 | loss=0.0586 | time=18.3s
+  [Client  2] Round 8 | loss=0.0764 | time=9.3s
+  [Client  3] Round 8 | loss=0.0842 | time=9.2s
+  [Client  4] Round 8 | loss=0.0544 | time=21.0s
+  [Edge 0] G-Round 8 | E-Round 2 | loss=0.0705
+  [Client  5] Round 8 | loss=0.1067 | time=13.1s
+  [Client  6] Round 8 | loss=0.0548 | time=25.4s
+  [Client  7] Round 8 | loss=0.0668 | time=13.0s
+  [Client  8] Round 8 | loss=0.1086 | time=11.9s
+  [Client  9] Round 8 | loss=0.0698 | time=28.0s
+  [Edge 1] G-Round 8 | E-Round 1 | loss=0.0755
+  [Client  5] Round 8 | loss=0.0967 | time=13.1s
+  [Client  6] Round 8 | loss=0.0455 | time=25.4s
+  [Client  7] Round 8 | loss=0.0602 | time=13.0s
+  [Client  8] Round 8 | loss=0.1006 | time=11.8s
+  [Client  9] Round 8 | loss=0.0559 | time=27.9s
+  [Edge 1] G-Round 8 | E-Round 2 | loss=0.0652
+[Round   8] Phase 2: Cloud aggregating...
+  [Cloud] acc=0.7200 | loss=1.0532 | time=322.0s | comm=368.1MB (total=2945MB)
+
+[Round   9] Phase 1: Cloud broadcasting to 2 edges...
+  [Client  0] Round 9 | loss=0.1174 | time=11.5s
+  [Client  1] Round 9 | loss=0.0699 | time=18.4s
+  [Client  2] Round 9 | loss=0.0858 | time=9.3s
+  [Client  3] Round 9 | loss=0.0889 | time=9.2s
+  [Client  4] Round 9 | loss=0.0641 | time=20.9s
+  [Edge 0] G-Round 9 | E-Round 1 | loss=0.0807
+  [Client  0] Round 9 | loss=0.1047 | time=11.6s
+  [Client  1] Round 9 | loss=0.0504 | time=18.4s
+  [Client  2] Round 9 | loss=0.0720 | time=9.3s
+  [Client  3] Round 9 | loss=0.0794 | time=9.2s
+  [Client  4] Round 9 | loss=0.0489 | time=20.9s
+  [Edge 0] G-Round 9 | E-Round 2 | loss=0.0657
+  [Client  5] Round 9 | loss=0.0977 | time=13.1s
+  [Client  6] Round 9 | loss=0.0468 | time=25.5s
+  [Client  7] Round 9 | loss=0.0593 | time=12.9s
+  [Client  8] Round 9 | loss=0.1001 | time=11.8s
+  [Client  9] Round 9 | loss=0.0638 | time=27.9s
+  [Edge 1] G-Round 9 | E-Round 1 | loss=0.0679
+  [Client  5] Round 9 | loss=0.0864 | time=13.1s
+  [Client  6] Round 9 | loss=0.0407 | time=25.3s
+  [Client  7] Round 9 | loss=0.0575 | time=12.9s
+  [Client  8] Round 9 | loss=0.0913 | time=11.8s
+  [Client  9] Round 9 | loss=0.0435 | time=28.0s
+  [Edge 1] G-Round 9 | E-Round 2 | loss=0.0571
+[Round   9] Phase 2: Cloud aggregating...
+  [Cloud] acc=0.7244 | loss=1.0781 | time=321.9s | comm=368.1MB (total=3313MB)
+
+[Round  10] Phase 1: Cloud broadcasting to 2 edges...
+  [Client  0] Round 10 | loss=0.1153 | time=11.5s
+  [Client  1] Round 10 | loss=0.0636 | time=18.2s
+  [Client  2] Round 10 | loss=0.0800 | time=9.2s
+  [Client  3] Round 10 | loss=0.0839 | time=9.2s
+  [Client  4] Round 10 | loss=0.0563 | time=20.9s
+  [Edge 0] G-Round 10 | E-Round 1 | loss=0.0749
+  [Client  0] Round 10 | loss=0.0784 | time=11.5s
+  [Client  1] Round 10 | loss=0.0471 | time=18.3s
+  [Client  2] Round 10 | loss=0.0657 | time=9.3s
+  [Client  3] Round 10 | loss=0.0718 | time=9.3s
+  [Client  4] Round 10 | loss=0.0454 | time=20.9s
+  [Edge 0] G-Round 10 | E-Round 2 | loss=0.0575
+  [Client  5] Round 10 | loss=0.0911 | time=13.1s
+  [Client  6] Round 10 | loss=0.0421 | time=25.4s
+  [Client  7] Round 10 | loss=0.0558 | time=13.0s
+  [Client  8] Round 10 | loss=0.0929 | time=11.8s
+  [Client  9] Round 10 | loss=0.0480 | time=28.0s
+  [Edge 1] G-Round 10 | E-Round 1 | loss=0.0595
+  [Client  5] Round 10 | loss=0.0822 | time=13.1s
+  [Client  6] Round 10 | loss=0.0365 | time=25.5s
+  [Client  7] Round 10 | loss=0.0518 | time=12.9s
+  [Client  8] Round 10 | loss=0.0873 | time=11.8s
+  [Client  9] Round 10 | loss=0.0372 | time=27.9s
+  [Edge 1] G-Round 10 | E-Round 2 | loss=0.0520
+[Round  10] Phase 2: Cloud aggregating...
+  [Cloud] acc=0.7260 | loss=1.0795 | time=321.8s | comm=368.1MB (total=3681MB)
+
+[Cloud] Training complete.

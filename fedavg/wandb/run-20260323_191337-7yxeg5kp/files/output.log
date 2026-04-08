@@ -1,0 +1,87 @@
+[Setup] wandb enabled
+
+====================================================
+ Federated Training Start
+====================================================
+
+[Round   1] Selected 5/10 clients
+  [Client  6] Round 1 | epochs=5 | loss=1.1878 | samples=7936
+  [Client  5] Round 1 | epochs=5 | loss=1.2362 | samples=4084
+  [Client  3] Round 1 | epochs=5 | loss=1.3333 | samples=2857
+  [Client  4] Round 1 | epochs=5 | loss=1.3081 | samples=6512
+  [Client  2] Round 1 | epochs=5 | loss=1.2383 | samples=2879
+  [Server] global_loss=2.1785 | global_acc=0.2444
+
+[Round   2] Selected 5/10 clients
+  [Client  8] Round 2 | epochs=5 | loss=1.3421 | samples=3670
+  [Client  6] Round 2 | epochs=5 | loss=0.9056 | samples=7936
+  [Client  9] Round 2 | epochs=5 | loss=1.0972 | samples=8718
+  [Client  4] Round 2 | epochs=5 | loss=1.0360 | samples=6512
+  [Client  7] Round 2 | epochs=5 | loss=0.9361 | samples=4043
+  [Server] global_loss=1.6329 | global_acc=0.4053
+
+[Round   3] Selected 5/10 clients
+  [Client  8] Round 3 | epochs=5 | loss=1.0475 | samples=3670
+  [Client  7] Round 3 | epochs=5 | loss=0.6953 | samples=4043
+  [Client  6] Round 3 | epochs=5 | loss=0.7160 | samples=7936
+  [Client  2] Round 3 | epochs=5 | loss=0.8006 | samples=2879
+  [Client  0] Round 3 | epochs=5 | loss=0.9021 | samples=3597
+  [Server] global_loss=1.3111 | global_acc=0.5397
+
+[Round   4] Selected 5/10 clients
+  [Client  4] Round 4 | epochs=5 | loss=0.7312 | samples=6512
+  [Client  0] Round 4 | epochs=5 | loss=0.7341 | samples=3597
+  [Client  8] Round 4 | epochs=5 | loss=0.8617 | samples=3670
+  [Client  6] Round 4 | epochs=5 | loss=0.5846 | samples=7936
+  [Client  3] Round 4 | epochs=5 | loss=0.6723 | samples=2857
+  [Server] global_loss=1.2731 | global_acc=0.5215
+
+[Round   5] Selected 5/10 clients
+  [Client  5] Round 5 | epochs=5 | loss=0.6765 | samples=4084
+  [Client  3] Round 5 | epochs=5 | loss=0.5521 | samples=2857
+  [Client  2] Round 5 | epochs=5 | loss=0.5632 | samples=2879
+  [Client  8] Round 5 | epochs=5 | loss=0.7370 | samples=3670
+  [Client  4] Round 5 | epochs=5 | loss=0.6094 | samples=6512
+  [Server] global_loss=1.1217 | global_acc=0.6005
+
+[Round   6] Selected 5/10 clients
+  [Client  1] Round 6 | epochs=5 | loss=0.6176 | samples=5704
+  [Client  0] Round 6 | epochs=5 | loss=0.6139 | samples=3597
+  [Client  6] Round 6 | epochs=5 | loss=0.4733 | samples=7936
+  [Client  7] Round 6 | epochs=5 | loss=0.4526 | samples=4043
+  [Client  5] Round 6 | epochs=5 | loss=0.5761 | samples=4084
+  [Server] global_loss=1.0340 | global_acc=0.6322
+
+[Round   7] Selected 5/10 clients
+  [Client  4] Round 7 | epochs=5 | loss=0.4960 | samples=6512
+  [Client  8] Round 7 | epochs=5 | loss=0.6069 | samples=3670
+  [Client  7] Round 7 | epochs=5 | loss=0.3892 | samples=4043
+  [Client  1] Round 7 | epochs=5 | loss=0.5117 | samples=5704
+  [Client  3] Round 7 | epochs=5 | loss=0.4384 | samples=2857
+  [Server] global_loss=1.0457 | global_acc=0.6463
+
+[Round   8] Selected 5/10 clients
+  [Client  6] Round 8 | epochs=5 | loss=0.3904 | samples=7936
+  [Client  0] Round 8 | epochs=5 | loss=0.5334 | samples=3597
+  [Client  8] Round 8 | epochs=5 | loss=0.5141 | samples=3670
+  [Client  9] Round 8 | epochs=5 | loss=0.6566 | samples=8718
+  [Client  1] Round 8 | epochs=5 | loss=0.4235 | samples=5704
+  [Server] global_loss=0.9451 | global_acc=0.6599
+
+[Round   9] Selected 5/10 clients
+  [Client  8] Round 9 | epochs=5 | loss=0.4632 | samples=3670
+  [Client  0] Round 9 | epochs=5 | loss=0.4333 | samples=3597
+  [Client  9] Round 9 | epochs=5 | loss=0.5356 | samples=8718
+  [Client  4] Round 9 | epochs=5 | loss=0.3959 | samples=6512
+  [Client  1] Round 9 | epochs=5 | loss=0.3695 | samples=5704
+  [Server] global_loss=0.9771 | global_acc=0.6601
+
+[Round  10] Selected 5/10 clients
+  [Client  2] Round 10 | epochs=5 | loss=0.3811 | samples=2879
+  [Client  4] Round 10 | epochs=5 | loss=0.3268 | samples=6512
+  [Client  5] Round 10 | epochs=5 | loss=0.4779 | samples=4084
+  [Client  9] Round 10 | epochs=5 | loss=0.4388 | samples=8718
+  [Client  8] Round 10 | epochs=5 | loss=0.4096 | samples=3670
+  [Server] global_loss=0.9925 | global_acc=0.6638
+
+[Server] Training complete.

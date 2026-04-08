@@ -1,0 +1,82 @@
+{
+  "os": "Linux-4.18.0-553.109.1.el8_10.x86_64-x86_64-with-glibc2.28",
+  "python": "CPython 3.11.3",
+  "startedAt": "2026-03-27T19:15:04.637879Z",
+  "args": [
+    "--config",
+    "config/config.yaml",
+    "--override",
+    "wandb.enabled=true"
+  ],
+  "program": "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg_v2/fedavg_v2/main.py",
+  "codePath": "main.py",
+  "codePathLocal": "main.py",
+  "email": "3445339138@qq.com",
+  "root": "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg_v2/fedavg_v2",
+  "host": "alvis2-03",
+  "executable": "/cephyr/users/ziangg/Alvis/TF_DPFL_2026/bin/python",
+  "cpu_count": 32,
+  "cpu_count_logical": 32,
+  "gpu": "Tesla T4",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "18843648000",
+      "used": "13479415808"
+    }
+  },
+  "memory": {
+    "total": "607814877184"
+  },
+  "gpu_nvidia": [
+    {
+      "name": "Tesla T4",
+      "memoryTotal": "16106127360",
+      "cudaCores": 2560,
+      "architecture": "Turing",
+      "uuid": "GPU-af07fddd-c446-cc27-3215-452eccd6f612"
+    }
+  ],
+  "cudaVersion": "13.1",
+  "slurm": {
+    "cluster_name": "alvis",
+    "conf": "/tmp/slurmd/conf-cache/slurm.conf",
+    "cpus_on_node": "4",
+    "gpus_on_node": "1",
+    "gpus_per_node": "T4:1",
+    "gtids": "0",
+    "job_account": "naiss2025-22-1095",
+    "job_cpus_per_node": "4",
+    "job_end_time": "1774646066",
+    "job_gid": "10225343",
+    "job_gpus": "4",
+    "job_id": "6234679",
+    "job_name": "fedavg_gtsrb",
+    "job_nodelist": "alvis2-03",
+    "job_num_nodes": "1",
+    "job_partition": "alvis",
+    "job_qos": "normal",
+    "job_start_time": "1774638864",
+    "job_uid": "10225343",
+    "job_user": "ziangg",
+    "jobid": "6234679",
+    "localid": "0",
+    "mem_per_node": "71760",
+    "mpi_type": "pmix",
+    "nnodes": "1",
+    "nodeid": "0",
+    "nodelist": "alvis2-03",
+    "oom_kill_step": "0",
+    "pmix_direct_conn_ucx": "false",
+    "prio_process": "0",
+    "procid": "0",
+    "script_context": "prolog_task",
+    "submit_dir": "/cephyr/users/ziangg/Alvis",
+    "submit_host": "alvis1",
+    "task_pid": "63539",
+    "tasks_per_node": "1",
+    "topology_addr": "ib-root.ib-sw02.alvis2-03",
+    "topology_addr_pattern": "switch.switch.node"
+  },
+  "writerId": "wkgi52y4o7xs5ydc4hu7vqkwawy6axj8"
+}

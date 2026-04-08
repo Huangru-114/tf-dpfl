@@ -1,0 +1,325 @@
+This job can be monitored from: https://job.c3se.chalmers.se/alvis/6093703
+Dataset: cifar10
+
+=== [1/6] Non-DP baseline ===
+2026-03-11 10:15:03,623 | INFO | HierDPFL | Using GPU: PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')
+Downloading data from https://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz
+     8192/170498071 [..............................] - ETA: 0s    40960/170498071 [..............................] - ETA: 8:05    98304/170498071 [..............................] - ETA: 6:45   212992/170498071 [..............................] - ETA: 4:40   450560/170498071 [..............................] - ETA: 2:56   917504/170498071 [..............................] - ETA: 1:48  1843200/170498071 [..............................] - ETA: 1:04  3653632/170498071 [..............................] - ETA: 34s   3710976/170498071 [..............................] - ETA: 36s  7299072/170498071 [>.............................] - ETA: 19s  7397376/170498071 [>.............................] - ETA: 20s 10543104/170498071 [>.............................] - ETA: 16s 13737984/170498071 [=>............................] - ETA: 13s 16949248/170498071 [=>............................] - ETA: 11s 20078592/170498071 [==>...........................] - ETA: 10s 23207936/170498071 [===>..........................] - ETA: 9s  26411008/170498071 [===>..........................] - ETA: 9s 29679616/170498071 [====>.........................] - ETA: 8s 32882688/170498071 [====>.........................] - ETA: 7s 36077568/170498071 [=====>........................] - ETA: 7s 39354368/170498071 [=====>........................] - ETA: 7s 42549248/170498071 [======>.......................] - ETA: 6s 45735936/170498071 [=======>......................] - ETA: 6s 49004544/170498071 [=======>......................] - ETA: 6s 52264960/170498071 [========>.....................] - ETA: 5s 55476224/170498071 [========>.....................] - ETA: 5s 58679296/170498071 [=========>....................] - ETA: 5s 61816832/170498071 [=========>....................] - ETA: 5s 65011712/170498071 [==========>...................] - ETA: 5s 68214784/170498071 [===========>..................] - ETA: 4s 71409664/170498071 [===========>..................] - ETA: 4s 74530816/170498071 [============>.................] - ETA: 4s 77651968/170498071 [============>.................] - ETA: 4s 80855040/170498071 [=============>................] - ETA: 4s 84172800/170498071 [=============>................] - ETA: 3s 87351296/170498071 [==============>...............] - ETA: 3s 90546176/170498071 [==============>...............] - ETA: 3s 93757440/170498071 [===============>..............] - ETA: 3s 97083392/170498071 [================>.............] - ETA: 3s100286464/170498071 [================>.............] - ETA: 3s103489536/170498071 [=================>............] - ETA: 2s106807296/170498071 [=================>............] - ETA: 2s110002176/170498071 [==================>...........] - ETA: 2s113213440/170498071 [==================>...........] - ETA: 2s116400128/170498071 [===================>..........] - ETA: 2s119595008/170498071 [====================>.........] - ETA: 2s122798080/170498071 [====================>.........] - ETA: 2s125976576/170498071 [=====================>........] - ETA: 1s129114112/170498071 [=====================>........] - ETA: 1s132390912/170498071 [======================>.......] - ETA: 1s135577600/170498071 [======================>.......] - ETA: 1s138821632/170498071 [=======================>......] - ETA: 1s142024704/170498071 [=======================>......] - ETA: 1s145235968/170498071 [========================>.....] - ETA: 1s148373504/170498071 [=========================>....] - ETA: 0s151511040/170498071 [=========================>....] - ETA: 0s154705920/170498071 [==========================>...] - ETA: 0s157908992/170498071 [==========================>...] - ETA: 0s161054720/170498071 [===========================>..] - ETA: 0s164241408/170498071 [===========================>..] - ETA: 0s167444480/170498071 [============================>.] - ETA: 0s170498071/170498071 [==============================] - 7s 0us/step
+2026-03-11 10:15:17,947 | INFO | datasets.cifar10 | Dataset: cifar10 | Clients: 20 | Partition: Shard | Avg samples/client: 2500
+2026-03-11 10:15:17,948 | INFO | HierDPFL | Initialising clients…
+2026-03-11 10:15:23,136 | INFO | HierDPFL | Starting HierDP-FL | Dataset=cifar10 | Model=cnn_complex | Clients=20 | Edges=4 | Rounds=100 | τ₁=5 τ₂=2 | DP=False
+2026-03-11 10:15:24,864 | WARNING | tensorflow | 5 out of the last 5 calls to <function _BaseOptimizer._update_step_xla at 0x14f21203b4c0> triggered tf.function retracing. Tracing is expensive and the excessive number of tracings could be due to (1) creating @tf.function repeatedly in a loop, (2) passing tensors with different shapes, (3) passing Python objects instead of tensors. For (1), please define your @tf.function outside of the loop. For (2), @tf.function has reduce_retracing=True option that can avoid unnecessary retracing. For (3), please refer to https://www.tensorflow.org/guide/function#controlling_retracing and https://www.tensorflow.org/api_docs/python/tf/function for  more details.
+2026-03-11 10:15:24,893 | WARNING | tensorflow | 6 out of the last 6 calls to <function _BaseOptimizer._update_step_xla at 0x14f21203b4c0> triggered tf.function retracing. Tracing is expensive and the excessive number of tracings could be due to (1) creating @tf.function repeatedly in a loop, (2) passing tensors with different shapes, (3) passing Python objects instead of tensors. For (1), please define your @tf.function outside of the loop. For (2), @tf.function has reduce_retracing=True option that can avoid unnecessary retracing. For (3), please refer to https://www.tensorflow.org/guide/function#controlling_retracing and https://www.tensorflow.org/api_docs/python/tf/function for  more details.
+2026-03-11 10:16:50,363 | INFO | HierDPFL | Round 1/100 | Loss=3.6697 | EdgeAcc=0.1002
+2026-03-11 10:16:52,050 | INFO | HierDPFL |   Global acc=0.1061 (no DP)
+2026-03-11 10:18:09,543 | INFO | HierDPFL | Round 2/100 | Loss=1.2747 | EdgeAcc=0.1036
+2026-03-11 10:18:11,298 | INFO | HierDPFL |   Global acc=0.1065 (no DP)
+2026-03-11 10:19:29,525 | INFO | HierDPFL | Round 3/100 | Loss=1.3084 | EdgeAcc=0.1125
+2026-03-11 10:19:31,216 | INFO | HierDPFL |   Global acc=0.1054 (no DP)
+2026-03-11 10:20:48,825 | INFO | HierDPFL | Round 4/100 | Loss=1.3421 | EdgeAcc=0.1024
+2026-03-11 10:20:50,501 | INFO | HierDPFL |   Global acc=0.1526 (no DP)
+2026-03-11 10:22:08,555 | INFO | HierDPFL | Round 5/100 | Loss=1.2768 | EdgeAcc=0.1035
+2026-03-11 10:22:10,305 | INFO | HierDPFL |   Global acc=0.0974 (no DP)
+2026-03-11 10:23:27,856 | INFO | HierDPFL | Round 6/100 | Loss=1.2129 | EdgeAcc=0.1002
+2026-03-11 10:23:29,526 | INFO | HierDPFL |   Global acc=0.1556 (no DP)
+2026-03-11 10:24:47,110 | INFO | HierDPFL | Round 7/100 | Loss=1.1993 | EdgeAcc=0.1099
+2026-03-11 10:24:48,782 | INFO | HierDPFL |   Global acc=0.1789 (no DP)
+2026-03-11 10:26:07,050 | INFO | HierDPFL | Round 8/100 | Loss=1.2389 | EdgeAcc=0.1305
+2026-03-11 10:26:08,733 | INFO | HierDPFL |   Global acc=0.1438 (no DP)
+2026-03-11 10:27:26,527 | INFO | HierDPFL | Round 9/100 | Loss=1.1640 | EdgeAcc=0.1201
+2026-03-11 10:27:28,222 | INFO | HierDPFL |   Global acc=0.1674 (no DP)
+2026-03-11 10:28:45,887 | INFO | HierDPFL | Round 10/100 | Loss=1.1546 | EdgeAcc=0.1319
+2026-03-11 10:28:47,570 | INFO | HierDPFL |   Global acc=0.1649 (no DP)
+2026-03-11 10:30:05,937 | INFO | HierDPFL | Round 11/100 | Loss=1.1451 | EdgeAcc=0.1116
+2026-03-11 10:30:07,624 | INFO | HierDPFL |   Global acc=0.1699 (no DP)
+2026-03-11 10:31:25,479 | INFO | HierDPFL | Round 12/100 | Loss=1.0769 | EdgeAcc=0.1570
+2026-03-11 10:31:27,156 | INFO | HierDPFL |   Global acc=0.1770 (no DP)
+2026-03-11 10:32:44,872 | INFO | HierDPFL | Round 13/100 | Loss=1.0813 | EdgeAcc=0.1496
+2026-03-11 10:32:46,551 | INFO | HierDPFL |   Global acc=0.2419 (no DP)
+2026-03-11 10:34:04,811 | INFO | HierDPFL | Round 14/100 | Loss=1.1012 | EdgeAcc=0.1773
+2026-03-11 10:34:06,483 | INFO | HierDPFL |   Global acc=0.2138 (no DP)
+2026-03-11 10:35:24,042 | INFO | HierDPFL | Round 15/100 | Loss=1.1010 | EdgeAcc=0.1698
+2026-03-11 10:35:25,720 | INFO | HierDPFL |   Global acc=0.2102 (no DP)
+2026-03-11 10:36:43,392 | INFO | HierDPFL | Round 16/100 | Loss=1.0052 | EdgeAcc=0.1850
+2026-03-11 10:36:45,085 | INFO | HierDPFL |   Global acc=0.2391 (no DP)
+2026-03-11 10:38:03,359 | INFO | HierDPFL | Round 17/100 | Loss=0.9762 | EdgeAcc=0.1665
+2026-03-11 10:38:05,035 | INFO | HierDPFL |   Global acc=0.2144 (no DP)
+2026-03-11 10:39:22,737 | INFO | HierDPFL | Round 18/100 | Loss=0.9424 | EdgeAcc=0.2016
+2026-03-11 10:39:24,415 | INFO | HierDPFL |   Global acc=0.2532 (no DP)
+2026-03-11 10:40:42,622 | INFO | HierDPFL | Round 19/100 | Loss=0.9643 | EdgeAcc=0.1779
+2026-03-11 10:40:44,310 | INFO | HierDPFL |   Global acc=0.2653 (no DP)
+2026-03-11 10:42:02,466 | INFO | HierDPFL | Round 20/100 | Loss=0.9595 | EdgeAcc=0.2016
+2026-03-11 10:42:04,141 | INFO | HierDPFL |   Global acc=0.2481 (no DP)
+2026-03-11 10:43:21,667 | INFO | HierDPFL | Round 21/100 | Loss=0.9494 | EdgeAcc=0.1747
+2026-03-11 10:43:23,336 | INFO | HierDPFL |   Global acc=0.2519 (no DP)
+2026-03-11 10:44:40,903 | INFO | HierDPFL | Round 22/100 | Loss=0.9121 | EdgeAcc=0.1995
+2026-03-11 10:44:42,583 | INFO | HierDPFL |   Global acc=0.2617 (no DP)
+2026-03-11 10:46:01,568 | INFO | HierDPFL | Round 23/100 | Loss=0.9362 | EdgeAcc=0.1935
+2026-03-11 10:46:03,236 | INFO | HierDPFL |   Global acc=0.2730 (no DP)
+2026-03-11 10:47:20,726 | INFO | HierDPFL | Round 24/100 | Loss=0.9710 | EdgeAcc=0.2200
+2026-03-11 10:47:22,409 | INFO | HierDPFL |   Global acc=0.2919 (no DP)
+2026-03-11 10:48:39,906 | INFO | HierDPFL | Round 25/100 | Loss=0.9314 | EdgeAcc=0.1827
+2026-03-11 10:48:41,574 | INFO | HierDPFL |   Global acc=0.3010 (no DP)
+2026-03-11 10:49:59,837 | INFO | HierDPFL | Round 26/100 | Loss=0.8824 | EdgeAcc=0.2165
+2026-03-11 10:50:01,519 | INFO | HierDPFL |   Global acc=0.2832 (no DP)
+2026-03-11 10:51:19,015 | INFO | HierDPFL | Round 27/100 | Loss=0.8843 | EdgeAcc=0.1845
+2026-03-11 10:51:20,696 | INFO | HierDPFL |   Global acc=0.3301 (no DP)
+2026-03-11 10:52:38,373 | INFO | HierDPFL | Round 28/100 | Loss=0.9167 | EdgeAcc=0.2187
+2026-03-11 10:52:40,120 | INFO | HierDPFL |   Global acc=0.3186 (no DP)
+2026-03-11 10:53:58,052 | INFO | HierDPFL | Round 29/100 | Loss=0.9131 | EdgeAcc=0.1708
+2026-03-11 10:53:59,731 | INFO | HierDPFL |   Global acc=0.3068 (no DP)
+2026-03-11 10:55:17,386 | INFO | HierDPFL | Round 30/100 | Loss=0.9528 | EdgeAcc=0.2471
+2026-03-11 10:55:19,072 | INFO | HierDPFL |   Global acc=0.3053 (no DP)
+2026-03-11 10:56:36,928 | INFO | HierDPFL | Round 31/100 | Loss=0.9826 | EdgeAcc=0.1679
+2026-03-11 10:56:38,655 | INFO | HierDPFL |   Global acc=0.2910 (no DP)
+2026-03-11 10:57:56,280 | INFO | HierDPFL | Round 32/100 | Loss=0.9708 | EdgeAcc=0.2273
+2026-03-11 10:57:57,954 | INFO | HierDPFL |   Global acc=0.2840 (no DP)
+2026-03-11 10:59:14,731 | INFO | HierDPFL | Round 33/100 | Loss=0.9234 | EdgeAcc=0.2056
+2026-03-11 10:59:16,355 | INFO | HierDPFL |   Global acc=0.3214 (no DP)
+2026-03-11 11:00:31,450 | INFO | HierDPFL | Round 34/100 | Loss=0.8953 | EdgeAcc=0.2331
+2026-03-11 11:00:33,079 | INFO | HierDPFL |   Global acc=0.2902 (no DP)
+2026-03-11 11:01:47,559 | INFO | HierDPFL | Round 35/100 | Loss=0.8524 | EdgeAcc=0.2041
+2026-03-11 11:01:49,180 | INFO | HierDPFL |   Global acc=0.3370 (no DP)
+2026-03-11 11:03:03,682 | INFO | HierDPFL | Round 36/100 | Loss=0.8376 | EdgeAcc=0.2304
+2026-03-11 11:03:05,296 | INFO | HierDPFL |   Global acc=0.3463 (no DP)
+2026-03-11 11:04:20,050 | INFO | HierDPFL | Round 37/100 | Loss=0.8651 | EdgeAcc=0.2405
+2026-03-11 11:04:21,657 | INFO | HierDPFL |   Global acc=0.3342 (no DP)
+2026-03-11 11:05:36,300 | INFO | HierDPFL | Round 38/100 | Loss=0.9050 | EdgeAcc=0.2402
+2026-03-11 11:05:37,917 | INFO | HierDPFL |   Global acc=0.3393 (no DP)
+2026-03-11 11:06:52,406 | INFO | HierDPFL | Round 39/100 | Loss=0.8737 | EdgeAcc=0.2405
+2026-03-11 11:06:54,026 | INFO | HierDPFL |   Global acc=0.3590 (no DP)
+2026-03-11 11:08:08,536 | INFO | HierDPFL | Round 40/100 | Loss=0.8702 | EdgeAcc=0.2512
+2026-03-11 11:08:10,163 | INFO | HierDPFL |   Global acc=0.3413 (no DP)
+2026-03-11 11:09:24,751 | INFO | HierDPFL | Round 41/100 | Loss=0.9044 | EdgeAcc=0.2422
+2026-03-11 11:09:26,361 | INFO | HierDPFL |   Global acc=0.3709 (no DP)
+2026-03-11 11:10:41,712 | INFO | HierDPFL | Round 42/100 | Loss=0.9030 | EdgeAcc=0.2700
+2026-03-11 11:10:43,326 | INFO | HierDPFL |   Global acc=0.3507 (no DP)
+2026-03-11 11:11:57,822 | INFO | HierDPFL | Round 43/100 | Loss=0.8501 | EdgeAcc=0.2567
+2026-03-11 11:11:59,438 | INFO | HierDPFL |   Global acc=0.3601 (no DP)
+2026-03-11 11:13:13,909 | INFO | HierDPFL | Round 44/100 | Loss=0.8539 | EdgeAcc=0.2601
+2026-03-11 11:13:15,523 | INFO | HierDPFL |   Global acc=0.3714 (no DP)
+2026-03-11 11:14:29,855 | INFO | HierDPFL | Round 45/100 | Loss=0.8014 | EdgeAcc=0.2648
+2026-03-11 11:14:31,466 | INFO | HierDPFL |   Global acc=0.3900 (no DP)
+2026-03-11 11:15:46,139 | INFO | HierDPFL | Round 46/100 | Loss=0.8237 | EdgeAcc=0.2626
+2026-03-11 11:15:47,757 | INFO | HierDPFL |   Global acc=0.3712 (no DP)
+2026-03-11 11:17:02,361 | INFO | HierDPFL | Round 47/100 | Loss=0.7981 | EdgeAcc=0.2723
+2026-03-11 11:17:03,986 | INFO | HierDPFL |   Global acc=0.3795 (no DP)
+2026-03-11 11:18:18,638 | INFO | HierDPFL | Round 48/100 | Loss=0.7932 | EdgeAcc=0.2767
+2026-03-11 11:18:20,262 | INFO | HierDPFL |   Global acc=0.3971 (no DP)
+2026-03-11 11:19:34,925 | INFO | HierDPFL | Round 49/100 | Loss=0.7542 | EdgeAcc=0.2539
+2026-03-11 11:19:36,544 | INFO | HierDPFL |   Global acc=0.3980 (no DP)
+2026-03-11 11:20:51,434 | INFO | HierDPFL | Round 50/100 | Loss=0.7814 | EdgeAcc=0.2686
+2026-03-11 11:20:53,065 | INFO | HierDPFL |   Global acc=0.3931 (no DP)
+2026-03-11 11:22:07,675 | INFO | HierDPFL | Round 51/100 | Loss=0.7473 | EdgeAcc=0.2706
+2026-03-11 11:22:09,290 | INFO | HierDPFL |   Global acc=0.3982 (no DP)
+2026-03-11 11:23:23,904 | INFO | HierDPFL | Round 52/100 | Loss=0.7739 | EdgeAcc=0.2830
+2026-03-11 11:23:25,529 | INFO | HierDPFL |   Global acc=0.3938 (no DP)
+2026-03-11 11:24:40,037 | INFO | HierDPFL | Round 53/100 | Loss=0.7620 | EdgeAcc=0.2703
+2026-03-11 11:24:41,664 | INFO | HierDPFL |   Global acc=0.3958 (no DP)
+2026-03-11 11:25:56,047 | INFO | HierDPFL | Round 54/100 | Loss=0.7724 | EdgeAcc=0.2868
+2026-03-11 11:25:57,658 | INFO | HierDPFL |   Global acc=0.3941 (no DP)
+2026-03-11 11:27:12,237 | INFO | HierDPFL | Round 55/100 | Loss=0.7577 | EdgeAcc=0.2746
+2026-03-11 11:27:13,859 | INFO | HierDPFL |   Global acc=0.4087 (no DP)
+2026-03-11 11:28:28,403 | INFO | HierDPFL | Round 56/100 | Loss=0.8178 | EdgeAcc=0.2882
+2026-03-11 11:28:30,017 | INFO | HierDPFL |   Global acc=0.4087 (no DP)
+2026-03-11 11:29:44,548 | INFO | HierDPFL | Round 57/100 | Loss=0.8119 | EdgeAcc=0.2779
+2026-03-11 11:29:46,173 | INFO | HierDPFL |   Global acc=0.4060 (no DP)
+2026-03-11 11:31:01,404 | INFO | HierDPFL | Round 58/100 | Loss=0.8366 | EdgeAcc=0.2888
+2026-03-11 11:31:03,010 | INFO | HierDPFL |   Global acc=0.4162 (no DP)
+2026-03-11 11:32:17,457 | INFO | HierDPFL | Round 59/100 | Loss=0.8142 | EdgeAcc=0.3020
+2026-03-11 11:32:19,069 | INFO | HierDPFL |   Global acc=0.4088 (no DP)
+2026-03-11 11:33:33,580 | INFO | HierDPFL | Round 60/100 | Loss=0.7779 | EdgeAcc=0.2908
+2026-03-11 11:33:35,201 | INFO | HierDPFL |   Global acc=0.4171 (no DP)
+2026-03-11 11:34:49,712 | INFO | HierDPFL | Round 61/100 | Loss=0.7376 | EdgeAcc=0.2934
+2026-03-11 11:34:51,325 | INFO | HierDPFL |   Global acc=0.4231 (no DP)
+2026-03-11 11:36:05,842 | INFO | HierDPFL | Round 62/100 | Loss=0.7496 | EdgeAcc=0.2864
+2026-03-11 11:36:07,450 | INFO | HierDPFL |   Global acc=0.4162 (no DP)
+2026-03-11 11:37:21,905 | INFO | HierDPFL | Round 63/100 | Loss=0.7503 | EdgeAcc=0.2957
+2026-03-11 11:37:23,521 | INFO | HierDPFL |   Global acc=0.4173 (no DP)
+2026-03-11 11:38:38,129 | INFO | HierDPFL | Round 64/100 | Loss=0.7793 | EdgeAcc=0.3036
+2026-03-11 11:38:39,741 | INFO | HierDPFL |   Global acc=0.4250 (no DP)
+2026-03-11 11:39:54,358 | INFO | HierDPFL | Round 65/100 | Loss=0.7573 | EdgeAcc=0.2935
+2026-03-11 11:39:55,978 | INFO | HierDPFL |   Global acc=0.4229 (no DP)
+2026-03-11 11:41:10,626 | INFO | HierDPFL | Round 66/100 | Loss=0.7488 | EdgeAcc=0.3150
+2026-03-11 11:41:12,233 | INFO | HierDPFL |   Global acc=0.4075 (no DP)
+2026-03-11 11:42:26,787 | INFO | HierDPFL | Round 67/100 | Loss=0.7690 | EdgeAcc=0.3012
+2026-03-11 11:42:28,394 | INFO | HierDPFL |   Global acc=0.4148 (no DP)
+2026-03-11 11:43:42,945 | INFO | HierDPFL | Round 68/100 | Loss=0.7627 | EdgeAcc=0.2964
+2026-03-11 11:43:44,556 | INFO | HierDPFL |   Global acc=0.4245 (no DP)
+2026-03-11 11:44:59,112 | INFO | HierDPFL | Round 69/100 | Loss=0.7140 | EdgeAcc=0.3048
+2026-03-11 11:45:00,731 | INFO | HierDPFL |   Global acc=0.4197 (no DP)
+2026-03-11 11:46:15,329 | INFO | HierDPFL | Round 70/100 | Loss=0.7291 | EdgeAcc=0.2969
+2026-03-11 11:46:16,952 | INFO | HierDPFL |   Global acc=0.4309 (no DP)
+2026-03-11 11:47:31,548 | INFO | HierDPFL | Round 71/100 | Loss=0.7212 | EdgeAcc=0.3062
+2026-03-11 11:47:33,181 | INFO | HierDPFL |   Global acc=0.4414 (no DP)
+2026-03-11 11:48:47,956 | INFO | HierDPFL | Round 72/100 | Loss=0.7640 | EdgeAcc=0.3063
+2026-03-11 11:48:49,571 | INFO | HierDPFL |   Global acc=0.4359 (no DP)
+2026-03-11 11:50:04,489 | INFO | HierDPFL | Round 73/100 | Loss=0.7954 | EdgeAcc=0.3081
+2026-03-11 11:50:06,103 | INFO | HierDPFL |   Global acc=0.4341 (no DP)
+2026-03-11 11:51:20,812 | INFO | HierDPFL | Round 74/100 | Loss=0.7581 | EdgeAcc=0.3080
+2026-03-11 11:51:22,435 | INFO | HierDPFL |   Global acc=0.4187 (no DP)
+2026-03-11 11:52:37,126 | INFO | HierDPFL | Round 75/100 | Loss=0.7161 | EdgeAcc=0.3232
+2026-03-11 11:52:38,749 | INFO | HierDPFL |   Global acc=0.4511 (no DP)
+2026-03-11 11:53:53,322 | INFO | HierDPFL | Round 76/100 | Loss=0.6909 | EdgeAcc=0.3122
+2026-03-11 11:53:54,930 | INFO | HierDPFL |   Global acc=0.4489 (no DP)
+2026-03-11 11:55:09,440 | INFO | HierDPFL | Round 77/100 | Loss=0.6762 | EdgeAcc=0.3203
+2026-03-11 11:55:11,062 | INFO | HierDPFL |   Global acc=0.4274 (no DP)
+2026-03-11 11:56:25,756 | INFO | HierDPFL | Round 78/100 | Loss=0.7142 | EdgeAcc=0.3024
+2026-03-11 11:56:27,386 | INFO | HierDPFL |   Global acc=0.4483 (no DP)
+2026-03-11 11:57:41,989 | INFO | HierDPFL | Round 79/100 | Loss=0.7397 | EdgeAcc=0.3341
+2026-03-11 11:57:43,598 | INFO | HierDPFL |   Global acc=0.4271 (no DP)
+2026-03-11 11:58:58,237 | INFO | HierDPFL | Round 80/100 | Loss=0.7068 | EdgeAcc=0.3199
+2026-03-11 11:58:59,857 | INFO | HierDPFL |   Global acc=0.4606 (no DP)
+2026-03-11 12:00:14,479 | INFO | HierDPFL | Round 81/100 | Loss=0.6813 | EdgeAcc=0.3321
+2026-03-11 12:00:16,076 | INFO | HierDPFL |   Global acc=0.4552 (no DP)
+2026-03-11 12:01:30,632 | INFO | HierDPFL | Round 82/100 | Loss=0.7107 | EdgeAcc=0.2880
+2026-03-11 12:01:32,241 | INFO | HierDPFL |   Global acc=0.4557 (no DP)
+2026-03-11 12:02:46,898 | INFO | HierDPFL | Round 83/100 | Loss=0.6860 | EdgeAcc=0.3138
+2026-03-11 12:02:48,517 | INFO | HierDPFL |   Global acc=0.4522 (no DP)
+2026-03-11 12:04:03,107 | INFO | HierDPFL | Round 84/100 | Loss=0.7027 | EdgeAcc=0.3156
+2026-03-11 12:04:04,712 | INFO | HierDPFL |   Global acc=0.4648 (no DP)
+2026-03-11 12:05:19,513 | INFO | HierDPFL | Round 85/100 | Loss=0.6476 | EdgeAcc=0.3177
+2026-03-11 12:05:21,136 | INFO | HierDPFL |   Global acc=0.4633 (no DP)
+2026-03-11 12:06:35,674 | INFO | HierDPFL | Round 86/100 | Loss=0.6714 | EdgeAcc=0.3372
+2026-03-11 12:06:37,289 | INFO | HierDPFL |   Global acc=0.4564 (no DP)
+2026-03-11 12:07:51,911 | INFO | HierDPFL | Round 87/100 | Loss=0.6447 | EdgeAcc=0.3230
+2026-03-11 12:07:53,540 | INFO | HierDPFL |   Global acc=0.4538 (no DP)
+2026-03-11 12:09:08,213 | INFO | HierDPFL | Round 88/100 | Loss=0.6529 | EdgeAcc=0.3416
+2026-03-11 12:09:09,828 | INFO | HierDPFL |   Global acc=0.4668 (no DP)
+2026-03-11 12:10:24,577 | INFO | HierDPFL | Round 89/100 | Loss=0.7055 | EdgeAcc=0.2966
+2026-03-11 12:10:26,194 | INFO | HierDPFL |   Global acc=0.4665 (no DP)
+2026-03-11 12:11:40,891 | INFO | HierDPFL | Round 90/100 | Loss=0.7046 | EdgeAcc=0.3302
+2026-03-11 12:11:42,496 | INFO | HierDPFL |   Global acc=0.4543 (no DP)
+2026-03-11 12:12:57,424 | INFO | HierDPFL | Round 91/100 | Loss=0.6931 | EdgeAcc=0.3170
+2026-03-11 12:12:59,048 | INFO | HierDPFL |   Global acc=0.4743 (no DP)
+2026-03-11 12:14:13,714 | INFO | HierDPFL | Round 92/100 | Loss=0.6767 | EdgeAcc=0.3489
+2026-03-11 12:14:15,334 | INFO | HierDPFL |   Global acc=0.4785 (no DP)
+2026-03-11 12:15:29,992 | INFO | HierDPFL | Round 93/100 | Loss=0.6875 | EdgeAcc=0.3059
+2026-03-11 12:15:31,594 | INFO | HierDPFL |   Global acc=0.4650 (no DP)
+2026-03-11 12:16:46,115 | INFO | HierDPFL | Round 94/100 | Loss=0.6775 | EdgeAcc=0.3394
+2026-03-11 12:16:47,741 | INFO | HierDPFL |   Global acc=0.4660 (no DP)
+2026-03-11 12:18:02,430 | INFO | HierDPFL | Round 95/100 | Loss=0.6866 | EdgeAcc=0.3153
+2026-03-11 12:18:04,048 | INFO | HierDPFL |   Global acc=0.4524 (no DP)
+2026-03-11 12:19:18,737 | INFO | HierDPFL | Round 96/100 | Loss=0.7208 | EdgeAcc=0.3332
+2026-03-11 12:19:20,361 | INFO | HierDPFL |   Global acc=0.4416 (no DP)
+2026-03-11 12:20:35,082 | INFO | HierDPFL | Round 97/100 | Loss=0.7654 | EdgeAcc=0.3128
+2026-03-11 12:20:36,710 | INFO | HierDPFL |   Global acc=0.4694 (no DP)
+2026-03-11 12:21:51,466 | INFO | HierDPFL | Round 98/100 | Loss=0.7308 | EdgeAcc=0.3275
+2026-03-11 12:21:53,085 | INFO | HierDPFL |   Global acc=0.4624 (no DP)
+2026-03-11 12:23:07,895 | INFO | HierDPFL | Round 99/100 | Loss=0.7001 | EdgeAcc=0.3339
+2026-03-11 12:23:09,513 | INFO | HierDPFL |   Global acc=0.4753 (no DP)
+2026-03-11 12:24:24,285 | INFO | HierDPFL | Round 100/100 | Loss=0.6440 | EdgeAcc=0.3372
+2026-03-11 12:24:25,913 | INFO | HierDPFL |   Global acc=0.4775 (no DP)
+2026-03-11 12:24:25,914 | INFO | HierDPFL | 
+============================================================
+2026-03-11 12:24:25,915 | INFO | HierDPFL | Training complete.
+2026-03-11 12:24:25,915 | INFO | HierDPFL | Final global accuracy: 0.4775
+2026-03-11 12:24:25,915 | INFO | HierDPFL | TensorBoard logs: runs/cifar10_cnn_complex_dpFalse_eps10.0_modeuniform_nc20_ne4
+2026-03-11 12:24:25,915 | INFO | HierDPFL | ============================================================
+
+
+=== [2/6] DP-SGD ε=10 uniform (auto σ) ===
+2026-03-11 12:24:39,056 | INFO | HierDPFL | Using GPU: PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')
+2026-03-11 12:24:39,057 | INFO | HierDPFL | ── DPConfig ─────────────────────────────────────
+  enabled          : True
+  target_epsilon   : 10.0
+  delta            : 1e-05
+  noise_multiplier : auto-calibrate
+  max_grad_norm    : 1.0
+  adaptive_mode    : uniform
+  accountant_type  : rdp
+─────────────────────────────────────────────────
+2026-03-11 12:24:43,719 | INFO | datasets.cifar10 | Dataset: cifar10 | Clients: 20 | Partition: Shard | Avg samples/client: 2500
+2026-03-11 12:24:43,725 | INFO | dp.accountant | Calibrated noise_multiplier=2.0957 for ε=10.0, δ=1e-05, steps=1000
+2026-03-11 12:24:43,725 | INFO | HierDPFL | Auto-calibrated noise_multiplier = 2.0957
+2026-03-11 12:24:43,743 | INFO | HierDPFL | DP Allocator: UniformDPAllocator(noise_multiplier=2.0956648731231686, clip_norm=1.0)
+2026-03-11 12:24:43,743 | INFO | HierDPFL | Initialising clients…
+2026-03-11 12:24:48,173 | INFO | HierDPFL | Starting HierDP-FL | Dataset=cifar10 | Model=cnn_complex | Clients=20 | Edges=4 | Rounds=100 | τ₁=5 τ₂=2 | DP=True
+2026-03-11 12:24:50,736 | WARNING | tensorflow | 5 out of the last 5 calls to <function _BaseOptimizer._update_step_xla at 0x147e3a134fe0> triggered tf.function retracing. Tracing is expensive and the excessive number of tracings could be due to (1) creating @tf.function repeatedly in a loop, (2) passing tensors with different shapes, (3) passing Python objects instead of tensors. For (1), please define your @tf.function outside of the loop. For (2), @tf.function has reduce_retracing=True option that can avoid unnecessary retracing. For (3), please refer to https://www.tensorflow.org/guide/function#controlling_retracing and https://www.tensorflow.org/api_docs/python/tf/function for  more details.
+2026-03-11 12:24:50,763 | WARNING | tensorflow | 6 out of the last 6 calls to <function _BaseOptimizer._update_step_xla at 0x147e3a134fe0> triggered tf.function retracing. Tracing is expensive and the excessive number of tracings could be due to (1) creating @tf.function repeatedly in a loop, (2) passing tensors with different shapes, (3) passing Python objects instead of tensors. For (1), please define your @tf.function outside of the loop. For (2), @tf.function has reduce_retracing=True option that can avoid unnecessary retracing. For (3), please refer to https://www.tensorflow.org/guide/function#controlling_retracing and https://www.tensorflow.org/api_docs/python/tf/function for  more details.
+2026-03-11 12:30:17,581 | INFO | HierDPFL | Round 1/100 | Loss=1.9369 | EdgeAcc=0.1117
+2026-03-11 12:30:19,236 | INFO | HierDPFL |   Global acc=0.1239 | Privacy ε≤1.091 (δ=1e-05)
+2026-03-11 12:35:38,119 | INFO | HierDPFL | Round 2/100 | Loss=1.2549 | EdgeAcc=0.1075
+2026-03-11 12:35:39,771 | INFO | HierDPFL |   Global acc=0.1111 | Privacy ε≤1.446 (δ=1e-05)
+2026-03-11 12:40:58,341 | INFO | HierDPFL | Round 3/100 | Loss=1.1875 | EdgeAcc=0.1267
+2026-03-11 12:40:59,978 | INFO | HierDPFL |   Global acc=0.1478 | Privacy ε≤1.722 (δ=1e-05)
+2026-03-11 12:46:18,212 | INFO | HierDPFL | Round 4/100 | Loss=1.1168 | EdgeAcc=0.1420
+2026-03-11 12:46:19,830 | INFO | HierDPFL |   Global acc=0.1777 | Privacy ε≤1.951 (δ=1e-05)
+2026-03-11 12:51:33,149 | INFO | HierDPFL | Round 5/100 | Loss=1.0869 | EdgeAcc=0.1461
+2026-03-11 12:51:34,765 | INFO | HierDPFL |   Global acc=0.1905 | Privacy ε≤2.156 (δ=1e-05)
+2026-03-11 12:56:48,276 | INFO | HierDPFL | Round 6/100 | Loss=1.0836 | EdgeAcc=0.1405
+2026-03-11 12:56:49,889 | INFO | HierDPFL |   Global acc=0.1962 | Privacy ε≤2.345 (δ=1e-05)
+2026-03-11 13:02:02,723 | INFO | HierDPFL | Round 7/100 | Loss=1.0819 | EdgeAcc=0.1479
+2026-03-11 13:02:04,340 | INFO | HierDPFL |   Global acc=0.2073 | Privacy ε≤2.524 (δ=1e-05)
+2026-03-11 13:07:17,108 | INFO | HierDPFL | Round 8/100 | Loss=1.0366 | EdgeAcc=0.1692
+2026-03-11 13:07:18,728 | INFO | HierDPFL |   Global acc=0.2170 | Privacy ε≤2.679 (δ=1e-05)
+2026-03-11 13:12:30,740 | INFO | HierDPFL | Round 9/100 | Loss=1.0466 | EdgeAcc=0.1607
+2026-03-11 13:12:32,357 | INFO | HierDPFL |   Global acc=0.2285 | Privacy ε≤2.833 (δ=1e-05)
+2026-03-11 13:17:44,230 | INFO | HierDPFL | Round 10/100 | Loss=1.0673 | EdgeAcc=0.1656
+2026-03-11 13:17:45,853 | INFO | HierDPFL |   Global acc=0.2351 | Privacy ε≤2.988 (δ=1e-05)
+2026-03-11 13:22:57,768 | INFO | HierDPFL | Round 11/100 | Loss=1.0205 | EdgeAcc=0.1683
+2026-03-11 13:22:59,384 | INFO | HierDPFL |   Global acc=0.2441 | Privacy ε≤3.133 (δ=1e-05)
+2026-03-11 13:28:11,375 | INFO | HierDPFL | Round 12/100 | Loss=1.0222 | EdgeAcc=0.1741
+2026-03-11 13:28:12,987 | INFO | HierDPFL |   Global acc=0.2462 | Privacy ε≤3.258 (δ=1e-05)
+2026-03-11 13:33:25,519 | INFO | HierDPFL | Round 13/100 | Loss=1.0197 | EdgeAcc=0.1830
+2026-03-11 13:33:27,130 | INFO | HierDPFL |   Global acc=0.2508 | Privacy ε≤3.382 (δ=1e-05)
+2026-03-11 13:38:39,887 | INFO | HierDPFL | Round 14/100 | Loss=1.0054 | EdgeAcc=0.1774
+2026-03-11 13:38:41,495 | INFO | HierDPFL |   Global acc=0.2527 | Privacy ε≤3.507 (δ=1e-05)
+2026-03-11 13:43:54,282 | INFO | HierDPFL | Round 15/100 | Loss=1.0062 | EdgeAcc=0.1847
+2026-03-11 13:43:55,904 | INFO | HierDPFL |   Global acc=0.2559 | Privacy ε≤3.632 (δ=1e-05)
+2026-03-11 13:49:08,763 | INFO | HierDPFL | Round 16/100 | Loss=1.0126 | EdgeAcc=0.1911
+2026-03-11 13:49:10,378 | INFO | HierDPFL |   Global acc=0.2585 | Privacy ε≤3.756 (δ=1e-05)
+2026-03-11 13:54:22,815 | INFO | HierDPFL | Round 17/100 | Loss=1.0487 | EdgeAcc=0.1993
+2026-03-11 13:54:24,426 | INFO | HierDPFL |   Global acc=0.2561 | Privacy ε≤3.881 (δ=1e-05)
+2026-03-11 13:59:36,900 | INFO | HierDPFL | Round 18/100 | Loss=1.0376 | EdgeAcc=0.2031
+2026-03-11 13:59:38,501 | INFO | HierDPFL |   Global acc=0.2633 | Privacy ε≤4.006 (δ=1e-05)
+2026-03-11 14:04:48,961 | INFO | HierDPFL | Round 19/100 | Loss=1.0339 | EdgeAcc=0.1941
+2026-03-11 14:04:50,562 | INFO | HierDPFL |   Global acc=0.2748 | Privacy ε≤4.109 (δ=1e-05)
+2026-03-11 14:10:01,587 | INFO | HierDPFL | Round 20/100 | Loss=1.0402 | EdgeAcc=0.1986
+2026-03-11 14:10:03,207 | INFO | HierDPFL |   Global acc=0.2763 | Privacy ε≤4.206 (δ=1e-05)
+2026-03-11 14:15:14,102 | INFO | HierDPFL | Round 21/100 | Loss=1.0407 | EdgeAcc=0.1976
+2026-03-11 14:15:15,717 | INFO | HierDPFL |   Global acc=0.2711 | Privacy ε≤4.304 (δ=1e-05)
+2026-03-11 14:20:27,148 | INFO | HierDPFL | Round 22/100 | Loss=1.0666 | EdgeAcc=0.2098
+2026-03-11 14:20:28,756 | INFO | HierDPFL |   Global acc=0.2769 | Privacy ε≤4.402 (δ=1e-05)
+2026-03-11 14:25:40,526 | INFO | HierDPFL | Round 23/100 | Loss=1.0267 | EdgeAcc=0.2095
+2026-03-11 14:25:42,132 | INFO | HierDPFL |   Global acc=0.2746 | Privacy ε≤4.500 (δ=1e-05)
+2026-03-11 14:30:54,267 | INFO | HierDPFL | Round 24/100 | Loss=1.0404 | EdgeAcc=0.2175
+2026-03-11 14:30:55,866 | INFO | HierDPFL |   Global acc=0.2830 | Privacy ε≤4.597 (δ=1e-05)
+2026-03-11 14:36:06,930 | INFO | HierDPFL | Round 25/100 | Loss=1.0417 | EdgeAcc=0.2057
+2026-03-11 14:36:08,536 | INFO | HierDPFL |   Global acc=0.2784 | Privacy ε≤4.695 (δ=1e-05)
+2026-03-11 14:41:19,422 | INFO | HierDPFL | Round 26/100 | Loss=1.0356 | EdgeAcc=0.2076
+2026-03-11 14:41:21,025 | INFO | HierDPFL |   Global acc=0.2778 | Privacy ε≤4.793 (δ=1e-05)
+2026-03-11 14:46:32,159 | INFO | HierDPFL | Round 27/100 | Loss=1.0506 | EdgeAcc=0.2099
+2026-03-11 14:46:33,769 | INFO | HierDPFL |   Global acc=0.2832 | Privacy ε≤4.890 (δ=1e-05)
+2026-03-11 14:51:44,920 | INFO | HierDPFL | Round 28/100 | Loss=1.0314 | EdgeAcc=0.2188
+2026-03-11 14:51:46,523 | INFO | HierDPFL |   Global acc=0.2892 | Privacy ε≤4.988 (δ=1e-05)
+2026-03-11 14:56:57,571 | INFO | HierDPFL | Round 29/100 | Loss=1.0679 | EdgeAcc=0.2105
+2026-03-11 14:56:59,178 | INFO | HierDPFL |   Global acc=0.2855 | Privacy ε≤5.086 (δ=1e-05)
+2026-03-11 15:02:10,784 | INFO | HierDPFL | Round 30/100 | Loss=1.0789 | EdgeAcc=0.2039
+2026-03-11 15:02:12,394 | INFO | HierDPFL |   Global acc=0.2840 | Privacy ε≤5.183 (δ=1e-05)
+2026-03-11 15:07:23,535 | INFO | HierDPFL | Round 31/100 | Loss=1.0932 | EdgeAcc=0.2038
+2026-03-11 15:07:25,153 | INFO | HierDPFL |   Global acc=0.2881 | Privacy ε≤5.281 (δ=1e-05)
+2026-03-11 15:12:35,980 | INFO | HierDPFL | Round 32/100 | Loss=1.0529 | EdgeAcc=0.2165
+2026-03-11 15:12:37,583 | INFO | HierDPFL |   Global acc=0.2924 | Privacy ε≤5.379 (δ=1e-05)
+2026-03-11 15:17:49,518 | INFO | HierDPFL | Round 33/100 | Loss=1.0455 | EdgeAcc=0.2144
+2026-03-11 15:17:51,123 | INFO | HierDPFL |   Global acc=0.2966 | Privacy ε≤5.476 (δ=1e-05)
+2026-03-11 15:23:01,864 | INFO | HierDPFL | Round 34/100 | Loss=1.0170 | EdgeAcc=0.2170
+2026-03-11 15:23:03,471 | INFO | HierDPFL |   Global acc=0.2944 | Privacy ε≤5.574 (δ=1e-05)
+2026-03-11 15:28:14,441 | INFO | HierDPFL | Round 35/100 | Loss=1.0516 | EdgeAcc=0.2140
+2026-03-11 15:28:16,052 | INFO | HierDPFL |   Global acc=0.2886 | Privacy ε≤5.662 (δ=1e-05)
+2026-03-11 15:33:26,605 | INFO | HierDPFL | Round 36/100 | Loss=1.0357 | EdgeAcc=0.2223
+2026-03-11 15:33:28,212 | INFO | HierDPFL |   Global acc=0.2904 | Privacy ε≤5.736 (δ=1e-05)
+2026-03-11 15:38:38,735 | INFO | HierDPFL | Round 37/100 | Loss=1.0281 | EdgeAcc=0.2256
+2026-03-11 15:38:40,341 | INFO | HierDPFL |   Global acc=0.2952 | Privacy ε≤5.810 (δ=1e-05)
+2026-03-11 15:43:50,636 | INFO | HierDPFL | Round 38/100 | Loss=1.0396 | EdgeAcc=0.2179
+2026-03-11 15:43:52,240 | INFO | HierDPFL |   Global acc=0.2960 | Privacy ε≤5.883 (δ=1e-05)
+2026-03-11 15:49:03,381 | INFO | HierDPFL | Round 39/100 | Loss=1.0156 | EdgeAcc=0.2282
+2026-03-11 15:49:04,991 | INFO | HierDPFL |   Global acc=0.2913 | Privacy ε≤5.957 (δ=1e-05)
+2026-03-11 15:54:15,641 | INFO | HierDPFL | Round 40/100 | Loss=1.0534 | EdgeAcc=0.2218
+2026-03-11 15:54:17,239 | INFO | HierDPFL |   Global acc=0.2950 | Privacy ε≤6.030 (δ=1e-05)
+2026-03-11 15:59:27,439 | INFO | HierDPFL | Round 41/100 | Loss=1.0192 | EdgeAcc=0.2261
+2026-03-11 15:59:29,053 | INFO | HierDPFL |   Global acc=0.3001 | Privacy ε≤6.104 (δ=1e-05)
+2026-03-11 16:04:39,875 | INFO | HierDPFL | Round 42/100 | Loss=1.0276 | EdgeAcc=0.2294
+2026-03-11 16:04:41,480 | INFO | HierDPFL |   Global acc=0.3000 | Privacy ε≤6.177 (δ=1e-05)
+2026-03-11 16:09:52,622 | INFO | HierDPFL | Round 43/100 | Loss=1.0470 | EdgeAcc=0.2271
+2026-03-11 16:09:54,233 | INFO | HierDPFL |   Global acc=0.3007 | Privacy ε≤6.251 (δ=1e-05)

@@ -1,0 +1,32 @@
+[Setup] wandb enabled
+
+====================================================
+ Federated Training Start
+====================================================
+
+[Round   1] Selected 5/10 clients
+  [Client  6] Round 1 | loss=0.4527 | time=178.4s
+  [Client  5] Round 1 | loss=0.6807 | time=89.9s
+  [Client  3] Round 1 | loss=0.6823 | time=64.4s
+  [Client  4] Round 1 | loss=0.5987 | time=147.9s
+  [Client  2] Round 1 | loss=0.6119 | time=64.5s
+  [Server] acc=0.3761 | loss=1.7801 | time=546.4s | comm=83.7MB (total=84MB)
+
+[Round   2] Selected 5/10 clients
+  [Client  8] Round 2 | loss=0.2306 | time=81.5s
+  [Client  6] Round 2 | loss=0.1103 | time=178.3s
+  [Client  9] Round 2 | loss=0.2533 | time=192.8s
+  [Client  4] Round 2 | loss=0.1581 | time=147.0s
+  [Client  7] Round 2 | loss=0.1619 | time=89.4s
+  [Server] acc=0.5653 | loss=1.4510 | time=690.2s | comm=83.7MB (total=167MB)
+
+[Round   3] Selected 5/10 clients
+  [Client  8] Round 3 | loss=0.1057 | time=81.3s
+  [Client  7] Round 3 | loss=0.0699 | time=92.7s
+  [Client  6] Round 3 | loss=0.0556 | time=174.7s
+  [Client  2] Round 3 | loss=0.0970 | time=67.7s
+  [Client  0] Round 3 | loss=0.1396 | time=80.3s
+  [Server] acc=0.6251 | loss=1.4589 | time=497.9s | comm=83.7MB (total=251MB)
+
+[Round   4] Selected 5/10 clients
+  [Client  4] Round 4 | loss=0.0885 | time=143.7s

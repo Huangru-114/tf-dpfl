@@ -1,0 +1,22 @@
+{"time":"2026-03-23T19:44:33.226893244+01:00","level":"INFO","msg":"wandb-core"}
+{"time":"2026-03-23T19:44:33.227662007+01:00","level":"INFO","msg":"stream: starting","core version":"0.25.1"}
+{"time":"2026-03-23T19:44:33.581298957+01:00","level":"INFO","msg":"stream: created new stream","id":"hpmjcj5q"}
+{"time":"2026-03-23T19:44:33.581347489+01:00","level":"INFO","msg":"handler: started"}
+{"time":"2026-03-23T19:44:33.581666468+01:00","level":"INFO","msg":"stream: started"}
+{"time":"2026-03-23T19:44:33.581739876+01:00","level":"INFO","msg":"writer: started","stream_id":"hpmjcj5q"}
+{"time":"2026-03-23T19:44:33.581768166+01:00","level":"INFO","msg":"sender: started"}
+{"time":"2026-03-23T19:44:34.651449078+01:00","level":"INFO","msg":"filestream: sending request","total_files":1,"console_offset":0,"console_lines":7}
+{"time":"2026-03-23T19:44:35.242314439+01:00","level":"INFO","msg":"filestream: request sent","status":"200 OK"}
+{"time":"2026-03-23T19:44:49.651636063+01:00","level":"INFO","msg":"filestream: sending request","total_files":2,"events_offset":0,"events_lines":2,"console_offset":7,"console_lines":1,"uploaded_len":2}
+{"time":"2026-03-23T19:44:49.861903525+01:00","level":"INFO","msg":"filestream: request sent","status":"200 OK"}
+{"time":"2026-03-23T19:45:04.652474566+01:00","level":"INFO","msg":"filestream: sending request","total_files":2,"events_offset":2,"events_lines":2,"console_offset":8,"console_lines":2}
+{"time":"2026-03-23T19:45:05.129257154+01:00","level":"INFO","msg":"filestream: request sent","status":"200 OK"}
+{"time":"2026-03-23T19:45:19.651814562+01:00","level":"INFO","msg":"filestream: sending request","total_files":2,"events_offset":4,"events_lines":2,"console_offset":10,"console_lines":1}
+{"time":"2026-03-23T19:45:19.920019251+01:00","level":"INFO","msg":"filestream: request sent","status":"200 OK"}
+{"time":"2026-03-23T19:45:20.758477139+01:00","level":"INFO","msg":"stream: closing"}
+{"time":"2026-03-23T19:45:21.704498371+01:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2026-03-23T19:45:21.704584766+01:00","level":"INFO","msg":"filestream: sending request","total_files":2,"console_offset":11,"console_lines":20,"uploaded_len":3,"complete":true,"exit_code":1}
+{"time":"2026-03-23T19:45:21.947653676+01:00","level":"INFO","msg":"filestream: request sent","status":"200 OK"}
+{"time":"2026-03-23T19:45:21.947717471+01:00","level":"INFO","msg":"handler: closed"}
+{"time":"2026-03-23T19:45:21.947746181+01:00","level":"INFO","msg":"sender: closed"}
+{"time":"2026-03-23T19:45:21.947752152+01:00","level":"INFO","msg":"stream: closed"}

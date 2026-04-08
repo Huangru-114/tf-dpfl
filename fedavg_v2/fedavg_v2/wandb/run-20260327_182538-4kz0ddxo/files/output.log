@@ -1,0 +1,228 @@
+[Setup] wandb enabled
+
+====================================================
+ Federated Training Start
+====================================================
+
+[Round   1] Selected 7/10 clients
+  [Client  8] Round 1 | epochs=5 | loss=1.0024 | samples=6168 | time=24.2s
+  [Client  9] Round 1 | epochs=5 | loss=1.4913 | samples=6185 | time=24.3s
+  [Client  5] Round 1 | epochs=5 | loss=1.0190 | samples=4097 | time=16.4s
+  [Client  4] Round 1 | epochs=5 | loss=1.1605 | samples=7527 | time=29.5s
+  [Client  7] Round 1 | epochs=5 | loss=0.9356 | samples=5285 | time=20.9s
+  [Client  3] Round 1 | epochs=5 | loss=1.1924 | samples=2708 | time=11.0s
+  [Client  6] Round 1 | epochs=5 | loss=0.9408 | samples=7594 | time=30.0s
+  [Server] acc=0.2699 | loss=2.1643 | time=159.9s | comm=117.1MB (total=117MB)
+
+[Round   2] Selected 7/10 clients
+  [Client  3] Round 2 | epochs=5 | loss=0.9361 | samples=2708 | time=10.5s
+  [Client  2] Round 2 | epochs=5 | loss=0.7234 | samples=2298 | time=9.2s
+  [Client  4] Round 2 | epochs=5 | loss=0.9067 | samples=7527 | time=28.8s
+  [Client  0] Round 2 | epochs=5 | loss=1.0329 | samples=3138 | time=12.7s
+  [Client  6] Round 2 | epochs=5 | loss=0.7608 | samples=7594 | time=29.4s
+  [Client  1] Round 2 | epochs=5 | loss=0.8161 | samples=5000 | time=19.9s
+  [Client  9] Round 2 | epochs=5 | loss=1.2244 | samples=6185 | time=23.9s
+  [Server] acc=0.3813 | loss=1.7521 | time=138.0s | comm=117.1MB (total=234MB)
+
+[Round   3] Selected 7/10 clients
+  [Client  6] Round 3 | epochs=5 | loss=0.6153 | samples=7594 | time=29.6s
+  [Client  8] Round 3 | epochs=5 | loss=0.6316 | samples=6168 | time=23.6s
+  [Client  4] Round 3 | epochs=5 | loss=0.7495 | samples=7527 | time=28.9s
+  [Client  1] Round 3 | epochs=5 | loss=0.6537 | samples=5000 | time=19.4s
+  [Client  9] Round 3 | epochs=5 | loss=1.0618 | samples=6185 | time=23.9s
+  [Client  2] Round 3 | epochs=5 | loss=0.5515 | samples=2298 | time=8.7s
+  [Client  0] Round 3 | epochs=5 | loss=0.8042 | samples=3138 | time=12.1s
+  [Server] acc=0.4695 | loss=1.4542 | time=149.9s | comm=117.1MB (total=351MB)
+
+[Round   4] Selected 7/10 clients
+  [Client  4] Round 4 | epochs=5 | loss=0.6286 | samples=7527 | time=28.9s
+  [Client  9] Round 4 | epochs=5 | loss=0.9254 | samples=6185 | time=23.9s
+  [Client  6] Round 4 | epochs=5 | loss=0.5204 | samples=7594 | time=29.4s
+  [Client  0] Round 4 | epochs=5 | loss=0.7068 | samples=3138 | time=12.1s
+  [Client  1] Round 4 | epochs=5 | loss=0.5382 | samples=5000 | time=19.1s
+  [Client  8] Round 4 | epochs=5 | loss=0.5231 | samples=6168 | time=23.6s
+  [Client  3] Round 4 | epochs=5 | loss=0.6380 | samples=2708 | time=10.4s
+  [Server] acc=0.5053 | loss=1.3234 | time=151.1s | comm=117.1MB (total=469MB)
+
+[Round   5] Selected 7/10 clients
+  [Client  6] Round 5 | epochs=5 | loss=0.4486 | samples=7594 | time=29.5s
+  [Client  3] Round 5 | epochs=5 | loss=0.5245 | samples=2708 | time=10.4s
+  [Client  2] Round 5 | epochs=5 | loss=0.3735 | samples=2298 | time=8.8s
+  [Client  9] Round 5 | epochs=5 | loss=0.8162 | samples=6185 | time=23.8s
+  [Client  4] Round 5 | epochs=5 | loss=0.5360 | samples=7527 | time=28.9s
+  [Client  5] Round 5 | epochs=5 | loss=0.6197 | samples=4097 | time=15.8s
+  [Client  7] Round 5 | epochs=5 | loss=0.4502 | samples=5285 | time=20.3s
+  [Server] acc=0.5629 | loss=1.2394 | time=141.1s | comm=117.1MB (total=586MB)
+
+[Round   6] Selected 7/10 clients
+  [Client  1] Round 6 | epochs=5 | loss=0.4417 | samples=5000 | time=19.3s
+  [Client  0] Round 6 | epochs=5 | loss=0.6070 | samples=3138 | time=12.1s
+  [Client  6] Round 6 | epochs=5 | loss=0.3865 | samples=7594 | time=29.3s
+  [Client  7] Round 6 | epochs=5 | loss=0.3691 | samples=5285 | time=20.3s
+  [Client  5] Round 6 | epochs=5 | loss=0.5831 | samples=4097 | time=15.8s
+  [Client  8] Round 6 | epochs=5 | loss=0.4063 | samples=6168 | time=23.6s
+  [Client  2] Round 6 | epochs=5 | loss=0.3146 | samples=2298 | time=8.7s
+  [Server] acc=0.6197 | loss=1.0885 | time=132.7s | comm=117.1MB (total=703MB)
+
+[Round   7] Selected 7/10 clients
+  [Client  4] Round 7 | epochs=5 | loss=0.4643 | samples=7527 | time=28.9s
+  [Client  8] Round 7 | epochs=5 | loss=0.3410 | samples=6168 | time=23.5s
+  [Client  7] Round 7 | epochs=5 | loss=0.3157 | samples=5285 | time=20.2s
+  [Client  1] Round 7 | epochs=5 | loss=0.3618 | samples=5000 | time=19.2s
+  [Client  3] Round 7 | epochs=5 | loss=0.4390 | samples=2708 | time=10.4s
+  [Client  5] Round 7 | epochs=5 | loss=0.5450 | samples=4097 | time=15.8s
+  [Client  9] Round 7 | epochs=5 | loss=0.7025 | samples=6185 | time=24.1s
+  [Server] acc=0.6003 | loss=1.1043 | time=145.9s | comm=117.1MB (total=820MB)
+
+[Round   8] Selected 7/10 clients
+  [Client  6] Round 8 | epochs=5 | loss=0.3402 | samples=7594 | time=29.5s
+  [Client  0] Round 8 | epochs=5 | loss=0.5256 | samples=3138 | time=12.0s
+  [Client  8] Round 8 | epochs=5 | loss=0.2891 | samples=6168 | time=23.7s
+  [Client  9] Round 8 | epochs=5 | loss=0.6228 | samples=6185 | time=23.8s
+  [Client  1] Round 8 | epochs=5 | loss=0.3464 | samples=5000 | time=19.2s
+  [Client  3] Round 8 | epochs=5 | loss=0.3639 | samples=2708 | time=10.5s
+  [Client  5] Round 8 | epochs=5 | loss=0.5532 | samples=4097 | time=15.8s
+  [Server] acc=0.6599 | loss=0.9601 | time=138.3s | comm=117.1MB (total=937MB)
+
+[Round   9] Selected 7/10 clients
+  [Client  8] Round 9 | epochs=5 | loss=0.2551 | samples=6168 | time=23.4s
+  [Client  0] Round 9 | epochs=5 | loss=0.4274 | samples=3138 | time=12.0s
+  [Client  9] Round 9 | epochs=5 | loss=0.5570 | samples=6185 | time=23.7s
+  [Client  4] Round 9 | epochs=5 | loss=0.3931 | samples=7527 | time=28.8s
+  [Client  1] Round 9 | epochs=5 | loss=0.2926 | samples=5000 | time=19.3s
+  [Client  7] Round 9 | epochs=5 | loss=0.2699 | samples=5285 | time=20.2s
+  [Client  5] Round 9 | epochs=5 | loss=0.4752 | samples=4097 | time=15.7s
+  [Server] acc=0.6378 | loss=1.0076 | time=146.8s | comm=117.1MB (total=1054MB)
+
+[Round  10] Selected 7/10 clients
+  [Client  2] Round 10 | epochs=5 | loss=0.2461 | samples=2298 | time=8.7s
+  [Client  4] Round 10 | epochs=5 | loss=0.3421 | samples=7527 | time=28.8s
+  [Client  5] Round 10 | epochs=5 | loss=0.4160 | samples=4097 | time=15.8s
+  [Client  9] Round 10 | epochs=5 | loss=0.4932 | samples=6185 | time=23.7s
+  [Client  8] Round 10 | epochs=5 | loss=0.2165 | samples=6168 | time=23.7s
+  [Client  1] Round 10 | epochs=5 | loss=0.2776 | samples=5000 | time=19.1s
+  [Client  7] Round 10 | epochs=5 | loss=0.2332 | samples=5285 | time=20.1s
+  [Server] acc=0.6707 | loss=0.9507 | time=143.5s | comm=117.1MB (total=1171MB)
+
+[Round  11] Selected 7/10 clients
+  [Client  8] Round 11 | epochs=5 | loss=0.1903 | samples=6168 | time=23.5s
+  [Client  4] Round 11 | epochs=5 | loss=0.2917 | samples=7527 | time=28.7s
+  [Client  0] Round 11 | epochs=5 | loss=0.3612 | samples=3138 | time=11.9s
+  [Client  2] Round 11 | epochs=5 | loss=0.2130 | samples=2298 | time=8.7s
+  [Client  1] Round 11 | epochs=5 | loss=0.2389 | samples=5000 | time=19.1s
+  [Client  7] Round 11 | epochs=5 | loss=0.2046 | samples=5285 | time=19.9s
+  [Client  3] Round 11 | epochs=5 | loss=0.3188 | samples=2708 | time=10.4s
+  [Server] acc=0.6756 | loss=0.9907 | time=125.8s | comm=117.1MB (total=1288MB)
+
+[Round  12] Selected 7/10 clients
+  [Client  4] Round 12 | epochs=5 | loss=0.2535 | samples=7527 | time=28.6s
+  [Client  6] Round 12 | epochs=5 | loss=0.2832 | samples=7594 | time=29.2s
+  [Client  8] Round 12 | epochs=5 | loss=0.1676 | samples=6168 | time=23.5s
+  [Client  0] Round 12 | epochs=5 | loss=0.3917 | samples=3138 | time=11.9s
+  [Client  5] Round 12 | epochs=5 | loss=0.4285 | samples=4097 | time=15.7s
+  [Client  9] Round 12 | epochs=5 | loss=0.4503 | samples=6185 | time=23.7s
+  [Client  1] Round 12 | epochs=5 | loss=0.2074 | samples=5000 | time=19.1s
+  [Server] acc=0.6576 | loss=0.9699 | time=155.2s | comm=117.1MB (total=1406MB)
+
+[Round  13] Selected 7/10 clients
+  [Client  7] Round 13 | epochs=5 | loss=0.1899 | samples=5285 | time=19.6s
+  [Client  5] Round 13 | epochs=5 | loss=0.3137 | samples=4097 | time=16.0s
+  [Client  6] Round 13 | epochs=5 | loss=0.2481 | samples=7594 | time=29.6s
+  [Client  0] Round 13 | epochs=5 | loss=0.3856 | samples=3138 | time=12.0s
+  [Client  9] Round 13 | epochs=5 | loss=0.4029 | samples=6185 | time=23.7s
+  [Client  1] Round 13 | epochs=5 | loss=0.2223 | samples=5000 | time=19.1s
+  [Client  8] Round 13 | epochs=5 | loss=0.1555 | samples=6168 | time=23.4s
+  [Server] acc=0.7016 | loss=0.8608 | time=147.1s | comm=117.1MB (total=1523MB)
+
+[Round  14] Selected 7/10 clients
+  [Client  2] Round 14 | epochs=5 | loss=0.1900 | samples=2298 | time=8.6s
+  [Client  8] Round 14 | epochs=5 | loss=0.1390 | samples=6168 | time=23.4s
+  [Client  3] Round 14 | epochs=5 | loss=0.2946 | samples=2708 | time=10.4s
+  [Client  9] Round 14 | epochs=5 | loss=0.3683 | samples=6185 | time=23.7s
+  [Client  0] Round 14 | epochs=5 | loss=0.3713 | samples=3138 | time=11.9s
+  [Client  4] Round 14 | epochs=5 | loss=0.2361 | samples=7527 | time=28.8s
+  [Client  7] Round 14 | epochs=5 | loss=0.1639 | samples=5285 | time=20.2s
+  [Server] acc=0.6551 | loss=1.0180 | time=130.7s | comm=117.1MB (total=1640MB)
+
+[Round  15] Selected 7/10 clients
+  [Client  2] Round 15 | epochs=5 | loss=0.1902 | samples=2298 | time=8.7s
+  [Client  6] Round 15 | epochs=5 | loss=0.2227 | samples=7594 | time=29.5s
+  [Client  3] Round 15 | epochs=5 | loss=0.2766 | samples=2708 | time=10.5s
+  [Client  1] Round 15 | epochs=5 | loss=0.1944 | samples=5000 | time=19.4s
+  [Client  5] Round 15 | epochs=5 | loss=0.3078 | samples=4097 | time=15.7s
+  [Client  9] Round 15 | epochs=5 | loss=0.3210 | samples=6185 | time=24.0s
+  [Client  4] Round 15 | epochs=5 | loss=0.2117 | samples=7527 | time=29.1s
+  [Server] acc=0.6835 | loss=0.9298 | time=140.6s | comm=117.1MB (total=1757MB)
+
+[Round  16] Selected 7/10 clients
+  [Client  2] Round 16 | epochs=5 | loss=0.1716 | samples=2298 | time=8.8s
+  [Client  1] Round 16 | epochs=5 | loss=0.1845 | samples=5000 | time=19.2s
+  [Client  6] Round 16 | epochs=5 | loss=0.1940 | samples=7594 | time=29.4s
+  [Client  7] Round 16 | epochs=5 | loss=0.1520 | samples=5285 | time=20.3s
+  [Client  8] Round 16 | epochs=5 | loss=0.1367 | samples=6168 | time=23.6s
+  [Client  3] Round 16 | epochs=5 | loss=0.2484 | samples=2708 | time=10.4s
+  [Client  0] Round 16 | epochs=5 | loss=0.3049 | samples=3138 | time=11.9s
+  [Server] acc=0.6920 | loss=0.9734 | time=127.3s | comm=117.1MB (total=1874MB)
+
+[Round  17] Selected 7/10 clients
+  [Client  2] Round 17 | epochs=5 | loss=0.1459 | samples=2298 | time=8.7s
+  [Client  9] Round 17 | epochs=5 | loss=0.3141 | samples=6185 | time=23.9s
+  [Client  3] Round 17 | epochs=5 | loss=0.2530 | samples=2708 | time=10.3s
+  [Client  0] Round 17 | epochs=5 | loss=0.2537 | samples=3138 | time=11.9s
+  [Client  1] Round 17 | epochs=5 | loss=0.1521 | samples=5000 | time=19.3s
+  [Client  8] Round 17 | epochs=5 | loss=0.1165 | samples=6168 | time=23.6s
+  [Client  5] Round 17 | epochs=5 | loss=0.2991 | samples=4097 | time=15.8s
+  [Server] acc=0.7091 | loss=0.8723 | time=117.1s | comm=117.1MB (total=1991MB)
+
+[Round  18] Selected 7/10 clients
+  [Client  9] Round 18 | epochs=5 | loss=0.2642 | samples=6185 | time=23.9s
+  [Client  2] Round 18 | epochs=5 | loss=0.1445 | samples=2298 | time=8.8s
+  [Client  3] Round 18 | epochs=5 | loss=0.2251 | samples=2708 | time=10.4s
+  [Client  7] Round 18 | epochs=5 | loss=0.1384 | samples=5285 | time=20.2s
+  [Client  5] Round 18 | epochs=5 | loss=0.2807 | samples=4097 | time=15.9s
+  [Client  1] Round 18 | epochs=5 | loss=0.1482 | samples=5000 | time=19.3s
+  [Client  6] Round 18 | epochs=5 | loss=0.1711 | samples=7594 | time=29.5s
+  [Server] acc=0.6909 | loss=0.9315 | time=131.6s | comm=117.1MB (total=2108MB)
+
+[Round  19] Selected 7/10 clients
+  [Client  5] Round 19 | epochs=5 | loss=0.2339 | samples=4097 | time=15.6s
+  [Client  8] Round 19 | epochs=5 | loss=0.1158 | samples=6168 | time=23.6s
+  [Client  4] Round 19 | epochs=5 | loss=0.2114 | samples=7527 | time=28.8s
+  [Client  6] Round 19 | epochs=5 | loss=0.1421 | samples=7594 | time=29.5s
+  [Client  7] Round 19 | epochs=5 | loss=0.1171 | samples=5285 | time=20.3s
+  [Client  1] Round 19 | epochs=5 | loss=0.1380 | samples=5000 | time=19.2s
+  [Client  0] Round 19 | epochs=5 | loss=0.2590 | samples=3138 | time=12.1s
+  [Server] acc=0.7030 | loss=0.9386 | time=152.7s | comm=117.1MB (total=2225MB)
+
+[Round  20] Selected 7/10 clients
+  [Client  6] Round 20 | epochs=5 | loss=0.1267 | samples=7594 | time=29.6s
+  [Client  8] Round 20 | epochs=5 | loss=0.0992 | samples=6168 | time=23.7s
+  [Client  4] Round 20 | epochs=5 | loss=0.1821 | samples=7527 | time=28.8s
+  [Client  5] Round 20 | epochs=5 | loss=0.2955 | samples=4097 | time=15.9s
+  [Client  2] Round 20 | epochs=5 | loss=0.1574 | samples=2298 | time=8.7s
+  [Client  0] Round 20 | epochs=5 | loss=0.2183 | samples=3138 | time=12.1s
+  [Client  3] Round 20 | epochs=5 | loss=0.2225 | samples=2708 | time=10.5s
+  [Server] acc=0.7013 | loss=0.9297 | time=132.9s | comm=117.1MB (total=2343MB)
+
+[Round  21] Selected 7/10 clients
+  [Client  6] Round 21 | epochs=5 | loss=0.1093 | samples=7594 | time=29.4s
+  [Client  0] Round 21 | epochs=5 | loss=0.2576 | samples=3138 | time=12.0s
+  [Client  2] Round 21 | epochs=5 | loss=0.1440 | samples=2298 | time=8.7s
+  [Client  3] Round 21 | epochs=5 | loss=0.2056 | samples=2708 | time=10.3s
+  [Client  4] Round 21 | epochs=5 | loss=0.1607 | samples=7527 | time=28.9s
+  [Client  9] Round 21 | epochs=5 | loss=0.2717 | samples=6185 | time=23.9s
+  [Client  8] Round 21 | epochs=5 | loss=0.0910 | samples=6168 | time=23.7s
+  [Server] acc=0.6608 | loss=1.0901 | time=140.6s | comm=117.1MB (total=2460MB)
+
+[Round  22] Selected 7/10 clients
+  [Client  5] Round 22 | epochs=5 | loss=0.5067 | samples=4097 | time=15.7s
+  [Client  4] Round 22 | epochs=5 | loss=0.1475 | samples=7527 | time=28.8s
+  [Client  1] Round 22 | epochs=5 | loss=0.1438 | samples=5000 | time=19.3s
+  [Client  7] Round 22 | epochs=5 | loss=0.1366 | samples=5285 | time=20.2s
+  [Client  8] Round 22 | epochs=5 | loss=0.0806 | samples=6168 | time=23.7s
+  [Client  9] Round 22 | epochs=5 | loss=0.2395 | samples=6185 | time=23.7s
+  [Client  3] Round 22 | epochs=5 | loss=0.2046 | samples=2708 | time=10.5s
+  [Server] acc=0.6943 | loss=0.9289 | time=145.4s | comm=117.1MB (total=2577MB)
+
+[Round  23] Selected 7/10 clients
+  [Client  6] Round 23 | epochs=5 | loss=0.1120 | samples=7594 | time=29.3s

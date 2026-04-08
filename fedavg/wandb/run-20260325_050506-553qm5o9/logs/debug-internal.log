@@ -1,0 +1,18 @@
+{"time":"2026-03-25T05:05:06.426413893+01:00","level":"INFO","msg":"wandb-core"}
+{"time":"2026-03-25T05:05:06.42765568+01:00","level":"INFO","msg":"stream: starting","core version":"0.25.1"}
+{"time":"2026-03-25T05:05:06.744871819+01:00","level":"INFO","msg":"stream: created new stream","id":"553qm5o9"}
+{"time":"2026-03-25T05:05:06.744921023+01:00","level":"INFO","msg":"handler: started"}
+{"time":"2026-03-25T05:05:06.74535061+01:00","level":"INFO","msg":"stream: started"}
+{"time":"2026-03-25T05:05:06.745430252+01:00","level":"INFO","msg":"writer: started","stream_id":"553qm5o9"}
+{"time":"2026-03-25T05:05:06.745450744+01:00","level":"INFO","msg":"sender: started"}
+{"time":"2026-03-25T05:05:07.996286192+01:00","level":"INFO","msg":"filestream: sending request","total_files":1,"console_offset":0,"console_lines":6}
+{"time":"2026-03-25T05:05:08.435124833+01:00","level":"INFO","msg":"filestream: request sent","status":"200 OK"}
+{"time":"2026-03-25T05:05:22.996874018+01:00","level":"INFO","msg":"filestream: sending request","total_files":2,"events_offset":0,"events_lines":2,"console_offset":6,"console_lines":10,"uploaded_len":2}
+{"time":"2026-03-25T05:05:23.617126617+01:00","level":"INFO","msg":"filestream: request sent","status":"200 OK"}
+{"time":"2026-03-25T05:05:25.160963032+01:00","level":"INFO","msg":"stream: closing"}
+{"time":"2026-03-25T05:05:25.734289655+01:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2026-03-25T05:05:25.734377165+01:00","level":"INFO","msg":"filestream: sending request","total_files":2,"console_offset":16,"console_lines":16,"uploaded_len":3,"complete":true,"exit_code":1}
+{"time":"2026-03-25T05:05:26.449546369+01:00","level":"INFO","msg":"filestream: request sent","status":"200 OK"}
+{"time":"2026-03-25T05:05:26.449643215+01:00","level":"INFO","msg":"handler: closed"}
+{"time":"2026-03-25T05:05:26.449680067+01:00","level":"INFO","msg":"sender: closed"}
+{"time":"2026-03-25T05:05:26.449684941+01:00","level":"INFO","msg":"stream: closed"}

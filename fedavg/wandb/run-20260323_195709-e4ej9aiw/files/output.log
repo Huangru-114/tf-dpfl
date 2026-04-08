@@ -1,0 +1,71 @@
+[Setup] wandb enabled
+
+====================================================
+ Federated Training Start
+====================================================
+
+[Round   1] Selected 5/10 clients
+  [Client  6] Round 1 | loss=0.6598 | time=74.2s
+  [Client  5] Round 1 | loss=0.8369 | time=38.3s
+  [Client  3] Round 1 | loss=0.9016 | time=27.1s
+  [Client  4] Round 1 | loss=0.8357 | time=61.3s
+  [Client  2] Round 1 | loss=0.7836 | time=27.3s
+  [Server] acc=0.3244 | loss=2.0188 | time=231.0s | comm=83.7MB (total=84MB)
+
+[Round   2] Selected 5/10 clients
+  [Client  8] Round 2 | loss=0.4701 | time=34.8s
+  [Client  6] Round 2 | loss=0.2465 | time=73.6s
+  [Client  9] Round 2 | loss=0.4456 | time=82.0s
+  [Client  4] Round 2 | loss=0.3486 | time=60.8s
+  [Client  7] Round 2 | loss=0.3176 | time=38.4s
+  [Server] acc=0.5493 | loss=1.2935 | time=292.3s | comm=83.7MB (total=167MB)
+
+[Round   3] Selected 5/10 clients
+  [Client  8] Round 3 | loss=0.2219 | time=34.3s
+  [Client  7] Round 3 | loss=0.1390 | time=37.7s
+  [Client  6] Round 3 | loss=0.1340 | time=73.9s
+  [Client  2] Round 3 | loss=0.1702 | time=26.8s
+  [Client  0] Round 3 | loss=0.2121 | time=34.1s
+  [Server] acc=0.6072 | loss=1.3933 | time=209.7s | comm=83.7MB (total=251MB)
+
+[Round   4] Selected 5/10 clients
+  [Client  4] Round 4 | loss=0.1887 | time=61.3s
+  [Client  0] Round 4 | loss=0.1461 | time=33.8s
+  [Client  8] Round 4 | loss=0.1597 | time=34.6s
+  [Client  6] Round 4 | loss=0.0786 | time=74.0s
+  [Client  3] Round 4 | loss=0.1469 | time=26.9s
+  [Server] acc=0.5814 | loss=1.6020 | time=233.3s | comm=83.7MB (total=335MB)
+
+[Round   5] Selected 5/10 clients
+  [Client  5] Round 5 | loss=0.2045 | time=38.1s
+  [Client  3] Round 5 | loss=0.1161 | time=26.8s
+  [Client  2] Round 5 | loss=0.1251 | time=27.0s
+  [Client  8] Round 5 | loss=0.1270 | time=34.6s
+  [Client  4] Round 5 | loss=0.1222 | time=61.3s
+  [Server] acc=0.6483 | loss=1.2064 | time=190.4s | comm=83.7MB (total=418MB)
+
+[Round   6] Selected 5/10 clients
+  [Client  1] Round 6 | loss=0.1830 | time=54.2s
+  [Client  0] Round 6 | loss=0.1269 | time=33.9s
+  [Client  6] Round 6 | loss=0.0725 | time=74.4s
+  [Client  7] Round 6 | loss=0.0969 | time=37.9s
+  [Client  5] Round 6 | loss=0.1329 | time=38.3s
+  [Server] acc=0.6801 | loss=1.1445 | time=241.3s | comm=83.7MB (total=502MB)
+
+[Round   7] Selected 5/10 clients
+  [Client  4] Round 7 | loss=0.0930 | time=61.0s
+  [Client  8] Round 7 | loss=0.1094 | time=34.3s
+  [Client  7] Round 7 | loss=0.0769 | time=37.9s
+  [Client  1] Round 7 | loss=0.1199 | time=53.7s
+  [Client  3] Round 7 | loss=0.0990 | time=26.8s
+  [Server] acc=0.6750 | loss=1.3147 | time=216.4s | comm=83.7MB (total=586MB)
+
+[Round   8] Selected 5/10 clients
+  [Client  6] Round 8 | loss=0.0604 | time=74.2s
+  [Client  0] Round 8 | loss=0.1150 | time=33.8s
+  [Client  8] Round 8 | loss=0.0907 | time=34.4s
+  [Client  9] Round 8 | loss=0.2061 | time=81.4s
+  [Client  1] Round 8 | loss=0.0841 | time=53.5s
+  [Server] acc=0.6850 | loss=1.1625 | time=280.1s | comm=83.7MB (total=669MB)
+
+[Round   9] Selected 5/10 clients

@@ -1,0 +1,42 @@
+seed: 42
+data:
+  dataset:        "cifar10"
+  img_size:       32
+  batch_size:     256
+  shuffle_buffer: 10000
+  num_classes:    10  
+
+#现在都使用数据增强
+# data:
+#   dataset:        "gtsrb"
+#   img_size:       32
+#   batch_size:     64
+#   shuffle_buffer: 10000
+#   num_classes:    43
+#   data_dir:        "/mimer/NOBACKUP/groups/naiss2025-22-1095/Gao/GTSRB"
+federation:
+  n_clients:       20
+  n_edges:         2          # 新增：Edge Server 数量
+  edge_rounds:     5          # 新增：每次全局通信里 Edge 内部聚合轮数
+  client_fraction: 0.1        # Edge 层全员参与，采样在 Cloud 层可选
+  n_rounds:        10
+  partition:       "noniid"
+  alpha:           0.5
+#总epoch减至300
+#扩大系统规模，有序增加至100客户端，设置fraction
+#增加客户聚类，与纯随机选择基线做对比
+
+training:
+  local_epochs:   6
+  learning_rate:  0.01
+  lr_decay:       0.992   # 文献值，每 epoch 衰减一次
+model:
+  arch: "wideresnet28_4" 
+#现在实际为16-4，训练时间减半，仅降低1.6%准确率，FL通信成本大幅降低
+
+wandb:
+  enabled:   true            # set true when running real experiments
+  entity:    "3445339138-kth-royal-institute-of-technology"        # 你的 wandb 账号名
+  project:   "HierFL-cifar10"  # 你创建的 wandb 项目名
+  run_name:  "HierWRN164_client=20_edge=2_rounds=10_edge rounds=5_localepoch=6_0.5_frac=1.0"  # 可选，设置后在 wandb 上更容易识别不同实验
+#  run_name:  "central_new_5.8M_adjusted"  # 可选，设置后在 wandb 上更容易识别不同实验

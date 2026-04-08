@@ -1,0 +1,47 @@
+[Setup] wandb enabled
+
+====================================================
+ Federated Training Start
+====================================================
+
+[Round   1] Selected 1/10 clients
+  [Client  6] Round 1 | epochs=5 | loss=1.2033 | samples=7936
+  [Server] global_loss=2.7829 | global_acc=0.3013
+
+[Round   2] Selected 1/10 clients
+  [Client  8] Round 2 | epochs=5 | loss=1.3133 | samples=3670
+  [Server] global_loss=1.7150 | global_acc=0.4217
+
+[Round   3] Selected 1/10 clients
+  [Client  8] Round 3 | epochs=5 | loss=0.9826 | samples=3670
+  [Server] global_loss=1.7205 | global_acc=0.4499
+
+[Round   4] Selected 1/10 clients
+  [Client  4] Round 4 | epochs=5 | loss=0.8397 | samples=6512
+  [Server] global_loss=2.4739 | global_acc=0.3511
+
+[Round   5] Selected 1/10 clients
+  [Client  5] Round 5 | epochs=5 | loss=0.7952 | samples=4084
+  [Server] global_loss=2.3719 | global_acc=0.3063
+
+[Round   6] Selected 1/10 clients
+  [Client  1] Round 6 | epochs=5 | loss=0.7609 | samples=5704
+  [Server] global_loss=1.9378 | global_acc=0.4397
+
+[Round   7] Selected 1/10 clients
+  [Client  4] Round 7 | epochs=5 | loss=0.5881 | samples=6512
+  [Server] global_loss=2.4074 | global_acc=0.4191
+
+[Round   8] Selected 1/10 clients
+  [Client  6] Round 8 | epochs=5 | loss=0.6312 | samples=7936
+  [Server] global_loss=2.0656 | global_acc=0.4541
+
+[Round   9] Selected 1/10 clients
+  [Client  8] Round 9 | epochs=5 | loss=0.6865 | samples=3670
+  [Server] global_loss=1.3306 | global_acc=0.5834
+
+[Round  10] Selected 1/10 clients
+  [Client  2] Round 10 | epochs=5 | loss=0.4732 | samples=2879
+  [Server] global_loss=1.8851 | global_acc=0.4666
+
+[Server] Training complete.

@@ -1,0 +1,180 @@
+
+====================================================
+ HierFAVG Training Start
+====================================================
+
+[Round   1] Phase 1: Cloud broadcasting to 2 edges...
+  [Client  0] Round 1 | loss=1.6262 | time=3.8s
+  [Client  1] Round 1 | loss=1.4370 | time=2.0s
+  [Client  2] Round 1 | loss=1.4985 | time=1.4s
+  [Client  3] Round 1 | loss=1.5057 | time=1.4s
+  [Client  4] Round 1 | loss=1.4469 | time=2.2s
+  [Edge 0] G-Round 1 | E-Round 1 | loss=1.4889
+  [Client  0] Round 1 | loss=1.5668 | time=0.7s
+  [Client  1] Round 1 | loss=1.2994 | time=1.1s
+  [Client  2] Round 1 | loss=1.3378 | time=0.6s
+  [Client  3] Round 1 | loss=1.4057 | time=0.6s
+  [Client  4] Round 1 | loss=1.3357 | time=1.2s
+  [Edge 0] G-Round 1 | E-Round 2 | loss=1.3742
+  [Client  0] Round 1 | loss=1.4219 | time=0.7s
+  [Client  1] Round 1 | loss=1.2055 | time=1.1s
+  [Client  2] Round 1 | loss=1.1735 | time=0.6s
+  [Client  3] Round 1 | loss=1.2822 | time=0.6s
+  [Client  4] Round 1 | loss=1.2667 | time=1.2s
+  [Edge 0] G-Round 1 | E-Round 3 | loss=1.2660
+  [Client  0] Round 1 | loss=1.4474 | time=0.7s
+  [Client  1] Round 1 | loss=1.1444 | time=1.1s
+  [Client  2] Round 1 | loss=1.0799 | time=0.6s
+  [Client  3] Round 1 | loss=1.1801 | time=0.6s
+  [Client  4] Round 1 | loss=1.1842 | time=1.2s
+  [Edge 0] G-Round 1 | E-Round 4 | loss=1.2031
+  [Client  0] Round 1 | loss=1.2852 | time=0.7s
+  [Client  1] Round 1 | loss=1.0735 | time=1.1s
+  [Client  2] Round 1 | loss=0.9936 | time=0.6s
+  [Client  3] Round 1 | loss=1.0970 | time=0.6s
+  [Client  4] Round 1 | loss=1.0996 | time=1.2s
+  [Edge 0] G-Round 1 | E-Round 5 | loss=1.1092
+  [Client  0] Round 1 | loss=1.2054 | time=0.7s
+  [Client  1] Round 1 | loss=1.0282 | time=1.1s
+  [Client  2] Round 1 | loss=0.9399 | time=0.6s
+  [Client  3] Round 1 | loss=0.9982 | time=0.6s
+  [Client  4] Round 1 | loss=1.0252 | time=1.2s
+  [Edge 0] G-Round 1 | E-Round 6 | loss=1.0411
+  [Client  0] Round 1 | loss=1.1657 | time=0.7s
+  [Client  1] Round 1 | loss=0.9930 | time=1.1s
+  [Client  2] Round 1 | loss=0.8690 | time=0.6s
+  [Client  3] Round 1 | loss=0.9534 | time=0.6s
+  [Client  4] Round 1 | loss=0.9783 | time=1.2s
+  [Edge 0] G-Round 1 | E-Round 7 | loss=0.9956
+  [Client  0] Round 1 | loss=1.1086 | time=0.7s
+  [Client  1] Round 1 | loss=0.9537 | time=1.1s
+  [Client  2] Round 1 | loss=0.8489 | time=0.6s
+  [Client  3] Round 1 | loss=0.9173 | time=0.6s
+  [Client  4] Round 1 | loss=0.9416 | time=1.2s
+  [Edge 0] G-Round 1 | E-Round 8 | loss=0.9571
+  [Client  0] Round 1 | loss=1.0861 | time=0.7s
+  [Client  1] Round 1 | loss=0.9214 | time=1.1s
+  [Client  2] Round 1 | loss=0.8283 | time=0.6s
+  [Client  3] Round 1 | loss=0.9081 | time=0.6s
+  [Client  4] Round 1 | loss=0.8984 | time=1.2s
+  [Edge 0] G-Round 1 | E-Round 9 | loss=0.9277
+  [Client  0] Round 1 | loss=1.0460 | time=0.7s
+  [Client  1] Round 1 | loss=0.8819 | time=1.1s
+  [Client  2] Round 1 | loss=0.7950 | time=0.6s
+  [Client  3] Round 1 | loss=0.8667 | time=0.6s
+  [Client  4] Round 1 | loss=0.8690 | time=1.2s
+  [Edge 0] G-Round 1 | E-Round 10 | loss=0.8918
+  [Client  0] Round 1 | loss=1.0372 | time=0.7s
+  [Client  1] Round 1 | loss=0.8550 | time=1.1s
+  [Client  2] Round 1 | loss=0.7712 | time=0.6s
+  [Client  3] Round 1 | loss=0.8226 | time=0.6s
+  [Client  4] Round 1 | loss=0.8299 | time=1.2s
+  [Edge 0] G-Round 1 | E-Round 11 | loss=0.8623
+  [Client  0] Round 1 | loss=0.9949 | time=0.7s
+  [Client  1] Round 1 | loss=0.8194 | time=1.1s
+  [Client  2] Round 1 | loss=0.7521 | time=0.6s
+  [Client  3] Round 1 | loss=0.8249 | time=0.6s
+  [Client  4] Round 1 | loss=0.7998 | time=1.2s
+  [Edge 0] G-Round 1 | E-Round 12 | loss=0.8345
+  [Client  5] Round 1 | loss=1.3333 | time=2.2s
+  [Client  6] Round 1 | loss=1.4109 | time=2.0s
+  [Client  7] Round 1 | loss=1.4191 | time=1.9s
+  [Client  8] Round 1 | loss=1.8884 | time=1.7s
+  [Client  9] Round 1 | loss=1.5668 | time=2.4s
+  [Edge 1] G-Round 1 | E-Round 1 | loss=1.5103
+  [Client  5] Round 1 | loss=1.2579 | time=0.8s
+  [Client  6] Round 1 | loss=1.2129 | time=1.5s
+  [Client  7] Round 1 | loss=1.2685 | time=0.8s
+  [Client  8] Round 1 | loss=1.6820 | time=0.7s
+  [Client  9] Round 1 | loss=1.4222 | time=1.7s
+  [Edge 1] G-Round 1 | E-Round 2 | loss=1.3519
+  [Client  5] Round 1 | loss=1.1182 | time=0.8s
+  [Client  6] Round 1 | loss=1.1031 | time=1.5s
+  [Client  7] Round 1 | loss=1.0656 | time=0.8s
+  [Client  8] Round 1 | loss=1.4852 | time=0.7s
+  [Client  9] Round 1 | loss=1.2514 | time=1.7s
+  [Edge 1] G-Round 1 | E-Round 3 | loss=1.1947
+  [Client  5] Round 1 | loss=0.9963 | time=0.8s
+  [Client  6] Round 1 | loss=0.9964 | time=1.5s
+  [Client  7] Round 1 | loss=0.9636 | time=0.8s
+  [Client  8] Round 1 | loss=1.3412 | time=0.7s
+  [Client  9] Round 1 | loss=1.1529 | time=1.7s
+  [Edge 1] G-Round 1 | E-Round 4 | loss=1.0842
+  [Client  5] Round 1 | loss=0.9312 | time=0.8s
+  [Client  6] Round 1 | loss=0.9139 | time=1.5s
+  [Client  7] Round 1 | loss=0.8715 | time=0.8s
+  [Client  8] Round 1 | loss=1.2508 | time=0.7s
+  [Client  9] Round 1 | loss=1.0747 | time=1.7s
+  [Edge 1] G-Round 1 | E-Round 5 | loss=1.0031
+  [Client  5] Round 1 | loss=0.8712 | time=0.8s
+  [Client  6] Round 1 | loss=0.8620 | time=1.5s
+  [Client  7] Round 1 | loss=0.8102 | time=0.8s
+  [Client  8] Round 1 | loss=1.1755 | time=0.7s
+  [Client  9] Round 1 | loss=0.9990 | time=1.7s
+  [Edge 1] G-Round 1 | E-Round 6 | loss=0.9384
+  [Client  5] Round 1 | loss=0.8516 | time=0.8s
+  [Client  6] Round 1 | loss=0.8138 | time=1.5s
+  [Client  7] Round 1 | loss=0.7662 | time=0.8s
+  [Client  8] Round 1 | loss=1.1225 | time=0.7s
+  [Client  9] Round 1 | loss=0.9609 | time=1.7s
+  [Edge 1] G-Round 1 | E-Round 7 | loss=0.8974
+  [Client  5] Round 1 | loss=0.8167 | time=0.8s
+  [Client  6] Round 1 | loss=0.7610 | time=1.5s
+  [Client  7] Round 1 | loss=0.7138 | time=0.8s
+  [Client  8] Round 1 | loss=1.0613 | time=0.7s
+  [Client  9] Round 1 | loss=0.9171 | time=1.7s
+  [Edge 1] G-Round 1 | E-Round 8 | loss=0.8488
+  [Client  5] Round 1 | loss=0.7813 | time=0.8s
+  [Client  6] Round 1 | loss=0.7201 | time=1.5s
+  [Client  7] Round 1 | loss=0.6723 | time=0.8s
+  [Client  8] Round 1 | loss=1.0152 | time=0.7s
+  [Client  9] Round 1 | loss=0.8729 | time=1.7s
+  [Edge 1] G-Round 1 | E-Round 9 | loss=0.8070
+  [Client  5] Round 1 | loss=0.7657 | time=0.8s
+  [Client  6] Round 1 | loss=0.6696 | time=1.5s
+  [Client  7] Round 1 | loss=0.6344 | time=0.8s
+  [Client  8] Round 1 | loss=0.9564 | time=0.7s
+  [Client  9] Round 1 | loss=0.8430 | time=1.7s
+  [Edge 1] G-Round 1 | E-Round 10 | loss=0.7685
+  [Client  5] Round 1 | loss=0.7368 | time=0.8s
+  [Client  6] Round 1 | loss=0.6356 | time=1.5s
+  [Client  7] Round 1 | loss=0.5981 | time=0.8s
+  [Client  8] Round 1 | loss=0.9143 | time=0.7s
+  [Client  9] Round 1 | loss=0.7932 | time=1.7s
+  [Edge 1] G-Round 1 | E-Round 11 | loss=0.7291
+  [Client  5] Round 1 | loss=0.7018 | time=0.8s
+  [Client  6] Round 1 | loss=0.5978 | time=1.5s
+  [Client  7] Round 1 | loss=0.5846 | time=0.8s
+  [Client  8] Round 1 | loss=0.8847 | time=0.7s
+  [Client  9] Round 1 | loss=0.7561 | time=1.7s
+  [Edge 1] G-Round 1 | E-Round 12 | loss=0.6963
+[Round   1] Phase 2: Cloud aggregating...
+Traceback (most recent call last):
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/main.py", line 175, in <module>
+    run_experiment()
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/main.py", line 151, in run_experiment
+    history = cloud.run(logger=logger)
+              ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/server/server.py", line 187, in run
+    metrics = self.run_round(r)
+              ^^^^^^^^^^^^^^^^^
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/server/server.py", line 143, in run_round
+    global_loss, global_acc = self.evaluate_global()
+                              ^^^^^^^^^^^^^^^^^^^^^^
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/server/server.py", line 108, in evaluate_global
+    loss           = self.loss_fn(labels, predictions)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/apps/Arch/software/TensorFlow/2.15.1-foss-2023a-CUDA-12.1.1/lib/python3.11/site-packages/keras/src/losses.py", line 143, in __call__
+    losses = call_fn(y_true, y_pred)
+             ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/apps/Arch/software/TensorFlow/2.15.1-foss-2023a-CUDA-12.1.1/lib/python3.11/site-packages/keras/src/losses.py", line 270, in call
+    return ag_fn(y_true, y_pred, **self._fn_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/apps/Arch/software/TensorFlow/2.15.1-foss-2023a-CUDA-12.1.1/lib/python3.11/site-packages/tensorflow/python/util/traceback_utils.py", line 153, in error_handler
+    raise e.with_traceback(filtered_tb) from None
+  File "/apps/Arch/software/TensorFlow/2.15.1-foss-2023a-CUDA-12.1.1/lib/python3.11/site-packages/keras/src/losses.py", line 2221, in categorical_crossentropy
+    return backend.categorical_crossentropy(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/apps/Arch/software/TensorFlow/2.15.1-foss-2023a-CUDA-12.1.1/lib/python3.11/site-packages/keras/src/backend.py", line 5573, in categorical_crossentropy
+    target.shape.assert_is_compatible_with(output.shape)
+ValueError: Shapes (256,) and (256, 10) are incompatible

@@ -1,0 +1,31 @@
+[Setup] wandb enabled
+
+====================================================
+ Federated Training Start
+====================================================
+
+[Round   1] Selected 5/10 clients
+  [Client  6] Round 1 | loss=1.5263 | time=2.6s
+  [Client  5] Round 1 | loss=1.3751 | time=1.2s
+  [Client  3] Round 1 | loss=1.5770 | time=1.2s
+  [Client  4] Round 1 | loss=1.5642 | time=1.4s
+  [Client  2] Round 1 | loss=1.5746 | time=1.2s
+Traceback (most recent call last):
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/main.py", line 162, in <module>
+    run_experiment()
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/main.py", line 136, in run_experiment
+    history = server.run(logger=logger)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/server/server.py", line 165, in run
+    metrics = self.run_round(r)
+              ^^^^^^^^^^^^^^^^^
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/server/server.py", line 119, in run_round
+    avg_client_loss = self.collect_and_aggregate(selected, round_idx)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/server/server.py", line 82, in collect_and_aggregate
+    total_n   = sum(n for _, n, _ in client_updates)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/server/server.py", line 82, in <genexpr>
+    total_n   = sum(n for _, n, _ in client_updates)
+                          ^^^^^^^
+ValueError: too many values to unpack (expected 3)

@@ -1,0 +1,25 @@
+2026-04-03 02:12:55,680 INFO    Thread-3 (_run_job):2871557 [wandb_setup.py:_flush():81] Current SDK version is 0.25.1
+2026-04-03 02:12:55,680 INFO    Thread-3 (_run_job):2871557 [wandb_setup.py:_flush():81] Configure stats pid to 2871557
+2026-04-03 02:12:55,680 INFO    Thread-3 (_run_job):2871557 [wandb_setup.py:_flush():81] Loading settings from environment variables
+2026-04-03 02:12:55,680 INFO    Thread-3 (_run_job):2871557 [wandb_init.py:setup_run_log_directory():717] Logging user logs to /cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/wandb/run-20260403_021255-wn3ceb3q/logs/debug.log
+2026-04-03 02:12:55,680 INFO    Thread-3 (_run_job):2871557 [wandb_init.py:setup_run_log_directory():718] Logging internal logs to /cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/wandb/run-20260403_021255-wn3ceb3q/logs/debug-internal.log
+2026-04-03 02:12:55,680 INFO    Thread-3 (_run_job):2871557 [wandb_init.py:init():844] calling init triggers
+2026-04-03 02:12:55,680 INFO    Thread-3 (_run_job):2871557 [wandb_init.py:init():849] wandb.init called with sweep_config: {'batch_size': 128, 'depth': 28, 'dropout': 0.1, 'epochs': 200, 'lr': 0.18430490945190744, 'lr_schedule': 'multistep', 'use_cutout': True, 'warmup_epochs': 5, 'weight_decay': 0.00011498917581299768, 'width': 4}
+config: {'_wandb': {}}
+2026-04-03 02:12:55,680 INFO    Thread-3 (_run_job):2871557 [wandb_init.py:init():892] starting backend
+2026-04-03 02:12:55,952 INFO    Thread-3 (_run_job):2871557 [wandb_init.py:init():895] sending inform_init request
+2026-04-03 02:12:55,960 INFO    Thread-3 (_run_job):2871557 [wandb_init.py:init():903] backend started and connected
+2026-04-03 02:12:55,960 INFO    Thread-3 (_run_job):2871557 [wandb_run.py:_config_callback():1403] config_cb None None {'batch_size': 128, 'depth': 28, 'dropout': 0.1, 'epochs': 200, 'lr': 0.18430490945190744, 'lr_schedule': 'multistep', 'use_cutout': True, 'warmup_epochs': 5, 'weight_decay': 0.00011498917581299768, 'width': 4}
+2026-04-03 02:12:55,961 INFO    Thread-3 (_run_job):2871557 [wandb_init.py:init():973] updated telemetry
+2026-04-03 02:12:55,962 INFO    Thread-3 (_run_job):2871557 [wandb_init.py:init():997] communicating run to backend with 90.0 second timeout
+2026-04-03 02:12:56,686 INFO    Thread-3 (_run_job):2871557 [wandb_init.py:init():1042] starting run threads in backend
+2026-04-03 02:12:56,961 INFO    Thread-3 (_run_job):2871557 [wandb_run.py:_console_start():2524] atexit reg
+2026-04-03 02:12:56,961 INFO    Thread-3 (_run_job):2871557 [wandb_run.py:_redirect():2373] redirect: wrap_raw
+2026-04-03 02:12:56,961 INFO    Thread-3 (_run_job):2871557 [wandb_run.py:_redirect():2442] Wrapping output streams.
+2026-04-03 02:12:56,962 INFO    Thread-3 (_run_job):2871557 [wandb_run.py:_redirect():2465] Redirects installed.
+2026-04-03 02:12:56,967 INFO    Thread-3 (_run_job):2871557 [wandb_init.py:init():1082] run started, returning control to user process
+2026-04-03 03:40:34,856 INFO    Thread-3 (_run_job):2871557 [wandb_run.py:_finish():2291] finishing run 3445339138-kth-royal-institute-of-technology/wrn-cifar10/wn3ceb3q
+2026-04-03 03:40:34,857 INFO    Thread-3 (_run_job):2871557 [wandb_run.py:_atexit_cleanup():2490] got exitcode: 0
+2026-04-03 03:40:34,858 INFO    Thread-3 (_run_job):2871557 [wandb_run.py:_restore():2472] restore
+2026-04-03 03:40:34,858 INFO    Thread-3 (_run_job):2871557 [wandb_run.py:_restore():2478] restore done
+2026-04-03 03:40:36,022 INFO    Thread-3 (_run_job):2871557 [wandb_run.py:_footer_sync_info():3868] logging synced files

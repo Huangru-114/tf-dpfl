@@ -1,0 +1,19 @@
+2026-04-08 04:24:35,418 INFO    MainThread:117040 [wandb_setup.py:_flush():81] Current SDK version is 0.25.1
+2026-04-08 04:24:35,418 INFO    MainThread:117040 [wandb_setup.py:_flush():81] Configure stats pid to 117040
+2026-04-08 04:24:35,418 INFO    MainThread:117040 [wandb_setup.py:_flush():81] Loading settings from environment variables
+2026-04-08 04:24:35,419 INFO    MainThread:117040 [wandb_init.py:setup_run_log_directory():717] Logging user logs to /cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/wandb/run-20260408_042435-kdeut3np/logs/debug.log
+2026-04-08 04:24:35,419 INFO    MainThread:117040 [wandb_init.py:setup_run_log_directory():718] Logging internal logs to /cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/wandb/run-20260408_042435-kdeut3np/logs/debug-internal.log
+2026-04-08 04:24:35,419 INFO    MainThread:117040 [wandb_init.py:init():844] calling init triggers
+2026-04-08 04:24:35,419 INFO    MainThread:117040 [wandb_init.py:init():849] wandb.init called with sweep_config: {}
+config: {'seed': 42, 'data': {'dataset': 'cifar10', 'img_size': 32, 'batch_size': 256, 'shuffle_buffer': 10000, 'num_classes': 10}, 'federation': {'n_clients': 20, 'n_edges': 2, 'edge_rounds': 5, 'client_fraction': 0.1, 'n_rounds': 10, 'partition': 'noniid', 'alpha': 0.5}, 'training': {'local_epochs': 6, 'learning_rate': 0.01, 'lr_decay': 0.992}, 'model': {'arch': 'wideresnet28_4'}, 'wandb': {'enabled': True, 'entity': '3445339138-kth-royal-institute-of-technology', 'project': 'HierFL-cifar10', 'run_name': 'HierWRN164_client=20_edge=2_rounds=10_edge rounds=5_localepoch=6_0.5_frac=1.0'}, '_wandb': {}}
+2026-04-08 04:24:35,419 INFO    MainThread:117040 [wandb_init.py:init():892] starting backend
+2026-04-08 04:24:35,643 INFO    MainThread:117040 [wandb_init.py:init():895] sending inform_init request
+2026-04-08 04:24:35,649 INFO    MainThread:117040 [wandb_init.py:init():903] backend started and connected
+2026-04-08 04:24:35,650 INFO    MainThread:117040 [wandb_init.py:init():973] updated telemetry
+2026-04-08 04:24:35,651 INFO    MainThread:117040 [wandb_init.py:init():997] communicating run to backend with 90.0 second timeout
+2026-04-08 04:24:36,314 INFO    MainThread:117040 [wandb_init.py:init():1042] starting run threads in backend
+2026-04-08 04:24:36,921 INFO    MainThread:117040 [wandb_run.py:_console_start():2524] atexit reg
+2026-04-08 04:24:36,921 INFO    MainThread:117040 [wandb_run.py:_redirect():2373] redirect: wrap_raw
+2026-04-08 04:24:36,921 INFO    MainThread:117040 [wandb_run.py:_redirect():2442] Wrapping output streams.
+2026-04-08 04:24:36,922 INFO    MainThread:117040 [wandb_run.py:_redirect():2465] Redirects installed.
+2026-04-08 04:24:36,923 INFO    MainThread:117040 [wandb_init.py:init():1082] run started, returning control to user process

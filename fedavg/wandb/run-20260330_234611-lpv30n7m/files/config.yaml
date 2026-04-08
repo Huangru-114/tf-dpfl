@@ -1,0 +1,121 @@
+_wandb:
+    value:
+        cli_version: 0.25.1
+        e:
+            1zdgmc1e6r0mkcdqpfpt4144rmaguti7:
+                args:
+                    - --config
+                    - config/config.yaml
+                    - --override
+                    - wandb.enabled=true
+                codePath: main.py
+                codePathLocal: main.py
+                cpu_count: 16
+                cpu_count_logical: 16
+                cudaVersion: "13.0"
+                disk:
+                    /:
+                        total: "18843648000"
+                        used: "11006881792"
+                email: 3445339138@qq.com
+                executable: /cephyr/users/ziangg/Alvis/TF_DPFL_2026/bin/python
+                gpu: Tesla V100-SXM2-32GB
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Volta
+                      cudaCores: 5120
+                      memoryTotal: "34359738368"
+                      name: Tesla V100-SXM2-32GB
+                      uuid: GPU-737ddb38-ed95-c6b6-d8cf-50cf0939066b
+                host: alvis1-07
+                memory:
+                    total: "809682448384"
+                os: Linux-4.18.0-553.109.1.el8_10.x86_64-x86_64-with-glibc2.28
+                program: /cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/main.py
+                python: CPython 3.11.3
+                root: /cephyr/users/ziangg/Alvis/tf-dpfl/fedavg
+                slurm:
+                    cluster_name: alvis
+                    conf: /tmp/slurmd/conf-cache/slurm.conf
+                    cpus_on_node: "8"
+                    gpus_on_node: "1"
+                    gpus_per_node: V100:1
+                    gtids: "0"
+                    job_account: naiss2025-22-1095
+                    job_cpus_per_node: "8"
+                    job_end_time: "1774914346"
+                    job_gid: "10225343"
+                    job_gpus: "0"
+                    job_id: "6271084"
+                    job_name: HierFLcifar10
+                    job_nodelist: alvis1-07
+                    job_num_nodes: "1"
+                    job_partition: alvis
+                    job_qos: normal
+                    job_start_time: "1774907144"
+                    job_uid: "10225343"
+                    job_user: ziangg
+                    jobid: "6271084"
+                    localid: "0"
+                    mem_per_node: "191520"
+                    mpi_type: pmix
+                    nnodes: "1"
+                    nodeid: "0"
+                    nodelist: alvis1-07
+                    oom_kill_step: "0"
+                    pmix_direct_conn_ucx: "false"
+                    prio_process: "0"
+                    procid: "0"
+                    script_context: prolog_task
+                    submit_dir: /cephyr/users/ziangg/Alvis
+                    submit_host: alvis1
+                    task_pid: "2325473"
+                    tasks_per_node: "1"
+                    topology_addr: ib-root.ib-sw01.alvis1-07
+                    topology_addr_pattern: switch.switch.node
+                startedAt: "2026-03-30T21:46:11.117084Z"
+                writerId: 1zdgmc1e6r0mkcdqpfpt4144rmaguti7
+        m: []
+        python_version: 3.11.3
+        t:
+            "1":
+                - 2
+                - 3
+            "2":
+                - 2
+                - 3
+            "3":
+                - 13
+                - 16
+            "4": 3.11.3
+            "5": 0.25.1
+            "12": 0.25.1
+            "13": linux-x86_64
+data:
+    value:
+        batch_size: 256
+        dataset: cifar10
+        img_size: 32
+        num_classes: 10
+        shuffle_buffer: 10000
+federation:
+    value:
+        alpha: 0.5
+        client_fraction: 1
+        edge_rounds: 5
+        n_clients: 10
+        n_edges: 2
+        n_rounds: 20
+        partition: noniid
+seed:
+    value: 42
+training:
+    value:
+        learning_rate: 0.01
+        local_epochs: 6
+wandb:
+    value:
+        enabled: true
+        entity: 3445339138-kth-royal-institute-of-technology
+        project: HierFL-cifar10
+        run_name: Hier_client=10_edge=2_rounds=20_egderounds=5_localepoch=6_0.5

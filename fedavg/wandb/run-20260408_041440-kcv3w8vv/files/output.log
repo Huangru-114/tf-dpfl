@@ -1,0 +1,497 @@
+
+====================================================
+ HierFAVG Training Start
+====================================================
+
+[Round   1] Phase 1: Cloud broadcasting to 10 edges...
+  [Client  0] Round 1 | loss=1.7826 | time=14.4s
+  [Client  1] Round 1 | loss=1.6013 | time=8.5s
+  [Client  2] Round 1 | loss=1.7838 | time=11.5s
+  [Client  3] Round 1 | loss=1.7461 | time=12.7s
+  [Client  4] Round 1 | loss=1.9501 | time=11.2s
+  [Client  5] Round 1 | loss=1.2717 | time=10.5s
+  [Client  6] Round 1 | loss=2.0001 | time=8.3s
+  [Client  7] Round 1 | loss=1.9643 | time=7.0s
+  [Client  8] Round 1 | loss=1.8630 | time=10.3s
+  [Client  9] Round 1 | loss=1.9864 | time=10.9s
+  [Edge 0] G-Round 1 | E-Round 1 | loss=1.7960
+  [Client  0] Round 1 | loss=1.8238 | time=1.0s
+  [Client  1] Round 1 | loss=1.7179 | time=0.5s
+  [Client  2] Round 1 | loss=1.6243 | time=0.8s
+  [Client  3] Round 1 | loss=1.6949 | time=1.3s
+  [Client  4] Round 1 | loss=1.8759 | time=1.2s
+  [Client  5] Round 1 | loss=1.1925 | time=0.7s
+  [Client  6] Round 1 | loss=1.8575 | time=0.5s
+  [Client  7] Round 1 | loss=2.1278 | time=0.3s
+  [Client  8] Round 1 | loss=1.8408 | time=1.1s
+  [Client  9] Round 1 | loss=1.8133 | time=0.8s
+  [Edge 0] G-Round 1 | E-Round 2 | loss=1.7430
+  [Client  0] Round 1 | loss=1.6518 | time=1.0s
+  [Client  1] Round 1 | loss=1.4924 | time=0.5s
+  [Client  2] Round 1 | loss=1.5973 | time=0.8s
+  [Client  3] Round 1 | loss=1.6160 | time=1.3s
+  [Client  4] Round 1 | loss=1.7835 | time=1.2s
+  [Client  5] Round 1 | loss=1.1739 | time=0.7s
+  [Client  6] Round 1 | loss=1.7998 | time=0.5s
+  [Client  7] Round 1 | loss=1.7625 | time=0.3s
+  [Client  8] Round 1 | loss=1.6648 | time=1.1s
+  [Client  9] Round 1 | loss=1.7989 | time=0.8s
+  [Edge 0] G-Round 1 | E-Round 3 | loss=1.6377
+  [Client  0] Round 1 | loss=1.6814 | time=1.0s
+  [Client  1] Round 1 | loss=1.4558 | time=0.5s
+  [Client  2] Round 1 | loss=1.4975 | time=0.8s
+  [Client  3] Round 1 | loss=1.5695 | time=1.3s
+  [Client  4] Round 1 | loss=1.8021 | time=1.2s
+  [Client  5] Round 1 | loss=0.8424 | time=0.7s
+  [Client  6] Round 1 | loss=1.5803 | time=0.5s
+  [Client  7] Round 1 | loss=1.7075 | time=0.3s
+  [Client  8] Round 1 | loss=1.5449 | time=1.1s
+  [Client  9] Round 1 | loss=1.7534 | time=0.8s
+  [Edge 0] G-Round 1 | E-Round 4 | loss=1.5596
+  [Client  0] Round 1 | loss=1.6710 | time=1.0s
+  [Client  1] Round 1 | loss=1.7306 | time=0.5s
+  [Client  2] Round 1 | loss=1.5094 | time=0.8s
+  [Client  3] Round 1 | loss=1.5446 | time=1.3s
+  [Client  4] Round 1 | loss=1.6791 | time=1.2s
+  [Client  5] Round 1 | loss=1.0712 | time=0.7s
+  [Client  6] Round 1 | loss=1.5524 | time=0.5s
+  [Client  7] Round 1 | loss=1.6277 | time=0.3s
+  [Client  8] Round 1 | loss=1.5477 | time=1.1s
+  [Client  9] Round 1 | loss=1.6654 | time=0.8s
+  [Edge 0] G-Round 1 | E-Round 5 | loss=1.5605
+  [Client 10] Round 1 | loss=1.7868 | time=9.3s
+  [Client 11] Round 1 | loss=1.7766 | time=11.3s
+  [Client 12] Round 1 | loss=1.6723 | time=9.3s
+  [Client 13] Round 1 | loss=1.3514 | time=11.1s
+  [Client 14] Round 1 | loss=2.2558 | time=8.7s
+  [Client 15] Round 1 | loss=1.7627 | time=9.8s
+  [Client 16] Round 1 | loss=2.0009 | time=11.2s
+  [Client 17] Round 1 | loss=2.1401 | time=7.6s
+  [Client 18] Round 1 | loss=1.9204 | time=11.5s
+  [Client 19] Round 1 | loss=1.4155 | time=11.8s
+  [Edge 1] G-Round 1 | E-Round 1 | loss=1.7159
+  [Client 10] Round 1 | loss=1.8389 | time=1.0s
+  [Client 11] Round 1 | loss=1.7832 | time=0.7s
+  [Client 12] Round 1 | loss=1.8301 | time=0.6s
+  [Client 13] Round 1 | loss=1.4424 | time=1.6s
+  [Client 14] Round 1 | loss=2.1583 | time=0.5s
+  [Client 15] Round 1 | loss=1.5945 | time=1.4s
+  [Client 16] Round 1 | loss=1.8784 | time=0.8s
+  [Client 17] Round 1 | loss=2.0464 | time=0.3s
+  [Client 18] Round 1 | loss=1.7465 | time=1.6s
+  [Client 19] Round 1 | loss=1.2848 | time=1.7s
+  [Edge 1] G-Round 1 | E-Round 2 | loss=1.6540
+  [Client 10] Round 1 | loss=1.6863 | time=1.0s
+  [Client 11] Round 1 | loss=1.6049 | time=0.7s
+  [Client 12] Round 1 | loss=1.6209 | time=0.6s
+  [Client 13] Round 1 | loss=1.2695 | time=1.6s
+  [Client 14] Round 1 | loss=1.7895 | time=0.5s
+  [Client 15] Round 1 | loss=1.5318 | time=1.4s
+  [Client 16] Round 1 | loss=1.7482 | time=0.8s
+  [Client 17] Round 1 | loss=1.9813 | time=0.3s
+  [Client 18] Round 1 | loss=1.7719 | time=1.6s
+  [Client 19] Round 1 | loss=1.1607 | time=1.7s
+  [Edge 1] G-Round 1 | E-Round 3 | loss=1.5334
+  [Client 10] Round 1 | loss=1.5908 | time=1.0s
+  [Client 11] Round 1 | loss=1.6622 | time=0.7s
+  [Client 12] Round 1 | loss=1.5615 | time=0.6s
+  [Client 13] Round 1 | loss=1.2711 | time=1.6s
+  [Client 14] Round 1 | loss=2.0689 | time=0.5s
+  [Client 15] Round 1 | loss=1.4051 | time=1.4s
+  [Client 16] Round 1 | loss=1.7234 | time=0.8s
+  [Client 17] Round 1 | loss=1.8109 | time=0.3s
+  [Client 18] Round 1 | loss=1.6587 | time=1.6s
+  [Client 19] Round 1 | loss=1.2500 | time=1.7s
+  [Edge 1] G-Round 1 | E-Round 4 | loss=1.5110
+  [Client 10] Round 1 | loss=1.5860 | time=1.0s
+  [Client 11] Round 1 | loss=1.5764 | time=0.7s
+  [Client 12] Round 1 | loss=1.4564 | time=0.6s
+  [Client 13] Round 1 | loss=1.3086 | time=1.6s
+  [Client 14] Round 1 | loss=1.9846 | time=0.5s
+  [Client 15] Round 1 | loss=1.4587 | time=1.4s
+  [Client 16] Round 1 | loss=1.6841 | time=0.8s
+  [Client 17] Round 1 | loss=1.8858 | time=0.3s
+  [Client 18] Round 1 | loss=1.6563 | time=1.6s
+  [Client 19] Round 1 | loss=1.1307 | time=1.7s
+  [Edge 1] G-Round 1 | E-Round 5 | loss=1.4865
+  [Client 20] Round 1 | loss=1.6420 | time=9.6s
+  [Client 21] Round 1 | loss=1.8125 | time=7.6s
+  [Client 22] Round 1 | loss=1.7639 | time=10.6s
+  [Client 23] Round 1 | loss=1.7198 | time=9.1s
+  [Client 24] Round 1 | loss=1.8212 | time=11.9s
+  [Client 25] Round 1 | loss=1.9207 | time=9.3s
+  [Client 26] Round 1 | loss=1.8198 | time=12.2s
+  [Client 27] Round 1 | loss=1.4635 | time=13.1s
+  [Client 28] Round 1 | loss=1.8704 | time=11.9s
+  [Client 29] Round 1 | loss=1.6896 | time=13.3s
+  [Edge 2] G-Round 1 | E-Round 1 | loss=1.7231
+  [Client 20] Round 1 | loss=1.5301 | time=1.0s
+  [Client 21] Round 1 | loss=2.1238 | time=0.4s
+  [Client 22] Round 1 | loss=2.1252 | time=0.7s
+  [Client 23] Round 1 | loss=1.8978 | time=0.5s
+  [Client 24] Round 1 | loss=1.7126 | time=1.7s
+  [Client 25] Round 1 | loss=1.7642 | time=1.0s
+  [Client 26] Round 1 | loss=1.9962 | time=0.9s
+  [Client 27] Round 1 | loss=1.4309 | time=1.8s
+  [Client 28] Round 1 | loss=1.5561 | time=0.9s
+  [Client 29] Round 1 | loss=1.5098 | time=2.2s
+  [Edge 2] G-Round 1 | E-Round 2 | loss=1.6725
+  [Client 20] Round 1 | loss=1.4324 | time=1.0s
+  [Client 21] Round 1 | loss=1.6210 | time=0.4s
+  [Client 22] Round 1 | loss=1.6196 | time=0.7s
+  [Client 23] Round 1 | loss=1.7929 | time=0.5s
+  [Client 24] Round 1 | loss=1.5588 | time=1.7s
+  [Client 25] Round 1 | loss=1.7347 | time=1.0s
+  [Client 26] Round 1 | loss=1.6223 | time=0.9s
+  [Client 27] Round 1 | loss=1.2820 | time=1.8s
+  [Client 28] Round 1 | loss=1.5724 | time=0.9s
+  [Client 29] Round 1 | loss=1.4797 | time=2.2s
+  [Edge 2] G-Round 1 | E-Round 3 | loss=1.5243
+  [Client 20] Round 1 | loss=1.4255 | time=1.0s
+  [Client 21] Round 1 | loss=1.7579 | time=0.4s
+  [Client 22] Round 1 | loss=1.7948 | time=0.7s
+  [Client 23] Round 1 | loss=1.7566 | time=0.5s
+  [Client 24] Round 1 | loss=1.5603 | time=1.7s
+  [Client 25] Round 1 | loss=1.6070 | time=1.0s
+  [Client 26] Round 1 | loss=1.6090 | time=0.9s
+  [Client 27] Round 1 | loss=1.2348 | time=1.8s
+  [Client 28] Round 1 | loss=1.4356 | time=0.9s
+  [Client 29] Round 1 | loss=1.3836 | time=2.2s
+  [Edge 2] G-Round 1 | E-Round 4 | loss=1.4878
+  [Client 20] Round 1 | loss=1.3655 | time=1.0s
+  [Client 21] Round 1 | loss=1.5258 | time=0.4s
+  [Client 22] Round 1 | loss=1.6537 | time=0.7s
+  [Client 23] Round 1 | loss=1.6912 | time=0.5s
+  [Client 24] Round 1 | loss=1.5167 | time=1.7s
+  [Client 25] Round 1 | loss=1.5790 | time=1.0s
+  [Client 26] Round 1 | loss=1.5889 | time=0.9s
+  [Client 27] Round 1 | loss=1.1695 | time=1.8s
+  [Client 28] Round 1 | loss=1.4079 | time=0.9s
+  [Client 29] Round 1 | loss=1.3828 | time=2.2s
+  [Edge 2] G-Round 1 | E-Round 5 | loss=1.4389
+  [Client 30] Round 1 | loss=1.8424 | time=10.4s
+  [Client 31] Round 1 | loss=1.0398 | time=9.1s
+  [Client 32] Round 1 | loss=1.8020 | time=9.3s
+  [Client 33] Round 1 | loss=1.8727 | time=9.7s
+  [Client 34] Round 1 | loss=1.7086 | time=11.9s
+  [Client 35] Round 1 | loss=1.7305 | time=11.0s
+  [Client 36] Round 1 | loss=1.4618 | time=10.1s
+  [Client 37] Round 1 | loss=1.8898 | time=12.8s
+  [Client 38] Round 1 | loss=1.9186 | time=6.3s
+  [Client 39] Round 1 | loss=2.2243 | time=8.6s
+  [Edge 3] G-Round 1 | E-Round 1 | loss=1.7158
+  [Client 30] Round 1 | loss=1.6654 | time=0.7s
+  [Client 31] Round 1 | loss=0.9989 | time=1.0s
+  [Client 32] Round 1 | loss=1.7196 | time=0.8s
+  [Client 33] Round 1 | loss=1.7260 | time=1.4s
+  [Client 34] Round 1 | loss=1.6569 | time=1.1s
+  [Client 35] Round 1 | loss=1.6136 | time=0.8s
+  [Client 36] Round 1 | loss=1.4919 | time=1.1s
+  [Client 37] Round 1 | loss=1.8859 | time=1.4s
+  [Client 38] Round 1 | loss=2.2177 | time=0.2s
+  [Client 39] Round 1 | loss=2.3710 | time=0.5s
+  [Edge 3] G-Round 1 | E-Round 2 | loss=1.6672
+  [Client 30] Round 1 | loss=1.5556 | time=0.7s
+  [Client 31] Round 1 | loss=0.9416 | time=1.0s
+  [Client 32] Round 1 | loss=1.5358 | time=0.8s
+  [Client 33] Round 1 | loss=1.5928 | time=1.4s
+  [Client 34] Round 1 | loss=1.5087 | time=1.1s
+  [Client 35] Round 1 | loss=1.4917 | time=0.8s
+  [Client 36] Round 1 | loss=1.3024 | time=1.1s
+  [Client 37] Round 1 | loss=1.6607 | time=1.4s
+  [Client 38] Round 1 | loss=1.9413 | time=0.2s
+  [Client 39] Round 1 | loss=2.4273 | time=0.5s
+  [Edge 3] G-Round 1 | E-Round 3 | loss=1.5242
+  [Client 30] Round 1 | loss=1.4171 | time=0.7s
+  [Client 31] Round 1 | loss=0.7962 | time=1.0s
+  [Client 32] Round 1 | loss=1.5488 | time=0.8s
+  [Client 33] Round 1 | loss=1.5725 | time=1.4s
+  [Client 34] Round 1 | loss=1.5032 | time=1.1s
+  [Client 35] Round 1 | loss=1.3001 | time=0.8s
+  [Client 36] Round 1 | loss=1.3507 | time=1.1s
+  [Client 37] Round 1 | loss=1.6855 | time=1.4s
+  [Client 38] Round 1 | loss=1.5911 | time=0.2s
+  [Client 39] Round 1 | loss=2.1774 | time=0.5s
+  [Edge 3] G-Round 1 | E-Round 4 | loss=1.4674
+  [Client 30] Round 1 | loss=1.4096 | time=0.7s
+  [Client 31] Round 1 | loss=0.8410 | time=1.0s
+  [Client 32] Round 1 | loss=1.4020 | time=0.8s
+  [Client 33] Round 1 | loss=1.5295 | time=1.4s
+  [Client 34] Round 1 | loss=1.4512 | time=1.1s
+  [Client 35] Round 1 | loss=1.2747 | time=0.8s
+  [Client 36] Round 1 | loss=1.2153 | time=1.1s
+  [Client 37] Round 1 | loss=1.5858 | time=1.4s
+  [Client 38] Round 1 | loss=1.6411 | time=0.2s
+  [Client 39] Round 1 | loss=2.0098 | time=0.5s
+  [Edge 3] G-Round 1 | E-Round 5 | loss=1.4027
+  [Client 40] Round 1 | loss=1.9151 | time=10.4s
+  [Client 41] Round 1 | loss=2.0478 | time=10.7s
+  [Client 42] Round 1 | loss=1.7788 | time=10.5s
+  [Client 43] Round 1 | loss=2.0181 | time=11.0s
+  [Client 44] Round 1 | loss=1.4368 | time=9.3s
+  [Client 45] Round 1 | loss=1.8649 | time=11.7s
+  [Client 46] Round 1 | loss=1.9761 | time=10.1s
+  [Client 47] Round 1 | loss=1.8307 | time=11.3s
+  [Client 48] Round 1 | loss=1.6810 | time=11.8s
+  [Client 49] Round 1 | loss=1.9831 | time=11.2s
+  [Edge 4] G-Round 1 | E-Round 1 | loss=1.8303
+  [Client 40] Round 1 | loss=2.0414 | time=0.7s
+  [Client 41] Round 1 | loss=2.1372 | time=0.7s
+  [Client 42] Round 1 | loss=2.1046 | time=0.7s
+  [Client 43] Round 1 | loss=2.0671 | time=0.8s
+  [Client 44] Round 1 | loss=1.4584 | time=1.0s
+  [Client 45] Round 1 | loss=1.6143 | time=0.7s
+  [Client 46] Round 1 | loss=1.9998 | time=0.7s
+  [Client 47] Round 1 | loss=1.6954 | time=1.2s
+  [Client 48] Round 1 | loss=1.6044 | time=1.3s
+  [Client 49] Round 1 | loss=1.8665 | time=0.8s
+  [Edge 4] G-Round 1 | E-Round 2 | loss=1.8226
+  [Client 40] Round 1 | loss=1.7834 | time=0.7s
+  [Client 41] Round 1 | loss=1.9789 | time=0.7s
+  [Client 42] Round 1 | loss=1.7518 | time=0.7s
+  [Client 43] Round 1 | loss=1.8820 | time=0.8s
+  [Client 44] Round 1 | loss=1.4812 | time=1.0s
+  [Client 45] Round 1 | loss=1.7643 | time=0.7s
+  [Client 46] Round 1 | loss=1.8450 | time=0.7s
+  [Client 47] Round 1 | loss=1.7452 | time=1.2s
+  [Client 48] Round 1 | loss=1.5537 | time=1.3s
+  [Client 49] Round 1 | loss=1.9269 | time=0.8s
+  [Edge 4] G-Round 1 | E-Round 3 | loss=1.7492
+  [Client 40] Round 1 | loss=1.8469 | time=0.7s
+  [Client 41] Round 1 | loss=1.9093 | time=0.7s
+  [Client 42] Round 1 | loss=1.8167 | time=0.7s
+  [Client 43] Round 1 | loss=1.8560 | time=0.8s
+  [Client 44] Round 1 | loss=1.3409 | time=1.0s
+  [Client 45] Round 1 | loss=1.5749 | time=0.7s
+  [Client 46] Round 1 | loss=1.7420 | time=0.7s
+  [Client 47] Round 1 | loss=1.5254 | time=1.2s
+  [Client 48] Round 1 | loss=1.4729 | time=1.3s
+  [Client 49] Round 1 | loss=1.7451 | time=0.8s
+  [Edge 4] G-Round 1 | E-Round 4 | loss=1.6516
+  [Client 40] Round 1 | loss=1.6902 | time=0.7s
+  [Client 41] Round 1 | loss=1.8824 | time=0.7s
+  [Client 42] Round 1 | loss=1.7095 | time=0.7s
+  [Client 43] Round 1 | loss=1.7555 | time=0.8s
+  [Client 44] Round 1 | loss=1.3759 | time=1.0s
+  [Client 45] Round 1 | loss=1.5038 | time=0.7s
+  [Client 46] Round 1 | loss=1.6956 | time=0.7s
+  [Client 47] Round 1 | loss=1.5550 | time=1.2s
+  [Client 48] Round 1 | loss=1.5285 | time=1.3s
+  [Client 49] Round 1 | loss=1.6765 | time=0.8s
+  [Edge 4] G-Round 1 | E-Round 5 | loss=1.6198
+  [Client 50] Round 1 | loss=1.9931 | time=11.6s
+  [Client 51] Round 1 | loss=1.5715 | time=6.8s
+  [Client 52] Round 1 | loss=1.9699 | time=5.9s
+  [Client 53] Round 1 | loss=1.7350 | time=11.2s
+  [Client 54] Round 1 | loss=1.9340 | time=11.0s
+  [Client 55] Round 1 | loss=1.9082 | time=9.6s
+  [Client 56] Round 1 | loss=1.9458 | time=11.7s
+  [Client 57] Round 1 | loss=1.7162 | time=12.0s
+  [Client 58] Round 1 | loss=1.7792 | time=9.6s
+  [Client 59] Round 1 | loss=1.9324 | time=12.2s
+  [Edge 5] G-Round 1 | E-Round 1 | loss=1.8810
+  [Client 50] Round 1 | loss=1.9572 | time=1.6s
+  [Client 51] Round 1 | loss=1.6506 | time=0.3s
+  [Client 52] Round 1 | loss=1.8392 | time=0.4s
+  [Client 53] Round 1 | loss=1.7913 | time=0.8s
+  [Client 54] Round 1 | loss=1.8912 | time=1.2s
+  [Client 55] Round 1 | loss=2.0267 | time=0.9s
+  [Client 56] Round 1 | loss=1.8705 | time=0.8s
+  [Client 57] Round 1 | loss=1.6497 | time=0.9s
+  [Client 58] Round 1 | loss=1.9297 | time=0.6s
+  [Client 59] Round 1 | loss=1.9922 | time=0.7s
+  [Edge 5] G-Round 1 | E-Round 2 | loss=1.8817
+  [Client 50] Round 1 | loss=1.7781 | time=1.6s
+  [Client 51] Round 1 | loss=1.4712 | time=0.3s
+  [Client 52] Round 1 | loss=1.7995 | time=0.4s
+  [Client 53] Round 1 | loss=1.6080 | time=0.8s
+  [Client 54] Round 1 | loss=1.8007 | time=1.2s
+  [Client 55] Round 1 | loss=1.7232 | time=0.9s
+  [Client 56] Round 1 | loss=1.7478 | time=0.8s
+  [Client 57] Round 1 | loss=1.6759 | time=0.9s
+  [Client 58] Round 1 | loss=1.6890 | time=0.6s
+  [Client 59] Round 1 | loss=1.8956 | time=0.7s
+  [Edge 5] G-Round 1 | E-Round 3 | loss=1.7393
+  [Client 50] Round 1 | loss=1.7961 | time=1.6s
+  [Client 51] Round 1 | loss=1.3625 | time=0.3s
+  [Client 52] Round 1 | loss=1.6189 | time=0.4s
+  [Client 53] Round 1 | loss=1.6565 | time=0.8s
+  [Client 54] Round 1 | loss=1.7541 | time=1.2s
+  [Client 55] Round 1 | loss=1.7279 | time=0.9s
+  [Client 56] Round 1 | loss=1.6753 | time=0.8s
+  [Client 57] Round 1 | loss=1.5288 | time=0.9s
+  [Client 58] Round 1 | loss=1.6357 | time=0.6s
+  [Client 59] Round 1 | loss=1.7595 | time=0.7s
+  [Edge 5] G-Round 1 | E-Round 4 | loss=1.6901
+  [Client 50] Round 1 | loss=1.6742 | time=1.6s
+  [Client 51] Round 1 | loss=1.3575 | time=0.3s
+  [Client 52] Round 1 | loss=1.5370 | time=0.4s
+  [Client 53] Round 1 | loss=1.5381 | time=0.8s
+  [Client 54] Round 1 | loss=1.6736 | time=1.2s
+  [Client 55] Round 1 | loss=1.6484 | time=0.9s
+  [Client 56] Round 1 | loss=1.6392 | time=0.8s
+  [Client 57] Round 1 | loss=1.5177 | time=0.9s
+  [Client 58] Round 1 | loss=1.5361 | time=0.6s
+  [Client 59] Round 1 | loss=1.7548 | time=0.7s
+  [Edge 5] G-Round 1 | E-Round 5 | loss=1.6166
+  [Client 60] Round 1 | loss=1.6843 | time=11.6s
+  [Client 61] Round 1 | loss=1.4923 | time=9.9s
+  [Client 62] Round 1 | loss=1.7396 | time=11.7s
+  [Client 63] Round 1 | loss=1.8352 | time=9.3s
+  [Client 64] Round 1 | loss=1.8253 | time=7.2s
+  [Client 65] Round 1 | loss=1.7251 | time=7.9s
+  [Client 66] Round 1 | loss=1.9840 | time=10.3s
+  [Client 67] Round 1 | loss=1.8029 | time=9.1s
+  [Client 68] Round 1 | loss=1.7710 | time=8.4s
+  [Client 69] Round 1 | loss=1.9648 | time=9.9s
+  [Edge 6] G-Round 1 | E-Round 1 | loss=1.8077
+  [Client 60] Round 1 | loss=1.8745 | time=0.8s
+  [Client 61] Round 1 | loss=1.5538 | time=0.6s
+  [Client 62] Round 1 | loss=1.6972 | time=1.3s
+  [Client 63] Round 1 | loss=1.8237 | time=0.8s
+  [Client 64] Round 1 | loss=1.5579 | time=0.3s
+  [Client 65] Round 1 | loss=1.7832 | time=0.4s
+  [Client 66] Round 1 | loss=1.8085 | time=1.1s
+  [Client 67] Round 1 | loss=1.7335 | time=1.5s
+  [Client 68] Round 1 | loss=1.4636 | time=0.4s
+  [Client 69] Round 1 | loss=1.9556 | time=1.4s
+  [Edge 6] G-Round 1 | E-Round 2 | loss=1.7657
+  [Client 60] Round 1 | loss=1.6420 | time=0.8s
+  [Client 61] Round 1 | loss=1.2621 | time=0.6s
+  [Client 62] Round 1 | loss=1.5648 | time=1.3s
+  [Client 63] Round 1 | loss=1.6180 | time=0.8s
+  [Client 64] Round 1 | loss=1.5904 | time=0.3s
+  [Client 65] Round 1 | loss=1.6164 | time=0.4s
+  [Client 66] Round 1 | loss=1.7334 | time=1.1s
+  [Client 67] Round 1 | loss=1.5640 | time=1.5s
+  [Client 68] Round 1 | loss=1.5026 | time=0.4s
+  [Client 69] Round 1 | loss=1.7657 | time=1.4s
+  [Edge 6] G-Round 1 | E-Round 3 | loss=1.6093
+  [Client 60] Round 1 | loss=1.6961 | time=0.8s
+  [Client 61] Round 1 | loss=1.2018 | time=0.6s
+  [Client 62] Round 1 | loss=1.5745 | time=1.3s
+  [Client 63] Round 1 | loss=1.5318 | time=0.8s
+  [Client 64] Round 1 | loss=1.3586 | time=0.3s
+  [Client 65] Round 1 | loss=1.6215 | time=0.4s
+  [Client 66] Round 1 | loss=1.6583 | time=1.1s
+  [Client 67] Round 1 | loss=1.5493 | time=1.5s
+  [Client 68] Round 1 | loss=1.3311 | time=0.4s
+  [Client 69] Round 1 | loss=1.7742 | time=1.4s
+  [Edge 6] G-Round 1 | E-Round 4 | loss=1.5766
+  [Client 60] Round 1 | loss=1.6102 | time=0.8s
+  [Client 61] Round 1 | loss=1.1692 | time=0.6s
+  [Client 62] Round 1 | loss=1.4689 | time=1.3s
+  [Client 63] Round 1 | loss=1.5011 | time=0.8s
+  [Client 64] Round 1 | loss=1.3059 | time=0.3s
+  [Client 65] Round 1 | loss=1.5338 | time=0.4s
+  [Client 66] Round 1 | loss=1.6223 | time=1.1s
+  [Client 67] Round 1 | loss=1.4995 | time=1.5s
+  [Client 68] Round 1 | loss=1.2991 | time=0.4s
+  [Client 69] Round 1 | loss=1.7353 | time=1.4s
+  [Edge 6] G-Round 1 | E-Round 5 | loss=1.5208
+  [Client 70] Round 1 | loss=2.2776 | time=7.0s
+  [Client 71] Round 1 | loss=1.7821 | time=9.5s
+  [Client 72] Round 1 | loss=1.8000 | time=11.5s
+  [Client 73] Round 1 | loss=2.0555 | time=9.3s
+  [Client 74] Round 1 | loss=1.6237 | time=9.4s
+  [Client 75] Round 1 | loss=1.9418 | time=8.4s
+  [Client 76] Round 1 | loss=1.9837 | time=10.8s
+  [Client 77] Round 1 | loss=1.5835 | time=13.3s
+  [Client 78] Round 1 | loss=1.4608 | time=12.3s
+  [Client 79] Round 1 | loss=2.0145 | time=10.7s
+  [Edge 7] G-Round 1 | E-Round 1 | loss=1.8070
+  [Client 70] Round 1 | loss=2.1370 | time=0.3s
+  [Client 71] Round 1 | loss=1.5788 | time=0.6s
+  [Client 72] Round 1 | loss=1.8934 | time=1.6s
+  [Client 73] Round 1 | loss=2.2153 | time=1.0s
+  [Client 74] Round 1 | loss=1.7397 | time=0.8s
+  [Client 75] Round 1 | loss=2.2026 | time=0.6s
+  [Client 76] Round 1 | loss=2.1169 | time=0.8s
+  [Client 77] Round 1 | loss=1.5543 | time=0.7s
+  [Client 78] Round 1 | loss=1.5988 | time=1.3s
+  [Client 79] Round 1 | loss=1.9652 | time=1.1s
+  [Edge 7] G-Round 1 | E-Round 2 | loss=1.8754
+  [Client 70] Round 1 | loss=2.1209 | time=0.3s
+  [Client 71] Round 1 | loss=1.7100 | time=0.6s
+  [Client 72] Round 1 | loss=1.7347 | time=1.6s
+  [Client 73] Round 1 | loss=1.9562 | time=1.0s
+  [Client 74] Round 1 | loss=1.5729 | time=0.8s
+  [Client 75] Round 1 | loss=1.9089 | time=0.6s
+  [Client 76] Round 1 | loss=1.8861 | time=0.8s
+  [Client 77] Round 1 | loss=1.4192 | time=0.7s
+  [Client 78] Round 1 | loss=1.3909 | time=1.3s
+  [Client 79] Round 1 | loss=1.8616 | time=1.1s
+  [Edge 7] G-Round 1 | E-Round 3 | loss=1.7154
+  [Client 70] Round 1 | loss=1.9319 | time=0.3s
+  [Client 71] Round 1 | loss=1.4764 | time=0.6s
+  [Client 72] Round 1 | loss=1.7706 | time=1.6s
+  [Client 73] Round 1 | loss=1.9377 | time=1.0s
+  [Client 74] Round 1 | loss=1.5270 | time=0.8s
+  [Client 75] Round 1 | loss=1.9649 | time=0.6s
+  [Client 76] Round 1 | loss=1.8999 | time=0.8s
+  [Client 77] Round 1 | loss=1.2666 | time=0.7s
+  [Client 78] Round 1 | loss=1.4325 | time=1.3s
+  [Client 79] Round 1 | loss=1.7576 | time=1.1s
+  [Edge 7] G-Round 1 | E-Round 4 | loss=1.6798
+  [Client 70] Round 1 | loss=1.9332 | time=0.3s
+  [Client 71] Round 1 | loss=1.5106 | time=0.6s
+  [Client 72] Round 1 | loss=1.6635 | time=1.6s
+  [Client 73] Round 1 | loss=1.8187 | time=1.0s
+  [Client 74] Round 1 | loss=1.3522 | time=0.8s
+  [Client 75] Round 1 | loss=1.7399 | time=0.6s
+  [Client 76] Round 1 | loss=1.7715 | time=0.8s
+  [Client 77] Round 1 | loss=1.2591 | time=0.7s
+  [Client 78] Round 1 | loss=1.2716 | time=1.3s
+  [Client 79] Round 1 | loss=1.7462 | time=1.1s
+  [Edge 7] G-Round 1 | E-Round 5 | loss=1.5807
+  [Client 80] Round 1 | loss=1.8872 | time=9.2s
+  [Client 81] Round 1 | loss=1.6442 | time=10.0s
+  [Client 82] Round 1 | loss=1.8788 | time=9.3s
+  [Client 83] Round 1 | loss=1.8351 | time=11.5s
+  [Client 84] Round 1 | loss=1.7967 | time=11.9s
+  [Client 85] Round 1 | loss=1.6951 | time=10.6s
+  [Client 86] Round 1 | loss=1.9940 | time=7.8s
+  [Client 87] Round 1 | loss=1.6234 | time=9.4s
+  [Client 88] Round 1 | loss=1.8393 | time=9.3s
+  [Client 89] Round 1 | loss=1.9749 | time=9.5s
+  [Edge 8] G-Round 1 | E-Round 1 | loss=1.8026
+  [Client 80] Round 1 | loss=2.0054 | time=0.6s
+  [Client 81] Round 1 | loss=1.6698 | time=0.7s
+  [Client 82] Round 1 | loss=1.8847 | time=0.6s
+  [Client 83] Round 1 | loss=1.8367 | time=1.6s
+  [Client 84] Round 1 | loss=2.0131 | time=0.9s
+  [Client 85] Round 1 | loss=1.5913 | time=1.5s
+  [Client 86] Round 1 | loss=1.8873 | time=0.4s
+  [Client 87] Round 1 | loss=1.5032 | time=0.6s
+  [Client 88] Round 1 | loss=1.8720 | time=1.6s
+  [Client 89] Round 1 | loss=1.8758 | time=0.6s
+  [Edge 8] G-Round 1 | E-Round 2 | loss=1.8022
+  [Client 80] Round 1 | loss=1.6921 | time=0.6s
+  [Client 81] Round 1 | loss=1.5640 | time=0.7s
+  [Client 82] Round 1 | loss=1.6907 | time=0.6s
+  [Client 83] Round 1 | loss=1.6708 | time=1.6s
+  [Client 84] Round 1 | loss=1.6282 | time=0.9s
+  [Client 85] Round 1 | loss=1.5842 | time=1.5s
+  [Client 86] Round 1 | loss=1.7975 | time=0.4s
+  [Client 87] Round 1 | loss=1.4920 | time=0.6s
+  [Client 88] Round 1 | loss=1.7116 | time=1.6s
+  [Client 89] Round 1 | loss=1.8413 | time=0.6s
+  [Edge 8] G-Round 1 | E-Round 3 | loss=1.6591
+  [Client 80] Round 1 | loss=1.7201 | time=0.6s
+  [Client 81] Round 1 | loss=1.4890 | time=0.7s
+  [Client 82] Round 1 | loss=1.8298 | time=0.6s
+  [Client 83] Round 1 | loss=1.7226 | time=1.6s
+  [Client 84] Round 1 | loss=1.6522 | time=0.9s
+  [Client 85] Round 1 | loss=1.4307 | time=1.5s
+  [Client 86] Round 1 | loss=1.6147 | time=0.4s
+  [Client 87] Round 1 | loss=1.3132 | time=0.6s
+  [Client 88] Round 1 | loss=1.7560 | time=1.6s
+  [Client 89] Round 1 | loss=1.7694 | time=0.6s
+  [Edge 8] G-Round 1 | E-Round 4 | loss=1.6334
+  [Client 80] Round 1 | loss=1.6384 | time=0.6s
+  [Client 81] Round 1 | loss=1.4250 | time=0.7s
+  [Client 82] Round 1 | loss=1.6757 | time=0.6s
+  [Client 83] Round 1 | loss=1.5903 | time=1.6s
+  [Client 84] Round 1 | loss=1.5527 | time=0.9s
+  [Client 85] Round 1 | loss=1.4099 | time=1.5s
+  [Client 86] Round 1 | loss=1.5957 | time=0.4s

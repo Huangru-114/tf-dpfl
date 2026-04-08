@@ -1,0 +1,32 @@
+
+====================================================
+ HierFAVG Training Start
+====================================================
+
+[Round   1] Phase 1: Cloud broadcasting to 2 edges...
+  [Client  0] Round 1 | loss=1.8471 | time=1.4s
+  [Client  1] Round 1 | loss=1.7058 | time=1.7s
+  [Client  2] Round 1 | loss=1.7736 | time=1.1s
+  [Client  3] Round 1 | loss=1.8456 | time=1.1s
+  [Client  4] Round 1 | loss=1.7796 | time=1.9s
+  [Edge 0] G-Round 1 | E-Round 1 | loss=1.7793
+  [Client  5] Round 1 | loss=1.5578 | time=1.4s
+  [Client  6] Round 1 | loss=1.6164 | time=2.1s
+  [Client  7] Round 1 | loss=1.7219 | time=1.4s
+  [Client  8] Round 1 | loss=2.1043 | time=1.3s
+  [Client  9] Round 1 | loss=1.8669 | time=2.4s
+  [Edge 1] G-Round 1 | E-Round 1 | loss=1.7627
+[Round   1] Phase 2: Cloud aggregating...
+  [Cloud] acc=0.1547 | loss=2.3036 | time=17.1s | comm=200.8MB (total=201MB)
+Traceback (most recent call last):
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/main.py", line 175, in <module>
+    run_experiment()
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/main.py", line 151, in run_experiment
+    history = cloud.run(logger=logger)
+              ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/server/server.py", line 189, in run
+    logger.log_round(r, metrics)
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/utils/logger.py", line 41, in log_round
+    "federation/n_selected":  metrics["n_selected"],
+                              ~~~~~~~^^^^^^^^^^^^^^
+KeyError: 'n_selected'
