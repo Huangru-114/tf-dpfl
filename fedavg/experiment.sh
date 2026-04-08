@@ -53,7 +53,7 @@ export WANDB_MODE=online   # 改成 offline 则本地缓存，实验后手动 sy
 RUN_NAME="fedavg-noniid-alpha0.5-$(date +%m%d-%H%M)"
 
 # 用 Python 临时覆盖 config 里的参数，不用手动改 yaml
-python main.py \
+python -u main.py \
     --config config/config.yaml \
     --override wandb.enabled=true
 # python centralized/train.py

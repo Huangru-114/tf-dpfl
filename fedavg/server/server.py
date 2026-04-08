@@ -60,14 +60,21 @@ class CloudServer:
               f"Selected {n_select}/{len(self.clients)} clients")
         return selected
 
-    def broadcast_to_edges(self):
-        """
-        把当前全局权重广播给所有 Edge Server。
-        Edge Server 再负责向下广播给自己的客户端。
-        """
+    # def broadcast_to_edges(self):
+    #     """
+    #     把当前全局权重广播给所有 Edge Server。
+    #     Edge Server 再负责向下广播给自己的客户端。
+    #     """
+    #     global_weights = self.global_model.get_weights()
+    #     for edge in self.edge_servers:
+    #         edge.set_weights(global_weights)
+    def broadcast_to_edges(self, selected_edges=None):
+        if selected_edges is None:
+            selected_edges = self.edge_servers
         global_weights = self.global_model.get_weights()
-        for edge in self.edge_servers:
+        for edge in selected_edges:
             edge.set_weights(global_weights)
+            edge.set_global_ref(global_weights)   # ← 新增  
 
     def collect_and_aggregate(self, round_idx: int):
         """

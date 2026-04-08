@@ -5,7 +5,8 @@ import argparse
 
 from data.dataset       import load_cifar10
 from data.partition     import extract_numpy, iid_partition, noniid_partition
-from models.resnet         import build_model
+from data.clustering    import random_assignment, warmup_gradient_assignment, histogram_assignment
+from models.resnet      import build_model
 from models.model_utils import clone_model
 from client.client      import FLClient
 from server.edge_server import EdgeServer
@@ -68,18 +69,18 @@ def build_clients(images_np, labels_np, global_model, config):
     alpha     = config["federation"].get("alpha", 0.5)
 
     if partition == "iid":
-        client_datasets = iid_partition(images_np, labels_np, n_clients, config)
+        client_datasets, client_indices = iid_partition(images_np, labels_np, n_clients, config)
     elif partition == "noniid":
-        client_datasets = noniid_partition(
+        client_datasets, client_indices = noniid_partition(
             images_np, labels_np, n_clients, config, alpha=alpha
         )
     else:
         raise ValueError(f"Unknown partition type: {partition}")
 
     clients = []
-    for i, ds in enumerate(client_datasets):
+    for i, (ds, indices) in enumerate(zip(client_datasets, client_indices)):
         client_model = clone_model(global_model)
-        client = FLClient(client_id=i, dataset=ds, model=client_model, config=config)
+        client = FLClient(client_id=i, dataset=ds, model=client_model, config=config,n_samples=len(indices))
         clients.append(client)
 
     print(f"[Setup] {len(clients)} clients built "
@@ -87,28 +88,64 @@ def build_clients(images_np, labels_np, global_model, config):
           f"{f', α={alpha}' if partition == 'noniid' else ''})")
     return clients
 
-def build_edge_servers(clients: list, global_model, config):
+def build_edge_servers(clients, global_model, config):
     """
-    把客户端列表均分给各 Edge Server，
-    每个 Edge Server 拿到一个独立的模型副本。
+    根据 config 选择分配策略，把客户端分配给 Edge Server。
+
+    两个分配策略：
+        random:   随机均匀分配（baseline）
+        gradient: warm-up 后基于梯度相似度聚类分配
+
+    分配完成后，EdgeServer 内部用 client_fraction 控制每轮参与比例。
     """
     n_edges  = config["federation"]["n_edges"]
-    # 均分客户端到各 Edge
-    splits   = np.array_split(clients, n_edges)
+    strategy = config["federation"].get("edge_assignment", "random")
+
+    # ── Step 1：决定分配方案 ──────────────────────────────
+    if strategy == "random":
+        assignments = random_assignment(clients, n_edges)
+
+    elif strategy == "gradient":
+        assignments = warmup_gradient_assignment(
+            clients, global_model, n_edges, config
+        )
+
+    elif strategy == "histogram":
+        assignments = histogram_assignment(
+            clients, n_edges, config
+        )
+
+    else:
+        raise ValueError(f"Unknown edge_assignment: {strategy}")
+
+    # ── Step 2：按分配方案构建 EdgeServer ─────────────────
+    client_groups = [[] for _ in range(n_edges)]
+    for client_idx, edge_idx in enumerate(assignments):
+        client_groups[edge_idx].append(clients[client_idx])
 
     edge_servers = []
-    for i, client_group in enumerate(splits):
+    for i, group in enumerate(client_groups):
+        if len(group) == 0:
+            # 分配不均时的保护
+            print(f"  Warning: Edge {i} has 0 clients, "
+                  f"check n_edges vs n_clients")
+            continue
         edge_model = clone_model(global_model)
-        edge = EdgeServer(
+        edge       = EdgeServer(
             edge_id=i,
-            clients=list(client_group),
+            clients=group,
             model=edge_model,
             config=config
         )
         edge_servers.append(edge)
 
-    print(f"[Setup] {n_edges} edge servers built, "
-          f"~{len(clients) // n_edges} clients each")
+    print(f"\n[Setup] Built {len(edge_servers)} edge servers "
+          f"(strategy={strategy})")
+    for e in edge_servers:
+        print(f"  Edge {e.edge_id}: "
+              f"{len(e.clients)} clients | "
+              f"{e.n_samples} samples")
+
     return edge_servers
 
 def run_experiment(config_path="config/config.yaml"):

@@ -58,7 +58,7 @@ def iid_partition(images_np, labels_np, n_clients, config):
         client_datasets.append(ds)
 
     print(f"[IID] {n_clients} clients, ~{n_total // n_clients} samples each")
-    return client_datasets
+    return client_datasets, splits
 
 
 def noniid_partition(images_np, labels_np, n_clients, config, alpha=0.5):
@@ -86,13 +86,18 @@ def noniid_partition(images_np, labels_np, n_clients, config, alpha=0.5):
         for client_id, split in enumerate(splits):
             client_indices[client_id].extend(split.tolist())
 
+    _print_distribution(client_indices, labels_np, n_clients, num_classes, alpha)
+
     client_datasets = []
+    client_indices_np = []
+
     for indices in client_indices:
         ds = make_client_dataset(images_np, labels_np, np.array(indices), config)
         client_datasets.append(ds)
+        client_indices_np.append(np.array(indices))
 
-    _print_distribution(client_indices, labels_np, n_clients, num_classes, alpha)
-    return client_datasets
+
+    return client_datasets, client_indices_np
 
 
 def _print_distribution(client_indices, labels_np, n_clients, num_classes, alpha):

@@ -17,3 +17,8 @@ config: {'seed': 42, 'data': {'dataset': 'cifar10', 'img_size': 32, 'batch_size'
 2026-04-08 03:05:37,320 INFO    MainThread:669703 [wandb_run.py:_redirect():2442] Wrapping output streams.
 2026-04-08 03:05:37,320 INFO    MainThread:669703 [wandb_run.py:_redirect():2465] Redirects installed.
 2026-04-08 03:05:37,325 INFO    MainThread:669703 [wandb_init.py:init():1082] run started, returning control to user process
+2026-04-08 04:40:08,956 INFO    MainThread:669703 [wandb_run.py:_finish():2291] finishing run 3445339138-kth-royal-institute-of-technology/HierFL-cifar10/38uequq6
+2026-04-08 04:40:08,958 INFO    MainThread:669703 [wandb_run.py:_atexit_cleanup():2490] got exitcode: 0
+2026-04-08 04:40:08,959 INFO    MainThread:669703 [wandb_run.py:_restore():2472] restore
+2026-04-08 04:40:08,959 INFO    MainThread:669703 [wandb_run.py:_restore():2478] restore done
+2026-04-08 04:40:10,920 INFO    MainThread:669703 [wandb_run.py:_footer_sync_info():3868] logging synced files
