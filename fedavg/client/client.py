@@ -17,6 +17,12 @@ class FLClient:
         self.model     = model
         self.config    = config
 
+        # 逐层初始化为零，形状与 trainable_variables 完全对齐,feddyn 需要用到这个变量来存储梯度历史
+        self.grad_history = [
+            tf.Variable(tf.zeros_like(v), trainable=False, name=f"grad_hist_{i}")
+            for i, v in enumerate(model.trainable_variables)
+        ]
+
         # 统计本地样本数，用于 FedAvg 加权聚合
         if n_samples is not None:
             self.n_samples = n_samples          # 直接用传入的值
@@ -52,10 +58,12 @@ class FLClient:
         同时客户端需要保存全局模型作为远端参考。
         每轮训练开始前由 server.broadcast() 调用。
         """
-        self.model.set_weights(edge_weights)
         self.global_weights = [w.copy() for w in global_weights]
         if edge_weights is not None:
             self.edge_weights = [w.copy() for w in edge_weights]
+            self.model.set_weights(edge_weights)
+        else:
+            self.model.set_weights(global_weights)
 
     def local_train(self, round_idx: int):
         method = self.config["training"].get(
@@ -72,6 +80,7 @@ class FLClient:
             ref_weights = None   # 下面单独处理
         else:
             ref_weights = self.global_weights
+        # print("client_id:", self.client_id, "round_idx", round_idx, "FL_method:", method, "Ref:", ref,"\n")
 
         if method == "fedavg":
             return self._local_train(round_idx)
@@ -88,7 +97,7 @@ class FLClient:
         else:
             raise ValueError(f"Unknown method: {method}")
 
-    def local_train(self, round_idx: int):
+    def _local_train(self, round_idx: int):
         """
         执行 E 轮本地 SGD 训练。
 
@@ -235,6 +244,62 @@ class FLClient:
         )
         return loss
 
+    def _local_train_feddyn(self, round_idx, ref_weights):
+        alpha        = self.config["training"].get("alpha_feddyn", 0.01)
+        local_epochs = self.config["training"]["local_epochs"]
+        alpha_tf     = tf.constant(alpha, dtype=tf.float32)
+        epoch_losses = []
+        t_start      = time.time()
+
+        ref_tf = [tf.constant(w, dtype=tf.float32) for w in ref_weights]
+
+        for epoch in range(local_epochs):
+            batch_losses = []
+            for images, labels in self.dataset:
+                loss = self._train_step_feddyn(
+                    images, labels, ref_tf, alpha_tf
+                )
+                batch_losses.append(loss)
+            epoch_losses.append(float(tf.reduce_mean(batch_losses).numpy()))
+
+        # grad_history 更新：∇L_k(θ_k^t) = ∇L_k(θ_k^{t-1}) - α(θ_k^t - θ^{t-1})
+        for h, v, r in zip(self.grad_history,
+                        self.model.trainable_variables,
+                        ref_tf):
+            h.assign(h - alpha_tf * (v - r))
+
+        train_time = time.time() - t_start
+        avg_loss   = float(np.mean(epoch_losses))
+        print(f"  [Client {self.client_id:>2}] Round {round_idx} | "
+            f"FedDyn | loss={avg_loss:.4f}")
+        return self.model.get_weights(), self.n_samples, avg_loss, train_time
+
+    @tf.function
+    def _train_step_feddyn(self, images, labels, ref_tf, alpha):
+        with tf.GradientTape() as tape:
+            predictions = self.model(images, training=True)
+            loss        = self.loss_fn(labels, predictions)
+
+            # 线性项：-<grad_history, θ>，逐层点积再求和
+            linear_term = tf.add_n([
+                tf.reduce_sum(h * v)
+                for h, v in zip(self.grad_history,
+                                self.model.trainable_variables)
+            ])
+
+            # 二次项：α/2 · ||θ - θ^{t-1}||²
+            quad_term = tf.add_n([
+                tf.reduce_sum(tf.square(v - r))
+                for v, r in zip(self.model.trainable_variables, ref_tf)
+            ])
+
+            total_loss = loss - linear_term + (alpha / 2.0) * quad_term
+
+        grads = tape.gradient(total_loss, self.model.trainable_variables)
+        self.optimizer.apply_gradients(
+            zip(grads, self.model.trainable_variables)
+        )
+        return total_loss
 
     def evaluate(self):
         """

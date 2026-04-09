@@ -1,0 +1,102 @@
+
+====================================================
+ HierFAVG Training Start
+====================================================
+
+[Round   1] Phase 1: Cloud broadcasting to 2 edges...
+  [Edge 0] G-Round 1 | E-Round 1 | Selected 4/6 clients
+client_id: 5 round_idx 1 FL_method: fedprox Ref: edge
+
+  [Client  5] Round 1 | FedProx(ref=edge) | loss=1.5403
+client_id: 4 round_idx 1 FL_method: fedprox Ref: edge
+
+  [Client  4] Round 1 | FedProx(ref=edge) | loss=1.6597
+client_id: 9 round_idx 1 FL_method: fedprox Ref: edge
+
+  [Client  9] Round 1 | FedProx(ref=edge) | loss=1.7919
+client_id: 0 round_idx 1 FL_method: fedprox Ref: edge
+
+  [Client  0] Round 1 | FedProx(ref=edge) | loss=1.7441
+  [Edge 0] G-Round 1 | E-Round 1 | loss=1.7020
+  [Edge 0] G-Round 1 | E-Round 2 | Selected 4/6 clients
+client_id: 3 round_idx 1 FL_method: fedprox Ref: edge
+
+  [Client  3] Round 1 | FedProx(ref=edge) | loss=1.6216
+client_id: 9 round_idx 1 FL_method: fedprox Ref: edge
+
+  [Client  9] Round 1 | FedProx(ref=edge) | loss=1.6137
+client_id: 5 round_idx 1 FL_method: fedprox Ref: edge
+
+  [Client  5] Round 1 | FedProx(ref=edge) | loss=1.3603
+client_id: 6 round_idx 1 FL_method: fedprox Ref: edge
+
+  [Client  6] Round 1 | FedProx(ref=edge) | loss=1.5726
+  [Edge 0] G-Round 1 | E-Round 2 | loss=1.5570
+  [Edge 1] G-Round 1 | E-Round 1 | Selected 2/4 clients
+client_id: 1 round_idx 1 FL_method: fedprox Ref: edge
+
+  [Client  1] Round 1 | FedProx(ref=edge) | loss=1.6763
+client_id: 2 round_idx 1 FL_method: fedprox Ref: edge
+
+  [Client  2] Round 1 | FedProx(ref=edge) | loss=1.7559
+  [Edge 1] G-Round 1 | E-Round 1 | loss=1.7030
+  [Edge 1] G-Round 1 | E-Round 2 | Selected 2/4 clients
+client_id: 7 round_idx 1 FL_method: fedprox Ref: edge
+
+  [Client  7] Round 1 | FedProx(ref=edge) | loss=1.6985
+client_id: 1 round_idx 1 FL_method: fedprox Ref: edge
+
+  [Client  1] Round 1 | FedProx(ref=edge) | loss=1.2972
+  [Edge 1] G-Round 1 | E-Round 2 | loss=1.4637
+[Round   1] Phase 2: Cloud aggregating...
+  [Cloud] acc=0.2035 | loss=2.1274 | time=136.3s | comm=461.4MB (total=461MB)
+
+[Round   2] Phase 1: Cloud broadcasting to 2 edges...
+  [Edge 0] G-Round 2 | E-Round 1 | Selected 4/6 clients
+client_id: 4 round_idx 2 FL_method: fedprox Ref: edge
+
+  [Client  4] Round 2 | FedProx(ref=edge) | loss=1.4208
+client_id: 0 round_idx 2 FL_method: fedprox Ref: edge
+
+  [Client  0] Round 2 | FedProx(ref=edge) | loss=1.6979
+client_id: 5 round_idx 2 FL_method: fedprox Ref: edge
+
+  [Client  5] Round 2 | FedProx(ref=edge) | loss=1.4106
+client_id: 6 round_idx 2 FL_method: fedprox Ref: edge
+
+  [Client  6] Round 2 | FedProx(ref=edge) | loss=1.4798
+  [Edge 0] G-Round 2 | E-Round 1 | loss=1.4851
+  [Edge 0] G-Round 2 | E-Round 2 | Selected 4/6 clients
+client_id: 0 round_idx 2 FL_method: fedprox Ref: edge
+
+  [Client  0] Round 2 | FedProx(ref=edge) | loss=1.5652
+client_id: 4 round_idx 2 FL_method: fedprox Ref: edge
+
+  [Client  4] Round 2 | FedProx(ref=edge) | loss=1.3524
+client_id: 6 round_idx 2 FL_method: fedprox Ref: edge
+
+  [Client  6] Round 2 | FedProx(ref=edge) | loss=1.3796
+client_id: 3 round_idx 2 FL_method: fedprox Ref: edge
+
+  [Client  3] Round 2 | FedProx(ref=edge) | loss=1.4388
+  [Edge 0] G-Round 2 | E-Round 2 | loss=1.4111
+  [Edge 1] G-Round 2 | E-Round 1 | Selected 2/4 clients
+client_id: 7 round_idx 2 FL_method: fedprox Ref: edge
+
+  [Client  7] Round 2 | FedProx(ref=edge) | loss=1.4832
+client_id: 2 round_idx 2 FL_method: fedprox Ref: edge
+
+  [Client  2] Round 2 | FedProx(ref=edge) | loss=1.5699
+  [Edge 1] G-Round 2 | E-Round 1 | loss=1.5193
+  [Edge 1] G-Round 2 | E-Round 2 | Selected 2/4 clients
+client_id: 8 round_idx 2 FL_method: fedprox Ref: edge
+
+  [Client  8] Round 2 | FedProx(ref=edge) | loss=1.7946
+client_id: 7 round_idx 2 FL_method: fedprox Ref: edge
+
+  [Client  7] Round 2 | FedProx(ref=edge) | loss=1.2628
+  [Edge 1] G-Round 2 | E-Round 2 | loss=1.5159
+[Round   2] Phase 2: Cloud aggregating...
+  [Cloud] acc=0.2614 | loss=2.0304 | time=49.1s | comm=461.4MB (total=923MB)
+
+[Cloud] Training complete.

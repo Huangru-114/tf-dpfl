@@ -1,0 +1,317 @@
+This job can be monitored from: https://job.c3se.chalmers.se/alvis/6364223
+========================================
+Job ID      : 6364223
+Job Name    : HierFLcifar10
+Node        : alvis10-06
+Start Time  : Thu Apr  9 01:50:50 CEST 2026
+Working Dir : /cephyr/users/ziangg/Alvis/tf-dpfl
+========================================
+[Setup] Python: /cephyr/users/ziangg/Alvis/TF_DPFL_2026/bin/python
+[Setup] TF version: 2.15.1
+[Setup] GPU available: [PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
+[Config] Override: wandb.enabled = True
+[Setup] Random seed: 42
+[Setup] Loading CIFAR-10...
+[Setup] Building global model...
+Model: "wideresnet28_4"
+__________________________________________________________________________________________________
+ Layer (type)                Output Shape                 Param #   Connected to                  
+==================================================================================================
+ input_1 (InputLayer)        [(None, 32, 32, 3)]          0         []                            
+                                                                                                  
+ conv2d (Conv2D)             (None, 32, 32, 16)           432       ['input_1[0][0]']             
+                                                                                                  
+ group_normalization (Group  (None, 32, 32, 16)           32        ['conv2d[0][0]']              
+ Normalization)                                                                                   
+                                                                                                  
+ re_lu (ReLU)                (None, 32, 32, 16)           0         ['group_normalization[0][0]'] 
+                                                                                                  
+ conv2d_1 (Conv2D)           (None, 32, 32, 64)           9216      ['re_lu[0][0]']               
+                                                                                                  
+ dropout (Dropout)           (None, 32, 32, 64)           0         ['conv2d_1[0][0]']            
+                                                                                                  
+ group_normalization_1 (Gro  (None, 32, 32, 64)           128       ['dropout[0][0]']             
+ upNormalization)                                                                                 
+                                                                                                  
+ re_lu_1 (ReLU)              (None, 32, 32, 64)           0         ['group_normalization_1[0][0]'
+                                                                    ]                             
+                                                                                                  
+ conv2d_2 (Conv2D)           (None, 32, 32, 64)           36864     ['re_lu_1[0][0]']             
+                                                                                                  
+ conv2d_3 (Conv2D)           (None, 32, 32, 64)           1024      ['conv2d[0][0]']              
+                                                                                                  
+ tf.__operators__.add (TFOp  (None, 32, 32, 64)           0         ['conv2d_2[0][0]',            
+ Lambda)                                                             'conv2d_3[0][0]']            
+                                                                                                  
+ group_normalization_2 (Gro  (None, 32, 32, 64)           128       ['tf.__operators__.add[0][0]']
+ upNormalization)                                                                                 
+                                                                                                  
+ re_lu_2 (ReLU)              (None, 32, 32, 64)           0         ['group_normalization_2[0][0]'
+                                                                    ]                             
+                                                                                                  
+ conv2d_4 (Conv2D)           (None, 32, 32, 64)           36864     ['re_lu_2[0][0]']             
+                                                                                                  
+ dropout_1 (Dropout)         (None, 32, 32, 64)           0         ['conv2d_4[0][0]']            
+                                                                                                  
+ group_normalization_3 (Gro  (None, 32, 32, 64)           128       ['dropout_1[0][0]']           
+ upNormalization)                                                                                 
+                                                                                                  
+ re_lu_3 (ReLU)              (None, 32, 32, 64)           0         ['group_normalization_3[0][0]'
+                                                                    ]                             
+                                                                                                  
+ conv2d_5 (Conv2D)           (None, 32, 32, 64)           36864     ['re_lu_3[0][0]']             
+                                                                                                  
+ tf.__operators__.add_1 (TF  (None, 32, 32, 64)           0         ['conv2d_5[0][0]',            
+ OpLambda)                                                           'tf.__operators__.add[0][0]']
+                                                                                                  
+ group_normalization_4 (Gro  (None, 32, 32, 64)           128       ['tf.__operators__.add_1[0][0]
+ upNormalization)                                                   ']                            
+                                                                                                  
+ re_lu_4 (ReLU)              (None, 32, 32, 64)           0         ['group_normalization_4[0][0]'
+                                                                    ]                             
+                                                                                                  
+ conv2d_6 (Conv2D)           (None, 16, 16, 128)          73728     ['re_lu_4[0][0]']             
+                                                                                                  
+ dropout_2 (Dropout)         (None, 16, 16, 128)          0         ['conv2d_6[0][0]']            
+                                                                                                  
+ group_normalization_5 (Gro  (None, 16, 16, 128)          256       ['dropout_2[0][0]']           
+ upNormalization)                                                                                 
+                                                                                                  
+ re_lu_5 (ReLU)              (None, 16, 16, 128)          0         ['group_normalization_5[0][0]'
+                                                                    ]                             
+                                                                                                  
+ conv2d_7 (Conv2D)           (None, 16, 16, 128)          147456    ['re_lu_5[0][0]']             
+                                                                                                  
+ conv2d_8 (Conv2D)           (None, 16, 16, 128)          8192      ['tf.__operators__.add_1[0][0]
+                                                                    ']                            
+                                                                                                  
+ tf.__operators__.add_2 (TF  (None, 16, 16, 128)          0         ['conv2d_7[0][0]',            
+ OpLambda)                                                           'conv2d_8[0][0]']            
+                                                                                                  
+ group_normalization_6 (Gro  (None, 16, 16, 128)          256       ['tf.__operators__.add_2[0][0]
+ upNormalization)                                                   ']                            
+                                                                                                  
+ re_lu_6 (ReLU)              (None, 16, 16, 128)          0         ['group_normalization_6[0][0]'
+                                                                    ]                             
+                                                                                                  
+ conv2d_9 (Conv2D)           (None, 16, 16, 128)          147456    ['re_lu_6[0][0]']             
+                                                                                                  
+ dropout_3 (Dropout)         (None, 16, 16, 128)          0         ['conv2d_9[0][0]']            
+                                                                                                  
+ group_normalization_7 (Gro  (None, 16, 16, 128)          256       ['dropout_3[0][0]']           
+ upNormalization)                                                                                 
+                                                                                                  
+ re_lu_7 (ReLU)              (None, 16, 16, 128)          0         ['group_normalization_7[0][0]'
+                                                                    ]                             
+                                                                                                  
+ conv2d_10 (Conv2D)          (None, 16, 16, 128)          147456    ['re_lu_7[0][0]']             
+                                                                                                  
+ tf.__operators__.add_3 (TF  (None, 16, 16, 128)          0         ['conv2d_10[0][0]',           
+ OpLambda)                                                           'tf.__operators__.add_2[0][0]
+                                                                    ']                            
+                                                                                                  
+ group_normalization_8 (Gro  (None, 16, 16, 128)          256       ['tf.__operators__.add_3[0][0]
+ upNormalization)                                                   ']                            
+                                                                                                  
+ re_lu_8 (ReLU)              (None, 16, 16, 128)          0         ['group_normalization_8[0][0]'
+                                                                    ]                             
+                                                                                                  
+ conv2d_11 (Conv2D)          (None, 8, 8, 256)            294912    ['re_lu_8[0][0]']             
+                                                                                                  
+ dropout_4 (Dropout)         (None, 8, 8, 256)            0         ['conv2d_11[0][0]']           
+                                                                                                  
+ group_normalization_9 (Gro  (None, 8, 8, 256)            512       ['dropout_4[0][0]']           
+ upNormalization)                                                                                 
+                                                                                                  
+ re_lu_9 (ReLU)              (None, 8, 8, 256)            0         ['group_normalization_9[0][0]'
+                                                                    ]                             
+                                                                                                  
+ conv2d_12 (Conv2D)          (None, 8, 8, 256)            589824    ['re_lu_9[0][0]']             
+                                                                                                  
+ conv2d_13 (Conv2D)          (None, 8, 8, 256)            32768     ['tf.__operators__.add_3[0][0]
+                                                                    ']                            
+                                                                                                  
+ tf.__operators__.add_4 (TF  (None, 8, 8, 256)            0         ['conv2d_12[0][0]',           
+ OpLambda)                                                           'conv2d_13[0][0]']           
+                                                                                                  
+ group_normalization_10 (Gr  (None, 8, 8, 256)            512       ['tf.__operators__.add_4[0][0]
+ oupNormalization)                                                  ']                            
+                                                                                                  
+ re_lu_10 (ReLU)             (None, 8, 8, 256)            0         ['group_normalization_10[0][0]
+                                                                    ']                            
+                                                                                                  
+ conv2d_14 (Conv2D)          (None, 8, 8, 256)            589824    ['re_lu_10[0][0]']            
+                                                                                                  
+ dropout_5 (Dropout)         (None, 8, 8, 256)            0         ['conv2d_14[0][0]']           
+                                                                                                  
+ group_normalization_11 (Gr  (None, 8, 8, 256)            512       ['dropout_5[0][0]']           
+ oupNormalization)                                                                                
+                                                                                                  
+ re_lu_11 (ReLU)             (None, 8, 8, 256)            0         ['group_normalization_11[0][0]
+                                                                    ']                            
+                                                                                                  
+ conv2d_15 (Conv2D)          (None, 8, 8, 256)            589824    ['re_lu_11[0][0]']            
+                                                                                                  
+ tf.__operators__.add_5 (TF  (None, 8, 8, 256)            0         ['conv2d_15[0][0]',           
+ OpLambda)                                                           'tf.__operators__.add_4[0][0]
+                                                                    ']                            
+                                                                                                  
+ group_normalization_12 (Gr  (None, 8, 8, 256)            512       ['tf.__operators__.add_5[0][0]
+ oupNormalization)                                                  ']                            
+                                                                                                  
+ re_lu_12 (ReLU)             (None, 8, 8, 256)            0         ['group_normalization_12[0][0]
+                                                                    ']                            
+                                                                                                  
+ global_average_pooling2d (  (None, 256)                  0         ['re_lu_12[0][0]']            
+ GlobalAveragePooling2D)                                                                          
+                                                                                                  
+ dense (Dense)               (None, 10)                   2570      ['global_average_pooling2d[0][
+                                                                    0]']                          
+                                                                                                  
+==================================================================================================
+Total params: 2748890 (10.49 MB)
+Trainable params: 2748890 (10.49 MB)
+Non-trainable params: 0 (0.00 Byte)
+__________________________________________________________________________________________________
+[Setup] Building clients...
+
+[Non-IID] α=0.5, 10 clients, 10 classes
+Client       Samples    Top-3 classes
+----------------------------------------------------
+client_0     3597       cls9:1461, cls7:941, cls5:343
+client_1     5704       cls4:3063, cls6:1108, cls8:456
+client_2     2879       cls1:1113, cls4:911, cls6:520
+client_3     2857       cls0:1266, cls1:545, cls9:435
+client_4     6512       cls0:2148, cls2:1687, cls8:1321
+client_5     4084       cls3:2404, cls2:907, cls1:350
+client_6     7936       cls7:3402, cls5:1951, cls6:1507
+client_7     4043       cls1:2304, cls8:583, cls2:322
+client_8     3670       cls6:1117, cls5:718, cls0:437
+client_9     8718       cls8:2259, cls9:1870, cls3:1815
+
+[Setup] 10 clients built (noniid, α=0.5)
+[Setup] Building edge servers...
+
+[Assignment] Histogram clustering | 10 clients → 2 edges | no DP
+  Edge 0: clients [0, 3, 4, 5, 6, 9]
+  Edge 1: clients [1, 2, 7, 8]
+[EdgeServer 0] 6 clients | 33704 total samples
+[EdgeServer 1] 4 clients | 16296 total samples
+
+[Setup] Built 2 edge servers (strategy=histogram)
+  Edge 0: 6 clients | 33704 samples
+  Edge 1: 4 clients | 16296 samples
+[CloudServer] 2 edge servers | model size: 10.49 MB
+
+====================================================
+ HierFAVG Training Start
+====================================================
+
+[Round   1] Phase 1: Cloud broadcasting to 2 edges...
+  [Edge 0] G-Round 1 | E-Round 1 | Selected 4/6 clients
+client_id: 5 round_idx 1 FL_method: fedprox Ref: edge 
+
+  [Client  5] Round 1 | FedProx(ref=edge) | loss=1.5403
+client_id: 4 round_idx 1 FL_method: fedprox Ref: edge 
+
+  [Client  4] Round 1 | FedProx(ref=edge) | loss=1.6597
+client_id: 9 round_idx 1 FL_method: fedprox Ref: edge 
+
+  [Client  9] Round 1 | FedProx(ref=edge) | loss=1.7919
+client_id: 0 round_idx 1 FL_method: fedprox Ref: edge 
+
+  [Client  0] Round 1 | FedProx(ref=edge) | loss=1.7441
+  [Edge 0] G-Round 1 | E-Round 1 | loss=1.7020
+  [Edge 0] G-Round 1 | E-Round 2 | Selected 4/6 clients
+client_id: 3 round_idx 1 FL_method: fedprox Ref: edge 
+
+  [Client  3] Round 1 | FedProx(ref=edge) | loss=1.6216
+client_id: 9 round_idx 1 FL_method: fedprox Ref: edge 
+
+  [Client  9] Round 1 | FedProx(ref=edge) | loss=1.6137
+client_id: 5 round_idx 1 FL_method: fedprox Ref: edge 
+
+  [Client  5] Round 1 | FedProx(ref=edge) | loss=1.3603
+client_id: 6 round_idx 1 FL_method: fedprox Ref: edge 
+
+  [Client  6] Round 1 | FedProx(ref=edge) | loss=1.5726
+  [Edge 0] G-Round 1 | E-Round 2 | loss=1.5570
+  [Edge 1] G-Round 1 | E-Round 1 | Selected 2/4 clients
+client_id: 1 round_idx 1 FL_method: fedprox Ref: edge 
+
+  [Client  1] Round 1 | FedProx(ref=edge) | loss=1.6763
+client_id: 2 round_idx 1 FL_method: fedprox Ref: edge 
+
+  [Client  2] Round 1 | FedProx(ref=edge) | loss=1.7559
+  [Edge 1] G-Round 1 | E-Round 1 | loss=1.7030
+  [Edge 1] G-Round 1 | E-Round 2 | Selected 2/4 clients
+client_id: 7 round_idx 1 FL_method: fedprox Ref: edge 
+
+  [Client  7] Round 1 | FedProx(ref=edge) | loss=1.6985
+client_id: 1 round_idx 1 FL_method: fedprox Ref: edge 
+
+  [Client  1] Round 1 | FedProx(ref=edge) | loss=1.2972
+  [Edge 1] G-Round 1 | E-Round 2 | loss=1.4637
+[Round   1] Phase 2: Cloud aggregating...
+  [Cloud] acc=0.2035 | loss=2.1274 | time=136.3s | comm=461.4MB (total=461MB)
+
+[Round   2] Phase 1: Cloud broadcasting to 2 edges...
+  [Edge 0] G-Round 2 | E-Round 1 | Selected 4/6 clients
+client_id: 4 round_idx 2 FL_method: fedprox Ref: edge 
+
+  [Client  4] Round 2 | FedProx(ref=edge) | loss=1.4208
+client_id: 0 round_idx 2 FL_method: fedprox Ref: edge 
+
+  [Client  0] Round 2 | FedProx(ref=edge) | loss=1.6979
+client_id: 5 round_idx 2 FL_method: fedprox Ref: edge 
+
+  [Client  5] Round 2 | FedProx(ref=edge) | loss=1.4106
+client_id: 6 round_idx 2 FL_method: fedprox Ref: edge 
+
+  [Client  6] Round 2 | FedProx(ref=edge) | loss=1.4798
+  [Edge 0] G-Round 2 | E-Round 1 | loss=1.4851
+  [Edge 0] G-Round 2 | E-Round 2 | Selected 4/6 clients
+client_id: 0 round_idx 2 FL_method: fedprox Ref: edge 
+
+  [Client  0] Round 2 | FedProx(ref=edge) | loss=1.5652
+client_id: 4 round_idx 2 FL_method: fedprox Ref: edge 
+
+  [Client  4] Round 2 | FedProx(ref=edge) | loss=1.3524
+client_id: 6 round_idx 2 FL_method: fedprox Ref: edge 
+
+  [Client  6] Round 2 | FedProx(ref=edge) | loss=1.3796
+client_id: 3 round_idx 2 FL_method: fedprox Ref: edge 
+
+  [Client  3] Round 2 | FedProx(ref=edge) | loss=1.4388
+  [Edge 0] G-Round 2 | E-Round 2 | loss=1.4111
+  [Edge 1] G-Round 2 | E-Round 1 | Selected 2/4 clients
+client_id: 7 round_idx 2 FL_method: fedprox Ref: edge 
+
+  [Client  7] Round 2 | FedProx(ref=edge) | loss=1.4832
+client_id: 2 round_idx 2 FL_method: fedprox Ref: edge 
+
+  [Client  2] Round 2 | FedProx(ref=edge) | loss=1.5699
+  [Edge 1] G-Round 2 | E-Round 1 | loss=1.5193
+  [Edge 1] G-Round 2 | E-Round 2 | Selected 2/4 clients
+client_id: 8 round_idx 2 FL_method: fedprox Ref: edge 
+
+  [Client  8] Round 2 | FedProx(ref=edge) | loss=1.7946
+client_id: 7 round_idx 2 FL_method: fedprox Ref: edge 
+
+  [Client  7] Round 2 | FedProx(ref=edge) | loss=1.2628
+  [Edge 1] G-Round 2 | E-Round 2 | loss=1.5159
+[Round   2] Phase 2: Cloud aggregating...
+  [Cloud] acc=0.2614 | loss=2.0304 | time=49.1s | comm=461.4MB (total=923MB)
+
+[Cloud] Training complete.
+
+====================================================
+ Experiment Summary
+====================================================
+  Best  global_acc : 0.2614  (round 2)
+  Final global_acc : 0.2614
+  Total rounds     : 2
+====================================================
+========================================
+End Time : Thu Apr  9 01:54:42 CEST 2026
+========================================

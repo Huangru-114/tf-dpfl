@@ -15,28 +15,14 @@ data:
 #   num_classes:    43
 #   data_dir:        "/mimer/NOBACKUP/groups/naiss2025-22-1095/Gao/GTSRB"
 
-training:
-  drift_correction: "fedprox"   # fedavg/fedprox/feddyn/scaffold/pfedme/perfedavg
-  proximal_ref:     "edge"      # global / edge / both
-
-  # FedProx / FedDyn 参数
-  mu:           0.1
-  mu_edge:      0.1             # both 模式下的 edge 近端项系数
-  mu_global:    0.01            # both 模式下的 global 近端项系数
-  alpha_feddyn: 0.1
-
-  # Per-FedAvg / pFedMe 参数
-  inner_lr:      0.01
-  lambda_pfedme: 15.0
-
 federation:
   edge_assignment: "histogram"   # random / gradient / histogram  ← 分配策略
   client_fraction:  0.7
   warmup_rounds:    5
-  n_clients:       50
-  n_edges:         5          # 新增：Edge Server 数量
-  edge_rounds:     5          # 新增：每次全局通信里 Edge 内部聚合轮数
-  n_rounds:        10
+  n_clients:       10
+  n_edges:         2          # 新增：Edge Server 数量
+  edge_rounds:     2          # 新增：每次全局通信里 Edge 内部聚合轮数
+  n_rounds:        20
   partition:       "noniid"
   alpha:           0.5
 #总epoch减至300
@@ -47,6 +33,21 @@ training:
   local_epochs:   6
   learning_rate:  0.01
   lr_decay:       0.992   # 文献值，每 epoch 衰减一次
+
+
+  drift_correction: "feddyn"   # fedavg/fedprox/feddyn/scaffold/pfedme/perfedavg
+  proximal_ref:     "edge"      # global / edge / both
+
+  # FedProx / FedDyn 参数
+  mu:           1.0
+  mu_edge:      0.1             # both 模式下的 edge 近端项系数
+  mu_global:    0.01            # both 模式下的 global 近端项系数
+  alpha_feddyn: 0.1
+
+  # Per-FedAvg / pFedMe 参数
+  inner_lr:      0.01
+  lambda_pfedme: 15.0
+
 model:
   arch: "wideresnet28_4" 
 #现在实际为16-4，训练时间减半，仅降低1.6%准确率，FL通信成本大幅降低
@@ -55,5 +56,5 @@ wandb:
   enabled:   true            # set true when running real experiments
   entity:    "3445339138-kth-royal-institute-of-technology"        # 你的 wandb 账号名
   project:   "HierFL-cifar10"  # 你创建的 wandb 项目名
-  run_name:  "HierWRN164prox_mu=0.1_client=50_edge=5_rounds=10_edge rounds=5_localepoch=6_0.5_frac=0.7_hs"  # 可选，设置后在 wandb 上更容易识别不同实验
-  # run_name:  "newadption_test"  # 可选，设置后在 wandb 上更容易识别不同实验
+  # run_name:  "HierWRN164prox_mu=1.0_client=50_edge=5_rounds=10_edge rounds=5_localepoch=6_0.5_frac=0.7_hs"  # 可选，设置后在 wandb 上更容易识别不同实验
+  run_name:  "feddyn_test"  # 可选，设置后在 wandb 上更容易识别不同实验
