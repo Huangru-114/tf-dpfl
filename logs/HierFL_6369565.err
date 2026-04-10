@@ -1,0 +1,65 @@
+2026-04-10 07:03:07.456863: I tensorflow/core/util/port.cc:113] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-04-10 07:03:07.493703: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-04-10 07:03:07.493746: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-04-10 07:03:07.494461: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+2026-04-10 07:03:15.306148: I tensorflow/core/util/port.cc:113] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-04-10 07:03:15.341418: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-04-10 07:03:15.341468: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-04-10 07:03:15.342164: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+2026-04-10 07:03:20.972778: I tensorflow/core/util/port.cc:113] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-04-10 07:03:21.008567: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-04-10 07:03:21.008602: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-04-10 07:03:21.009299: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+2026-04-10 07:03:29.470966: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1929] Created device /job:localhost/replica:0/task:0/device:GPU:0 with 43683 MB memory:  -> device: 0, name: NVIDIA A40, pci bus id: 0000:17:00.0, compute capability: 8.6
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /cephyr/users/ziangg/Alvis/.netrc.
+wandb: Currently logged in as: 3445339138 (3445339138-kth-royal-institute-of-technology) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run bzfh6y7q
+wandb: Tracking run with wandb version 0.25.1
+wandb: Run data is saved locally in /cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/wandb/run-20260410_070346-bzfh6y7q
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run feddyn_new_test_0.05_0.01
+wandb: ⭐️ View project at https://wandb.ai/3445339138-kth-royal-institute-of-technology/HierFL-cifar10
+wandb: 🚀 View run at https://wandb.ai/3445339138-kth-royal-institute-of-technology/HierFL-cifar10/runs/bzfh6y7q
+2026-04-10 07:03:53.547265: E tensorflow/core/grappler/optimizers/meta_optimizer.cc:961] layout failed: INVALID_ARGUMENT: Size of values 0 does not match size of permutation 4 @ fanin shape inwideresnet28_4/dropout/dropout/SelectV2-2-TransposeNHWCToNCHW-LayoutOptimizer
+2026-04-10 07:03:54.471458: I external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:454] Loaded cuDNN version 8902
+2026-04-10 07:03:56.441183: I external/local_xla/xla/service/service.cc:168] XLA service 0x1543a32b3890 initialized for platform CUDA (this does not guarantee that XLA will be used). Devices:
+2026-04-10 07:03:56.441234: I external/local_xla/xla/service/service.cc:176]   StreamExecutor device (0): NVIDIA A40, Compute Capability 8.6
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1775797436.502581  383939 device_compiler.h:186] Compiled cluster using XLA!  This line is logged at most once for the lifetime of the process.
+2026-04-10 07:05:07.971871: E tensorflow/core/grappler/optimizers/meta_optimizer.cc:961] layout failed: INVALID_ARGUMENT: Size of values 0 does not match size of permutation 4 @ fanin shape inwideresnet28_4/dropout/dropout/SelectV2-2-TransposeNHWCToNCHW-LayoutOptimizer
+2026-04-10 07:06:25.400397: E tensorflow/core/grappler/optimizers/meta_optimizer.cc:961] layout failed: INVALID_ARGUMENT: Size of values 0 does not match size of permutation 4 @ fanin shape inwideresnet28_4/dropout/dropout/SelectV2-2-TransposeNHWCToNCHW-LayoutOptimizer
+2026-04-10 07:09:08.740390: E tensorflow/core/grappler/optimizers/meta_optimizer.cc:961] layout failed: INVALID_ARGUMENT: Size of values 0 does not match size of permutation 4 @ fanin shape inwideresnet28_4/dropout/dropout/SelectV2-2-TransposeNHWCToNCHW-LayoutOptimizer
+wandb: updating run metadata
+wandb: uploading output.log; uploading wandb-summary.json; uploading config.yaml
+wandb: uploading history steps 19-19, summary, console lines 461-465
+wandb: 
+wandb: Run history:
+wandb: comm/client_edge_mb ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:  comm/cloud_edge_mb ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:  comm/this_round_mb ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:       comm/total_mb ▁▁▂▂▂▃▃▄▄▄▅▅▅▆▆▇▇▇██
+wandb:  perf/avg_edge_loss ███▇▆▅▅▄▄▄▃▂▃▂▂▁▂▁▂▁
+wandb:     perf/global_acc ▁▂▄▃▄▂▅▃▅▆▅▅▇▇█▅▇▅▆▆
+wandb:    perf/global_loss █▆▄▇▇▇▅▆▅▂▄▄▂▂▁▅▂▅▃▃
+wandb:               round ▁▁▂▂▂▃▃▄▄▄▅▅▅▆▆▇▇▇██
+wandb:   time/client_avg_s █▂▁▂▂▂▂▁▂▁▂▃▂▂▂▂▂▁▁▂
+wandb:  time/round_total_s █▂▂▂▂▂▂▁▂▁▂▃▂▂▂▂▂▁▂▂
+wandb:                  +1 ...
+wandb: 
+wandb: Run summary:
+wandb: comm/client_edge_mb 419.44733
+wandb:  comm/cloud_edge_mb 41.94473
+wandb:  comm/this_round_mb 461.39206
+wandb:       comm/total_mb 9227.84119
+wandb:  perf/avg_edge_loss 0.60015
+wandb:     perf/global_acc 0.5378
+wandb:    perf/global_loss 1.54578
+wandb:               round 20
+wandb:   time/client_avg_s 9.06597
+wandb:  time/round_total_s 117.62242
+wandb:                  +1 ...
+wandb: 
+wandb: 🚀 View run feddyn_new_test_0.05_0.01 at: https://wandb.ai/3445339138-kth-royal-institute-of-technology/HierFL-cifar10/runs/bzfh6y7q
+wandb: ⭐️ View project at: https://wandb.ai/3445339138-kth-royal-institute-of-technology/HierFL-cifar10
+wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20260410_070346-bzfh6y7q/logs

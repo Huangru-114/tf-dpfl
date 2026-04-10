@@ -1,0 +1,73 @@
+
+====================================================
+ HierFAVG Training Start
+====================================================
+
+[Round   1] Broadcasting to 2 edges...
+  [Edge 0] G1 | E1 | Selected 4/6
+Traceback (most recent call last):
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/main.py", line 213, in <module>
+    run_experiment()
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/main.py", line 189, in run_experiment
+    history = cloud.run(logger=logger)
+              ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/server/server.py", line 234, in run
+    m = self.run_round(r)
+        ^^^^^^^^^^^^^^^^^
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/server/server.py", line 195, in run_round
+    avg_edge_loss, avg_ct, comm_ce = self.collect_and_aggregate(round_idx, prev_gw)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/server/server.py", line 152, in collect_and_aggregate
+    w, n, loss, t, comm = edge.run(round_idx)
+                          ^^^^^^^^^^^^^^^^^^^
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/server/edge_server.py", line 216, in run
+    loss, t = self.run_edge_round(global_round_idx, er)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/server/edge_server.py", line 194, in run_edge_round
+    w, n, loss, t = client.local_train(global_round_idx)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/client/client.py", line 98, in local_train
+    return self._local_train_feddyn(round_idx, ref)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/client/client.py", line 208, in _local_train_feddyn
+    bl = [float(self._train_step_feddyn(x, y, ref_tf, a_tf).numpy())
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/client/client.py", line 208, in <listcomp>
+    bl = [float(self._train_step_feddyn(x, y, ref_tf, a_tf).numpy())
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/apps/Arch/software/TensorFlow/2.15.1-foss-2023a-CUDA-12.1.1/lib/python3.11/site-packages/tensorflow/python/util/traceback_utils.py", line 153, in error_handler
+    raise e.with_traceback(filtered_tb) from None
+  File "/local/tmp.6369429/__autograph_generated_filerk4odg77.py", line 11, in tf___train_step_feddyn
+    task = ag__.converted_call(ag__.ld(self).loss_fn, (ag__.converted_call(ag__.ld(self).model, (ag__.ld(images),), dict(training=True), fscope), ag__.ld(labels)), None, fscope)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/apps/Arch/software/TensorFlow/2.15.1-foss-2023a-CUDA-12.1.1/lib/python3.11/site-packages/keras/src/losses.py", line 143, in __call__
+    losses = call_fn(y_true, y_pred)
+             ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/apps/Arch/software/TensorFlow/2.15.1-foss-2023a-CUDA-12.1.1/lib/python3.11/site-packages/keras/src/losses.py", line 270, in call
+    return ag_fn(y_true, y_pred, **self._fn_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/apps/Arch/software/TensorFlow/2.15.1-foss-2023a-CUDA-12.1.1/lib/python3.11/site-packages/keras/src/losses.py", line 2454, in sparse_categorical_crossentropy
+    return backend.sparse_categorical_crossentropy(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/apps/Arch/software/TensorFlow/2.15.1-foss-2023a-CUDA-12.1.1/lib/python3.11/site-packages/keras/src/backend.py", line 5731, in sparse_categorical_crossentropy
+    epsilon_ = _constant_to_tensor(epsilon(), output.dtype.base_dtype)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/apps/Arch/software/TensorFlow/2.15.1-foss-2023a-CUDA-12.1.1/lib/python3.11/site-packages/keras/src/backend.py", line 986, in _constant_to_tensor
+    return tf.constant(x, dtype=dtype)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: in user code:
+
+    File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/client/client.py", line 222, in _train_step_feddyn  *
+        task = self.loss_fn(self.model(images, training=True), labels)
+    File "/apps/Arch/software/TensorFlow/2.15.1-foss-2023a-CUDA-12.1.1/lib/python3.11/site-packages/keras/src/losses.py", line 143, in __call__  **
+        losses = call_fn(y_true, y_pred)
+    File "/apps/Arch/software/TensorFlow/2.15.1-foss-2023a-CUDA-12.1.1/lib/python3.11/site-packages/keras/src/losses.py", line 270, in call  **
+        return ag_fn(y_true, y_pred, **self._fn_kwargs)
+    File "/apps/Arch/software/TensorFlow/2.15.1-foss-2023a-CUDA-12.1.1/lib/python3.11/site-packages/keras/src/losses.py", line 2454, in sparse_categorical_crossentropy
+        return backend.sparse_categorical_crossentropy(
+    File "/apps/Arch/software/TensorFlow/2.15.1-foss-2023a-CUDA-12.1.1/lib/python3.11/site-packages/keras/src/backend.py", line 5731, in sparse_categorical_crossentropy
+        epsilon_ = _constant_to_tensor(epsilon(), output.dtype.base_dtype)
+    File "/apps/Arch/software/TensorFlow/2.15.1-foss-2023a-CUDA-12.1.1/lib/python3.11/site-packages/keras/src/backend.py", line 986, in _constant_to_tensor
+        return tf.constant(x, dtype=dtype)
+
+    TypeError: Expected uint8, but got 1e-07 of type 'float'.

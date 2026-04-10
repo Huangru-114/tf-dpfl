@@ -1,10 +1,25 @@
+"""
+server.py  –  层级 FL Cloud 服务器
+支持所有 FL 方法的全局层聚合，通过 config 统一切换。
+
+全局聚合策略
+─────────────
+  fedavg / fedprox / pfedme / perfedavg / scaffold
+      → 标准样本加权 FedAvg（差异在 edge 层及以下）
+  feddyn
+      → FedDyn 去偏聚合（维护 h_g，unweighted mean + h_g 校正）
+  scaffold + scaffold_cloud: true
+      → SCAFFOLD 在 cloud 层也做控制变量聚合（维护 c_g）
+"""
+
 import numpy as np
 import tensorflow as tf
 import time
-from models.model_utils import get_model_bytes
 
-from aggregation.fedavg import aggregate
-
+from models.model_utils   import get_model_bytes
+from aggregation.fedavg   import aggregate
+from aggregation.feddyn   import feddyn_aggregate,   init_h
+from aggregation.scaffold import scaffold_aggregate, init_cv
 
 
 class CloudServer:
@@ -12,13 +27,6 @@ class CloudServer:
                  edge_servers: list,
                  test_dataset: tf.data.Dataset,
                  config: dict):
-        """
-        Args:
-            global_model:  全局模型，整个实验只有这一个
-            edge_servers:  所有 EdgeServer 实例的列表
-            test_dataset:  全局测试集
-            config:        超参数字典
-        """
         self.global_model = global_model
         self.edge_servers = edge_servers
         self.test_dataset = test_dataset
@@ -28,175 +36,203 @@ class CloudServer:
         self.model_bytes      = get_model_bytes(global_model)
         self.total_comm_bytes = 0
 
-        print(f"[CloudServer] "
-              f"{len(edge_servers)} edge servers | "
-              f"model size: {self.model_bytes / 1024 / 1024:.2f} MB")
+        # ── FedDyn 全局校正状态 h_g ────────────────────────────────────
+        # 把 edge server 视为"客户端"，做同级的 FedDyn 去偏校正。
+        # h_g ← h_g − (α_g/E)·Σ_{e∈active}(θ_e^new − θ_g^prev)
+        # θ_g^new = mean(θ_e^new) − (1/α_g)·h_g
+        self.h_g = None   # List[np.ndarray]，懒惰初始化
+
+        # ── SCAFFOLD 全局控制变量 c_g（可选）───────────────────────────
+        # 仅当 config["training"]["scaffold_cloud"] == True 时使用。
+        # c_g ← c_g + (1/E)·Σ_{e∈active} Δc_e
+        # 此时 EdgeServer 需上传其 c_delta（待扩展）。
+        self.c_g = None   # List[np.ndarray]，懒惰初始化
+
+        print(f"[CloudServer] {len(edge_servers)} edges | "
+              f"model: {self.model_bytes / 1024 / 1024:.2f} MB")
 
         self.history = {
-            "round":              [],
-            "total_epoch":        [],
-            "global_loss":        [],
-            "global_acc":         [],
-            "avg_edge_loss":      [],
-            "round_time":         [],
-            "avg_client_time":    [],
-            "comm_bytes_round":   [],
-            "comm_bytes_total":   [],
+            "round": [], "global_loss": [], "global_acc": [],
+            "avg_edge_loss": [], "round_time": [],
+            "avg_client_time": [], "comm_bytes_round": [], "comm_bytes_total": [],
         }
 
-    def select_clients(self, round_idx: int):
-        """
-        按采样比例随机选取参与本轮的客户端。
-        client_fraction=1.0 时全员参与。
+    # ══════════════════════════════════════════════════════════════════════
+    # 初始化辅助
+    # ══════════════════════════════════════════════════════════════════════
 
-        Returns:
-            selected: List[FLClient]
-        """
-        fraction = self.config["federation"]["client_fraction"]
-        n_select = max(1, int(len(self.clients) * fraction))
-        selected = np.random.choice(self.clients, n_select, replace=False).tolist()
+    def _init_h_g(self):
+        if self.h_g is None:
+            self.h_g = init_h(self.global_model.get_weights())
 
-        print(f"\n[Round {round_idx:>3}] "
-              f"Selected {n_select}/{len(self.clients)} clients")
-        return selected
+    def _init_c_g(self):
+        if self.c_g is None:
+            self.c_g = init_cv(self.global_model.get_weights())
 
-    # def broadcast_to_edges(self):
-    #     """
-    #     把当前全局权重广播给所有 Edge Server。
-    #     Edge Server 再负责向下广播给自己的客户端。
-    #     """
-    #     global_weights = self.global_model.get_weights()
-    #     for edge in self.edge_servers:
-    #         edge.set_weights(global_weights)
-    def broadcast_to_edges(self, selected_edges=None):
+    # ══════════════════════════════════════════════════════════════════════
+    # 广播
+    # ══════════════════════════════════════════════════════════════════════
+
+    def broadcast_to_edges(self, selected_edges: list = None):
+        """广播全局权重给所有（或选定的）Edge Server。"""
         if selected_edges is None:
             selected_edges = self.edge_servers
-        global_weights = self.global_model.get_weights()
+        gw = self.global_model.get_weights()
         for edge in selected_edges:
-            edge.set_weights(global_weights)
-            edge.set_global_ref(global_weights)   # ← 新增  
+            edge.set_weights(gw)
+            edge.set_global_ref(gw)
 
-    def collect_and_aggregate(self, round_idx: int):
+    # ══════════════════════════════════════════════════════════════════════
+    # 全局聚合
+    # ══════════════════════════════════════════════════════════════════════
+
+    def _aggregate_global(self, edge_updates: list,
+                          prev_global_weights: list) -> list:
         """
-        让所有 Edge Server 执行边缘聚合，收集结果后 Cloud 做全局聚合。
+        在 Cloud 层聚合 edge 模型。
 
-        Returns:
-            avg_edge_loss:   各 Edge 的加权平均 loss
-            avg_client_time: 所有客户端的平均训练时间
-            comm_client_edge: client↔edge 总通信量
+        FedDyn 路径
+        ────────────
+        α_g 可单独配置（alpha_feddyn_global），默认回退到 alpha_feddyn。
+        通常 α_g > α_client（跨 cluster 异质性更高）。
+
+        SCAFFOLD 全局路径（scaffold_cloud: true）
+        ─────────────────────────────────────────
+        Edge 上传的 c_delta 尚未在当前接口中传递，
+        可扩展 edge.run() 返回值以支持。此处预留框架。
+
+        其他方法
+        ─────────
+        样本加权 FedAvg（标准）。
         """
-        edge_updates     = []
-        comm_client_edge = 0
+        method = self.config["training"].get("drift_correction", "fedavg")
 
+        if method == "feddyn":
+            self._init_h_g()
+            alpha_g = self.config["training"].get(
+                "alpha_feddyn_global",
+                self.config["training"].get("alpha_feddyn", 0.01),
+            )
+            return feddyn_aggregate(
+                h_state        = self.h_g,
+                active_weights = [w for w, *_ in edge_updates],
+                prev_anchor    = prev_global_weights,
+                alpha          = alpha_g,
+                total_n        = len(self.edge_servers),   # ← 全部 edge
+            )
+
+        elif method == "scaffold" and self.config["training"].get("scaffold_cloud", False):
+            # ── 预留：Cloud 层 SCAFFOLD（需 edge 上传 c_delta）────────────
+            # 当前 edge.run() 不返回 c_delta；扩展后取消注释：
+            #   self._init_c_g()
+            #   c_deltas = [ed.get("c_delta") for ed in edge_aux if ed.get("c_delta")]
+            #   return scaffold_aggregate(self.c_g, active_weights, c_deltas, len(self.edge_servers))
+            # 暂时退化为 FedAvg（等价于 SCAFFOLD 仅在 edge 层生效）
+            return aggregate(edge_updates)
+
+        else:
+            # fedavg / fedprox / pfedme / perfedavg / scaffold(无cloud级) → FedAvg
+            return aggregate(edge_updates)
+
+    # ══════════════════════════════════════════════════════════════════════
+    # 主训练流程
+    # ══════════════════════════════════════════════════════════════════════
+
+    def collect_and_aggregate(self, round_idx: int,
+                               prev_global_weights: list):
+        """
+        触发各 edge 执行内部聚合，收集 edge 模型，做全局聚合。
+
+        Args:
+            round_idx           : 当前全局轮次
+            prev_global_weights : 广播前的全局模型快照（FedDyn anchor）
+        """
+        edge_updates, comm_ce = [], 0
         for edge in self.edge_servers:
-            weights, n_samples, avg_loss, avg_time, comm = edge.run(round_idx)
-            edge_updates.append((weights, n_samples, avg_loss, avg_time))
-            comm_client_edge += comm
+            w, n, loss, t, comm = edge.run(round_idx)
+            edge_updates.append((w, n, loss, t))
+            comm_ce += comm
 
-        # Cloud 层全局聚合
-        new_weights = aggregate(edge_updates)
-        self.global_model.set_weights(new_weights)
+        new_w = self._aggregate_global(edge_updates, prev_global_weights)
+        self.global_model.set_weights(new_w)
 
-        total_n        = sum(n for _, n, _, _ in edge_updates)
-        avg_edge_loss  = sum(
-            loss * n / total_n for _, n, loss, _ in edge_updates
-        )
-        avg_client_time = float(
-            np.mean([t for _, _, _, t in edge_updates])
-        )
-
-        return float(avg_edge_loss), avg_client_time, comm_client_edge
+        total_n  = sum(n for _, n, *_ in edge_updates)
+        avg_loss = sum(l * n / total_n for _, n, l, _ in edge_updates)
+        avg_t    = float(np.mean([t for *_, t, _ in edge_updates]))
+        # edge_updates: (w, n, loss, time) → 最后一个是 time
+        avg_t    = float(np.mean([eu[3] for eu in edge_updates]))
+        return float(avg_loss), avg_t, comm_ce
 
     def evaluate_global(self):
         """在全局测试集上评估全局模型。"""
-        total_loss, total_correct, total_samples = 0.0, 0, 0
-
+        tl = tc = tn = 0
         for images, labels in self.test_dataset:
-            predictions    = self.global_model(images, training=False)
-            loss           = self.loss_fn(labels, predictions)
-            total_loss    += loss.numpy() * images.shape[0]
-            total_correct += np.sum(
-                np.argmax(predictions.numpy(), axis=1) == labels.numpy()
-            )
-            total_samples += images.shape[0]
-
-        return total_loss / total_samples, total_correct / total_samples
+            pred  = self.global_model(images, training=False)
+            tl   += self.loss_fn(labels, pred).numpy() * images.shape[0]
+            tc   += np.sum(np.argmax(pred.numpy(), 1) == labels.numpy())
+            tn   += images.shape[0]
+        return tl / tn, tc / tn
 
     def run_round(self, round_idx: int):
         """
-        执行完整的一轮 HierFAVG 通信：
+        一轮完整通信：
 
-        Phase 1（边缘聚合）：
-            Cloud 广播 → Edges → Clients 训练
-            → Edge 内部聚合 edge_rounds 次
-
-        Phase 2（全局聚合）：
-            Cloud 收集各 Edge 模型 → 全局 FedAvg → 评估
+        Phase 0  快照全局 anchor（必须在 broadcast 前）
+        Phase 1  广播 → Edge 内部聚合（含 client 训练）
+        Phase 2  全局聚合（FedDyn/FedAvg/…）
+        Phase 3  评估
         """
-        t_start = time.time()
+        t0 = time.time()
 
-        print(f"\n[Round {round_idx:>3}] "
-              f"Phase 1: Cloud broadcasting to "
-              f"{len(self.edge_servers)} edges...")
+        # ── Phase 0：anchor 快照 ──────────────────────────────────────────
+        # 必须在 broadcast_to_edges() 之前完成深拷贝。
+        prev_gw = [w.copy() for w in self.global_model.get_weights()]
 
-        # Phase 1：广播全局权重到所有 Edge
+        print(f"\n[Round {round_idx:>3}] Broadcasting to {len(self.edge_servers)} edges...")
         self.broadcast_to_edges()
 
-        # Edge 内部聚合（包含客户端训练）
-        avg_edge_loss, avg_client_time, comm_client_edge = \
-            self.collect_and_aggregate(round_idx)
+        # ── Phase 1+2：edge 聚合 + 全局聚合 ──────────────────────────────
+        avg_edge_loss, avg_ct, comm_ce = self.collect_and_aggregate(round_idx, prev_gw)
 
-        # Phase 2：全局评估
-        print(f"[Round {round_idx:>3}] Phase 2: Cloud aggregating...")
+        # ── Phase 3：评估 ────────────────────────────────────────────────
         global_loss, global_acc = self.evaluate_global()
 
-        # 通信量：
-        #   cloud↔edge：双向 × edge 数量 × 模型大小
-        #   client↔edge：由 EdgeServer 统计后传回
-        comm_cloud_edge   = 2 * self.model_bytes * len(self.edge_servers)
-        comm_this_round   = comm_cloud_edge + comm_client_edge
-        self.total_comm_bytes += comm_this_round
-        round_time = time.time() - t_start
+        comm_ce_total   = 2 * self.model_bytes * len(self.edge_servers)
+        comm_round      = comm_ce_total + comm_ce
+        self.total_comm_bytes += comm_round
+        elapsed = time.time() - t0
 
         metrics = {
             "round":            round_idx,
-            "edge_rounds":     self.config["federation"]["edge_rounds"],
-            "local_epochs":    self.config["training"]["local_epochs"],
+            "edge_rounds":      self.config["federation"]["edge_rounds"],
+            "local_epochs":     self.config["training"]["local_epochs"],
             "global_loss":      global_loss,
             "global_acc":       global_acc,
             "avg_edge_loss":    avg_edge_loss,
-            "round_time":       round_time,
-            "avg_client_time":  avg_client_time,
-            "comm_bytes_round": comm_this_round,
+            "round_time":       elapsed,
+            "avg_client_time":  avg_ct,
+            "comm_bytes_round": comm_round,
             "comm_bytes_total": self.total_comm_bytes,
-            "comm_mb_round":    comm_this_round / 1024 / 1024,
+            "comm_mb_round":    comm_round          / 1024 / 1024,
             "comm_mb_total":    self.total_comm_bytes / 1024 / 1024,
-            "comm_mb_cloud_edge":   comm_cloud_edge / 1024 / 1024,
-            "comm_mb_client_edge":  comm_client_edge / 1024 / 1024,
+            "comm_mb_cloud_edge":  comm_ce_total / 1024 / 1024,
+            "comm_mb_client_edge": comm_ce       / 1024 / 1024,
         }
-
         for k, v in metrics.items():
             if k in self.history:
                 self.history[k].append(v)
 
-        print(
-            f"  [Cloud] acc={global_acc:.4f} | "
-            f"loss={global_loss:.4f} | "
-            f"time={round_time:.1f}s | "
-            f"comm={comm_this_round / 1024 / 1024:.1f}MB "
-            f"(total={self.total_comm_bytes / 1024 / 1024:.0f}MB)"
-        )
-
+        print(f"  [Cloud] acc={global_acc:.4f} | loss={global_loss:.4f} | "
+              f"time={elapsed:.1f}s | "
+              f"comm={comm_round/1024/1024:.1f}MB "
+              f"(total={self.total_comm_bytes/1024/1024:.0f}MB)")
         return metrics
 
     def run(self, logger=None):
-        """执行完整实验，循环 n_rounds 轮全局通信。"""
-        n_rounds = self.config["federation"]["n_rounds"]
-
-        for r in range(1, n_rounds + 1):
-            metrics = self.run_round(r)
-            if logger is not None:
-                logger.log_round(r, metrics)
-
+        """执行完整实验（n_rounds 轮全局通信）。"""
+        for r in range(1, self.config["federation"]["n_rounds"] + 1):
+            m = self.run_round(r)
+            if logger:
+                logger.log_round(r, m)
         print("\n[Cloud] Training complete.")
         return self.history

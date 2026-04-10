@@ -1,0 +1,146 @@
+_wandb:
+    value:
+        cli_version: 0.25.1
+        e:
+            vc52q0w9nek1rsfkog2f2babpkdegpak:
+                args:
+                    - --config
+                    - config/config.yaml
+                    - --override
+                    - wandb.enabled=true
+                codePath: fedavg/main.py
+                codePathLocal: main.py
+                cpu_count: 64
+                cpu_count_logical: 64
+                cudaVersion: "13.2"
+                disk:
+                    /:
+                        total: "18843648000"
+                        used: "12502343680"
+                email: 3445339138@qq.com
+                executable: /cephyr/users/ziangg/Alvis/TF_DPFL_2026/bin/python
+                git:
+                    commit: 56183b91e11d292ad0e21a080ab0cd426373bc51
+                    remote: git@github.com:Huangru-114/tf-dpfl.git
+                gpu: NVIDIA A40
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Ampere
+                      cudaCores: 10752
+                      memoryTotal: "48305799168"
+                      name: NVIDIA A40
+                      uuid: GPU-dd28c467-d1ec-90b6-025c-0dd2137df764
+                host: alvis5-05
+                memory:
+                    total: "269549371392"
+                os: Linux-4.18.0-553.109.1.el8_10.x86_64-x86_64-with-glibc2.28
+                program: /cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/main.py
+                python: CPython 3.11.3
+                root: /cephyr/users/ziangg/Alvis/tf-dpfl/fedavg
+                slurm:
+                    cluster_name: alvis
+                    conf: /tmp/slurmd/conf-cache/slurm.conf
+                    cpus_on_node: "16"
+                    gpus_on_node: "1"
+                    gpus_per_node: A40:1
+                    gtids: "0"
+                    job_account: naiss2026-4-650
+                    job_cpus_per_node: "16"
+                    job_end_time: "1775882510"
+                    job_gid: "10225343"
+                    job_gpus: "3"
+                    job_id: "6369536"
+                    job_name: HierFLcifar10
+                    job_nodelist: alvis5-05
+                    job_num_nodes: "1"
+                    job_partition: alvis
+                    job_qos: normal
+                    job_start_time: "1775796110"
+                    job_uid: "10225343"
+                    job_user: ziangg
+                    jobid: "6369536"
+                    localid: "0"
+                    mem_per_node: "62496"
+                    mpi_type: pmix
+                    nnodes: "1"
+                    nodeid: "0"
+                    nodelist: alvis5-05
+                    oom_kill_step: "0"
+                    pmix_direct_conn_ucx: "false"
+                    prio_process: "0"
+                    procid: "0"
+                    script_context: prolog_task
+                    submit_dir: /cephyr/users/ziangg/Alvis/tf-dpfl
+                    submit_host: alvis1
+                    task_pid: "1497608"
+                    tasks_per_node: "1"
+                    topology_addr: eth-root.eth-sw05.alvis5-05
+                    topology_addr_pattern: switch.switch.node
+                startedAt: "2026-04-10T04:43:03.684098Z"
+                writerId: vc52q0w9nek1rsfkog2f2babpkdegpak
+        m: []
+        python_version: 3.11.3
+        t:
+            "1":
+                - 2
+                - 3
+                - 5
+                - 53
+            "2":
+                - 2
+                - 3
+                - 5
+                - 53
+            "3":
+                - 2
+                - 13
+                - 16
+            "4": 3.11.3
+            "5": 0.25.1
+            "12": 0.25.1
+            "13": linux-x86_64
+data:
+    value:
+        batch_size: 256
+        dataset: cifar10
+        img_size: 32
+        num_classes: 10
+        shuffle_buffer: 10000
+federation:
+    value:
+        alpha: 0.5
+        client_fraction: 0.7
+        edge_assignment: histogram
+        edge_rounds: 2
+        n_clients: 10
+        n_edges: 2
+        n_rounds: 20
+        partition: noniid
+        warmup_rounds: 5
+model:
+    value:
+        arch: wideresnet28_4
+seed:
+    value: 42
+training:
+    value:
+        alpha_feddyn: 0.05
+        alpha_feddyn_global: 0.01
+        alpha_inner: 0.01
+        beta_pfedme: 1
+        drift_correction: feddyn
+        lambda_pfedme: 15
+        learning_rate: 0.01
+        local_epochs: 6
+        lr_decay: 0.992
+        mu: 1
+        mu_edge: 0.1
+        mu_global: 0.01
+        pfedme_warm_start: false
+        proximal_ref: edge
+wandb:
+    value:
+        enabled: true
+        entity: 3445339138-kth-royal-institute-of-technology
+        project: HierFL-cifar10
+        run_name: feddyn_new_test_0.05_0.01

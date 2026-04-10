@@ -1,0 +1,466 @@
+
+====================================================
+ HierFAVG Training Start
+====================================================
+
+[Round   1] Broadcasting to 2 edges...
+  [Edge 0] G1 | E1 | Selected 4/6
+  [Client  5] Round 1 | FedDyn(α=0.05) | loss=1.3762
+  [Client  4] Round 1 | FedDyn(α=0.05) | loss=1.3441
+  [Client  9] Round 1 | FedDyn(α=0.05) | loss=1.4638
+  [Client  0] Round 1 | FedDyn(α=0.05) | loss=1.5293
+  [Edge 0] G1 | E1 | loss=1.4245
+  [Edge 0] G1 | E2 | Selected 4/6
+  [Client  3] Round 1 | FedDyn(α=0.05) | loss=1.3014
+  [Client  9] Round 1 | FedDyn(α=0.05) | loss=1.5239
+  [Client  5] Round 1 | FedDyn(α=0.05) | loss=0.9925
+  [Client  6] Round 1 | FedDyn(α=0.05) | loss=1.2957
+  [Edge 0] G1 | E2 | loss=1.3282
+  [Edge 1] G1 | E1 | Selected 2/4
+  [Client  1] Round 1 | FedDyn(α=0.05) | loss=1.3109
+  [Client  2] Round 1 | FedDyn(α=0.05) | loss=1.3986
+  [Edge 1] G1 | E1 | loss=1.3403
+  [Edge 1] G1 | E2 | Selected 2/4
+  [Client  7] Round 1 | FedDyn(α=0.05) | loss=1.1854
+  [Client  1] Round 1 | FedDyn(α=0.05) | loss=1.2551
+  [Edge 1] G1 | E2 | loss=1.2262
+  [Cloud] acc=0.1899 | loss=2.8755 | time=222.4s | comm=461.4MB (total=461MB)
+
+[Round   2] Broadcasting to 2 edges...
+  [Edge 0] G2 | E1 | Selected 4/6
+  [Client  4] Round 2 | FedDyn(α=0.05) | loss=1.3859
+  [Client  0] Round 2 | FedDyn(α=0.05) | loss=1.5139
+  [Client  5] Round 2 | FedDyn(α=0.05) | loss=1.3508
+  [Client  6] Round 2 | FedDyn(α=0.05) | loss=1.4580
+  [Edge 0] G2 | E1 | loss=1.4261
+  [Edge 0] G2 | E2 | Selected 4/6
+  [Client  0] Round 2 | FedDyn(α=0.05) | loss=1.3849
+  [Client  4] Round 2 | FedDyn(α=0.05) | loss=1.2965
+  [Client  6] Round 2 | FedDyn(α=0.05) | loss=1.2887
+  [Client  3] Round 2 | FedDyn(α=0.05) | loss=1.2819
+  [Edge 0] G2 | E2 | loss=1.3068
+  [Edge 1] G2 | E1 | Selected 2/4
+  [Client  7] Round 2 | FedDyn(α=0.05) | loss=1.0623
+  [Client  2] Round 2 | FedDyn(α=0.05) | loss=1.2346
+  [Edge 1] G2 | E1 | loss=1.1339
+  [Edge 1] G2 | E2 | Selected 2/4
+  [Client  8] Round 2 | FedDyn(α=0.05) | loss=1.4006
+  [Client  7] Round 2 | FedDyn(α=0.05) | loss=1.0452
+  [Edge 1] G2 | E2 | loss=1.2143
+  [Cloud] acc=0.2853 | loss=2.2239 | time=120.0s | comm=461.4MB (total=923MB)
+
+[Round   3] Broadcasting to 2 edges...
+  [Edge 0] G3 | E1 | Selected 4/6
+  [Client  0] Round 3 | FedDyn(α=0.05) | loss=1.4080
+  [Client  4] Round 3 | FedDyn(α=0.05) | loss=1.3198
+  [Client  6] Round 3 | FedDyn(α=0.05) | loss=1.2940
+  [Client  9] Round 3 | FedDyn(α=0.05) | loss=1.8682
+  [Edge 0] G3 | E1 | loss=1.5026
+  [Edge 0] G3 | E2 | Selected 4/6
+  [Client  0] Round 3 | FedDyn(α=0.05) | loss=1.2960
+  [Client  3] Round 3 | FedDyn(α=0.05) | loss=1.1871
+  [Client  6] Round 3 | FedDyn(α=0.05) | loss=1.2177
+  [Client  5] Round 3 | FedDyn(α=0.05) | loss=1.1200
+  [Edge 0] G3 | E2 | loss=1.2066
+  [Edge 1] G3 | E1 | Selected 2/4
+  [Client  2] Round 3 | FedDyn(α=0.05) | loss=1.3185
+  [Client  7] Round 3 | FedDyn(α=0.05) | loss=1.1810
+  [Edge 1] G3 | E1 | loss=1.2382
+  [Edge 1] G3 | E2 | Selected 2/4
+  [Client  8] Round 3 | FedDyn(α=0.05) | loss=1.4284
+  [Client  7] Round 3 | FedDyn(α=0.05) | loss=1.0663
+  [Edge 1] G3 | E2 | loss=1.2386
+  [Cloud] acc=0.3985 | loss=1.7356 | time=113.0s | comm=461.4MB (total=1384MB)
+
+[Round   4] Broadcasting to 2 edges...
+  [Edge 0] G4 | E1 | Selected 4/6
+  [Client  9] Round 4 | FedDyn(α=0.05) | loss=1.6272
+  [Client  5] Round 4 | FedDyn(α=0.05) | loss=1.1405
+  [Client  4] Round 4 | FedDyn(α=0.05) | loss=1.2897
+  [Client  0] Round 4 | FedDyn(α=0.05) | loss=1.4233
+  [Edge 0] G4 | E1 | loss=1.4125
+  [Edge 0] G4 | E2 | Selected 4/6
+  [Client  3] Round 4 | FedDyn(α=0.05) | loss=1.2288
+  [Client  4] Round 4 | FedDyn(α=0.05) | loss=1.1743
+  [Client  0] Round 4 | FedDyn(α=0.05) | loss=1.2849
+  [Client  9] Round 4 | FedDyn(α=0.05) | loss=1.3045
+  [Edge 0] G4 | E2 | loss=1.2522
+  [Edge 1] G4 | E1 | Selected 2/4
+  [Client  1] Round 4 | FedDyn(α=0.05) | loss=1.5168
+  [Client  7] Round 4 | FedDyn(α=0.05) | loss=1.0825
+  [Edge 1] G4 | E1 | loss=1.3366
+  [Edge 1] G4 | E2 | Selected 2/4
+  [Client  2] Round 4 | FedDyn(α=0.05) | loss=1.1848
+  [Client  1] Round 4 | FedDyn(α=0.05) | loss=1.2317
+  [Edge 1] G4 | E2 | loss=1.2159
+  [Cloud] acc=0.3575 | loss=2.3746 | time=119.1s | comm=461.4MB (total=1846MB)
+
+[Round   5] Broadcasting to 2 edges...
+  [Edge 0] G5 | E1 | Selected 4/6
+  [Client  3] Round 5 | FedDyn(α=0.05) | loss=1.2350
+  [Client  9] Round 5 | FedDyn(α=0.05) | loss=1.2826
+  [Client  6] Round 5 | FedDyn(α=0.05) | loss=1.4067
+  [Client  4] Round 5 | FedDyn(α=0.05) | loss=1.1667
+  [Edge 0] G5 | E1 | loss=1.2862
+  [Edge 0] G5 | E2 | Selected 4/6
+  [Client  6] Round 5 | FedDyn(α=0.05) | loss=1.1387
+  [Client  4] Round 5 | FedDyn(α=0.05) | loss=1.0914
+  [Client  0] Round 5 | FedDyn(α=0.05) | loss=1.2853
+  [Client  3] Round 5 | FedDyn(α=0.05) | loss=1.0979
+  [Edge 0] G5 | E2 | loss=1.1436
+  [Edge 1] G5 | E1 | Selected 2/4
+  [Client  1] Round 5 | FedDyn(α=0.05) | loss=1.1712
+  [Client  8] Round 5 | FedDyn(α=0.05) | loss=1.4504
+  [Edge 1] G5 | E1 | loss=1.2805
+  [Edge 1] G5 | E2 | Selected 2/4
+  [Client  8] Round 5 | FedDyn(α=0.05) | loss=1.2865
+  [Client  7] Round 5 | FedDyn(α=0.05) | loss=1.0946
+  [Edge 1] G5 | E2 | loss=1.1859
+  [Cloud] acc=0.3915 | loss=2.3520 | time=120.6s | comm=461.4MB (total=2307MB)
+
+[Round   6] Broadcasting to 2 edges...
+  [Edge 0] G6 | E1 | Selected 4/6
+  [Client  5] Round 6 | FedDyn(α=0.05) | loss=1.3260
+  [Client  6] Round 6 | FedDyn(α=0.05) | loss=1.0558
+  [Client  0] Round 6 | FedDyn(α=0.05) | loss=1.2911
+  [Client  9] Round 6 | FedDyn(α=0.05) | loss=1.2161
+  [Edge 0] G6 | E1 | loss=1.1933
+  [Edge 0] G6 | E2 | Selected 4/6
+  [Client  9] Round 6 | FedDyn(α=0.05) | loss=1.0680
+  [Client  0] Round 6 | FedDyn(α=0.05) | loss=1.1089
+  [Client  4] Round 6 | FedDyn(α=0.05) | loss=1.0747
+  [Client  6] Round 6 | FedDyn(α=0.05) | loss=0.9485
+  [Edge 0] G6 | E2 | loss=1.0397
+  [Edge 1] G6 | E1 | Selected 2/4
+  [Client  8] Round 6 | FedDyn(α=0.05) | loss=1.3155
+  [Client  1] Round 6 | FedDyn(α=0.05) | loss=1.2710
+  [Edge 1] G6 | E1 | loss=1.2884
+  [Edge 1] G6 | E2 | Selected 2/4
+  [Client  8] Round 6 | FedDyn(α=0.05) | loss=1.2229
+  [Client  2] Round 6 | FedDyn(α=0.05) | loss=1.2817
+  [Edge 1] G6 | E2 | loss=1.2488
+  [Cloud] acc=0.3545 | loss=2.0431 | time=126.2s | comm=461.4MB (total=2768MB)
+
+[Round   7] Broadcasting to 2 edges...
+  [Edge 0] G7 | E1 | Selected 4/6
+  [Client  4] Round 7 | FedDyn(α=0.05) | loss=1.0242
+  [Client  6] Round 7 | FedDyn(α=0.05) | loss=0.9902
+  [Client  3] Round 7 | FedDyn(α=0.05) | loss=1.2203
+  [Client  5] Round 7 | FedDyn(α=0.05) | loss=1.2301
+  [Edge 0] G7 | E1 | loss=1.0771
+  [Edge 0] G7 | E2 | Selected 4/6
+  [Client  6] Round 7 | FedDyn(α=0.05) | loss=0.8808
+  [Client  9] Round 7 | FedDyn(α=0.05) | loss=1.0499
+  [Client  4] Round 7 | FedDyn(α=0.05) | loss=0.9729
+  [Client  3] Round 7 | FedDyn(α=0.05) | loss=1.0350
+  [Edge 0] G7 | E2 | loss=0.9774
+  [Edge 1] G7 | E1 | Selected 2/4
+  [Client  8] Round 7 | FedDyn(α=0.05) | loss=1.2049
+  [Client  1] Round 7 | FedDyn(α=0.05) | loss=1.0107
+  [Edge 1] G7 | E1 | loss=1.0867
+  [Edge 1] G7 | E2 | Selected 2/4
+  [Client  1] Round 7 | FedDyn(α=0.05) | loss=0.8971
+  [Client  7] Round 7 | FedDyn(α=0.05) | loss=1.1238
+  [Edge 1] G7 | E2 | loss=0.9912
+  [Cloud] acc=0.4560 | loss=1.7344 | time=125.2s | comm=461.4MB (total=3230MB)
+
+[Round   8] Broadcasting to 2 edges...
+  [Edge 0] G8 | E1 | Selected 4/6
+  [Client  5] Round 8 | FedDyn(α=0.05) | loss=1.1199
+  [Client  6] Round 8 | FedDyn(α=0.05) | loss=0.8828
+  [Client  0] Round 8 | FedDyn(α=0.05) | loss=1.2352
+  [Client  4] Round 8 | FedDyn(α=0.05) | loss=0.9508
+  [Edge 0] G8 | E1 | loss=1.0038
+  [Edge 0] G8 | E2 | Selected 4/6
+  [Client  3] Round 8 | FedDyn(α=0.05) | loss=1.0825
+  [Client  0] Round 8 | FedDyn(α=0.05) | loss=1.0585
+  [Client  4] Round 8 | FedDyn(α=0.05) | loss=0.9043
+  [Client  5] Round 8 | FedDyn(α=0.05) | loss=0.9424
+  [Edge 0] G8 | E2 | loss=0.9758
+  [Edge 1] G8 | E1 | Selected 2/4
+  [Client  1] Round 8 | FedDyn(α=0.05) | loss=0.9574
+  [Client  8] Round 8 | FedDyn(α=0.05) | loss=1.1769
+  [Edge 1] G8 | E1 | loss=1.0433
+  [Edge 1] G8 | E2 | Selected 2/4
+  [Client  7] Round 8 | FedDyn(α=0.05) | loss=1.0471
+  [Client  2] Round 8 | FedDyn(α=0.05) | loss=1.3026
+  [Edge 1] G8 | E2 | loss=1.1534
+  [Cloud] acc=0.3432 | loss=1.9927 | time=105.2s | comm=461.4MB (total=3691MB)
+
+[Round   9] Broadcasting to 2 edges...
+  [Edge 0] G9 | E1 | Selected 4/6
+  [Client  6] Round 9 | FedDyn(α=0.05) | loss=0.9176
+  [Client  3] Round 9 | FedDyn(α=0.05) | loss=1.0459
+  [Client  9] Round 9 | FedDyn(α=0.05) | loss=1.0963
+  [Client  0] Round 9 | FedDyn(α=0.05) | loss=1.1628
+  [Edge 0] G9 | E1 | loss=1.0390
+  [Edge 0] G9 | E2 | Selected 4/6
+  [Client  4] Round 9 | FedDyn(α=0.05) | loss=0.9169
+  [Client  9] Round 9 | FedDyn(α=0.05) | loss=0.9752
+  [Client  5] Round 9 | FedDyn(α=0.05) | loss=0.9763
+  [Client  0] Round 9 | FedDyn(α=0.05) | loss=0.9780
+  [Edge 0] G9 | E2 | loss=0.9593
+  [Edge 1] G9 | E1 | Selected 2/4
+  [Client  1] Round 9 | FedDyn(α=0.05) | loss=0.8512
+  [Client  8] Round 9 | FedDyn(α=0.05) | loss=1.1536
+  [Edge 1] G9 | E1 | loss=0.9696
+  [Edge 1] G9 | E2 | Selected 2/4
+  [Client  8] Round 9 | FedDyn(α=0.05) | loss=1.0353
+  [Client  7] Round 9 | FedDyn(α=0.05) | loss=0.9208
+  [Edge 1] G9 | E2 | loss=0.9753
+  [Cloud] acc=0.3758 | loss=2.1536 | time=119.1s | comm=461.4MB (total=4153MB)
+
+[Round  10] Broadcasting to 2 edges...
+  [Edge 0] G10 | E1 | Selected 4/6
+  [Client  6] Round 10 | FedDyn(α=0.05) | loss=0.8397
+  [Client  3] Round 10 | FedDyn(α=0.05) | loss=1.0387
+  [Client  5] Round 10 | FedDyn(α=0.05) | loss=0.9434
+  [Client  0] Round 10 | FedDyn(α=0.05) | loss=0.9795
+  [Edge 0] G10 | E1 | loss=0.9206
+  [Edge 0] G10 | E2 | Selected 4/6
+  [Client  5] Round 10 | FedDyn(α=0.05) | loss=0.7962
+  [Client  4] Round 10 | FedDyn(α=0.05) | loss=0.9018
+  [Client  3] Round 10 | FedDyn(α=0.05) | loss=0.8462
+  [Client  9] Round 10 | FedDyn(α=0.05) | loss=0.9550
+  [Edge 0] G10 | E2 | loss=0.8961
+  [Edge 1] G10 | E1 | Selected 2/4
+  [Client  8] Round 10 | FedDyn(α=0.05) | loss=1.0716
+  [Client  2] Round 10 | FedDyn(α=0.05) | loss=1.5354
+  [Edge 1] G10 | E1 | loss=1.2755
+  [Edge 1] G10 | E2 | Selected 2/4
+  [Client  8] Round 10 | FedDyn(α=0.05) | loss=1.0739
+  [Client  7] Round 10 | FedDyn(α=0.05) | loss=0.8800
+  [Edge 1] G10 | E2 | loss=0.9723
+  [Cloud] acc=0.5607 | loss=1.2282 | time=104.2s | comm=461.4MB (total=4614MB)
+
+[Round  11] Broadcasting to 2 edges...
+  [Edge 0] G11 | E1 | Selected 4/6
+  [Client  4] Round 11 | FedDyn(α=0.05) | loss=0.8311
+  [Client  3] Round 11 | FedDyn(α=0.05) | loss=0.8444
+  [Client  0] Round 11 | FedDyn(α=0.05) | loss=0.9922
+  [Client  6] Round 11 | FedDyn(α=0.05) | loss=0.8241
+  [Edge 0] G11 | E1 | loss=0.8580
+  [Edge 0] G11 | E2 | Selected 4/6
+  [Client  4] Round 11 | FedDyn(α=0.05) | loss=0.8095
+  [Client  9] Round 11 | FedDyn(α=0.05) | loss=0.9038
+  [Client  5] Round 11 | FedDyn(α=0.05) | loss=0.8406
+  [Client  0] Round 11 | FedDyn(α=0.05) | loss=0.8802
+  [Edge 0] G11 | E2 | loss=0.8620
+  [Edge 1] G11 | E1 | Selected 2/4
+  [Client  2] Round 11 | FedDyn(α=0.05) | loss=1.1798
+  [Client  7] Round 11 | FedDyn(α=0.05) | loss=0.7679
+  [Edge 1] G11 | E1 | loss=0.9392
+  [Edge 1] G11 | E2 | Selected 2/4
+  [Client  1] Round 11 | FedDyn(α=0.05) | loss=0.8814
+  [Client  8] Round 11 | FedDyn(α=0.05) | loss=1.0152
+  [Edge 1] G11 | E2 | loss=0.9338
+  [Cloud] acc=0.5114 | loss=1.4827 | time=113.6s | comm=461.4MB (total=5075MB)
+
+[Round  12] Broadcasting to 2 edges...
+  [Edge 0] G12 | E1 | Selected 4/6
+  [Client  9] Round 12 | FedDyn(α=0.05) | loss=0.8618
+  [Client  4] Round 12 | FedDyn(α=0.05) | loss=0.7793
+  [Client  6] Round 12 | FedDyn(α=0.05) | loss=0.8124
+  [Client  5] Round 12 | FedDyn(α=0.05) | loss=0.8179
+  [Edge 0] G12 | E1 | loss=0.8211
+  [Edge 0] G12 | E2 | Selected 4/6
+  [Client  0] Round 12 | FedDyn(α=0.05) | loss=0.9320
+  [Client  6] Round 12 | FedDyn(α=0.05) | loss=0.7982
+  [Client  9] Round 12 | FedDyn(α=0.05) | loss=0.8217
+  [Client  5] Round 12 | FedDyn(α=0.05) | loss=0.7425
+  [Edge 0] G12 | E2 | loss=0.8170
+  [Edge 1] G12 | E1 | Selected 2/4
+  [Client  2] Round 12 | FedDyn(α=0.05) | loss=1.1587
+  [Client  1] Round 12 | FedDyn(α=0.05) | loss=0.8019
+  [Edge 1] G12 | E1 | loss=0.9216
+  [Edge 1] G12 | E2 | Selected 2/4
+  [Client  7] Round 12 | FedDyn(α=0.05) | loss=0.7625
+  [Client  1] Round 12 | FedDyn(α=0.05) | loss=0.7236
+  [Edge 1] G12 | E2 | loss=0.7397
+  [Cloud] acc=0.4552 | loss=1.6921 | time=131.5s | comm=461.4MB (total=5537MB)
+
+[Round  13] Broadcasting to 2 edges...
+  [Edge 0] G13 | E1 | Selected 4/6
+  [Client  9] Round 13 | FedDyn(α=0.05) | loss=0.8545
+  [Client  4] Round 13 | FedDyn(α=0.05) | loss=0.7586
+  [Client  0] Round 13 | FedDyn(α=0.05) | loss=0.9505
+  [Client  5] Round 13 | FedDyn(α=0.05) | loss=0.8427
+  [Edge 0] G13 | E1 | loss=0.8402
+  [Edge 0] G13 | E2 | Selected 4/6
+  [Client  6] Round 13 | FedDyn(α=0.05) | loss=0.8319
+  [Client  3] Round 13 | FedDyn(α=0.05) | loss=1.0502
+  [Client  9] Round 13 | FedDyn(α=0.05) | loss=0.8032
+  [Client  5] Round 13 | FedDyn(α=0.05) | loss=0.7092
+  [Edge 0] G13 | E2 | loss=0.8265
+  [Edge 1] G13 | E1 | Selected 2/4
+  [Client  1] Round 13 | FedDyn(α=0.05) | loss=0.7234
+  [Client  8] Round 13 | FedDyn(α=0.05) | loss=1.0068
+  [Edge 1] G13 | E1 | loss=0.8344
+  [Edge 1] G13 | E2 | Selected 2/4
+  [Client  1] Round 13 | FedDyn(α=0.05) | loss=0.6537
+  [Client  7] Round 13 | FedDyn(α=0.05) | loss=0.7127
+  [Edge 1] G13 | E2 | loss=0.6782
+  [Cloud] acc=0.5989 | loss=1.1312 | time=123.7s | comm=461.4MB (total=5998MB)
+
+[Round  14] Broadcasting to 2 edges...
+  [Edge 0] G14 | E1 | Selected 4/6
+  [Client  9] Round 14 | FedDyn(α=0.05) | loss=0.8041
+  [Client  0] Round 14 | FedDyn(α=0.05) | loss=0.8819
+  [Client  4] Round 14 | FedDyn(α=0.05) | loss=0.7047
+  [Client  5] Round 14 | FedDyn(α=0.05) | loss=0.7586
+  [Edge 0] G14 | E1 | loss=0.7799
+  [Edge 0] G14 | E2 | Selected 4/6
+  [Client  6] Round 14 | FedDyn(α=0.05) | loss=0.7743
+  [Client  9] Round 14 | FedDyn(α=0.05) | loss=0.7878
+  [Client  3] Round 14 | FedDyn(α=0.05) | loss=0.9775
+  [Client  5] Round 14 | FedDyn(α=0.05) | loss=0.6955
+  [Edge 0] G14 | E2 | loss=0.7903
+  [Edge 1] G14 | E1 | Selected 2/4
+  [Client  8] Round 14 | FedDyn(α=0.05) | loss=0.9240
+  [Client  1] Round 14 | FedDyn(α=0.05) | loss=0.6673
+  [Edge 1] G14 | E1 | loss=0.7678
+  [Edge 1] G14 | E2 | Selected 2/4
+  [Client  2] Round 14 | FedDyn(α=0.05) | loss=1.0352
+  [Client  7] Round 14 | FedDyn(α=0.05) | loss=0.6522
+  [Edge 1] G14 | E2 | loss=0.8115
+  [Cloud] acc=0.5412 | loss=1.3372 | time=118.6s | comm=461.4MB (total=6459MB)
+
+[Round  15] Broadcasting to 2 edges...
+  [Edge 0] G15 | E1 | Selected 4/6
+  [Client  9] Round 15 | FedDyn(α=0.05) | loss=0.8016
+  [Client  5] Round 15 | FedDyn(α=0.05) | loss=0.7490
+  [Client  0] Round 15 | FedDyn(α=0.05) | loss=0.9174
+  [Client  6] Round 15 | FedDyn(α=0.05) | loss=0.7197
+  [Edge 0] G15 | E1 | loss=0.7832
+  [Edge 0] G15 | E2 | Selected 4/6
+  [Client  0] Round 15 | FedDyn(α=0.05) | loss=0.8178
+  [Client  4] Round 15 | FedDyn(α=0.05) | loss=0.7507
+  [Client  9] Round 15 | FedDyn(α=0.05) | loss=0.7648
+  [Client  3] Round 15 | FedDyn(α=0.05) | loss=0.9311
+  [Edge 0] G15 | E2 | loss=0.7913
+  [Edge 1] G15 | E1 | Selected 2/4
+  [Client  7] Round 15 | FedDyn(α=0.05) | loss=0.5790
+  [Client  8] Round 15 | FedDyn(α=0.05) | loss=0.9179
+  [Edge 1] G15 | E1 | loss=0.7402
+  [Edge 1] G15 | E2 | Selected 2/4
+  [Client  7] Round 15 | FedDyn(α=0.05) | loss=0.5439
+  [Client  2] Round 15 | FedDyn(α=0.05) | loss=0.9403
+  [Edge 1] G15 | E2 | loss=0.7088
+  [Cloud] acc=0.5967 | loss=1.1577 | time=114.7s | comm=461.4MB (total=6921MB)
+
+[Round  16] Broadcasting to 2 edges...
+  [Edge 0] G16 | E1 | Selected 4/6
+  [Client  3] Round 16 | FedDyn(α=0.05) | loss=0.8309
+  [Client  6] Round 16 | FedDyn(α=0.05) | loss=0.6906
+  [Client  5] Round 16 | FedDyn(α=0.05) | loss=0.7709
+  [Client  4] Round 16 | FedDyn(α=0.05) | loss=0.6563
+  [Edge 0] G16 | E1 | loss=0.7142
+  [Edge 0] G16 | E2 | Selected 4/6
+  [Client  3] Round 16 | FedDyn(α=0.05) | loss=0.7010
+  [Client  9] Round 16 | FedDyn(α=0.05) | loss=0.7557
+  [Client  6] Round 16 | FedDyn(α=0.05) | loss=0.6439
+  [Client  4] Round 16 | FedDyn(α=0.05) | loss=0.6542
+  [Edge 0] G16 | E2 | loss=0.6902
+  [Edge 1] G16 | E1 | Selected 2/4
+  [Client  1] Round 16 | FedDyn(α=0.05) | loss=0.7147
+  [Client  7] Round 16 | FedDyn(α=0.05) | loss=0.5381
+  [Edge 1] G16 | E1 | loss=0.6414
+  [Edge 1] G16 | E2 | Selected 2/4
+  [Client  2] Round 16 | FedDyn(α=0.05) | loss=0.8417
+  [Client  7] Round 16 | FedDyn(α=0.05) | loss=0.5055
+  [Edge 1] G16 | E2 | loss=0.6453
+  [Cloud] acc=0.5512 | loss=1.3450 | time=120.3s | comm=461.4MB (total=7382MB)
+
+[Round  17] Broadcasting to 2 edges...
+  [Edge 0] G17 | E1 | Selected 4/6
+  [Client  5] Round 17 | FedDyn(α=0.05) | loss=0.8045
+  [Client  9] Round 17 | FedDyn(α=0.05) | loss=0.7558
+  [Client  3] Round 17 | FedDyn(α=0.05) | loss=0.7693
+  [Client  4] Round 17 | FedDyn(α=0.05) | loss=0.6385
+  [Edge 0] G17 | E1 | loss=0.7320
+  [Edge 0] G17 | E2 | Selected 4/6
+  [Client  0] Round 17 | FedDyn(α=0.05) | loss=0.9570
+  [Client  9] Round 17 | FedDyn(α=0.05) | loss=0.7214
+  [Client  5] Round 17 | FedDyn(α=0.05) | loss=0.6768
+  [Client  4] Round 17 | FedDyn(α=0.05) | loss=0.6443
+  [Edge 0] G17 | E2 | loss=0.7285
+  [Edge 1] G17 | E1 | Selected 2/4
+  [Client  1] Round 17 | FedDyn(α=0.05) | loss=0.7114
+  [Client  8] Round 17 | FedDyn(α=0.05) | loss=0.9485
+  [Edge 1] G17 | E1 | loss=0.8043
+  [Edge 1] G17 | E2 | Selected 2/4
+  [Client  7] Round 17 | FedDyn(α=0.05) | loss=0.5203
+  [Client  1] Round 17 | FedDyn(α=0.05) | loss=0.5843
+  [Edge 1] G17 | E2 | loss=0.5577
+  [Cloud] acc=0.5452 | loss=1.4295 | time=121.1s | comm=461.4MB (total=7844MB)
+
+[Round  18] Broadcasting to 2 edges...
+  [Edge 0] G18 | E1 | Selected 4/6
+  [Client  9] Round 18 | FedDyn(α=0.05) | loss=0.7179
+  [Client  0] Round 18 | FedDyn(α=0.05) | loss=0.8859
+  [Client  5] Round 18 | FedDyn(α=0.05) | loss=0.7076
+  [Client  3] Round 18 | FedDyn(α=0.05) | loss=0.7577
+  [Edge 0] G18 | E1 | loss=0.7530
+  [Edge 0] G18 | E2 | Selected 4/6
+  [Client  6] Round 18 | FedDyn(α=0.05) | loss=0.7214
+  [Client  3] Round 18 | FedDyn(α=0.05) | loss=0.6316
+  [Client  9] Round 18 | FedDyn(α=0.05) | loss=0.7296
+  [Client  5] Round 18 | FedDyn(α=0.05) | loss=0.6497
+  [Edge 0] G18 | E2 | loss=0.7011
+  [Edge 1] G18 | E1 | Selected 2/4
+  [Client  7] Round 18 | FedDyn(α=0.05) | loss=0.4941
+  [Client  2] Round 18 | FedDyn(α=0.05) | loss=0.9234
+  [Edge 1] G18 | E1 | loss=0.6727
+  [Edge 1] G18 | E2 | Selected 2/4
+  [Client  2] Round 18 | FedDyn(α=0.05) | loss=0.7094
+  [Client  7] Round 18 | FedDyn(α=0.05) | loss=0.4838
+  [Edge 1] G18 | E2 | loss=0.5776
+  [Cloud] acc=0.4779 | loss=1.7163 | time=107.2s | comm=461.4MB (total=8305MB)
+
+[Round  19] Broadcasting to 2 edges...
+  [Edge 0] G19 | E1 | Selected 4/6
+  [Client  3] Round 19 | FedDyn(α=0.05) | loss=0.6728
+  [Client  5] Round 19 | FedDyn(α=0.05) | loss=0.6763
+  [Client  6] Round 19 | FedDyn(α=0.05) | loss=0.6610
+  [Client  9] Round 19 | FedDyn(α=0.05) | loss=0.7442
+  [Edge 0] G19 | E1 | loss=0.6958
+  [Edge 0] G19 | E2 | Selected 4/6
+  [Client  0] Round 19 | FedDyn(α=0.05) | loss=0.8889
+  [Client  4] Round 19 | FedDyn(α=0.05) | loss=0.6701
+  [Client  5] Round 19 | FedDyn(α=0.05) | loss=0.6420
+  [Client  9] Round 19 | FedDyn(α=0.05) | loss=0.7213
+  [Edge 0] G19 | E2 | loss=0.7189
+  [Edge 1] G19 | E1 | Selected 2/4
+  [Client  2] Round 19 | FedDyn(α=0.05) | loss=0.7006
+  [Client  7] Round 19 | FedDyn(α=0.05) | loss=0.4483
+  [Edge 1] G19 | E1 | loss=0.5532
+  [Edge 1] G19 | E2 | Selected 2/4
+  [Client  8] Round 19 | FedDyn(α=0.05) | loss=1.1254
+  [Client  2] Round 19 | FedDyn(α=0.05) | loss=0.5673
+  [Edge 1] G19 | E2 | loss=0.8801
+  [Cloud] acc=0.4494 | loss=1.7777 | time=113.4s | comm=461.4MB (total=8766MB)
+
+[Round  20] Broadcasting to 2 edges...
+  [Edge 0] G20 | E1 | Selected 4/6
+  [Client  3] Round 20 | FedDyn(α=0.05) | loss=0.6680
+  [Client  4] Round 20 | FedDyn(α=0.05) | loss=0.6336
+  [Client  0] Round 20 | FedDyn(α=0.05) | loss=0.8484
+  [Client  9] Round 20 | FedDyn(α=0.05) | loss=0.7010
+  [Edge 0] G20 | E1 | loss=0.7009
+  [Edge 0] G20 | E2 | Selected 4/6
+  [Client  5] Round 20 | FedDyn(α=0.05) | loss=0.6044
+  [Client  0] Round 20 | FedDyn(α=0.05) | loss=0.7411
+  [Client  4] Round 20 | FedDyn(α=0.05) | loss=0.6237
+  [Client  9] Round 20 | FedDyn(α=0.05) | loss=0.7000
+  [Edge 0] G20 | E2 | loss=0.6677
+  [Edge 1] G20 | E1 | Selected 2/4
+  [Client  2] Round 20 | FedDyn(α=0.05) | loss=0.6874
+  [Client  1] Round 20 | FedDyn(α=0.05) | loss=0.7225
+  [Edge 1] G20 | E1 | loss=0.7107
+  [Edge 1] G20 | E2 | Selected 2/4
+  [Client  2] Round 20 | FedDyn(α=0.05) | loss=0.4877
+  [Client  1] Round 20 | FedDyn(α=0.05) | loss=0.5675
+  [Edge 1] G20 | E2 | loss=0.5407
+  [Cloud] acc=0.4676 | loss=1.7189 | time=117.1s | comm=461.4MB (total=9228MB)
+
+[Cloud] Training complete.
