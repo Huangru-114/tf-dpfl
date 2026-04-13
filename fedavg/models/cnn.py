@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 
-def build_model_old(input_shape=(32, 32, 3), num_classes=43):
+def build_gtsrb_cnn(input_shape=(32, 32, 3), num_classes=43):
     """
     适合 GTSRB 的小型 CNN。
     使用 GroupNorm 代替 BatchNorm，方便后续扩展 DP-FedAvg。
@@ -39,7 +39,7 @@ def build_model_old(input_shape=(32, 32, 3), num_classes=43):
     model = tf.keras.Model(inputs=inputs, outputs=outputs, name="gtsrb_cnn")
     return model
 
-def build_model(input_shape=(32, 32, 3), num_classes=10):
+def build_cifar_cnn_3conv(input_shape=(32, 32, 3), num_classes=10):
     inputs = tf.keras.Input(shape=input_shape)
 
     # Block 1
@@ -80,11 +80,10 @@ def build_model(input_shape=(32, 32, 3), num_classes=10):
 
     return tf.keras.Model(inputs, outputs, name="cifar_cnn_3conv")
 
-if __name__ == "__main__":
-    model = build_model()
-    model.summary()
-    # 验证前向传播
-    import numpy as np
-    dummy = np.random.rand(4, 32, 32, 3).astype("float32")
-    out   = model(dummy, training=False)
-    print("output shape:", out.shape)   # (4, 43)
+def build_model(input_shape=(32, 32, 3), num_classes=10, arch="cifar_cnn_3conv"):
+    registry = {
+        "cifar_cnn_3conv":  build_cifar_cnn_3conv,
+        "gtsrb_cnn":  build_gtsrb_cnn,
+    }
+    assert arch in registry, f"Unknown arch: {arch}. Choose from {list(registry)}"
+    return registry[arch](input_shape=input_shape, num_classes=num_classes)

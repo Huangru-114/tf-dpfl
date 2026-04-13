@@ -1,0 +1,15 @@
+This job can be monitored from: https://job.c3se.chalmers.se/alvis/6372461
+========================================
+Job ID      : 6372461
+Job Name    : HierFLcifar10
+Node        : alvis10-08
+Start Time  : Fri Apr 10 14:49:29 CEST 2026
+Working Dir : /cephyr/users/ziangg/Alvis/tf-dpfl
+========================================
+[Setup] Python: /cephyr/users/ziangg/Alvis/TF_DPFL_2026/bin/python
+[Setup] TF version: 2.15.1
+[Setup] GPU available: [PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
+[Config] Override: wandb.enabled = True
+[Setup] Random seed: 42
+[Setup] Loading CIFAR-10...
+[Setup] Building global model...

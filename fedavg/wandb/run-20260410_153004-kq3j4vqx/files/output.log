@@ -1,0 +1,51 @@
+
+====================================================
+ HierFAVG Training Start
+====================================================
+
+[Round   1] Broadcasting to 2 edges...
+  [Edge 0] G1 | E1 | Selected 35/50
+Traceback (most recent call last):
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/main.py", line 213, in <module>
+    run_experiment()
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/main.py", line 189, in run_experiment
+    history = cloud.run(logger=logger)
+              ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/server/server.py", line 234, in run
+    m = self.run_round(r)
+        ^^^^^^^^^^^^^^^^^
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/server/server.py", line 195, in run_round
+    avg_edge_loss, avg_ct, comm_ce = self.collect_and_aggregate(round_idx, prev_gw)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/server/server.py", line 152, in collect_and_aggregate
+    w, n, loss, t, comm = edge.run(round_idx)
+                          ^^^^^^^^^^^^^^^^^^^
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/server/edge_server.py", line 216, in run
+    loss, t = self.run_edge_round(global_round_idx, er)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/server/edge_server.py", line 194, in run_edge_round
+    w, n, loss, t = client.local_train(global_round_idx)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/client/client.py", line 98, in local_train
+    return self._local_train_feddyn(round_idx, ref)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/client/client.py", line 208, in _local_train_feddyn
+    bl = [float(self._train_step_feddyn(x, y, ref_tf, a_tf).numpy())
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/client/client.py", line 208, in <listcomp>
+    bl = [float(self._train_step_feddyn(x, y, ref_tf, a_tf).numpy())
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/apps/Arch/software/TensorFlow/2.15.1-foss-2023a-CUDA-12.1.1/lib/python3.11/site-packages/tensorflow/python/util/traceback_utils.py", line 153, in error_handler
+    raise e.with_traceback(filtered_tb) from None
+  File "/local/tmp.6372622/__autograph_generated_filejbw7x60s.py", line 13, in tf___train_step_feddyn
+    quad = ag__.converted_call(ag__.ld(tf).add_n, ([ag__.converted_call(ag__.ld(tf).reduce_sum, (ag__.converted_call(ag__.ld(tf).square, (ag__.ld(v) - ag__.ld(r),), None, fscope),), None, fscope) for v, r in ag__.converted_call(ag__.ld(zip), (ag__.ld(self).model.trainable_variables, ag__.ld(ref_tf)), None, fscope)],), None, fscope)
+                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/local/tmp.6372622/__autograph_generated_filejbw7x60s.py", line 13, in <listcomp>
+    quad = ag__.converted_call(ag__.ld(tf).add_n, ([ag__.converted_call(ag__.ld(tf).reduce_sum, (ag__.converted_call(ag__.ld(tf).square, (ag__.ld(v) - ag__.ld(r),), None, fscope),), None, fscope) for v, r in ag__.converted_call(ag__.ld(zip), (ag__.ld(self).model.trainable_variables, ag__.ld(ref_tf)), None, fscope)],), None, fscope)
+                                                                                                                                          ~~~~~~~~~~~^~~~~~~~~~~~
+ValueError: in user code:
+
+    File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/client/client.py", line 226, in _train_step_feddyn  *
+        quad = tf.add_n([tf.reduce_sum(tf.square(v - r))
+
+    ValueError: Dimensions must be equal, but are 64 and 32 for '{{node sub_4}} = Sub[T=DT_FLOAT](ReadVariableOp_34, ref_tf_4)' with input shapes: [3,3,32,64], [32].

@@ -6,7 +6,7 @@ import argparse
 from data.dataset       import load_cifar10
 from data.partition     import extract_numpy, iid_partition, noniid_partition
 from data.clustering    import random_assignment, warmup_gradient_assignment, histogram_assignment
-from models.resnet      import build_model
+from models.cnn         import build_model
 from models.model_utils import clone_model
 from client.client      import FLClient
 from server.edge_server import EdgeServer

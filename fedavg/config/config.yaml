@@ -2,7 +2,7 @@ seed: 42
 data:
   dataset:        "cifar10"
   img_size:       32
-  batch_size:     256
+  batch_size:     16
   shuffle_buffer: 10000
   num_classes:    10  
 
@@ -16,13 +16,13 @@ data:
 #   data_dir:        "/mimer/NOBACKUP/groups/naiss2025-22-1095/Gao/GTSRB"
 
 federation:
-  edge_assignment: "histogram"   # random / gradient / histogram  ← 分配策略
+  edge_assignment: "random"   # random / gradient / histogram  ← 分配策略
   client_fraction:  0.7
   warmup_rounds:    5
   n_clients:       100
   n_edges:         2          # 新增：Edge Server 数量
-  edge_rounds:     2          # 新增：每次全局通信里 Edge 内部聚合轮数
-  n_rounds:        40
+  edge_rounds:     5          # 新增：每次全局通信里 Edge 内部聚合轮数
+  n_rounds:        10
   partition:       "noniid"
   alpha:           0.5
 #总epoch减至300
@@ -46,7 +46,7 @@ training:
   alpha_feddyn_global: 0.02           # FedDyn 中 global 模型的动量系数
 
  # pFedMe
-  lambda_pfedme: 15.0
+  lambda_pfedme: 35.0
   beta_pfedme: 1.0
   pfedme_warm_start: false
 
@@ -54,7 +54,7 @@ training:
   alpha_inner: 0.01             # 内层适配步长
 
 model:
-  arch: "wideresnet28_4" 
+  arch: "cifar_cnn_3conv" 
 #现在实际为16-4，训练时间减半，仅降低1.6%准确率，FL通信成本大幅降低
 
 wandb:

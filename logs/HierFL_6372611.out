@@ -1,0 +1,220 @@
+This job can be monitored from: https://job.c3se.chalmers.se/alvis/6372611
+========================================
+Job ID      : 6372611
+Job Name    : HierFLcifar10
+Node        : alvis1-15
+Start Time  : Fri Apr 10 15:25:54 CEST 2026
+Working Dir : /cephyr/users/ziangg/Alvis/tf-dpfl
+========================================
+[Setup] Python: /cephyr/users/ziangg/Alvis/TF_DPFL_2026/bin/python
+[Setup] TF version: 2.15.1
+[Setup] GPU available: [PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
+[Config] Override: wandb.enabled = True
+[Setup] Random seed: 42
+[Setup] Loading CIFAR-10...
+[Setup] Building global model...
+Model: "cifar_cnn_3conv"
+_________________________________________________________________
+ Layer (type)                Output Shape              Param #   
+=================================================================
+ input_1 (InputLayer)        [(None, 32, 32, 3)]       0         
+                                                                 
+ conv2d (Conv2D)             (None, 32, 32, 32)        896       
+                                                                 
+ batch_normalization (Batch  (None, 32, 32, 32)        128       
+ Normalization)                                                  
+                                                                 
+ re_lu (ReLU)                (None, 32, 32, 32)        0         
+                                                                 
+ conv2d_1 (Conv2D)           (None, 32, 32, 64)        18496     
+                                                                 
+ batch_normalization_1 (Bat  (None, 32, 32, 64)        256       
+ chNormalization)                                                
+                                                                 
+ re_lu_1 (ReLU)              (None, 32, 32, 64)        0         
+                                                                 
+ max_pooling2d (MaxPooling2  (None, 16, 16, 64)        0         
+ D)                                                              
+                                                                 
+ conv2d_2 (Conv2D)           (None, 16, 16, 128)       73856     
+                                                                 
+ batch_normalization_2 (Bat  (None, 16, 16, 128)       512       
+ chNormalization)                                                
+                                                                 
+ re_lu_2 (ReLU)              (None, 16, 16, 128)       0         
+                                                                 
+ conv2d_3 (Conv2D)           (None, 16, 16, 128)       147584    
+                                                                 
+ batch_normalization_3 (Bat  (None, 16, 16, 128)       512       
+ chNormalization)                                                
+                                                                 
+ re_lu_3 (ReLU)              (None, 16, 16, 128)       0         
+                                                                 
+ max_pooling2d_1 (MaxPoolin  (None, 8, 8, 128)         0         
+ g2D)                                                            
+                                                                 
+ spatial_dropout2d (Spatial  (None, 8, 8, 128)         0         
+ Dropout2D)                                                      
+                                                                 
+ conv2d_4 (Conv2D)           (None, 8, 8, 256)         295168    
+                                                                 
+ batch_normalization_4 (Bat  (None, 8, 8, 256)         1024      
+ chNormalization)                                                
+                                                                 
+ re_lu_4 (ReLU)              (None, 8, 8, 256)         0         
+                                                                 
+ conv2d_5 (Conv2D)           (None, 8, 8, 256)         590080    
+                                                                 
+ batch_normalization_5 (Bat  (None, 8, 8, 256)         1024      
+ chNormalization)                                                
+                                                                 
+ re_lu_5 (ReLU)              (None, 8, 8, 256)         0         
+                                                                 
+ max_pooling2d_2 (MaxPoolin  (None, 4, 4, 256)         0         
+ g2D)                                                            
+                                                                 
+ flatten (Flatten)           (None, 4096)              0         
+                                                                 
+ dropout (Dropout)           (None, 4096)              0         
+                                                                 
+ dense (Dense)               (None, 1024)              4195328   
+                                                                 
+ dense_1 (Dense)             (None, 512)               524800    
+                                                                 
+ dropout_1 (Dropout)         (None, 512)               0         
+                                                                 
+ dense_2 (Dense)             (None, 10)                5130      
+                                                                 
+=================================================================
+Total params: 5854794 (22.33 MB)
+Trainable params: 5853066 (22.33 MB)
+Non-trainable params: 1728 (6.75 KB)
+_________________________________________________________________
+[Setup] Building clients...
+
+[Non-IID] α=0.5, 100 clients, 10 classes
+Client       Samples    Top-3 classes
+----------------------------------------------------
+client_0     544        cls4:130, cls1:126, cls5:98
+client_1     260        cls4:150, cls5:43, cls0:35
+client_2     444        cls7:148, cls8:123, cls4:73
+client_3     763        cls9:358, cls0:137, cls8:95
+client_4     671        cls0:231, cls1:96, cls2:86
+client_5     397        cls8:269, cls2:76, cls4:22
+client_6     288        cls8:121, cls4:40, cls1:36
+client_7     156        cls6:55, cls3:48, cls1:14
+client_8     596        cls3:169, cls2:148, cls8:125
+client_9     426        cls2:114, cls4:101, cls9:63
+client_10    530        cls7:163, cls9:148, cls5:123
+client_11    408        cls4:213, cls9:44, cls8:41
+client_12    312        cls1:129, cls5:116, cls0:13
+client_13    882        cls3:507, cls6:179, cls1:97
+client_14    264        cls9:59, cls5:56, cls0:56
+client_15    787        cls8:307, cls2:210, cls4:104
+client_16    443        cls8:107, cls0:96, cls2:74
+client_17    140        cls2:58, cls3:31, cls7:14
+client_18    918        cls2:247, cls7:244, cls0:131
+client_19    933        cls0:546, cls1:121, cls2:108
+client_20    553        cls1:291, cls8:132, cls7:43
+client_21    201        cls5:59, cls1:54, cls8:53
+client_22    400        cls5:177, cls0:64, cls3:52
+client_23    293        cls7:116, cls2:100, cls5:40
+client_24    940        cls6:337, cls0:204, cls5:185
+client_25    531        cls2:157, cls4:144, cls1:75
+client_26    500        cls0:191, cls9:82, cls8:80
+client_27    1015       cls4:575, cls3:196, cls9:90
+client_28    486        cls6:183, cls1:115, cls4:95
+client_29    1261       cls9:292, cls6:274, cls0:267
+client_30    376        cls8:136, cls4:69, cls6:67
+client_31    519        cls8:364, cls9:126, cls4:8
+client_32    457        cls6:141, cls0:136, cls9:64
+client_33    785        cls8:234, cls1:219, cls4:96
+client_34    615        cls5:217, cls2:176, cls8:114
+client_35    427        cls6:221, cls9:82, cls5:51
+client_36    584        cls0:263, cls5:185, cls2:42
+client_37    766        cls5:221, cls4:144, cls0:143
+client_38    105        cls9:43, cls3:24, cls8:16
+client_39    261        cls1:72, cls6:56, cls3:35
+client_40    379        cls3:110, cls0:72, cls7:63
+client_41    413        cls9:110, cls3:66, cls1:56
+client_42    384        cls0:152, cls3:87, cls1:39
+client_43    431        cls4:152, cls7:72, cls0:61
+client_44    534        cls7:311, cls8:108, cls0:34
+client_45    356        cls6:165, cls5:83, cls3:47
+client_46    363        cls7:125, cls0:90, cls6:44
+client_47    680        cls6:246, cls1:194, cls2:75
+client_48    710        cls9:276, cls2:243, cls7:70
+client_49    441        cls6:168, cls4:106, cls3:62
+client_50    916        cls9:196, cls3:181, cls1:146
+client_51    142        cls4:70, cls0:43, cls3:15
+client_52    247        cls7:114, cls9:31, cls1:30
+client_53    434        cls1:177, cls0:94, cls9:84
+client_54    657        cls1:193, cls7:165, cls5:87
+client_55    486        cls8:190, cls7:77, cls9:72
+client_56    472        cls2:150, cls8:121, cls6:68
+client_57    488        cls7:150, cls6:147, cls4:124
+client_58    331        cls3:93, cls4:78, cls9:71
+client_59    355        cls2:124, cls5:77, cls7:75
+client_60    466        cls5:174, cls3:130, cls2:68
+client_61    346        cls0:180, cls6:91, cls3:30
+client_62    704        cls4:337, cls8:93, cls9:76
+client_63    454        cls9:122, cls8:114, cls0:96
+client_64    166        cls8:63, cls7:44, cls2:33
+client_65    214        cls1:81, cls9:75, cls5:31
+client_66    598        cls6:204, cls3:92, cls7:84
+client_67    843        cls5:270, cls8:206, cls2:171
+client_68    243        cls6:158, cls5:28, cls4:27
+client_69    791        cls3:195, cls2:177, cls7:156
+client_70    139        cls2:37, cls6:30, cls4:20
+client_71    323        cls2:109, cls6:99, cls1:50
+client_72    904        cls5:368, cls1:156, cls2:96
+client_73    528        cls5:159, cls1:89, cls7:77
+client_74    457        cls3:175, cls1:168, cls6:47
+client_75    297        cls9:93, cls3:59, cls0:51
+client_76    423        cls5:128, cls1:80, cls9:58
+client_77    390        cls0:128, cls6:128, cls2:97
+client_78    740        cls3:321, cls1:266, cls9:68
+client_79    627        cls6:159, cls2:130, cls0:86
+client_80    295        cls7:99, cls0:60, cls4:50
+client_81    357        cls3:169, cls1:79, cls7:54
+client_82    309        cls2:137, cls5:59, cls4:49
+client_83    919        cls5:244, cls3:208, cls0:183
+client_84    480        cls5:148, cls8:119, cls3:81
+client_85    849        cls1:262, cls9:260, cls3:191
+client_86    209        cls3:75, cls6:50, cls9:32
+client_87    318        cls9:188, cls4:44, cls8:29
+client_88    873        cls5:324, cls3:191, cls2:83
+client_89    333        cls9:99, cls7:79, cls3:49
+client_90    489        cls6:135, cls4:130, cls2:52
+client_91    243        cls4:102, cls8:42, cls5:41
+client_92    347        cls2:163, cls5:74, cls3:53
+client_93    178        cls6:80, cls2:44, cls8:22
+client_94    613        cls8:170, cls7:162, cls4:123
+client_95    417        cls7:346, cls2:22, cls9:12
+client_96    500        cls7:138, cls8:128, cls0:90
+client_97    567        cls3:208, cls2:139, cls5:76
+client_98    493        cls5:122, cls8:118, cls9:104
+client_99    1102       cls9:341, cls7:209, cls1:196
+
+[Setup] 100 clients built (noniid, α=0.5)
+[Setup] Building edge servers...
+[Assignment] Random | 2 edges
+  Edge 0: clients [1, 3, 6, 7, 8, 9, 11, 12, 15, 20, 22, 23, 26, 28, 30, 31, 40, 41, 42, 44, 46, 47, 48, 49, 53, 54, 55, 58, 60, 61, 62, 63, 64, 65, 67, 69, 71, 74, 79, 80, 81, 83, 84, 87, 88, 89, 90, 93, 98, 99]
+  Edge 1: clients [0, 2, 4, 5, 10, 13, 14, 16, 17, 18, 19, 21, 24, 25, 27, 29, 32, 33, 34, 35, 36, 37, 38, 39, 43, 45, 50, 51, 52, 56, 57, 59, 66, 68, 70, 72, 73, 75, 76, 77, 78, 82, 85, 86, 91, 92, 94, 95, 96, 97]
+[EdgeServer 0] 50 clients | 24163 samples
+[EdgeServer 1] 50 clients | 25837 samples
+
+[Setup] Built 2 edge servers (strategy=random)
+  Edge 0: 50 clients | 24163 samples
+  Edge 1: 50 clients | 25837 samples
+[CloudServer] 2 edges | model: 22.33 MB
+
+====================================================
+ HierFAVG Training Start
+====================================================
+
+[Round   1] Broadcasting to 2 edges...
+  [Edge 0] G1 | E1 | Selected 35/50
+[1;34mwandb[0m: 
+[1;34mwandb[0m: 🚀 View run [33mfeddyn-100-40[0m at: [34mhttps://wandb.ai/3445339138-kth-royal-institute-of-technology/HierFL-cifar10/runs/y4fcjv8e[0m
+[1;34mwandb[0m: Find logs at: [1;35mwandb/run-20260410_152642-y4fcjv8e/logs[0m
