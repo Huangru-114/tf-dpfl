@@ -20,6 +20,15 @@ class FLClient:
 
         weights_np = model.get_weights()
 
+        # ── 预计算 trainable 变量在 get_weights() 中的索引 ─────────────────
+        # model.get_weights() 返回全部权重（含 BatchNorm moving mean/variance 等
+        # non-trainable 权重）；model.trainable_variables 只含可训练部分。
+        # 两者长度可能不同，直接 zip 会导致 shape 错位。
+        # _trainable_indices 用于从完整权重列表中准确提取 trainable 子集。
+        self._trainable_indices = [
+            i for i, w in enumerate(model.weights) if w.trainable
+        ]
+
         # ── FedDyn：梯度历史 ∇L_k(θ^t_k)，跨轮次累积，不重置 ────────────
         self.grad_history = [
             tf.Variable(tf.zeros_like(v), trainable=False, name=f"gh_{i}")
@@ -27,8 +36,11 @@ class FLClient:
         ]
 
         # ── SCAFFOLD：客户端控制变量 c_i，服务端控制变量 c_server ─────────
-        self.c_i      = [np.zeros_like(w, dtype=np.float32) for w in weights_np]
-        self.c_server = [np.zeros_like(w, dtype=np.float32) for w in weights_np]
+        # 修复：只对 trainable_variables 分配零向量，避免与 trainable_variables
+        # zip 时因含 non-trainable 权重而 shape 错位。
+        _trainable_np = [v.numpy() for v in model.trainable_variables]
+        self.c_i      = [np.zeros_like(w, dtype=np.float32) for w in _trainable_np]
+        self.c_server = [np.zeros_like(w, dtype=np.float32) for w in _trainable_np]
         self.c_delta  = None   # Δc_i，EdgeServer 聚合时读取
 
         # ── pFedMe：本地个性化模型（warm-start 用，不上传）────────────────
@@ -38,6 +50,10 @@ class FLClient:
         self.n_samples = n_samples if n_samples is not None else sum(
             x.shape[0] for x, _ in dataset
         )
+
+        # ── per-client 测试集（与训练集同分布，用于 PM 评估）────────────────
+        # 由外部调用 set_test_dataset() 注入，None 时 evaluate_on 退化为全体测试集
+        self.test_dataset = None
 
         # ── 优化器 ─────────────────────────────────────────────────────────
         lr    = config["training"]["learning_rate"]
@@ -75,6 +91,20 @@ class FLClient:
         """EdgeServer 在广播时注入边缘层控制变量 c_e（SCAFFOLD 专用）。"""
         self.c_server = [c.copy() for c in c_server]
 
+    def set_test_dataset(self, test_dataset: tf.data.Dataset):
+        """注入 per-client 同分布测试集（partition 后由 main.py 调用）。"""
+        self.test_dataset = test_dataset
+
+    def _trainable_ref(self, weights: list) -> list:
+        """
+        从 model.get_weights() 的完整权重列表中提取 trainable_variables 对应子集。
+
+        model.get_weights() 包含 non-trainable 权重（如 BatchNorm 的 moving_mean /
+        moving_variance），直接与 model.trainable_variables zip 会导致 shape 错位。
+        此方法利用 __init__ 中预计算的 _trainable_indices 安全地提取 trainable 子集。
+        """
+        return [weights[i] for i in self._trainable_indices]
+
     # ══════════════════════════════════════════════════════════════════════
     # 本地训练统一入口
     # ══════════════════════════════════════════════════════════════════════
@@ -102,6 +132,8 @@ class FLClient:
             return self._local_train_pfedme(round_idx, ref)
         elif method == "perfedavg":
             return self._local_train_perfedavg(round_idx, ref)
+        elif method == "hierpfedme":
+            return self._local_train_hierpfedme(round_idx, ref)
         else:
             raise ValueError(f"Unknown drift_correction: '{method}'")
 
@@ -135,7 +167,7 @@ class FLClient:
     def _local_train_fedprox(self, round_idx: int, ref_weights: list):
         mu, epochs = self.config["training"].get("mu", 0.01), \
                      self.config["training"]["local_epochs"]
-        ref_tf = [tf.constant(w, dtype=tf.float32) for w in ref_weights]
+        ref_tf = [tf.constant(w, dtype=tf.float32) for w in self._trainable_ref(ref_weights)]
         losses, t0 = [], time.time()
         for _ in range(epochs):
             bl = [float(self._train_step_fedprox(x, y, ref_tf, mu).numpy())
@@ -164,8 +196,8 @@ class FLClient:
         mu1, mu2 = self.config["training"].get("mu_edge", 0.1), \
                    self.config["training"].get("mu_global", 0.01)
         epochs = self.config["training"]["local_epochs"]
-        e_tf = [tf.constant(w, dtype=tf.float32) for w in self.edge_weights]
-        g_tf = [tf.constant(w, dtype=tf.float32) for w in self.global_weights]
+        e_tf = [tf.constant(w, dtype=tf.float32) for w in self._trainable_ref(self.edge_weights)]
+        g_tf = [tf.constant(w, dtype=tf.float32) for w in self._trainable_ref(self.global_weights)]
         losses, t0 = [], time.time()
         for _ in range(epochs):
             bl = [float(self._train_step_fedprox_both(x, y, e_tf, g_tf, mu1, mu2).numpy())
@@ -202,7 +234,7 @@ class FLClient:
         alpha  = self.config["training"].get("alpha_feddyn", 0.01)
         epochs = self.config["training"]["local_epochs"]
         a_tf   = tf.constant(alpha, dtype=tf.float32)
-        ref_tf = [tf.constant(w, dtype=tf.float32) for w in ref_weights]
+        ref_tf = [tf.constant(w, dtype=tf.float32) for w in self._trainable_ref(ref_weights)]
         losses, t0 = [], time.time()
         for _ in range(epochs):
             bl = [float(self._train_step_feddyn(x, y, ref_tf, a_tf).numpy())
@@ -302,7 +334,7 @@ class FLClient:
             self.model.set_weights(self.pfedme_theta)
         else:
             self.model.set_weights(ref_weights)
-        ref_tf = [tf.constant(w, dtype=tf.float32) for w in ref_weights]
+        ref_tf = [tf.constant(w, dtype=tf.float32) for w in self._trainable_ref(ref_weights)]
         losses, t0 = [], time.time()
         for _ in range(epochs):
             bl = [float(self._train_step_fedprox(x, y, ref_tf, lam).numpy())
@@ -329,6 +361,10 @@ class FLClient:
           2. 外层：meta_grad = ∇F_k(θ', D2)
           3. 用 meta_grad 通过 optimizer 更新 w_meta
         上传元参数 w_meta；服务端 FedAvg 聚合。
+
+        修复：ig / mg 来自 trainable_variables（仅 trainable），
+        meta_w 来自 get_weights()（含 non-trainable）。
+        使用 _trainable_indices 只更新对应位置，non-trainable 保持不变。
         """
         alpha  = self.config["training"].get("alpha_inner", 0.01)
         epochs = self.config["training"]["local_epochs"]
@@ -342,18 +378,24 @@ class FLClient:
                 D2x, D2y = images[half:],  labels[half:]
                 if D2x.shape[0] == 0:
                     D2x, D2y = D1x, D1y
-                # 内层适配
+
+                # 内层适配：θ' = meta_w − α·∇F(D1)
                 self.model.set_weights(meta_w)
                 with tf.GradientTape() as it:
                     l1 = self.loss_fn(D1y, self.model(D1x, training=True))
                 ig = it.gradient(l1, self.model.trainable_variables)
-                adapted = [w - alpha * g.numpy() for w, g in zip(meta_w, ig)]
-                # 外层元梯度
+                # 只更新 trainable 权重，non-trainable 原样保留
+                adapted = [w.copy() for w in meta_w]
+                for idx, g in zip(self._trainable_indices, ig):
+                    adapted[idx] = meta_w[idx] - alpha * g.numpy()
+
+                # 外层元梯度：∇F(θ', D2)
                 self.model.set_weights(adapted)
                 with tf.GradientTape() as ot:
                     l2 = self.loss_fn(D2y, self.model(D2x, training=True))
                 mg = ot.gradient(l2, self.model.trainable_variables)
-                # 更新元参数
+
+                # 更新元参数：通过 optimizer 施加元梯度
                 self.model.set_weights(meta_w)
                 self.optimizer.apply_gradients(
                     zip(mg, self.model.trainable_variables))
@@ -367,6 +409,88 @@ class FLClient:
         return meta_w, self.n_samples, avg, time.time() - t0
 
     # ══════════════════════════════════════════════════════════════════════
+    # Hier-pFedMe  （Liu et al., ICME 2025）
+    # 三层嵌套优化的客户端部分（内层 + Moreau 梯度步）
+    #
+    # 性能关键：用 tf.Variable 持有 Theta，整个内外层更新留在 TF 图内。
+    # 避免热循环里的 set_weights / get_weights 以及 tf.function retrace。
+    #
+    # 原始慢版本的三个瓶颈：
+    #   1. 每 batch 调用 set_weights / get_weights → CPU↔GPU 数据拷贝
+    #   2. anchor_tf 每 batch 新建 tf.constant list → @tf.function 每 batch retrace
+    #   3. Moreau 步在 Python 层做 numpy 运算 → 无法 GPU 加速
+    # ══════════════════════════════════════════════════════════════════════
+
+    def _local_train_hierpfedme(self, round_idx: int, ref_weights: list):
+        lam2   = float(self.config["training"].get("lambda2_hier", 35.0))
+        eta2   = float(self.config["training"]["learning_rate"])
+        epochs = int(self.config["training"]["local_epochs"])
+
+        # Theta 以 tf.Variable 形式持有，整轮训练只初始化一次
+        # 所有更新（内层 FedProx + 外层 Moreau）全部在 _hierpfedme_step 的
+        # tf.function 图内完成，不再跨越 Python↔TF 边界
+        trainable_ref = self._trainable_ref(ref_weights)
+        theta_vars = [
+            tf.Variable(w, trainable=False, dtype=tf.float32)
+            for w in trainable_ref
+        ]
+        # 将模型初始化为 Theta
+        for v, t in zip(self.model.trainable_variables, theta_vars):
+            v.assign(t)
+
+        lam2_tf = tf.constant(lam2, dtype=tf.float32)
+        eta2_tf = tf.constant(eta2, dtype=tf.float32)
+
+        losses, t0 = [], time.time()
+        for _ in range(epochs):
+            bl = [float(self._hierpfedme_step(x, y, theta_vars,
+                                               lam2_tf, eta2_tf).numpy())
+                  for x, y in self.dataset]
+            losses.append(np.mean(bl))
+
+        # 重建完整权重（trainable 部分 = 最终 Theta，non-trainable 不变）
+        final_weights = list(ref_weights)
+        for idx, t in zip(self._trainable_indices, theta_vars):
+            final_weights[idx] = t.numpy()
+
+        avg = float(np.mean(losses))
+        print(f"  [Client {self.client_id:>2}] Round {round_idx} | "
+              f"Hier-pFedMe(λ2={lam2}) | loss={avg:.4f}")
+        return final_weights, self.n_samples, avg, time.time() - t0
+
+    @tf.function
+    def _hierpfedme_step(self, images, labels, theta_vars, lam2, eta2):
+        """
+        单 batch 的 Hier-pFedMe 更新，全程在 TF 图内执行：
+          内层：FedProx 一步，以 theta_vars 为 anchor
+                loss = CE + (λ2/2)·‖v − Θ‖²
+          外层：Moreau 梯度步，就地更新 theta_vars 并重置模型
+                Θ ← Θ − η2·λ2·(Θ − θ̃)
+                model ← Θ（为下一 batch 准备）
+        theta_vars 是 tf.Variable，作为 Variable 传入不触发 retrace。
+        """
+        with tf.GradientTape() as tape:
+            loss = self.loss_fn(labels, self.model(images, training=True))
+            prox = tf.add_n([
+                tf.reduce_sum(tf.square(v - t))
+                for v, t in zip(self.model.trainable_variables, theta_vars)
+            ])
+            total_loss = loss + (lam2 / 2.0) * prox
+        grads = tape.gradient(total_loss, self.model.trainable_variables)
+        self.optimizer.apply_gradients(
+            zip(grads, self.model.trainable_variables))
+
+        # θ̃ = 内层更新后的模型权重
+        # Moreau 步：Θ ← Θ − η2·λ2·(Θ − θ̃)
+        # 同时将模型重置为新 Theta，为下一 batch 准备
+        for t, v in zip(theta_vars, self.model.trainable_variables):
+            new_t = t - eta2 * lam2 * (t - v)
+            t.assign(new_t)
+            v.assign(new_t)
+
+        return loss
+
+    # ══════════════════════════════════════════════════════════════════════
     # 本地评估（调试用）
     # ══════════════════════════════════════════════════════════════════════
 
@@ -378,3 +502,28 @@ class FLClient:
             tc += np.sum(np.argmax(p.numpy(), 1) == y.numpy())
             tn += x.shape[0]
         return tl / tn, tc / tn
+
+    def evaluate_on(self, fallback_dataset: tf.data.Dataset = None):
+        """
+        评估当前模型（PM 评估）。
+
+        优先使用 self.test_dataset（per-client 同分布测试集，论文评估方式）。
+        若未注入，退化为 fallback_dataset（全体测试集）。
+
+        per-client 测试集：只含该 client 训练类别的测试样本，
+        与训练分布一致，所以 pathological non-IID 下不会因为
+        模型没见过其他类而被拉低精度。
+        """
+        ds = self.test_dataset if self.test_dataset is not None else fallback_dataset
+        if ds is None:
+            raise ValueError("No test dataset available. "
+                             "Call set_test_dataset() or pass fallback_dataset.")
+        tl = tc = tn = 0
+        for x, y in ds:
+            p  = self.model(x, training=False)
+            tl += self.loss_fn(y, p).numpy() * x.shape[0]
+            tc += np.sum(np.argmax(p.numpy(), 1) == y.numpy())
+            tn += x.shape[0]
+        if tn == 0:
+            return 0.0, 0.0
+        return float(tl / tn), float(tc / tn)

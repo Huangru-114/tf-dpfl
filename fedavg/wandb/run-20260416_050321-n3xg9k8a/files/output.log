@@ -1,0 +1,171 @@
+
+====================================================
+ HierFAVG Training Start
+====================================================
+
+[Round   1] Broadcasting to 2 edges...
+  [Edge 0] G1 | E1 | Selected 3/3
+  [Client  9] Round 1 | FedAvg | loss=3.3594
+  [Client  5] Round 1 | FedAvg | loss=3.4401
+  [Client  8] Round 1 | FedAvg | loss=3.3516
+  [Edge 0] G1 | E1 | loss=3.3864
+  [Edge 1] G1 | E1 | Selected 7/7
+  [Client  0] Round 1 | FedAvg | loss=3.3191
+  [Client  1] Round 1 | FedAvg | loss=3.1123
+  [Client  6] Round 1 | FedAvg | loss=3.1915
+  [Client  4] Round 1 | FedAvg | loss=3.1785
+  [Client  7] Round 1 | FedAvg | loss=3.3057
+  [Client  3] Round 1 | FedAvg | loss=3.2969
+  [Client  2] Round 1 | FedAvg | loss=3.2011
+  [Edge 1] G1 | E1 | loss=3.2351
+  [Cloud] GM=0.0100 | loss=4.6060 | time=41.5s | comm=540.2MB (total=540MB)
+
+[Round   2] Broadcasting to 2 edges...
+  [Edge 0] G2 | E1 | Selected 3/3
+  [Client  9] Round 2 | FedAvg | loss=3.3480
+  [Client  5] Round 2 | FedAvg | loss=3.3614
+  [Client  8] Round 2 | FedAvg | loss=3.3513
+  [Edge 0] G2 | E1 | loss=3.3544
+  [Edge 1] G2 | E1 | Selected 7/7
+  [Client  3] Round 2 | FedAvg | loss=3.3405
+  [Client  2] Round 2 | FedAvg | loss=3.1967
+  [Client  4] Round 2 | FedAvg | loss=3.0836
+  [Client  0] Round 2 | FedAvg | loss=3.3314
+  [Client  7] Round 2 | FedAvg | loss=3.2230
+  [Client  1] Round 2 | FedAvg | loss=3.1837
+  [Client  6] Round 2 | FedAvg | loss=3.1298
+  [Edge 1] G2 | E1 | loss=3.2202
+  [Cloud] GM=0.0100 | loss=4.6210 | time=20.8s | comm=540.2MB (total=1080MB)
+
+[Round   3] Broadcasting to 2 edges...
+  [Edge 0] G3 | E1 | Selected 3/3
+  [Client  9] Round 3 | FedAvg | loss=3.1592
+  [Client  8] Round 3 | FedAvg | loss=3.2812
+  [Client  5] Round 3 | FedAvg | loss=3.3036
+  [Edge 0] G3 | E1 | loss=3.2634
+  [Edge 1] G3 | E1 | Selected 7/7
+  [Client  7] Round 3 | FedAvg | loss=3.0386
+  [Client  3] Round 3 | FedAvg | loss=3.2291
+  [Client  1] Round 3 | FedAvg | loss=3.0527
+  [Client  4] Round 3 | FedAvg | loss=3.0913
+  [Client  2] Round 3 | FedAvg | loss=2.9936
+  [Client  0] Round 3 | FedAvg | loss=3.2360
+  [Client  6] Round 3 | FedAvg | loss=3.0579
+  [Edge 1] G3 | E1 | loss=3.0933
+  [Cloud] GM=0.0100 | loss=4.6454 | time=20.9s | comm=540.2MB (total=1621MB)
+
+[Round   4] Broadcasting to 2 edges...
+  [Edge 0] G4 | E1 | Selected 3/3
+  [Client  5] Round 4 | FedAvg | loss=3.1237
+  [Client  9] Round 4 | FedAvg | loss=2.9437
+  [Client  8] Round 4 | FedAvg | loss=3.1344
+  [Edge 0] G4 | E1 | loss=3.0895
+  [Edge 1] G4 | E1 | Selected 7/7
+  [Client  4] Round 4 | FedAvg | loss=2.8501
+  [Client  0] Round 4 | FedAvg | loss=3.0539
+  [Client  1] Round 4 | FedAvg | loss=2.8152
+  [Client  7] Round 4 | FedAvg | loss=2.9371
+  [Client  3] Round 4 | FedAvg | loss=2.9517
+  [Client  2] Round 4 | FedAvg | loss=2.8057
+  [Client  6] Round 4 | FedAvg | loss=2.8548
+  [Edge 1] G4 | E1 | loss=2.8952
+  [Cloud] GM=0.0265 | loss=4.5254 | time=20.6s | comm=540.2MB (total=2161MB)
+
+[Round   5] Broadcasting to 2 edges...
+  [Edge 0] G5 | E1 | Selected 3/3
+  [Client  8] Round 5 | FedAvg | loss=3.0052
+  [Client  9] Round 5 | FedAvg | loss=2.8162
+  [Client  5] Round 5 | FedAvg | loss=2.9669
+  [Edge 0] G5 | E1 | loss=2.9504
+  [Edge 1] G5 | E1 | Selected 7/7
+  [Client  7] Round 5 | FedAvg | loss=2.7853
+  [Client  2] Round 5 | FedAvg | loss=2.7085
+  [Client  4] Round 5 | FedAvg | loss=2.7555
+  [Client  3] Round 5 | FedAvg | loss=2.8319
+  [Client  6] Round 5 | FedAvg | loss=2.7527
+  [Client  1] Round 5 | FedAvg | loss=2.6080
+  [Client  0] Round 5 | FedAvg | loss=2.8790
+  [Edge 1] G5 | E1 | loss=2.7597
+  [Cloud] GM=0.0507 | loss=4.3246 | time=20.5s | comm=540.2MB (total=2701MB)
+
+[Round   6] Broadcasting to 2 edges...
+  [Edge 0] G6 | E1 | Selected 3/3
+  [Client  9] Round 6 | FedAvg | loss=2.6665
+  [Client  5] Round 6 | FedAvg | loss=2.8482
+  [Client  8] Round 6 | FedAvg | loss=2.8813
+  [Edge 0] G6 | E1 | loss=2.8229
+  [Edge 1] G6 | E1 | Selected 7/7
+  [Client  1] Round 6 | FedAvg | loss=2.4592
+  [Client  2] Round 6 | FedAvg | loss=2.5247
+  [Client  0] Round 6 | FedAvg | loss=2.6832
+  [Client  6] Round 6 | FedAvg | loss=2.6192
+  [Client  3] Round 6 | FedAvg | loss=2.6756
+  [Client  7] Round 6 | FedAvg | loss=2.6319
+  [Client  4] Round 6 | FedAvg | loss=2.6226
+  [Edge 1] G6 | E1 | loss=2.6005
+  [Cloud] GM=0.0664 | loss=4.1603 | time=20.4s | comm=540.2MB (total=3241MB)
+
+[Round   7] Broadcasting to 2 edges...
+  [Edge 0] G7 | E1 | Selected 3/3
+  [Client  5] Round 7 | FedAvg | loss=2.7262
+  [Client  9] Round 7 | FedAvg | loss=2.5444
+  [Client  8] Round 7 | FedAvg | loss=2.7175
+  [Edge 0] G7 | E1 | loss=2.6837
+  [Edge 1] G7 | E1 | Selected 7/7
+  [Client  1] Round 7 | FedAvg | loss=2.3544
+  [Client  4] Round 7 | FedAvg | loss=2.5028
+  [Client  2] Round 7 | FedAvg | loss=2.3878
+  [Client  6] Round 7 | FedAvg | loss=2.5246
+  [Client  0] Round 7 | FedAvg | loss=2.4849
+  [Client  7] Round 7 | FedAvg | loss=2.5052
+  [Client  3] Round 7 | FedAvg | loss=2.5101
+  [Edge 1] G7 | E1 | loss=2.4653
+  [Cloud] GM=0.0826 | loss=4.0033 | time=20.5s | comm=540.2MB (total=3782MB)
+
+[Round   8] Broadcasting to 2 edges...
+  [Edge 0] G8 | E1 | Selected 3/3
+  [Client  9] Round 8 | FedAvg | loss=2.3981
+  [Client  8] Round 8 | FedAvg | loss=2.5755
+  [Client  5] Round 8 | FedAvg | loss=2.6010
+  [Edge 0] G8 | E1 | loss=2.5470
+  [Edge 1] G8 | E1 | Selected 7/7
+  [Client  7] Round 8 | FedAvg | loss=2.3845
+  [Client  4] Round 8 | FedAvg | loss=2.4227
+  [Client  2] Round 8 | FedAvg | loss=2.2624
+  [Client  0] Round 8 | FedAvg | loss=2.3656
+  [Client  1] Round 8 | FedAvg | loss=2.2463
+  [Client  3] Round 8 | FedAvg | loss=2.4036
+  [Client  6] Round 8 | FedAvg | loss=2.4364
+  [Edge 1] G8 | E1 | loss=2.3558
+  [Cloud] GM=0.1049 | loss=3.8379 | time=21.3s | comm=540.2MB (total=4322MB)
+
+[Round   9] Broadcasting to 2 edges...
+  [Edge 0] G9 | E1 | Selected 3/3
+  [Client  5] Round 9 | FedAvg | loss=2.5046
+  [Client  8] Round 9 | FedAvg | loss=2.4603
+  [Client  9] Round 9 | FedAvg | loss=2.3531
+  [Edge 0] G9 | E1 | loss=2.4539
+  [Edge 1] G9 | E1 | Selected 7/7
+  [Client  0] Round 9 | FedAvg | loss=2.2502
+  [Client  7] Round 9 | FedAvg | loss=2.3027
+  [Client  2] Round 9 | FedAvg | loss=2.1497
+  [Client  1] Round 9 | FedAvg | loss=2.1230
+  [Client  3] Round 9 | FedAvg | loss=2.2950
+  [Client  6] Round 9 | FedAvg | loss=2.3270
+  [Client  4] Round 9 | FedAvg | loss=2.3238
+  [Edge 1] G9 | E1 | loss=2.2494
+  [Cloud] GM=0.1340 | loss=3.6793 | time=20.7s | comm=540.2MB (total=4862MB)
+
+[Round  10] Broadcasting to 2 edges...
+  [Edge 0] G10 | E1 | Selected 3/3
+  [Client  8] Round 10 | FedAvg | loss=2.3620
+  [Client  9] Round 10 | FedAvg | loss=2.2119
+  [Client  5] Round 10 | FedAvg | loss=2.4338
+  [Edge 0] G10 | E1 | loss=2.3567
+  [Edge 1] G10 | E1 | Selected 7/7
+  [Client  7] Round 10 | FedAvg | loss=2.1866
+  [Client  0] Round 10 | FedAvg | loss=2.1384
+  [Client  2] Round 10 | FedAvg | loss=2.0053
+  [Client  4] Round 10 | FedAvg | loss=2.2143
+  [Client  1] Round 10 | FedAvg | loss=2.0839
+  [Client  6] Round 10 | FedAvg | loss=2.2642

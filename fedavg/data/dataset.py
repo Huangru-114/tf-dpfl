@@ -63,10 +63,20 @@ def augment(image, label):
 CIFAR10_MEAN = np.array([0.4914, 0.4822, 0.4465], dtype=np.float32)
 CIFAR10_STD  = np.array([0.2470, 0.2435, 0.2616], dtype=np.float32)
 
+# Mimer 上 CIFAR 数据集的共享路径（CIFAR-10 和 CIFAR-100 均在此）
+CIFAR_MIMER_PATH = "/mimer/NOBACKUP/Datasets/CIFAR"
+
 
 def load_cifar10(config: dict):
+    import os
     batch_size  = config["data"]["batch_size"]
     shuffle_buf = config["data"]["shuffle_buffer"]
+
+    if os.path.isdir(CIFAR_MIMER_PATH):
+        os.environ.setdefault("KERAS_HOME", CIFAR_MIMER_PATH)
+        print(f"[Data] CIFAR-10 from Mimer: {CIFAR_MIMER_PATH}")
+    else:
+        print("[Data] CIFAR-10: Mimer path not found, using default Keras cache")
 
     (x_train, y_train), (x_test, y_test) = tf.keras.datasets.cifar10.load_data()
 
@@ -99,10 +109,197 @@ def load_cifar10(config: dict):
         .prefetch(tf.data.AUTOTUNE)
     )
 
-    return train_ds, test_ds, x_train, y_train
+    return train_ds, test_ds, x_train, y_train, x_test, y_test
 
 
-def load_gtsrb(config: dict):
+# ══════════════════════════════════════════════════════════════════════════════
+# CIFAR-100
+# 和 CIFAR-10 使用同一个 Mimer 路径：/mimer/NOBACKUP/Datasets/CIFAR/
+# ══════════════════════════════════════════════════════════════════════════════
+
+CIFAR100_MEAN = np.array([0.5071, 0.4867, 0.4408], dtype=np.float32)
+CIFAR100_STD  = np.array([0.2675, 0.2565, 0.2761], dtype=np.float32)
+
+
+def load_cifar100(config: dict):
+    """
+    加载 CIFAR-100（100 类，每类 600 张，32×32）。
+    与 CIFAR-10 共用同一个 Mimer 路径，KERAS_HOME 已在 load_cifar10 中设置，
+    若直接调用此函数则在此处再设置一次。
+    返回：train_ds, test_ds, x_train, y_train, x_test, y_test
+    """
+    import os
+    batch_size  = config["data"]["batch_size"]
+    shuffle_buf = config["data"]["shuffle_buffer"]
+
+    if os.path.isdir(CIFAR_MIMER_PATH):
+        os.environ.setdefault("KERAS_HOME", CIFAR_MIMER_PATH)
+        print(f"[Data] CIFAR-100 from Mimer: {CIFAR_MIMER_PATH}")
+    else:
+        print("[Data] CIFAR-100: Mimer path not found, using default Keras cache")
+
+    (x_train, y_train), (x_test, y_test) = \
+        tf.keras.datasets.cifar100.load_data(label_mode="fine")
+
+    x_train = (x_train.astype("float32") / 255.0 - CIFAR100_MEAN) / CIFAR100_STD
+    x_test  = (x_test.astype("float32")  / 255.0 - CIFAR100_MEAN) / CIFAR100_STD
+    y_train = y_train.squeeze()
+    y_test  = y_test.squeeze()
+
+    def augment_c100(img, lbl):
+        img = tf.image.random_flip_left_right(img)
+        img = tf.image.random_crop(
+            tf.pad(img, [[4, 4], [4, 4], [0, 0]], mode="REFLECT"), [32, 32, 3]
+        )
+        return img, lbl
+
+    train_ds = (
+        tf.data.Dataset.from_tensor_slices((x_train, y_train))
+        .cache()
+        .shuffle(shuffle_buf, reshuffle_each_iteration=True)
+        .map(augment_c100, num_parallel_calls=tf.data.AUTOTUNE)
+        .batch(batch_size, drop_remainder=True)
+        .prefetch(tf.data.AUTOTUNE)
+    )
+    test_ds = (
+        tf.data.Dataset.from_tensor_slices((x_test, y_test))
+        .batch(batch_size)
+        .prefetch(tf.data.AUTOTUNE)
+    )
+
+    print(f"[Data] CIFAR-100 | train={len(x_train)} test={len(x_test)} classes=100")
+    return train_ds, test_ds, x_train, y_train, x_test, y_test
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ImageNet (ILSVRC2012, face-blurred)
+# Mimer 路径：/mimer/NOBACKUP/Datasets/ImageNet/Face-blurred_ILSVRC2012-2017
+#   train_blurred.zip  ← 训练集（按 WordNet synset 目录组织的 JPEG）
+#   val_blurred.zip    ← 验证集
+#   map_clsloc.txt     ← synset → class_index (1-based) 映射
+# 访问前提：在 SUPR 加入 imagenet-license-agreement 组后重新登录。
+# C3SE 建议直接读取 zip，不解压，避免大量小文件写入 $TMPDIR。
+# ══════════════════════════════════════════════════════════════════════════════
+
+IMAGENET_MIMER_PATH = (
+    "/mimer/NOBACKUP/Datasets/ImageNet/Face-blurred_ILSVRC2012-2017"
+)
+IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+IMAGENET_STD  = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+
+
+def _parse_imagenet_map(dataroot: str) -> dict:
+    """解析 map_clsloc.txt → {synset: 0-based class index}。"""
+    mapping = {}
+    with open(f"{dataroot}/map_clsloc.txt") as f:
+        for line in f:
+            parts = line.strip().split()
+            if len(parts) >= 2:
+                mapping[parts[0]] = int(parts[1]) - 1   # 1-based → 0-based
+    return mapping
+
+
+def _imagenet_generator(zip_path: str, img_paths: list, labels: list,
+                         img_size: int):
+    """逐张从 zip 流式读取、解码、归一化，不需要全量载入内存。"""
+    from zipfile import ZipFile
+    zf = ZipFile(zip_path)
+    for path, label in zip(img_paths, labels):
+        raw = zf.read(path)
+        img = tf.image.decode_jpeg(raw, channels=3)
+        img = tf.image.resize(img, [img_size, img_size])
+        img = tf.cast(img, tf.float32) / 255.0
+        img = (img - IMAGENET_MEAN) / IMAGENET_STD
+        yield img, label
+
+
+def _scan_imagenet_zip(zip_path: str, class_map: dict) -> tuple:
+    """扫描 zip 内所有 .jpg/.JPEG，返回 (img_paths, labels)。"""
+    from zipfile import ZipFile
+    print(f"[Data] Scanning {zip_path} ...")
+    with ZipFile(zip_path) as zf:
+        all_paths = zf.namelist()
+    img_paths, labels = [], []
+    for p in all_paths:
+        if not p.lower().endswith((".jpeg", ".jpg")):
+            continue
+        synset = p.split("/")[-2]
+        label  = class_map.get(synset, -1)
+        if label >= 0:
+            img_paths.append(p)
+            labels.append(label)
+    return img_paths, labels
+
+
+def load_imagenet(config: dict):
+    """
+    加载 ImageNet from Mimer，直接从 zip 流式读取（不解压）。
+    ImageNet 训练集约 120 万张，不做全量 numpy 加载，
+    x_train / x_test 返回 None，仅返回标签数组用于 partition。
+    返回：train_ds, test_ds, None, y_train_np, None, y_val_np
+    """
+    import os
+    dataroot    = config["data"].get("imagenet_path", IMAGENET_MIMER_PATH)
+    batch_size  = config["data"]["batch_size"]
+    img_size    = config["data"].get("img_size", 224)
+    shuffle_buf = config["data"]["shuffle_buffer"]
+
+    if not os.path.isdir(dataroot):
+        raise FileNotFoundError(
+            f"ImageNet not found at '{dataroot}'.\n"
+            "Please join the 'imagenet-license-agreement' group on SUPR "
+            "and re-login to Alvis."
+        )
+
+    class_map = _parse_imagenet_map(dataroot)
+    print(f"[Data] ImageNet class map: {len(class_map)} synsets")
+
+    train_zip = os.path.join(dataroot, "train_blurred.zip")
+    val_zip   = os.path.join(dataroot, "val_blurred.zip")
+
+    train_paths, train_labels = _scan_imagenet_zip(train_zip, class_map)
+    val_paths,   val_labels   = _scan_imagenet_zip(val_zip,   class_map)
+    print(f"[Data] ImageNet | train={len(train_paths)} val={len(val_paths)} "
+          f"classes={len(class_map)}")
+
+    sig = (
+        tf.TensorSpec(shape=(img_size, img_size, 3), dtype=tf.float32),
+        tf.TensorSpec(shape=(), dtype=tf.int32),
+    )
+
+    def augment_imagenet(img, lbl):
+        pad = int(img_size * 0.1)
+        img = tf.image.random_flip_left_right(img)
+        img = tf.image.random_crop(
+            tf.pad(img, [[pad, pad], [pad, pad], [0, 0]], mode="REFLECT"),
+            [img_size, img_size, 3]
+        )
+        return img, lbl
+
+    train_ds = (
+        tf.data.Dataset.from_generator(
+            lambda: _imagenet_generator(train_zip, train_paths,
+                                        train_labels, img_size),
+            output_signature=sig
+        )
+        .shuffle(shuffle_buf, reshuffle_each_iteration=True)
+        .map(augment_imagenet, num_parallel_calls=tf.data.AUTOTUNE)
+        .batch(batch_size, drop_remainder=True)
+        .prefetch(tf.data.AUTOTUNE)
+    )
+    test_ds = (
+        tf.data.Dataset.from_generator(
+            lambda: _imagenet_generator(val_zip, val_paths,
+                                        val_labels, img_size),
+            output_signature=sig
+        )
+        .batch(batch_size)
+        .prefetch(tf.data.AUTOTUNE)
+    )
+
+    return (train_ds, test_ds,
+            None, np.array(train_labels, dtype=np.int32),
+            None, np.array(val_labels,   dtype=np.int32))
     """
     加载 GTSRB 数据集，返回 train 和 test 的 tf.data.Dataset。
 
