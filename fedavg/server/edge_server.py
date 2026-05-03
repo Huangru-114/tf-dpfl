@@ -16,6 +16,7 @@ import time
 import numpy as np
 import tensorflow as tf
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from aggregation.fedavg  import aggregate
 from aggregation.feddyn  import feddyn_aggregate,  init_h
 from aggregation.scaffold import scaffold_aggregate, init_cv
@@ -59,6 +60,50 @@ class EdgeServer:
 
         print(f"[EdgeServer {edge_id}] "
               f"{len(clients)} clients | {self.n_samples} samples")
+
+
+    # ══════════════════════════════════════════════════════════════════════
+    # 并行化
+    # ══════════════════════════════════════════════════════════════════════
+    def _collect_updates_parallel(self, selected: list,
+                                global_round_idx: int,
+                                mode: str = "fedavg") -> list:
+        """
+        并行执行所有选中客户端的本地训练 / 元梯度计算。
+
+        Args:
+            mode: "fedavg"      → 调用 client.local_train，返回权重
+                "meta_grad"   → 调用 client.compute_meta_gradient，返回元梯度
+        Returns:
+            results: mode=fedavg   → [(weights, n, loss, t), ...]
+                    mode=meta_grad → [(grads, n, loss), ...]  NaN 已过滤
+        """
+        n_workers = self.config["federation"].get("n_workers", 4)
+        edge_weights = self.model.get_weights()  # 拍快照，所有线程只读
+
+        def run_one_client(client):
+            if mode == "fedavg":
+                return client.local_train(global_round_idx)
+            else:
+                return client.compute_meta_gradient(edge_weights, global_round_idx)
+
+        results = []
+        with ThreadPoolExecutor(max_workers=n_workers) as executor:
+            futures = {executor.submit(run_one_client, c): c for c in selected}
+            for future in as_completed(futures):
+                client = futures[future]
+                try:
+                    result = future.result()
+                    if mode == "meta_grad":
+                        grads, n, loss = result
+                        if any(np.isnan(g).any() or np.isinf(g).any()
+                            for g in grads):
+                            print(f"    [SKIP] Client {client.client_id}: NaN")
+                            continue
+                    results.append(result)
+                except Exception as e:
+                    print(f"    [ERROR] Client {client.client_id}: {e}")
+        return results
 
     # ══════════════════════════════════════════════════════════════════════
     # 初始化辅助
@@ -240,6 +285,67 @@ class EdgeServer:
         return float(avg_loss), avg_time
 
     # ══════════════════════════════════════════════════════════════════════
+    # Hier-pFedAvg 边缘轮次（辅助）
+    # ══════════════════════════════════════════════════════════════════════        
+
+    def run_edge_round_hier_perfedavg(self, global_round_idx: int,
+                                    edge_round_idx: int):
+        """
+        Hier-PerFedAvg 单轮边缘元聚合：
+        1. 广播当前 edge 元参数 θ_E 给选中 client
+        2. 每个 client 计算元梯度 g_i = ∇_{θ_E} L_i(θ_E - α∇L_i(θ_E))
+        3. NaN 过滤
+        4. 加权聚合元梯度
+        5. 边缘元参数更新：θ_E ← θ_E - β * Σ(n_i/N * g_i)
+        """
+        beta = self.config["training"].get("beta_outer", 0.01)
+
+        selected     = self.select_clients(global_round_idx)
+        edge_weights = self.model.get_weights()
+
+        print(f"  [Edge {self.edge_id}] G{global_round_idx} | E{edge_round_idx} | "
+            f"Hier-PerFedAvg | Selected {len(selected)}/{len(self.clients)}")
+
+        # 广播 edge 元参数
+        self.broadcast_to_clients(selected, global_weights=self._global_weights_ref)
+
+        # 收集元梯度
+        meta_grads_collected, n_total, losses = [], 0, []
+        for client in selected:
+            grads, n, loss = client.compute_meta_gradient(edge_weights, global_round_idx)
+
+            # NaN / inf 过滤（解决 Dirichlet α=0.1 的崩溃问题）
+            if any(np.isnan(g).any() or np.isinf(g).any() for g in grads):
+                print(f"    [SKIP] Client {client.client_id}: "
+                    f"NaN/inf in meta-gradient")
+                continue
+
+            meta_grads_collected.append((grads, n))
+            n_total += n
+            losses.append(loss)
+
+        if not meta_grads_collected:
+            print(f"  [Edge {self.edge_id}] WARNING: all clients skipped, "
+                f"keeping current edge weights")
+            return float('nan'), 0.0
+
+        # 加权平均元梯度
+        n_params   = len(edge_weights)
+        agg_grads  = [
+            sum((n / n_total) * grads[i]
+                for grads, n in meta_grads_collected)
+            for i in range(n_params)
+        ]
+
+        # 边缘元参数更新
+        new_edge_w = [w - beta * g for w, g in zip(edge_weights, agg_grads)]
+        self.model.set_weights(new_edge_w)
+
+        avg_loss = float(np.mean(losses))
+        print(f"  [Edge {self.edge_id}] G{global_round_idx} | E{edge_round_idx} | "
+            f"loss={avg_loss:.4f}")
+        return avg_loss, 0.0
+    # ══════════════════════════════════════════════════════════════════════
     # 评估
     # ══════════════════════════════════════════════════════════════════════
 
@@ -282,16 +388,19 @@ class EdgeServer:
         # 步骤 3：广播
         self.broadcast_to_clients(selected, global_weights=self._global_weights_ref)
 
-        # 步骤 4：本地训练 + warm-up 缓存
-        client_updates = []
-        warmup = self.config["federation"].get("warmup_rounds", 5)
-        do_cache = (self.config["federation"].get("client_selection") == "clustered"
-                    and global_round_idx <= warmup)
-        for client in selected:
-            w, n, loss, t = client.local_train(global_round_idx)
-            client_updates.append((w, n, loss, t))
-            if do_cache:
-                self._collect_gradient_update(client, prev_edge_w)
+        # # 步骤 4：本地训练 + warm-up 缓存
+        # client_updates = []
+        # warmup = self.config["federation"].get("warmup_rounds", 5)
+        # do_cache = (self.config["federation"].get("client_selection") == "clustered"
+        #             and global_round_idx <= warmup)
+        # for client in selected:
+        #     w, n, loss, t = client.local_train(global_round_idx)
+        #     client_updates.append((w, n, loss, t))
+        #     if do_cache:
+        #         self._collect_gradient_update(client, prev_edge_w)
+
+        client_updates = self._collect_updates_parallel(selected, global_round_idx, mode="fedavg")
+
 
         # 步骤 5：聚合
         new_w = self._aggregate(client_updates, prev_edge_w, selected)
@@ -313,6 +422,8 @@ class EdgeServer:
         for er in range(1, edge_rounds + 1):
             if method == "hierpfedme":
                 loss, t = self.run_edge_round_hierpfedme(global_round_idx, er)
+            elif method == "hier_perfedavg":          # ← 新增这一行
+                loss, t = self.run_edge_round_hier_perfedavg(global_round_idx, er)
             else:
                 loss, t = self.run_edge_round(global_round_idx, er)
             round_losses.append(loss)

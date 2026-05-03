@@ -210,30 +210,34 @@ class CloudServer:
         avg_edge_loss, avg_ct, comm_ce = self.collect_and_aggregate(round_idx, prev_gw)
 
         # ── Phase 3：评估 ────────────────────────────────────────────────
+
         global_loss, global_acc = self.evaluate_global()
 
-        # EM / PM 评估，受 eval_interval 控制
         eval_interval = int(self.config.get("evaluation", {}).get("eval_interval", 10))
         n_rounds      = int(self.config["federation"]["n_rounds"])
-        do_full_eval  = (round_idx % eval_interval == 0) or (round_idx == n_rounds)
+        do_pm_eval    = (round_idx % eval_interval == 0) or (round_idx == n_rounds)
 
-        avg_em_acc = avg_em_loss = avg_pm_acc = avg_pm_loss = None
-        if do_full_eval:
-            em_losses, em_accs, pm_losses, pm_accs = [], [], [], []
+
+        # Edge model：每轮都测
+        em_losses, em_accs = [], []
+        for edge in self.edge_servers:
+            e_loss, e_acc = edge.evaluate_on(self.test_dataset)
+            em_losses.append(e_loss)
+            em_accs.append(e_acc)
+        avg_em_acc  = float(np.mean(em_accs))
+        avg_em_loss = float(np.mean(em_losses))
+
+        # Personalized model：每 eval_interval 轮测一次
+        avg_pm_acc = avg_pm_loss = None
+        if do_pm_eval:
+            pm_losses, pm_accs = [], []
             for edge in self.edge_servers:
-                e_loss, e_acc = edge.evaluate_on(self.test_dataset)
-                em_losses.append(e_loss)
-                em_accs.append(e_acc)
                 for client in edge.clients:
-                    # 优先用 per-client 同分布测试集（论文评估方式）
-                    # 若未注入则退化为全体测试集
                     c_loss, c_acc = client.evaluate_on(
                         fallback_dataset=self.test_dataset
                     )
                     pm_losses.append(c_loss)
                     pm_accs.append(c_acc)
-            avg_em_acc  = float(np.mean(em_accs))
-            avg_em_loss = float(np.mean(em_losses))
             avg_pm_acc  = float(np.mean(pm_accs))
             avg_pm_loss = float(np.mean(pm_losses))
 
@@ -262,16 +266,16 @@ class CloudServer:
             "pm_acc":  avg_pm_acc,
             "pm_loss": avg_pm_loss,
         }
+        
         for k, v in metrics.items():
             if k in self.history:
                 self.history[k].append(v)
 
-        em_str = (f" | EM={avg_em_acc:.4f} PM={avg_pm_acc:.4f}"
-                  if avg_em_acc is not None else "")
-        print(f"  [Cloud] GM={global_acc:.4f}{em_str} | loss={global_loss:.4f} | "
-              f"time={elapsed:.1f}s | "
-              f"comm={comm_round/1024/1024:.1f}MB "
-              f"(total={self.total_comm_bytes/1024/1024:.0f}MB)")
+        pm_str = (f" PM={avg_pm_acc:.4f}" if avg_pm_acc is not None else "")
+        print(f"  [Cloud] GM={global_acc:.4f} | EM={avg_em_acc:.4f}{pm_str} | "
+            f"loss={global_loss:.4f} | time={elapsed:.1f}s | "
+            f"comm={comm_round/1024/1024:.1f}MB "
+            f"(total={self.total_comm_bytes/1024/1024:.0f}MB)")
         return metrics
 
     def run(self, logger=None):
