@@ -14,7 +14,7 @@ federation:
   n_edges:          2
   edge_rounds:      5
   n_rounds:         40
-  partition:        "pathological"  # 可选 "iid", "pathological"
+  partition:        "superclass_pathological"  # 可选 "iid", "pathological", "superclass_pathological"
   classes_per_client: 10
   alpha:            0.5
 
