@@ -44,7 +44,11 @@ class FLClient:
 
         # ── pFedMe/HierpFedMe：本地个性化模型（warm-start 用，不上传）────────────────
         self.pfedme_theta = None
-        self._theta_vars = None 
+        self._theta_vars  = None
+        # HierPFedMe 超参作为 tf.Variable 存储，@tf.function 通过引用捕获，
+        # 避免每次传 tf.constant() 导致 retrace（每个新 EagerTensor 对象触发一次 trace）。
+        self._lam2_var = None
+        self._eta2_var = None
 
         # ── 样本数 ─────────────────────────────────────────────────────────
         self.n_samples = n_samples if n_samples is not None else sum(
@@ -480,10 +484,19 @@ class FLClient:
                 tf.Variable(w, trainable=False, dtype=tf.float32)
                 for w in trainable_ref]
 
+        # Hyperparameters as tf.Variable so @tf.function captures by reference.
+        # Passing tf.constant(...) as @tf.function args creates a new EagerTensor
+        # object on every call, causing TF to retrace the graph every time (one retrace
+        # per 100 parallel clients per round → 100 concurrent traces → NaN).
+        if self._lam2_var is None:
+            self._lam2_var = tf.Variable(lam2, trainable=False, dtype=tf.float32)
+            self._eta2_var = tf.Variable(eta2, trainable=False, dtype=tf.float32)
+        else:
+            self._lam2_var.assign(lam2)
+            self._eta2_var.assign(eta2)
+
         # Model starts from edge weights θ_n^{t,i} each edge round (Algorithm 1, line 8).
         self.model.set_weights(ref_weights)
-
-        lam2_tf = tf.constant(lam2, dtype=tf.float32)
 
         # Inner optimization: solve proximal problem w.r.t. Theta anchor.
         # R gradient steps per batch, over all epochs (Algorithm 1, lines 9-11).
@@ -492,14 +505,13 @@ class FLClient:
             bl = []
             for x, y in self.dataset:
                 for _ in range(inner_steps):
-                    loss = self._hierpfedme_inner_step(x, y, lam2_tf)
+                    loss = self._hierpfedme_inner_step(x, y)
                 bl.append(float(loss.numpy()))
             losses.append(np.mean(bl))
 
-        # Moreau envelope step ONCE after all inner training (Algorithm 1, line 12 / Eq.7 client side).
+        # Moreau envelope step ONCE after all inner training (Algorithm 1, line 12 / Eq.7).
         # Θ ← Θ − η2·λ2·(Θ − θ̃),  where θ̃ is the current inner model.
-        eta2_tf = tf.constant(eta2, dtype=tf.float32)
-        self._hierpfedme_moreau_step(eta2_tf, lam2_tf)
+        self._hierpfedme_moreau_step()
 
         # Upload inner model θ* (not Θ) to edge server.
         final_weights = list(ref_weights)
@@ -512,8 +524,10 @@ class FLClient:
         return final_weights, self.n_samples, avg, time.time() - t0
 
     @tf.function
-    def _hierpfedme_inner_step(self, images, labels, lam2):
-        """One FedProx gradient step with Theta as the proximal anchor."""
+    def _hierpfedme_inner_step(self, images, labels):
+        """One FedProx gradient step with Theta as the proximal anchor.
+        Hyperparameters accessed via self._lam2_var (tf.Variable) to prevent retracing.
+        """
         with tf.GradientTape() as tape:
             loss = self.loss_fn(labels, self.model(images, training=True))
             loss = tf.cast(loss, tf.float32)
@@ -521,16 +535,18 @@ class FLClient:
                 tf.reduce_sum(tf.square(v - t))
                 for v, t in zip(self.model.trainable_variables, self._theta_vars)
             ])
-            total_loss = loss + (lam2 / 2.0) * prox
+            total_loss = loss + (self._lam2_var / 2.0) * prox
         grads = tape.gradient(total_loss, self.model.trainable_variables)
         self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
         return loss
 
     @tf.function
-    def _hierpfedme_moreau_step(self, eta2, lam2):
-        """Moreau envelope gradient step: Θ ← Θ − η2·λ2·(Θ − θ̃)."""
+    def _hierpfedme_moreau_step(self):
+        """Moreau envelope gradient step: Θ ← Θ − η2·λ2·(Θ − θ̃).
+        Hyperparameters accessed via self._eta2_var / _lam2_var to prevent retracing.
+        """
         for t, v in zip(self._theta_vars, self.model.trainable_variables):
-            t.assign(t - eta2 * lam2 * (t - v))
+            t.assign(t - self._eta2_var * self._lam2_var * (t - v))
 
     # ══════════════════════════════════════════════════════════════════════
     # 本地评估（调试用）
