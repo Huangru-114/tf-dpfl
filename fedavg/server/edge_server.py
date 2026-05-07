@@ -250,11 +250,10 @@ class EdgeServer:
             client.set_weights(global_weights=self._global_weights_ref,
                                edge_weights=edge_w)
 
-        # 步骤 2：client 本地训练，收集 Θ_{n,m}^{t,i,R}
-        client_updates = []
-        for client in selected:
-            w, n, loss, t = client.local_train(global_round_idx)
-            client_updates.append((w, n, loss, t))
+        # 步骤 2：client 本地训练，收集 Θ_{n,m}^{t,i,R}（并行）
+        client_updates = self._collect_updates_parallel(
+            selected, global_round_idx, mode="fedavg"
+        )
 
         # 步骤 3：edge 模型更新（式 7）
         # mean(Θ_{n,m}^{t,i,R})
