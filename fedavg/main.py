@@ -7,6 +7,7 @@ from data.dataset       import load_cifar10, load_cifar100, load_imagenet
 from data.partition     import (extract_numpy, iid_partition, noniid_partition,
                                 pathological_noniid_partition,
                                 make_per_client_test_datasets,
+                                make_client_dataset,
                                 superclass_edge_partition,
                                 make_per_edge_test_datasets)
 from data.clustering    import random_assignment, warmup_gradient_assignment, histogram_assignment, semantic_assignment
@@ -149,6 +150,8 @@ def build_clients(images_np, labels_np, global_model, config,
                           config=config, n_samples=len(indices))
         if client_test_datasets is not None:
             client.set_test_dataset(client_test_datasets[i])
+        # Store training class set for per-edge test dataset construction later.
+        client.held_classes = set(np.unique(labels_np[indices]).tolist())
         clients.append(client)
 
     print(f"[Setup] {len(clients)} clients built "
@@ -352,14 +355,33 @@ def run_experiment(config_path="config/config.yaml"):
     edge_servers = build_edge_servers(clients, global_model, config,
                                       precomputed_assignments=baked_assignments)
 
-    # superclass_pathological：为每个 edge 注入仅含其超类的测试集（EM 评估用）
-    if edge_fine_classes is not None and x_test is not None:
-        print("[Setup] Building per-edge test datasets (superclass-aware)...")
-        edge_test_datasets = make_per_edge_test_datasets(
-            x_test, y_test, edge_fine_classes, config
-        )
-        for edge, ds in zip(edge_servers, edge_test_datasets):
-            edge.set_test_dataset(ds)
+    # 为每个 edge 注入与其训练分布匹配的测试集（EM 评估用）。
+    # superclass_pathological：使用预定义的超类细粒度类集合。
+    # 其他分区（pathological/noniid/iid）：从 client.held_classes 推断每个 edge 实际训练的类别。
+    # 不注入时，edge 退化为在全体测试集上评估，会导致 loss 和 acc 正相关的假象
+    # （模型对训练类自信，对未训练类高度错误 → 全集 loss 远高于随机，全集 acc 虚低）。
+    if x_test is not None:
+        if edge_fine_classes is not None:
+            print("[Setup] Building per-edge test datasets (superclass-aware)...")
+            edge_test_datasets = make_per_edge_test_datasets(
+                x_test, y_test, edge_fine_classes, config
+            )
+            for edge, ds in zip(edge_servers, edge_test_datasets):
+                edge.set_test_dataset(ds)
+        else:
+            print("[Setup] Building per-edge test datasets (from held classes)...")
+            for edge in edge_servers:
+                edge_classes = set()
+                for client in edge.clients:
+                    edge_classes |= getattr(client, 'held_classes', set())
+                mask = np.isin(y_test, sorted(edge_classes))
+                test_indices = np.where(mask)[0]
+                if len(test_indices) == 0:
+                    test_indices = np.arange(len(y_test))
+                ds = make_client_dataset(x_test, y_test, test_indices, config, shuffle=False)
+                edge.set_test_dataset(ds)
+                print(f"  Edge {edge.edge_id}: {len(edge_classes)} classes, "
+                      f"{len(test_indices)} test samples")
 
     # ← 原来是 FLServer，现在是 CloudServer
     cloud = CloudServer(

@@ -509,14 +509,16 @@ class FLClient:
                 bl.append(float(loss.numpy()))
             losses.append(np.mean(bl))
 
-        # Moreau envelope step ONCE after all inner training (Algorithm 1, line 12 / Eq.7).
+        # Moreau envelope step ONCE after all inner training.
         # Θ ← Θ − η2·λ2·(Θ − θ̃),  where θ̃ is the current inner model.
         self._hierpfedme_moreau_step()
 
-        # Upload inner model θ* (not Θ) to edge server.
-        final_weights = list(ref_weights)
-        for idx, v in zip(self._trainable_indices, self.model.trainable_variables):
-            final_weights[idx] = v.numpy()
+        # Upload inner model θ̃ to edge server.
+        # Use self.model.get_weights() (not ref_weights) so that BN moving_mean/variance
+        # updated during local training(=True) forward passes are included.
+        # With ref_weights as base, BN running stats stay frozen at broadcast values,
+        # causing evaluate_on(training=False) to use wrong normalization → inflated test loss.
+        final_weights = self.model.get_weights()
 
         avg = float(np.mean(losses))
         print(f"  [Client {self.client_id:>2}] Round {round_idx} | "
