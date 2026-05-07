@@ -17,12 +17,11 @@ def extract_numpy(dataset: tf.data.Dataset):
 
 def _augment(image, label):
     """Standard CIFAR augmentation: random horizontal flip + random crop."""
+    shape = tf.shape(image)         # capture once, before any modification
     image = tf.image.random_flip_left_right(image)
-    # Pad 4 pixels on each side, then random-crop back to original size
-    shape = tf.shape(image)
-    h, w = shape[0], shape[1]
-    image = tf.image.pad_to_bounding_box(image, 4, 4, h + 8, w + 8)
-    image = tf.image.random_crop(image, [h, w, tf.shape(image)[2]])
+    image = tf.image.pad_to_bounding_box(image, 4, 4, shape[0] + 8, shape[1] + 8)
+    # tf.stack required: passing a Python list of symbolic tensors fails in graph mode
+    image = tf.image.random_crop(image, tf.stack([shape[0], shape[1], shape[2]]))
     return image, label
 
 
