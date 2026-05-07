@@ -12,6 +12,7 @@ from client.client      import FLClient
 from server.edge_server import EdgeServer
 from server.server      import CloudServer   # 原来是 FLServer
 from utils.logger       import FLLogger
+from utils.report       import generate_report
 
 
 def load_config(path: str = "config/config.yaml") -> dict:
@@ -78,7 +79,7 @@ def build_clients(images_np, labels_np, global_model, config,
         )
     elif partition == "pathological":
         client_datasets, client_indices = pathological_noniid_partition(
-            images_np, labels_np, n_clients, config, classes_per_client=10
+            images_np, labels_np, n_clients, config, classes_per_client=config["federation"].get("classes_per_client", 10)
         )
     else:
         raise ValueError(f"Unknown partition type: {partition}")
@@ -306,6 +307,60 @@ def run_experiment(config_path="config/config.yaml"):
         logger.finish()
 
     _print_summary(history)
+
+    method   = config["training"].get("drift_correction", "fedavg")
+    run_name = config.get("wandb", {}).get("run_name", method)
+    pm_steps = int(config.get("evaluation", {}).get("pm_steps", 1))
+
+    # GM
+    print("\n[Final Report] GM")
+    generate_report(
+        model        = cloud.global_model,
+        test_dataset = test_ds,
+        save_path    = f"report_GM_{run_name}.txt"
+    )
+
+    # EM（每个 edge 单独报告）
+    for edge in edge_servers:
+        print(f"\n[Final Report] EM — Edge {edge.edge_id}")
+        generate_report(
+            model        = edge.model,
+            test_dataset = test_ds,
+            save_path    = f"report_EM_edge{edge.edge_id}_{run_name}.txt"
+        )
+
+    # PM（所有客户端汇总）
+    print("\n[Final Report] PM — collecting predictions from all clients...")
+    all_labels, all_preds, all_probs = [], [], []
+
+    for edge in edge_servers:
+        for client in edge.clients:
+            if method == "hier_perfedavg":
+                client.personalize_and_evaluate(
+                    edge.model.get_weights(),
+                    steps=pm_steps,
+                    fallback_dataset=test_ds
+                )
+            ds = client.test_dataset if client.test_dataset is not None else test_ds
+            for x, y in ds:
+                probs = client.model(x, training=False).numpy()
+                all_probs.append(probs)
+                all_preds.append(np.argmax(probs, axis=1))
+                all_labels.append(y.numpy())
+
+    all_labels = np.concatenate(all_labels)
+    all_preds  = np.concatenate(all_preds)
+    all_probs  = np.concatenate(all_probs)
+
+    generate_report(
+        model        = None,           # PM 直接传预计算结果
+        test_dataset = None,
+        all_labels   = all_labels,
+        all_preds    = all_preds,
+        all_probs    = all_probs,
+        save_path    = f"report_PM_{run_name}.txt"
+    )
+
     return history
 
 def _print_summary(history: dict):

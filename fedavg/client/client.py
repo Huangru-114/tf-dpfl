@@ -5,6 +5,7 @@ client.py  –  统一 FL 客户端
 层级 FL 原则：所有方法的近端/参考锚点统一使用 edge 模型。
 """
 
+
 import numpy as np
 import tensorflow as tf
 import time
@@ -17,8 +18,6 @@ class FLClient:
         self.dataset   = dataset
         self.model     = model
         self.config    = config
-
-        weights_np = model.get_weights()
 
         # ── 预计算 trainable 变量在 get_weights() 中的索引 ─────────────────
         # model.get_weights() 返回全部权重（含 BatchNorm moving mean/variance 等
@@ -43,8 +42,9 @@ class FLClient:
         self.c_server = [np.zeros_like(w, dtype=np.float32) for w in _trainable_np]
         self.c_delta  = None   # Δc_i，EdgeServer 聚合时读取
 
-        # ── pFedMe：本地个性化模型（warm-start 用，不上传）────────────────
+        # ── pFedMe/HierpFedMe：本地个性化模型（warm-start 用，不上传）────────────────
         self.pfedme_theta = None
+        self._theta_vars = None 
 
         # ── 样本数 ─────────────────────────────────────────────────────────
         self.n_samples = n_samples if n_samples is not None else sum(
@@ -67,8 +67,10 @@ class FLClient:
         self.optimizer = tf.keras.optimizers.SGD(
             learning_rate=self.lr_schedule, momentum=0.9
         )
-        self.loss_fn = tf.keras.losses.SparseCategoricalCrossentropy()
-
+        # self.loss_fn = tf.keras.losses.SparseCategoricalCrossentropy()
+        self.loss_fn = tf.keras.losses.SparseCategoricalCrossentropy(
+            reduction='sum_over_batch_size'
+        )
         # ── 双层参考权重 ───────────────────────────────────────────────────
         self.global_weights = None
         self.edge_weights   = None
@@ -154,6 +156,7 @@ class FLClient:
     def _train_step(self, images, labels):
         with tf.GradientTape() as tape:
             loss = self.loss_fn(labels, self.model(images, training=True))
+            loss = tf.cast(loss, tf.float32)
         self.optimizer.apply_gradients(
             zip(tape.gradient(loss, self.model.trainable_variables),
                 self.model.trainable_variables))
@@ -353,6 +356,48 @@ class FLClient:
     # ══════════════════════════════════════════════════════════════════════
     # Per-FedAvg  （Fallah et al., NeurIPS 2020 – FO-MAML）
     # ══════════════════════════════════════════════════════════════════════
+    def compute_meta_gradient(self, edge_weights: list, round_idx: int):
+        alpha  = self.config["training"].get("alpha_inner", 0.01)
+        epochs = self.config["training"]["local_epochs"]  # 用上 local_epochs
+
+        all_batches = list(self.dataset)
+        mid         = max(1, len(all_batches) // 2)
+        support     = all_batches[:mid]
+        query       = all_batches[mid:] if len(all_batches) > mid else all_batches
+
+        # 累积多个 epoch 的元梯度
+        accumulated_grads = [np.zeros_like(w) for w in edge_weights]
+
+        for epoch in range(epochs):
+            self.model.set_weights(edge_weights)
+            with tf.GradientTape() as tape:
+                losses = [self.loss_fn(y, self.model(x, training=True))
+                        for x, y in support]
+                l_support = tf.reduce_mean(losses)
+            inner_grads = tape.gradient(l_support, self.model.trainable_variables)
+
+            adapted = [w.copy() for w in edge_weights]
+            for idx, g in zip(self._trainable_indices, inner_grads):
+                adapted[idx] = edge_weights[idx] - alpha * g.numpy()
+
+            self.model.set_weights(adapted)
+            with tf.GradientTape() as tape:
+                losses = [self.loss_fn(y, self.model(x, training=True))
+                        for x, y in query]
+                l_query = tf.reduce_mean(losses)
+            meta_grads = tape.gradient(l_query, self.model.trainable_variables)
+
+            for idx, g in zip(self._trainable_indices, meta_grads):
+                accumulated_grads[idx] += g.numpy() / epochs  # 平均
+
+        self.model.set_weights(edge_weights)
+        
+        query_loss = float(l_query.numpy())
+        print(f"  [Client {self.client_id:>2}] Round {round_idx} | "    
+            f"Hier-PerFedAvg | support={float(l_support):.4f} "
+            f"query={query_loss:.4f}")
+        return accumulated_grads, self.n_samples, query_loss
+
 
     def _local_train_perfedavg(self, round_idx: int, ref_weights: list):
         """
@@ -422,73 +467,70 @@ class FLClient:
     # ══════════════════════════════════════════════════════════════════════
 
     def _local_train_hierpfedme(self, round_idx: int, ref_weights: list):
-        lam2   = float(self.config["training"].get("lambda2_hier", 35.0))
-        eta2   = float(self.config["training"]["learning_rate"])
-        epochs = int(self.config["training"]["local_epochs"])
+        lam2        = float(self.config["training"].get("lambda2_hier", 35.0))
+        eta2        = float(self.config["training"]["learning_rate"])
+        epochs      = int(self.config["training"]["local_epochs"])
+        inner_steps = int(self.config["training"].get("inner_steps_hier", 1))
 
-        # Theta 以 tf.Variable 形式持有，整轮训练只初始化一次
-        # 所有更新（内层 FedProx + 外层 Moreau）全部在 _hierpfedme_step 的
-        # tf.function 图内完成，不再跨越 Python↔TF 边界
+        # Theta (Θ_{n,m}): personalized model, persists across edge rounds (warm-start).
+        # Only initialized on the very first call; never reset to edge weights afterwards.
         trainable_ref = self._trainable_ref(ref_weights)
-        theta_vars = [
-            tf.Variable(w, trainable=False, dtype=tf.float32)
-            for w in trainable_ref
-        ]
-        # 将模型初始化为 Theta
-        for v, t in zip(self.model.trainable_variables, theta_vars):
-            v.assign(t)
+        if self._theta_vars is None:
+            self._theta_vars = [
+                tf.Variable(w, trainable=False, dtype=tf.float32)
+                for w in trainable_ref]
+
+        # Model starts from edge weights θ_n^{t,i} each edge round (Algorithm 1, line 8).
+        self.model.set_weights(ref_weights)
 
         lam2_tf = tf.constant(lam2, dtype=tf.float32)
-        eta2_tf = tf.constant(eta2, dtype=tf.float32)
 
+        # Inner optimization: solve proximal problem w.r.t. Theta anchor.
+        # R gradient steps per batch, over all epochs (Algorithm 1, lines 9-11).
         losses, t0 = [], time.time()
         for _ in range(epochs):
-            bl = [float(self._hierpfedme_step(x, y, theta_vars,
-                                               lam2_tf, eta2_tf).numpy())
-                  for x, y in self.dataset]
+            bl = []
+            for x, y in self.dataset:
+                for _ in range(inner_steps):
+                    loss = self._hierpfedme_inner_step(x, y, lam2_tf)
+                bl.append(float(loss.numpy()))
             losses.append(np.mean(bl))
 
-        # 重建完整权重（trainable 部分 = 最终 Theta，non-trainable 不变）
+        # Moreau envelope step ONCE after all inner training (Algorithm 1, line 12 / Eq.7 client side).
+        # Θ ← Θ − η2·λ2·(Θ − θ̃),  where θ̃ is the current inner model.
+        eta2_tf = tf.constant(eta2, dtype=tf.float32)
+        self._hierpfedme_moreau_step(eta2_tf, lam2_tf)
+
+        # Upload inner model θ* (not Θ) to edge server.
         final_weights = list(ref_weights)
-        for idx, t in zip(self._trainable_indices, theta_vars):
-            final_weights[idx] = t.numpy()
+        for idx, v in zip(self._trainable_indices, self.model.trainable_variables):
+            final_weights[idx] = v.numpy()
 
         avg = float(np.mean(losses))
         print(f"  [Client {self.client_id:>2}] Round {round_idx} | "
-              f"Hier-pFedMe(λ2={lam2}) | loss={avg:.4f}")
+              f"Hier-pFedMe(λ2={lam2},R={inner_steps}) | loss={avg:.4f}")
         return final_weights, self.n_samples, avg, time.time() - t0
 
     @tf.function
-    def _hierpfedme_step(self, images, labels, theta_vars, lam2, eta2):
-        """
-        单 batch 的 Hier-pFedMe 更新，全程在 TF 图内执行：
-          内层：FedProx 一步，以 theta_vars 为 anchor
-                loss = CE + (λ2/2)·‖v − Θ‖²
-          外层：Moreau 梯度步，就地更新 theta_vars 并重置模型
-                Θ ← Θ − η2·λ2·(Θ − θ̃)
-                model ← Θ（为下一 batch 准备）
-        theta_vars 是 tf.Variable，作为 Variable 传入不触发 retrace。
-        """
+    def _hierpfedme_inner_step(self, images, labels, lam2):
+        """One FedProx gradient step with Theta as the proximal anchor."""
         with tf.GradientTape() as tape:
             loss = self.loss_fn(labels, self.model(images, training=True))
+            loss = tf.cast(loss, tf.float32)
             prox = tf.add_n([
                 tf.reduce_sum(tf.square(v - t))
-                for v, t in zip(self.model.trainable_variables, theta_vars)
+                for v, t in zip(self.model.trainable_variables, self._theta_vars)
             ])
             total_loss = loss + (lam2 / 2.0) * prox
         grads = tape.gradient(total_loss, self.model.trainable_variables)
-        self.optimizer.apply_gradients(
-            zip(grads, self.model.trainable_variables))
-
-        # θ̃ = 内层更新后的模型权重
-        # Moreau 步：Θ ← Θ − η2·λ2·(Θ − θ̃)
-        # 同时将模型重置为新 Theta，为下一 batch 准备
-        for t, v in zip(theta_vars, self.model.trainable_variables):
-            new_t = t - eta2 * lam2 * (t - v)
-            t.assign(new_t)
-            v.assign(new_t)
-
+        self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
         return loss
+
+    @tf.function
+    def _hierpfedme_moreau_step(self, eta2, lam2):
+        """Moreau envelope gradient step: Θ ← Θ − η2·λ2·(Θ − θ̃)."""
+        for t, v in zip(self._theta_vars, self.model.trainable_variables):
+            t.assign(t - eta2 * lam2 * (t - v))
 
     # ══════════════════════════════════════════════════════════════════════
     # 本地评估（调试用）
