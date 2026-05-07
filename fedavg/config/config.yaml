@@ -15,7 +15,7 @@ federation:
   edge_rounds:      5
   n_rounds:         40
   partition:        "pathological"  # 可选 "iid", "pathological"
-  classes_per_client: 2
+  classes_per_client: 10
   alpha:            0.5
 
 training:

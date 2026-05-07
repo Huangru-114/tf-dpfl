@@ -218,19 +218,21 @@ class CloudServer:
         do_pm_eval    = (round_idx % eval_interval == 0) or (round_idx == n_rounds)
 
 
-        # Edge model：每轮都测
-        em_losses, em_accs = [], []
+        # Edge model：每轮都测，使用 per-edge 测试集（若已设置），按样本数加权
+        em_losses, em_accs, em_ns = [], [], []
         for edge in self.edge_servers:
-            e_loss, e_acc = edge.evaluate_on(self.test_dataset)
+            e_loss, e_acc = edge.evaluate_on(fallback_dataset=self.test_dataset)
             em_losses.append(e_loss)
             em_accs.append(e_acc)
-        avg_em_acc  = float(np.mean(em_accs))
-        avg_em_loss = float(np.mean(em_losses))
+            em_ns.append(edge.n_samples)
+        total_em_n  = sum(em_ns)
+        avg_em_acc  = float(sum(a * n / total_em_n for a, n in zip(em_accs, em_ns)))
+        avg_em_loss = float(sum(l * n / total_em_n for l, n in zip(em_losses, em_ns)))
 
-        # Personalized model：每 eval_interval 轮测一次
+        # Personalized model：每 eval_interval 轮测一次，按样本数加权
         avg_pm_acc = avg_pm_loss = None
         if do_pm_eval:
-            pm_losses, pm_accs = [], []
+            pm_losses, pm_accs, pm_ns = [], [], []
             for edge in self.edge_servers:
                 for client in edge.clients:
                     c_loss, c_acc = client.evaluate_on(
@@ -238,8 +240,10 @@ class CloudServer:
                     )
                     pm_losses.append(c_loss)
                     pm_accs.append(c_acc)
-            avg_pm_acc  = float(np.mean(pm_accs))
-            avg_pm_loss = float(np.mean(pm_losses))
+                    pm_ns.append(client.n_samples)
+            total_pm_n  = sum(pm_ns)
+            avg_pm_acc  = float(sum(a * n / total_pm_n for a, n in zip(pm_accs, pm_ns)))
+            avg_pm_loss = float(sum(l * n / total_pm_n for l, n in zip(pm_losses, pm_ns)))
 
         comm_ce_total   = 2 * self.model_bytes * len(self.edge_servers)
         comm_round      = comm_ce_total + comm_ce

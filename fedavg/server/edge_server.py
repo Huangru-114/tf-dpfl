@@ -58,6 +58,11 @@ class EdgeServer:
         # edge round 结束后上传 W_n^{t,I} 给 Cloud。
         self.W_n = None
 
+        # ── 每个 edge 的同分布测试集（EM 评估用）──────────────────────────
+        # 由 main.py 在初始化后调用 set_test_dataset() 注入。
+        # 若未设置，evaluate_on 退化为使用传入的 fallback 数据集。
+        self.test_dataset = None
+
         print(f"[EdgeServer {edge_id}] "
               f"{len(clients)} clients | {self.n_samples} samples")
 
@@ -124,6 +129,10 @@ class EdgeServer:
     def set_weights(self, global_weights: list):
         """接收 Cloud 广播的全局权重，覆盖本地 edge 模型。"""
         self.model.set_weights(global_weights)
+
+    def set_test_dataset(self, test_dataset: tf.data.Dataset):
+        """注入 per-edge 同分布测试集（EM 评估用，由 main.py 在初始化后调用）。"""
+        self.test_dataset = test_dataset
 
     def set_global_ref(self, global_weights: list):
         """存储 Cloud 全局权重快照，转发给 client 用作远端参考。
@@ -348,14 +357,18 @@ class EdgeServer:
     # 评估
     # ══════════════════════════════════════════════════════════════════════
 
-    def evaluate_on(self, test_dataset: tf.data.Dataset):
+    def evaluate_on(self, fallback_dataset: tf.data.Dataset = None):
         """
-        在全局测试集上评估 edge 模型（Hier-pFedMe EM 评估用）。
-        self.model 持有 θ_n^{t,I}（最后一个 edge round 结束后的 edge 模型）。
+        评估 edge 模型（EM 评估）。
+        优先使用 self.test_dataset（per-edge 同分布测试集）；
+        若未设置，退化为传入的 fallback_dataset（全体测试集）。
         """
+        ds = self.test_dataset if self.test_dataset is not None else fallback_dataset
+        if ds is None:
+            raise ValueError("No test dataset. Call set_test_dataset() or pass fallback_dataset.")
         loss_fn = tf.keras.losses.SparseCategoricalCrossentropy()
         tl = tc = tn = 0
-        for x, y in test_dataset:
+        for x, y in ds:
             p  = self.model(x, training=False)
             tl += loss_fn(y, p).numpy() * x.shape[0]
             tc += np.sum(np.argmax(p.numpy(), 1) == y.numpy())

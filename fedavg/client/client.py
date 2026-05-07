@@ -10,9 +10,6 @@ import numpy as np
 import tensorflow as tf
 import time
 
-tf.keras.mixed_precision.set_global_policy('mixed_float16')
-
-
 
 class FLClient:
     def __init__(self, client_id: int, dataset: tf.data.Dataset,
@@ -21,8 +18,6 @@ class FLClient:
         self.dataset   = dataset
         self.model     = model
         self.config    = config
-
-        weights_np = model.get_weights()
 
         # ── 预计算 trainable 变量在 get_weights() 中的索引 ─────────────────
         # model.get_weights() 返回全部权重（含 BatchNorm moving mean/variance 等
@@ -472,55 +467,53 @@ class FLClient:
     # ══════════════════════════════════════════════════════════════════════
 
     def _local_train_hierpfedme(self, round_idx: int, ref_weights: list):
-        lam2   = float(self.config["training"].get("lambda2_hier", 35.0))
-        eta2   = float(self.config["training"]["learning_rate"])
-        epochs = int(self.config["training"]["local_epochs"])
+        lam2        = float(self.config["training"].get("lambda2_hier", 35.0))
+        eta2        = float(self.config["training"]["learning_rate"])
+        epochs      = int(self.config["training"]["local_epochs"])
+        inner_steps = int(self.config["training"].get("inner_steps_hier", 1))
 
-        # Theta 以 tf.Variable 形式持有，整轮训练只初始化一次
-        # 所有更新（内层 FedProx + 外层 Moreau）全部在 _hierpfedme_step 的
-        # tf.function 图内完成，不再跨越 Python↔TF 边界
+        # Theta (Θ_{n,m}): personalized model, persists across edge rounds (warm-start).
+        # Only initialized on the very first call; never reset to edge weights afterwards.
         trainable_ref = self._trainable_ref(ref_weights)
         if self._theta_vars is None:
             self._theta_vars = [
                 tf.Variable(w, trainable=False, dtype=tf.float32)
                 for w in trainable_ref]
-        else:
-            for var, w in zip(self._theta_vars, trainable_ref):
-                var.assign(w) 
-        # 将模型初始化为 Theta
-        for v, t in zip(self.model.trainable_variables, self._theta_vars):
-            v.assign(t)
+
+        # Model starts from edge weights θ_n^{t,i} each edge round (Algorithm 1, line 8).
+        self.model.set_weights(ref_weights)
 
         lam2_tf = tf.constant(lam2, dtype=tf.float32)
-        eta2_tf = tf.constant(eta2, dtype=tf.float32)
 
+        # Inner optimization: solve proximal problem w.r.t. Theta anchor.
+        # R gradient steps per batch, over all epochs (Algorithm 1, lines 9-11).
         losses, t0 = [], time.time()
         for _ in range(epochs):
-            bl = [float(self._hierpfedme_step(x, y, lam2_tf, eta2_tf).numpy())
-                  for x, y in self.dataset]
+            bl = []
+            for x, y in self.dataset:
+                for _ in range(inner_steps):
+                    loss = self._hierpfedme_inner_step(x, y, lam2_tf)
+                bl.append(float(loss.numpy()))
             losses.append(np.mean(bl))
 
-        # 重建完整权重（trainable 部分 = 最终 Theta，non-trainable 不变）
+        # Moreau envelope step ONCE after all inner training (Algorithm 1, line 12 / Eq.7 client side).
+        # Θ ← Θ − η2·λ2·(Θ − θ̃),  where θ̃ is the current inner model.
+        eta2_tf = tf.constant(eta2, dtype=tf.float32)
+        self._hierpfedme_moreau_step(eta2_tf, lam2_tf)
+
+        # Upload inner model θ* (not Θ) to edge server.
         final_weights = list(ref_weights)
-        for idx, t in zip(self._trainable_indices, self._theta_vars):
-            final_weights[idx] = t.numpy()
+        for idx, v in zip(self._trainable_indices, self.model.trainable_variables):
+            final_weights[idx] = v.numpy()
 
         avg = float(np.mean(losses))
         print(f"  [Client {self.client_id:>2}] Round {round_idx} | "
-              f"Hier-pFedMe(λ2={lam2}) | loss={avg:.4f}")
+              f"Hier-pFedMe(λ2={lam2},R={inner_steps}) | loss={avg:.4f}")
         return final_weights, self.n_samples, avg, time.time() - t0
 
     @tf.function
-    def _hierpfedme_step(self, images, labels, lam2, eta2):
-        """
-        单 batch 的 Hier-pFedMe 更新，全程在 TF 图内执行：
-          内层：FedProx 一步，以 theta_vars 为 anchor
-                loss = CE + (λ2/2)·‖v − Θ‖²
-          外层：Moreau 梯度步，就地更新 theta_vars 并重置模型
-                Θ ← Θ − η2·λ2·(Θ − θ̃)
-                model ← Θ（为下一 batch 准备）
-        theta_vars 是 tf.Variable，作为 Variable 传入不触发 retrace。
-        """
+    def _hierpfedme_inner_step(self, images, labels, lam2):
+        """One FedProx gradient step with Theta as the proximal anchor."""
         with tf.GradientTape() as tape:
             loss = self.loss_fn(labels, self.model(images, training=True))
             loss = tf.cast(loss, tf.float32)
@@ -530,18 +523,14 @@ class FLClient:
             ])
             total_loss = loss + (lam2 / 2.0) * prox
         grads = tape.gradient(total_loss, self.model.trainable_variables)
-        self.optimizer.apply_gradients(
-            zip(grads, self.model.trainable_variables))
-
-        # θ̃ = 内层更新后的模型权重
-        # Moreau 步：Θ ← Θ − η2·λ2·(Θ − θ̃)
-        # 同时将模型重置为新 Theta，为下一 batch 准备
-        for t, v in zip(self._theta_vars, self.model.trainable_variables):
-            new_t = t - eta2 * lam2 * (t - v)
-            t.assign(new_t)
-            v.assign(new_t)
-
+        self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
         return loss
+
+    @tf.function
+    def _hierpfedme_moreau_step(self, eta2, lam2):
+        """Moreau envelope gradient step: Θ ← Θ − η2·λ2·(Θ − θ̃)."""
+        for t, v in zip(self._theta_vars, self.model.trainable_variables):
+            t.assign(t - eta2 * lam2 * (t - v))
 
     # ══════════════════════════════════════════════════════════════════════
     # 本地评估（调试用）

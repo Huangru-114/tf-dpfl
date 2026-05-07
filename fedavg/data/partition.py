@@ -15,17 +15,30 @@ def extract_numpy(dataset: tf.data.Dataset):
     return np.array(images), np.array(labels)
 
 
+def _augment(image, label):
+    """Standard CIFAR augmentation: random horizontal flip + random crop."""
+    image = tf.image.random_flip_left_right(image)
+    # Pad 4 pixels on each side, then random-crop back to original size
+    shape = tf.shape(image)
+    h, w = shape[0], shape[1]
+    image = tf.image.pad_to_bounding_box(image, 4, 4, h + 8, w + 8)
+    image = tf.image.random_crop(image, [h, w, tf.shape(image)[2]])
+    return image, label
+
+
 def make_client_dataset(images_np, labels_np, indices, config, shuffle=True):
     """
     给定索引列表，构建单个客户端的 tf.data.Dataset。
-    shuffle=False 用于测试集，保持确定性顺序。
+    shuffle=True (训练集)：打乱 + 数据增强。
+    shuffle=False (测试集)：确定性顺序，无增强。
     """
     client_images = images_np[indices]
     client_labels = labels_np[indices]
- 
+
     ds = tf.data.Dataset.from_tensor_slices((client_images, client_labels))
     if shuffle:
         ds = ds.shuffle(buffer_size=len(indices))
+        ds = ds.map(_augment, num_parallel_calls=tf.data.AUTOTUNE)
     ds = ds.batch(config["data"]["batch_size"]).prefetch(tf.data.AUTOTUNE)
     return ds
  
