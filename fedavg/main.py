@@ -4,7 +4,11 @@ import tensorflow as tf
 import argparse
 
 from data.dataset       import load_cifar10, load_cifar100, load_imagenet
-from data.partition     import extract_numpy, iid_partition, noniid_partition, pathological_noniid_partition, make_per_client_test_datasets
+from data.partition     import (extract_numpy, iid_partition, noniid_partition,
+                                pathological_noniid_partition,
+                                make_per_client_test_datasets,
+                                superclass_edge_partition,
+                                make_per_edge_test_datasets)
 from data.clustering    import random_assignment, warmup_gradient_assignment, histogram_assignment, semantic_assignment
 from models.cnn         import build_model
 from models.model_utils import clone_model
@@ -66,25 +70,72 @@ def build_clients(images_np, labels_np, global_model, config,
       - 自己的 dataset partition
       - 全局模型的独立副本（clone_model，不共享权重对象）
       - per-client 同分布测试集（x_test_np/y_test_np 存在时注入，论文评估方式）
+
+    Returns:
+        clients     : List[FLClient]
+        assignments : List[int] or None
+                      仅 superclass_pathological 分区时非 None，
+                      供 build_edge_servers 直接使用，跳过再分配步骤。
+        edge_fine_classes : List[set] or None
+                      仅 superclass_pathological 时非 None，供构建 per-edge 测试集。
     """
     n_clients = config["federation"]["n_clients"]
     partition = config["federation"]["partition"]
     alpha     = config["federation"].get("alpha", 0.5)
 
+    assignments       = None
+    edge_fine_classes = None
+
     if partition == "iid":
         client_datasets, client_indices = iid_partition(images_np, labels_np, n_clients, config)
+
     elif partition == "noniid":
         client_datasets, client_indices = noniid_partition(
             images_np, labels_np, n_clients, config, alpha=alpha
         )
+
     elif partition == "pathological":
         client_datasets, client_indices = pathological_noniid_partition(
-            images_np, labels_np, n_clients, config, classes_per_client=config["federation"].get("classes_per_client", 10)
+            images_np, labels_np, n_clients, config,
+            classes_per_client=config["federation"].get("classes_per_client", 10)
         )
+
+    elif partition == "superclass_pathological":
+        # 导入聚类模块，构建每个 edge 的细粒度类别集合
+        from data.clustering import (
+            _CIFAR10_SEMANTIC_GROUPS,
+            _CIFAR100_SEMANTIC_GROUPS,
+            _build_cifar100_edge_groups,
+            _superclass_groups_to_fineclasses,
+        )
+        n_edges  = config["federation"]["n_edges"]
+        dataset  = config["data"]["dataset"].lower()
+
+        if dataset == "cifar10" and n_edges in _CIFAR10_SEMANTIC_GROUPS:
+            edge_fine_classes = _CIFAR10_SEMANTIC_GROUPS[n_edges]
+        elif dataset == "cifar100":
+            if n_edges in _CIFAR100_SEMANTIC_GROUPS:
+                sc_groups = _CIFAR100_SEMANTIC_GROUPS[n_edges]
+            else:
+                sc_groups = _build_cifar100_edge_groups(n_edges)
+            edge_fine_classes = _superclass_groups_to_fineclasses(sc_groups)
+        else:
+            # Tiny-ImageNet 等：按 ID 区间均匀划分
+            num_classes = config["data"]["num_classes"]
+            cpe = num_classes // n_edges
+            edge_fine_classes = [
+                set(range(e * cpe, (e + 1) * cpe if e < n_edges - 1 else num_classes))
+                for e in range(n_edges)
+            ]
+
+        client_datasets, client_indices, assignments = superclass_edge_partition(
+            images_np, labels_np, n_clients, config, edge_fine_classes
+        )
+
     else:
         raise ValueError(f"Unknown partition type: {partition}")
 
-    # per-client 同分布测试集：与训练分区相同的类别过滤，对应论文评估方式
+    # per-client 同分布测试集
     client_test_datasets = None
     if x_test_np is not None and y_test_np is not None:
         client_test_datasets = make_per_client_test_datasets(
@@ -104,7 +155,7 @@ def build_clients(images_np, labels_np, global_model, config,
           f"({partition}"
           f"{f', α={alpha}' if partition == 'noniid' else ''})"
           f"{' | per-client test sets injected' if client_test_datasets else ''}")
-    return clients
+    return clients, assignments, edge_fine_classes
 
 
 def build_clients_imagenet(train_ds, y_train_np, global_model, config,
@@ -179,7 +230,8 @@ def build_clients_imagenet(train_ds, y_train_np, global_model, config,
     return clients
 
 
-def build_edge_servers(clients, global_model, config):
+def build_edge_servers(clients, global_model, config,
+                        precomputed_assignments=None):
     """
     根据 config 选择分配策略，把客户端分配给 Edge Server。
 
@@ -188,12 +240,20 @@ def build_edge_servers(clients, global_model, config):
         gradient: warm-up 后基于梯度相似度聚类分配
 
     分配完成后，EdgeServer 内部用 client_fraction 控制每轮参与比例。
+
+    Args:
+        precomputed_assignments: 若非 None，直接使用该分配（跳过策略选择）。
+                                 由 superclass_pathological 分区预先计算。
     """
     n_edges  = config["federation"]["n_edges"]
     strategy = config["federation"].get("edge_assignment", "random")
 
     # ── Step 1：决定分配方案 ──────────────────────────────
-    if strategy == "random":
+    if precomputed_assignments is not None:
+        assignments = precomputed_assignments
+        print(f"[Assignment] Using pre-baked superclass assignments | {n_edges} edges")
+
+    elif strategy == "random":
         assignments = random_assignment(clients, n_edges)
 
     elif strategy == "gradient":
@@ -235,8 +295,9 @@ def build_edge_servers(clients, global_model, config):
         )
         edge_servers.append(edge)
 
+    effective_strategy = "superclass_baked" if precomputed_assignments is not None else strategy
     print(f"\n[Setup] Built {len(edge_servers)} edge servers "
-          f"(strategy={strategy})")
+          f"(strategy={effective_strategy})")
     for e in edge_servers:
         print(f"  Edge {e.edge_id}: "
               f"{len(e.clients)} clients | "
@@ -272,6 +333,8 @@ def run_experiment(config_path="config/config.yaml"):
     print("[Setup] Building clients...")
     # ImageNet 不返回 x_train numpy 数组（内存不够），只用 y_train 做分区索引
     # partition 函数只需要 labels_np 来统计类别分布，images 用 train_ds 代替
+    baked_assignments = None
+    edge_fine_classes = None
     if x_train is None:
         # ImageNet：直接用 train_ds，不做 per-image 分区
         # 退化为 IID 分区（ImageNet 本身类别均衡，可接受）
@@ -279,12 +342,24 @@ def run_experiment(config_path="config/config.yaml"):
         clients = build_clients_imagenet(train_ds, y_train, global_model, config,
                                          x_test_np=x_test, y_test_np=y_test)
     else:
-        clients = build_clients(x_train, y_train, global_model, config,
-                                x_test_np=x_test, y_test_np=y_test)
+        clients, baked_assignments, edge_fine_classes = build_clients(
+            x_train, y_train, global_model, config,
+            x_test_np=x_test, y_test_np=y_test
+        )
 
     # ← 新增：把 clients 分组给 Edge Server
     print("[Setup] Building edge servers...")
-    edge_servers = build_edge_servers(clients, global_model, config)
+    edge_servers = build_edge_servers(clients, global_model, config,
+                                      precomputed_assignments=baked_assignments)
+
+    # superclass_pathological：为每个 edge 注入仅含其超类的测试集（EM 评估用）
+    if edge_fine_classes is not None and x_test is not None:
+        print("[Setup] Building per-edge test datasets (superclass-aware)...")
+        edge_test_datasets = make_per_edge_test_datasets(
+            x_test, y_test, edge_fine_classes, config
+        )
+        for edge, ds in zip(edge_servers, edge_test_datasets):
+            edge.set_test_dataset(ds)
 
     # ← 原来是 FLServer，现在是 CloudServer
     cloud = CloudServer(
