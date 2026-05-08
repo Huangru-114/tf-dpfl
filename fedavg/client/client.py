@@ -509,9 +509,9 @@ class FLClient:
                 bl.append(float(loss.numpy()))
             losses.append(np.mean(bl))
 
-        # Moreau envelope step ONCE after all inner training.
-        # Θ ← Θ − η2·λ2·(Θ − θ̃),  where θ̃ is the current inner model.
-        self._hierpfedme_moreau_step()
+            # Moreau envelope step every epoch.
+            # Θ ← Θ − η2·λ2·(Θ − θ̃),  where θ̃ is the current inner model.
+            self._hierpfedme_moreau_step()
 
         # Upload inner model θ̃ to edge server.
         # Use self.model.get_weights() (not ref_weights) so that BN moving_mean/variance
