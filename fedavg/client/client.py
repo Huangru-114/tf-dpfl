@@ -476,13 +476,15 @@ class FLClient:
         epochs      = int(self.config["training"]["local_epochs"])
         inner_steps = int(self.config["training"].get("inner_steps_hier", 1))
 
-        # Theta (Θ_{n,m}): personalized model, persists across edge rounds (warm-start).
-        # Only initialized on the very first call; never reset to edge weights afterwards.
+        # Algorithm Line 8: Θ_{n,m}^{t,i,0} = θ_n^{t,i} — reset to edge model each edge round.
         trainable_ref = self._trainable_ref(ref_weights)
         if self._theta_vars is None:
             self._theta_vars = [
                 tf.Variable(w, trainable=False, dtype=tf.float32)
                 for w in trainable_ref]
+        else:
+            for var, w in zip(self._theta_vars, trainable_ref):
+                var.assign(w)  # reset without rebuilding Variable (no @tf.function retrace)
 
         # Hyperparameters as tf.Variable so @tf.function captures by reference.
         # Passing tf.constant(...) as @tf.function args creates a new EagerTensor
@@ -495,30 +497,27 @@ class FLClient:
             self._lam2_var.assign(lam2)
             self._eta2_var.assign(eta2)
 
-        # Model starts from edge weights θ_n^{t,i} each edge round (Algorithm 1, line 8).
+        # Model (θ̃) starts from edge weights θ_n^{t,i} each edge round (Algorithm 1, line 6).
         self.model.set_weights(ref_weights)
 
-        # Inner optimization: solve proximal problem w.r.t. Theta anchor.
-        # R gradient steps per batch, over all epochs (Algorithm 1, lines 9-11).
+        # Algorithm Lines 9-12: for each mini-batch r, do inner step then Moreau step.
+        # Θ^{r+1} = Θ^r − η2·λ2·(Θ^r − θ̃^r)  happens inside the r-loop.
         losses, t0 = [], time.time()
         for _ in range(epochs):
             bl = []
             for x, y in self.dataset:
                 for _ in range(inner_steps):
                     loss = self._hierpfedme_inner_step(x, y)
+                self._hierpfedme_moreau_step()  # per mini-batch (Algorithm Line 12)
                 bl.append(float(loss.numpy()))
             losses.append(np.mean(bl))
 
-            # Moreau envelope step every epoch.
-            # Θ ← Θ − η2·λ2·(Θ − θ̃),  where θ̃ is the current inner model.
-            self._hierpfedme_moreau_step()
-
-        # Upload inner model θ̃ to edge server.
-        # Use self.model.get_weights() (not ref_weights) so that BN moving_mean/variance
-        # updated during local training(=True) forward passes are included.
-        # With ref_weights as base, BN running stats stay frozen at broadcast values,
-        # causing evaluate_on(training=False) to use wrong normalization → inflated test loss.
+        # Algorithm Line 14: upload Θ_{n,m}^{t,i,R} (not the inner model θ̃).
+        # BN moving stats come from local training (model.get_weights()); trainable
+        # parameters are replaced with Θ so the edge receives the Moreau anchor.
         final_weights = self.model.get_weights()
+        for idx, t in zip(self._trainable_indices, self._theta_vars):
+            final_weights[idx] = t.numpy()
 
         avg = float(np.mean(losses))
         print(f"  [Client {self.client_id:>2}] Round {round_idx} | "
