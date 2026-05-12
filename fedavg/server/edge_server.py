@@ -363,6 +363,11 @@ class EdgeServer:
         优先使用 self.test_dataset（per-edge 同分布测试集）；
         若未设置，退化为传入的 fallback_dataset（全体测试集）。
         """
+        if self.test_dataset is None and fallback_dataset is None:
+            raise ValueError("No test dataset for evaluation.")
+        elif self.test_dataset is None:
+            print(f"  [Edge {self.edge_id}] No per-edge test dataset, "
+                  f"using fallback dataset for evaluation.")
         ds = self.test_dataset if self.test_dataset is not None else fallback_dataset
         if ds is None:
             raise ValueError("No test dataset. Call set_test_dataset() or pass fallback_dataset.")

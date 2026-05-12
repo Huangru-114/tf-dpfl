@@ -45,41 +45,33 @@ def make_client_dataset(images_np, labels_np, indices, config, shuffle=True):
 def make_per_client_test_datasets(test_images_np, test_labels_np,
                                    client_train_indices_np, train_labels_np,
                                    config):
-    """
-    为每个 client 生成与其训练集同分布的测试子集（论文评估方式）。
- 
-    原理：从每个 client 的训练索引中找出其持有的类别，
-          然后从全体测试集中筛选出这些类别的测试样本。
-          这样评估时 client 只在自己见过的类上打分，
-          与论文 pathological non-IID 设置的评估方式一致。
- 
-    Args:
-        test_images_np         : 全量测试图片 (N_test, H, W, C)
-        test_labels_np         : 全量测试标签 (N_test,)
-        client_train_indices_np: List[np.ndarray]，训练集 client 划分索引
-        train_labels_np        : 全量训练标签，用于确定每个 client 的持有类别
-        config                 : 读取 batch_size
- 
-    Returns:
-        List[tf.data.Dataset]，长度为 n_clients，每个只含该 client 的类别
-    """
     client_test_datasets = []
-    for train_indices in client_train_indices_np:
+    print(f"\n[Test split] Verifying per-client train/test class alignment:")
+    print(f"{'Client':<12} {'Train classes':<30} {'Test classes':<30} {'Test samples'}")
+    print("-" * 90)
+    for i, train_indices in enumerate(client_train_indices_np):
         held_classes = np.unique(train_labels_np[train_indices])
         mask         = np.isin(test_labels_np, held_classes)
         test_indices = np.where(mask)[0]
- 
+        test_classes = np.unique(test_labels_np[test_indices])
+
+        # 验证 train/test 类别是否完全一致
+        match = set(held_classes.tolist()) == set(test_classes.tolist())
+        flag  = "" if match else "  ← MISMATCH"
+
+        print(f"client_{i:<5} {str(sorted(held_classes.tolist())):<30} "
+              f"{str(sorted(test_classes.tolist())):<30} "
+              f"{len(test_indices)}{flag}")
+
         if len(test_indices) == 0:
-            # 极端情况：退化为全体测试集
             test_indices = np.arange(len(test_labels_np))
- 
+
         ds = make_client_dataset(
             test_images_np, test_labels_np, test_indices, config, shuffle=False
         )
         client_test_datasets.append(ds)
- 
-    print(f"[Test split] {len(client_train_indices_np)} per-client test sets, "
-          f"avg {np.mean([np.sum(np.isin(test_labels_np, np.unique(train_labels_np[idx]))) for idx in client_train_indices_np]):.0f} samples each")
+
+    print()
     return client_test_datasets
 
 def iid_partition(images_np, labels_np, n_clients, config):
@@ -316,20 +308,21 @@ def superclass_edge_partition(images_np, labels_np, n_clients, config,
 
 def _print_superclass_edge_distribution(client_indices, assignments, labels_np,
                                          n_edges, edge_fine_classes, classes_per_client):
-    """打印超类感知分区的汇总信息，供验证。"""
     print(f"\n[Superclass-aware partition] {n_edges} edges, "
           f"{classes_per_client} classes/client")
-    print("  Edge class-pool sizes: "
-          + " | ".join(f"edge{e}={len(fc)} classes"
-                       for e, fc in enumerate(edge_fine_classes)))
-    print(f"  {'Edge':<8} {'Clients':<10} {'Avg classes/client':<22} {'Avg samples/client'}")
-    print("-" * 64)
     for e in range(n_edges):
+        edge_pool    = edge_fine_classes[e]
         edge_clients = [i for i, a in enumerate(assignments) if a == e]
-        cls_counts   = [len(np.unique(labels_np[client_indices[i]])) for i in edge_clients]
-        smp_counts   = [len(client_indices[i]) for i in edge_clients]
-        print(f"  {e:<8} {len(edge_clients):<10} {np.mean(cls_counts):<22.1f} "
-              f"{np.mean(smp_counts):.0f}")
+        print(f"\n  Edge {e} (class pool: {sorted(edge_pool)}):")
+        print(f"  {'Client':<12} {'Samples':<10} {'Classes held':<35} {'Out-of-pool?'}")
+        print("  " + "-" * 75)
+        for i in edge_clients:
+            idx_arr     = client_indices[i]
+            held        = set(np.unique(labels_np[idx_arr]).tolist())
+            out_of_pool = held - edge_pool
+            flag        = f"LEAK: {out_of_pool}" if out_of_pool else "OK"
+            print(f"  client_{i:<5} {len(idx_arr):<10} "
+                  f"{str(sorted(held)):<35} {flag}")
     print()
 
 

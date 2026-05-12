@@ -49,7 +49,9 @@ class FLClient:
         # 避免每次传 tf.constant() 导致 retrace（每个新 EagerTensor 对象触发一次 trace）。
         self._lam2_var = None
         self._eta2_var = None
-
+        #hierpfedme 的内层训练在 tf.function 内部进行，dataset 需要一次性缓存到列表中，避免迭代器耗尽导致的异常。
+        self._batch_list = list(self.dataset)  # 一次性缓存
+        self._batch_iter = iter(self._batch_list)
         # ── 样本数 ─────────────────────────────────────────────────────────
         self.n_samples = n_samples if n_samples is not None else sum(
             x.shape[0] for x, _ in dataset
@@ -503,13 +505,21 @@ class FLClient:
         # Algorithm Lines 9-12: for each mini-batch r, do inner step then Moreau step.
         # Θ^{r+1} = Θ^r − η2·λ2·(Θ^r − θ̃^r)  happens inside the r-loop.
         losses, t0 = [], time.time()
+
         for _ in range(epochs):
             bl = []
-            for x, y in self.dataset:
-                for _ in range(inner_steps):
-                    loss = self._hierpfedme_inner_step(x, y)
-                self._hierpfedme_moreau_step()  # per mini-batch (Algorithm Line 12)
-                bl.append(float(loss.numpy()))
+            try:
+                x, y = next(self._batch_iter)
+            except StopIteration:
+                self._batch_iter = iter(self._batch_list)  # 耗尽后从头，不 shuffle
+                x, y = next(self._batch_iter)
+            for _ in range(inner_steps):
+                # before = self.model.get_weights()[0].copy()
+                loss = self._hierpfedme_inner_step(x, y)
+                # after = self.model.get_weights()[0]
+                # print(f"[C{self.client_id}] weight changed: {not np.allclose(before, after)}")
+            self._hierpfedme_moreau_step()  # per mini-batch (Algorithm Line 12)
+            bl.append(float(loss.numpy()))
             losses.append(np.mean(bl))
 
         # Algorithm Line 14: upload Θ_{n,m}^{t,i,R} (not the inner model θ̃).
@@ -521,7 +531,12 @@ class FLClient:
 
         avg = float(np.mean(losses))
         print(f"  [Client {self.client_id:>2}] Round {round_idx} | "
-              f"Hier-pFedMe(λ2={lam2},R={inner_steps}) | loss={avg:.4f}")
+              f"Hier-pFedMe(λ2={lam2},K={inner_steps}) | loss={avg:.4f}")
+        # print(f"[C{self.client_id}] θ̃ mean: {np.mean(self.model.get_weights()[0]):.6f}")
+        # print(f"[C{self.client_id}] Θ  mean: {np.mean(self._theta_vars[0].numpy()):.6f}")
+        # print(f"[C{self.client_id}] ref mean: {np.mean(ref_weights[0]):.6f}")
+        self._personalized_weights = self.model.get_weights()        # θ̃
+        self._moreau_weights = [t.numpy() for t in self._theta_vars] # Θ
         return final_weights, self.n_samples, avg, time.time() - t0
 
     @tf.function
@@ -562,27 +577,63 @@ class FLClient:
             tn += x.shape[0]
         return tl / tn, tc / tn
 
-    def evaluate_on(self, fallback_dataset: tf.data.Dataset = None):
-        """
-        评估当前模型（PM 评估）。
-
-        优先使用 self.test_dataset（per-client 同分布测试集，论文评估方式）。
-        若未注入，退化为 fallback_dataset（全体测试集）。
-
-        per-client 测试集：只含该 client 训练类别的测试样本，
-        与训练分布一致，所以 pathological non-IID 下不会因为
-        模型没见过其他类而被拉低精度。
-        """
+    def evaluate_on(self, fallback_dataset=None, model_type="None"):
+        if self._personalized_weights is None:
+            return 0.0, 0.0
         ds = self.test_dataset if self.test_dataset is not None else fallback_dataset
         if ds is None:
-            raise ValueError("No test dataset available. "
-                             "Call set_test_dataset() or pass fallback_dataset.")
+            raise ValueError("No test dataset available.")
+
+        if model_type == "Theta":
+            # 和 _local_train_hierpfedme 的 final_weights 构造方式相同
+            weights = self.model.get_weights()
+            for idx, t in zip(self._trainable_indices, self._moreau_weights):
+                weights[idx] = t
+        else:
+            weights = self._personalized_weights  # 已经是完整的 42 层
+
+        original = self.model.get_weights()
+        self.model.set_weights(weights)
         tl = tc = tn = 0
         for x, y in ds:
-            p  = self.model(x, training=False)
+            p   = self.model(x, training=False)
             tl += self.loss_fn(y, p).numpy() * x.shape[0]
             tc += np.sum(np.argmax(p.numpy(), 1) == y.numpy())
             tn += x.shape[0]
+        self.model.set_weights(original)
+
         if tn == 0:
             return 0.0, 0.0
         return float(tl / tn), float(tc / tn)
+
+    # def evaluate_on(self, fallback_dataset: tf.data.Dataset = None):
+    #     """
+    #     评估当前模型（PM 评估）。
+
+    #     优先使用 self.test_dataset（per-client 同分布测试集，论文评估方式）。
+    #     若未注入，退化为 fallback_dataset（全体测试集）。
+
+    #     per-client 测试集：只含该 client 训练类别的测试样本，
+    #     与训练分布一致，所以 pathological non-IID 下不会因为
+    #     模型没见过其他类而被拉低精度。
+    #     """
+    #     # print(f"[C{self.client_id}] eval model mean: {np.mean(self.model.get_weights()[0]):.6f}")
+
+    #     if self.test_dataset is None and fallback_dataset is None:
+    #         raise ValueError("No test dataset for evaluation.")
+    #     elif self.test_dataset is None:
+    #         print(f"  [Edge {self.edge_id}] No per-edge test dataset, "
+    #               f"using fallback dataset for evaluation.")
+    #     ds = self.test_dataset if self.test_dataset is not None else fallback_dataset
+    #     if ds is None:
+    #         raise ValueError("No test dataset available. "
+    #                          "Call set_test_dataset() or pass fallback_dataset.")
+    #     tl = tc = tn = 0
+    #     for x, y in ds:
+    #         p  = self.model(x, training=False)
+    #         tl += self.loss_fn(y, p).numpy() * x.shape[0]
+    #         tc += np.sum(np.argmax(p.numpy(), 1) == y.numpy())
+    #         tn += x.shape[0]
+    #     if tn == 0:
+    #         return 0.0, 0.0
+    #     return float(tl / tn), float(tc / tn)
