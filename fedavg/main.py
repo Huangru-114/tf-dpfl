@@ -6,7 +6,7 @@ import argparse
 from data.dataset       import load_cifar10, load_cifar100, load_imagenet
 from data.partition     import (extract_numpy, iid_partition, noniid_partition,
                                 pathological_noniid_partition,
-                                make_per_client_test_datasets,
+                                split_client_train_test,
                                 make_client_dataset,
                                 superclass_edge_partition,
                                 make_per_edge_test_datasets)
@@ -136,12 +136,11 @@ def build_clients(images_np, labels_np, global_model, config,
     else:
         raise ValueError(f"Unknown partition type: {partition}")
 
-    # per-client 同分布测试集
-    client_test_datasets = None
-    if x_test_np is not None and y_test_np is not None:
-        client_test_datasets = make_per_client_test_datasets(
-            x_test_np, y_test_np, client_indices, labels_np, config
-        )
+    # per-client 测试集：从每个 client 自身的训练数据中划出 test_ratio（PFLlib 做法）
+    test_ratio = config.get("data", {}).get("per_client_test_ratio", 0.2)
+    client_datasets, client_indices, client_test_datasets = split_client_train_test(
+        images_np, labels_np, client_indices, config, test_ratio=test_ratio
+    )
 
     clients = []
     for i, (ds, indices) in enumerate(zip(client_datasets, client_indices)):

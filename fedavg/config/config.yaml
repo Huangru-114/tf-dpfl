@@ -5,6 +5,7 @@ data:
   batch_size:     16
   shuffle_buffer: 10000
   num_classes:    10
+  per_client_test_ratio: 0.2
 
 federation:
   edge_assignment:  "semantic"  # 可选 "random", "clustered"

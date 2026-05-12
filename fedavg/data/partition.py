@@ -42,6 +42,39 @@ def make_client_dataset(images_np, labels_np, indices, config, shuffle=True):
     return ds
  
  
+def split_client_train_test(images_np, labels_np, client_indices, config,
+                            test_ratio=0.2):
+    """
+    PFLlib 式划分：从每个 client 自身的训练样本中按 test_ratio 随机抽取测试集。
+    剩余 (1-test_ratio) 部分作为训练集。
+
+    Returns:
+        train_datasets : List[tf.data.Dataset]，(1-test_ratio) 训练集
+        train_indices  : List[np.ndarray]，训练样本索引
+        test_datasets  : List[tf.data.Dataset]，test_ratio 测试集（无增强）
+    """
+    train_datasets, train_indices_list, test_datasets = [], [], []
+    for indices in client_indices:
+        n     = len(indices)
+        n_test = max(1, int(n * test_ratio))
+        perm  = np.random.permutation(n)
+        test_idx  = indices[perm[:n_test]]
+        train_idx = indices[perm[n_test:]]
+        train_datasets.append(
+            make_client_dataset(images_np, labels_np, train_idx, config, shuffle=True)
+        )
+        train_indices_list.append(train_idx)
+        test_datasets.append(
+            make_client_dataset(images_np, labels_np, test_idx, config, shuffle=False)
+        )
+
+    avg_train = np.mean([len(idx) for idx in train_indices_list])
+    avg_test  = avg_train * test_ratio / (1 - test_ratio)
+    print(f"[Train/Test split] {len(client_indices)} clients | "
+          f"avg train={avg_train:.0f}, avg test={avg_test:.0f} samples (ratio={test_ratio})")
+    return train_datasets, train_indices_list, test_datasets
+
+
 def make_per_client_test_datasets(test_images_np, test_labels_np,
                                    client_train_indices_np, train_labels_np,
                                    config):
