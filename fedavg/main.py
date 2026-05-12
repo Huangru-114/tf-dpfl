@@ -344,8 +344,12 @@ def run_experiment(config_path="config/config.yaml"):
         clients = build_clients_imagenet(train_ds, y_train, global_model, config,
                                          x_test_np=x_test, y_test_np=y_test)
     else:
+        # 合并全量数据后分区：确保 per-client train/test 同分布（PFLlib 标准做法）
+        # x_test/y_test 保留用于 edge/GM 评估，不受影响。
+        x_all = np.concatenate([x_train, x_test], axis=0)
+        y_all = np.concatenate([y_train, y_test], axis=0)
         clients, baked_assignments, edge_fine_classes = build_clients(
-            x_train, y_train, global_model, config,
+            x_all, y_all, global_model, config,
             x_test_np=x_test, y_test_np=y_test
         )
 
