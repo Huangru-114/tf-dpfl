@@ -131,6 +131,20 @@ class FLServer:
 
         global_loss, global_acc = self.evaluate_global()
 
+        avg_pm_acc = avg_pm_loss = None
+        pm_losses, pm_accs, pm_ns = [], [], []
+        for client in self.clients:
+            c_loss, c_acc = client.evaluate_on(
+                fallback_dataset=self.test_dataset
+            )
+            pm_losses.append(c_loss)
+            pm_accs.append(c_acc)
+            pm_ns.append(client.n_samples)
+        total_pm_n  = sum(pm_ns)
+        avg_pm_acc  = float(sum(a * n / total_pm_n for a, n in zip(pm_accs, pm_ns)))
+        avg_pm_loss = float(sum(l * n / total_pm_n for l, n in zip(pm_losses, pm_ns)))
+
+
         # 通信量：下行（server→client）+ 上行（client→server）
         comm_this_round        = 2 * self.model_bytes * n_selected
         self.total_comm_bytes += comm_this_round
@@ -148,6 +162,8 @@ class FLServer:
             "comm_mb_round":    comm_this_round / 1024 / 1024,
             "comm_mb_total":    self.total_comm_bytes / 1024 / 1024,
             "n_selected":       n_selected,
+            "pm_acc":  avg_pm_acc,
+            "pm_loss": avg_pm_loss,
         }
 
         for k, v in metrics.items():
@@ -156,6 +172,7 @@ class FLServer:
 
         print(
             f"  [Server] acc={global_acc:.4f} | loss={global_loss:.4f} | "
+            f" PM={avg_pm_acc:.4f}" if avg_pm_acc is not None else ""
             f"time={round_time:.1f}s | "
             f"comm={comm_this_round / 1024 / 1024:.1f}MB "
             f"(total={self.total_comm_bytes / 1024 / 1024:.0f}MB)"

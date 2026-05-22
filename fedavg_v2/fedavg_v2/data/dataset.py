@@ -12,6 +12,8 @@ def load_cifar10(config: dict):
         test_ds:   tf.data.Dataset，全局测试集
         x_train:   np.ndarray (50000, 32, 32, 3)，供 partition.py 直接使用
         y_train:   np.ndarray (50000,)
+        x_test:    np.ndarray (10000, 32, 32, 3)，供 per-client 测试集生成使用
+        y_test:    np.ndarray (10000,)
     """
     batch_size  = config["data"]["batch_size"]
     shuffle_buf = config["data"]["shuffle_buffer"]
@@ -43,13 +45,15 @@ def load_cifar10(config: dict):
           f"train={x_train.shape[0]} | test={x_test.shape[0]}")
 
     # 返回 numpy 数组供 partition.py 直接使用，省去 extract_numpy 步骤
-    return train_ds, test_ds, x_train, y_train
+    return train_ds, test_ds, x_train, y_train, x_test, y_test
 
 
 if __name__ == "__main__":
     config = {"data": {"batch_size": 64, "shuffle_buffer": 10000}}
-    train_ds, test_ds, x_train, y_train = load_cifar10(config)
+    train_ds, test_ds, x_train, y_train, x_test, y_test = load_cifar10(config)
     for images, labels in train_ds.take(1):
         print("images shape:", images.shape)   # (64, 32, 32, 3)
         print("labels shape:", labels.shape)   # (64,)
         print("pixel range:", images.numpy().min(), "~", images.numpy().max())
+    print("x_test shape:", x_test.shape)       # (10000, 32, 32, 3)
+    print("y_test shape:", y_test.shape)        # (10000,)

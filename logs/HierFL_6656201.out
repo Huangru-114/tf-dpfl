@@ -1,0 +1,1103 @@
+This job can be monitored from: https://job.c3se.chalmers.se/alvis/6656201
+========================================
+Job ID      : 6656201
+Job Name    : HierFLcifar10
+Node        : alvis9-10
+Start Time  : Wed May 20 21:12:11 CEST 2026
+Working Dir : /cephyr/users/ziangg/Alvis/tf-dpfl
+========================================
+[Setup] Python: /cephyr/users/ziangg/Alvis/tf-dpfl/bin/python
+[Setup] TF version: 2.15.1
+[Setup] GPU available: [PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
+[Config] Override: wandb.enabled = True
+[Setup] Random seed: 42
+[Setup] Loading dataset...
+[Data] CIFAR-10 from Mimer: /mimer/NOBACKUP/Datasets/CIFAR
+[Setup] Building global model...
+Model: "fedavg_cnn"
+_________________________________________________________________
+ Layer (type)                Output Shape              Param #   
+=================================================================
+ input_1 (InputLayer)        [(None, 32, 32, 3)]       0         
+                                                                 
+ conv2d (Conv2D)             (None, 28, 28, 32)        2432      
+                                                                 
+ max_pooling2d (MaxPooling2  (None, 14, 14, 32)        0         
+ D)                                                              
+                                                                 
+ conv2d_1 (Conv2D)           (None, 10, 10, 64)        51264     
+                                                                 
+ max_pooling2d_1 (MaxPoolin  (None, 5, 5, 64)          0         
+ g2D)                                                            
+                                                                 
+ flatten (Flatten)           (None, 1600)              0         
+                                                                 
+ dense (Dense)               (None, 512)               819712    
+                                                                 
+ dense_1 (Dense)             (None, 10)                5130      
+                                                                 
+=================================================================
+Total params: 878538 (3.35 MB)
+Trainable params: 878538 (3.35 MB)
+Non-trainable params: 0 (0.00 Byte)
+_________________________________________________________________
+[Setup] Building clients...
+
+[Superclass-aware partition] 2 edges, 2 classes/client
+
+  Edge 0 (class pool: [2, 3, 4, 5, 6, 7]):
+  Client       Samples    Classes held                        Out-of-pool?
+  ---------------------------------------------------------------------------
+  client_0     4000       [3, 6]                              OK
+  client_1     4000       [3, 6]                              OK
+  client_2     4000       [2, 5]                              OK
+  client_3     4000       [5, 7]                              OK
+  client_4     4000       [2, 7]                              OK
+  client_5     4000       [2, 4]                              OK
+  client_6     4000       [6, 7]                              OK
+  client_7     4000       [3, 5]                              OK
+  client_8     2000       [4]                                 OK
+  client_9     2000       [4]                                 OK
+
+  Edge 1 (class pool: [0, 1, 8, 9]):
+  Client       Samples    Classes held                        Out-of-pool?
+  ---------------------------------------------------------------------------
+  client_10    2400       [8, 9]                              OK
+  client_11    2400       [0, 1]                              OK
+  client_12    2400       [1, 8]                              OK
+  client_13    2400       [0, 8]                              OK
+  client_14    2400       [0, 9]                              OK
+  client_15    2400       [0, 8]                              OK
+  client_16    2400       [1, 8]                              OK
+  client_17    2400       [1, 9]                              OK
+  client_18    2400       [1, 9]                              OK
+  client_19    2400       [0, 9]                              OK
+
+[Train/Test split] 20 clients | avg train=2250, avg test=750 samples (ratio=0.25)
+[Setup] 20 clients built (superclass_pathological) | per-client test sets injected
+[Setup] Building edge servers...
+[Assignment] Using pre-baked superclass assignments | 2 edges
+[EdgeServer 0] 10 clients | 27000 samples
+[EdgeServer 1] 10 clients | 18000 samples
+
+[Setup] Built 2 edge servers (strategy=superclass_baked)
+  Edge 0: 10 clients | 27000 samples
+  Edge 1: 10 clients | 18000 samples
+[Setup] Building per-edge test datasets (superclass-aware)...
+[CloudServer] 2 edges | model: 3.35 MB
+
+====================================================
+ HierFAVG Training Start
+====================================================
+
+[Round   1] Broadcasting to 2 edges...
+  [Edge 0] W_n reset to global weights for new round.
+  [Edge 1] W_n reset to global weights for new round.
+  [Edge 0] G1 | E1 | Hier-pFedMe | Selected 10/10
+  [Client  3] Received edge weights.
+[C3] Test set: samples=1000, class_dist={5: 506, 7: 494}
+  [Client  6] Received edge weights.
+[C6] Test set: samples=1000, class_dist={6: 493, 7: 507}
+  [Client  9] Received edge weights.
+[C9] Test set: samples=500, class_dist={4: 500}
+  [Client  8] Received edge weights.
+[C8] Test set: samples=500, class_dist={4: 500}
+  [Client  7] Received edge weights.
+[C7] Test set: samples=1000, class_dist={3: 485, 5: 515}
+  [Client  1] Received edge weights.
+[C1] Test set: samples=1000, class_dist={3: 515, 6: 485}
+  [Client  4] Received edge weights.
+[C4] Test set: samples=1000, class_dist={2: 507, 7: 493}
+  [Client  0] Received edge weights.
+[C0] Test set: samples=1000, class_dist={3: 511, 6: 489}
+  [Client  5] Received edge weights.
+[C5] Test set: samples=1000, class_dist={2: 510, 4: 490}
+  [Client  2] Received edge weights.
+[C2] Test set: samples=1000, class_dist={2: 507, 5: 493}
+  [Client  3] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C3] eval model[0] mean=0.001070 | edge mean=0.001070
+[C3] n=1000 | classes=[5, 7] | acc=0.0750 | per_class={5: '0.09', 7: '0.06'}
+[C3] eval model[0] mean=0.001115 | edge mean=0.001070
+[C3] n=1000 | classes=[5, 7] | acc=0.5490 | per_class={5: '0.70', 7: '0.39'}
+  [Client  3] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.7194
+  [Client  6] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C6] eval model[0] mean=0.001070 | edge mean=0.001070
+[C6] n=1000 | classes=[6, 7] | acc=0.1160 | per_class={6: '0.17', 7: '0.06'}
+[C6] eval model[0] mean=0.001244 | edge mean=0.001070
+[C6] n=1000 | classes=[6, 7] | acc=0.6170 | per_class={6: '0.72', 7: '0.51'}
+  [Client  6] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.8975
+  [Client  9] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=94
+[C9] eval model[0] mean=0.001070 | edge mean=0.001070
+[C9] n=500 | classes=[4] | acc=0.0000 | per_class={4: '0.00'}
+[C9] eval model[0] mean=0.000225 | edge mean=0.001070
+[C9] n=500 | classes=[4] | acc=1.0000 | per_class={4: '1.00'}
+  [Client  9] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.5771
+  [Client  8] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=94
+[C8] eval model[0] mean=0.001070 | edge mean=0.001070
+[C8] n=500 | classes=[4] | acc=0.0000 | per_class={4: '0.00'}
+[C8] eval model[0] mean=0.000828 | edge mean=0.001070
+[C8] n=500 | classes=[4] | acc=1.0000 | per_class={4: '1.00'}
+  [Client  8] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.4066
+  [Client  7] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C7] eval model[0] mean=0.001070 | edge mean=0.001070
+[C7] n=1000 | classes=[3, 5] | acc=0.0560 | per_class={3: '0.02', 5: '0.09'}
+[C7] eval model[0] mean=0.001187 | edge mean=0.001070
+[C7] n=1000 | classes=[3, 5] | acc=0.5060 | per_class={3: '0.04', 5: '0.94'}
+  [Client  7] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.9707
+  [Client  1] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C1] eval model[0] mean=0.001070 | edge mean=0.001070
+[C1] n=1000 | classes=[3, 6] | acc=0.0830 | per_class={3: '0.02', 6: '0.15'}
+[C1] eval model[0] mean=0.001348 | edge mean=0.001070
+[C1] n=1000 | classes=[3, 6] | acc=0.5950 | per_class={3: '0.46', 6: '0.74'}
+  [Client  1] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.9645
+  [Client  4] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C4] eval model[0] mean=0.001070 | edge mean=0.001070
+[C4] n=1000 | classes=[2, 7] | acc=0.0360 | per_class={2: '0.00', 7: '0.07'}
+[C4] eval model[0] mean=0.001065 | edge mean=0.001070
+[C4] n=1000 | classes=[2, 7] | acc=0.5530 | per_class={2: '0.29', 7: '0.82'}
+  [Client  4] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.9126
+  [Client  0] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C0] eval model[0] mean=0.001070 | edge mean=0.001070
+[C0] n=1000 | classes=[3, 6] | acc=0.0950 | per_class={3: '0.03', 6: '0.16'}
+[C0] eval model[0] mean=0.000833 | edge mean=0.001070
+[C0] n=1000 | classes=[3, 6] | acc=0.5280 | per_class={3: '0.16', 6: '0.92'}
+  [Client  0] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.7876
+  [Client  5] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C5] eval model[0] mean=0.001070 | edge mean=0.001070
+[C5] n=1000 | classes=[2, 4] | acc=0.0000 | per_class={2: '0.00', 4: '0.00'}
+[C5] eval model[0] mean=0.001190 | edge mean=0.001070
+[C5] n=1000 | classes=[2, 4] | acc=0.5120 | per_class={2: '0.59', 4: '0.43'}
+  [Client  5] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=1.5772
+  [Client  2] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C2] eval model[0] mean=0.001070 | edge mean=0.001070
+[C2] n=1000 | classes=[2, 5] | acc=0.0530 | per_class={2: '0.00', 5: '0.11'}
+[C2] eval model[0] mean=0.001354 | edge mean=0.001070
+[C2] n=1000 | classes=[2, 5] | acc=0.5060 | per_class={2: '0.93', 5: '0.07'}
+  [Client  2] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=1.2350
+  [Edge 0] G1 | E1 | loss=0.9507
+  [Edge 0] G1 | E2 | Hier-pFedMe | Selected 10/10
+  [Client  3] Received edge weights.
+[C3] Test set: samples=1000, class_dist={5: 506, 7: 494}
+  [Client  0] Received edge weights.
+[C0] Test set: samples=1000, class_dist={3: 511, 6: 489}
+  [Client  7] Received edge weights.
+[C7] Test set: samples=1000, class_dist={3: 485, 5: 515}
+  [Client  9] Received edge weights.
+[C9] Test set: samples=500, class_dist={4: 500}
+  [Client  6] Received edge weights.
+[C6] Test set: samples=1000, class_dist={6: 493, 7: 507}
+  [Client  4] Received edge weights.
+[C4] Test set: samples=1000, class_dist={2: 507, 7: 493}
+  [Client  2] Received edge weights.
+[C2] Test set: samples=1000, class_dist={2: 507, 5: 493}
+  [Client  8] Received edge weights.
+[C8] Test set: samples=500, class_dist={4: 500}
+  [Client  5] Received edge weights.
+[C5] Test set: samples=1000, class_dist={2: 510, 4: 490}
+  [Client  1] Received edge weights.
+[C1] Test set: samples=1000, class_dist={3: 515, 6: 485}
+  [Client  3] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C3] eval model[0] mean=0.001048 | edge mean=0.001048
+[C3] n=1000 | classes=[5, 7] | acc=0.2110 | per_class={5: '0.18', 7: '0.24'}
+[C3] eval model[0] mean=0.001484 | edge mean=0.001048
+[C3] n=1000 | classes=[5, 7] | acc=0.5970 | per_class={5: '0.53', 7: '0.67'}
+  [Client  3] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.5637
+  [Client  0] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C0] eval model[0] mean=0.001048 | edge mean=0.001048
+[C0] n=1000 | classes=[3, 6] | acc=0.2610 | per_class={3: '0.10', 6: '0.43'}
+[C0] eval model[0] mean=0.001011 | edge mean=0.001048
+[C0] n=1000 | classes=[3, 6] | acc=0.4890 | per_class={3: '0.00', 6: '1.00'}
+  [Client  0] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.6883
+  [Client  7] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C7] eval model[0] mean=0.001048 | edge mean=0.001048
+[C7] n=1000 | classes=[3, 5] | acc=0.1250 | per_class={3: '0.07', 5: '0.18'}
+[C7] eval model[0] mean=0.001287 | edge mean=0.001048
+[C7] n=1000 | classes=[3, 5] | acc=0.5140 | per_class={3: '0.00', 5: '1.00'}
+  [Client  7] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.6311
+  [Client  9] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=94
+[C9] eval model[0] mean=0.001048 | edge mean=0.001048
+[C9] n=500 | classes=[4] | acc=0.0100 | per_class={4: '0.01'}
+[C9] eval model[0] mean=0.000914 | edge mean=0.001048
+[C9] n=500 | classes=[4] | acc=1.0000 | per_class={4: '1.00'}
+  [Client  9] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.0347
+  [Client  6] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C6] eval model[0] mean=0.001048 | edge mean=0.001048
+[C6] n=1000 | classes=[6, 7] | acc=0.3450 | per_class={6: '0.46', 7: '0.23'}
+[C6] eval model[0] mean=0.000660 | edge mean=0.001048
+[C6] n=1000 | classes=[6, 7] | acc=0.5890 | per_class={6: '0.92', 7: '0.26'}
+  [Client  6] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.5641
+  [Client  4] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C4] eval model[0] mean=0.001048 | edge mean=0.001048
+[C4] n=1000 | classes=[2, 7] | acc=0.1080 | per_class={2: '0.00', 7: '0.22'}
+[C4] eval model[0] mean=0.001190 | edge mean=0.001048
+[C4] n=1000 | classes=[2, 7] | acc=0.5730 | per_class={2: '0.47', 7: '0.68'}
+  [Client  4] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.5696
+  [Client  2] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C2] eval model[0] mean=0.001048 | edge mean=0.001048
+[C2] n=1000 | classes=[2, 5] | acc=0.1030 | per_class={2: '0.00', 5: '0.20'}
+[C2] eval model[0] mean=0.000986 | edge mean=0.001048
+[C2] n=1000 | classes=[2, 5] | acc=0.5010 | per_class={2: '0.30', 5: '0.70'}
+  [Client  2] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.6479
+  [Client  8] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=94
+[C8] eval model[0] mean=0.001048 | edge mean=0.001048
+[C8] n=500 | classes=[4] | acc=0.0180 | per_class={4: '0.02'}
+[C8] eval model[0] mean=0.000637 | edge mean=0.001048
+[C8] n=500 | classes=[4] | acc=1.0000 | per_class={4: '1.00'}
+  [Client  8] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.0454
+  [Client  5] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C5] eval model[0] mean=0.001048 | edge mean=0.001048
+[C5] n=1000 | classes=[2, 4] | acc=0.0100 | per_class={2: '0.00', 4: '0.02'}
+[C5] eval model[0] mean=0.000903 | edge mean=0.001048
+[C5] n=1000 | classes=[2, 4] | acc=0.4910 | per_class={2: '0.01', 4: '0.99'}
+  [Client  5] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.7971
+  [Client  1] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C1] eval model[0] mean=0.001048 | edge mean=0.001048
+[C1] n=1000 | classes=[3, 6] | acc=0.2490 | per_class={3: '0.09', 6: '0.42'}
+[C1] eval model[0] mean=0.000964 | edge mean=0.001048
+[C1] n=1000 | classes=[3, 6] | acc=0.5100 | per_class={3: '0.10', 6: '0.95'}
+  [Client  1] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.6965
+  [Edge 0] G1 | E2 | loss=0.5776
+  [Edge 0] G1 | E3 | Hier-pFedMe | Selected 10/10
+  [Client  9] Received edge weights.
+[C9] Test set: samples=500, class_dist={4: 500}
+  [Client  7] Received edge weights.
+[C7] Test set: samples=1000, class_dist={3: 485, 5: 515}
+  [Client  8] Received edge weights.
+[C8] Test set: samples=500, class_dist={4: 500}
+  [Client  6] Received edge weights.
+[C6] Test set: samples=1000, class_dist={6: 493, 7: 507}
+  [Client  4] Received edge weights.
+[C4] Test set: samples=1000, class_dist={2: 507, 7: 493}
+  [Client  1] Received edge weights.
+[C1] Test set: samples=1000, class_dist={3: 515, 6: 485}
+  [Client  0] Received edge weights.
+[C0] Test set: samples=1000, class_dist={3: 511, 6: 489}
+  [Client  3] Received edge weights.
+[C3] Test set: samples=1000, class_dist={5: 506, 7: 494}
+  [Client  5] Received edge weights.
+[C5] Test set: samples=1000, class_dist={2: 510, 4: 490}
+  [Client  2] Received edge weights.
+[C2] Test set: samples=1000, class_dist={2: 507, 5: 493}
+  [Client  9] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=94
+[C9] eval model[0] mean=0.001022 | edge mean=0.001022
+[C9] n=500 | classes=[4] | acc=0.0700 | per_class={4: '0.07'}
+[C9] eval model[0] mean=0.001140 | edge mean=0.001022
+[C9] n=500 | classes=[4] | acc=1.0000 | per_class={4: '1.00'}
+  [Client  9] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.1179
+  [Client  7] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C7] eval model[0] mean=0.001022 | edge mean=0.001022
+[C7] n=1000 | classes=[3, 5] | acc=0.1080 | per_class={3: '0.05', 5: '0.17'}
+[C7] eval model[0] mean=0.001249 | edge mean=0.001022
+[C7] n=1000 | classes=[3, 5] | acc=0.4850 | per_class={3: '1.00', 5: '0.00'}
+  [Client  7] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.7395
+  [Client  8] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=94
+[C8] eval model[0] mean=0.001022 | edge mean=0.001022
+[C8] n=500 | classes=[4] | acc=0.0520 | per_class={4: '0.05'}
+[C8] eval model[0] mean=0.000676 | edge mean=0.001022
+[C8] n=500 | classes=[4] | acc=1.0000 | per_class={4: '1.00'}
+  [Client  8] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.0992
+  [Client  6] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C6] eval model[0] mean=0.001022 | edge mean=0.001022
+[C6] n=1000 | classes=[6, 7] | acc=0.3690 | per_class={6: '0.51', 7: '0.23'}
+[C6] eval model[0] mean=0.000859 | edge mean=0.001022
+[C6] n=1000 | classes=[6, 7] | acc=0.6340 | per_class={6: '0.72', 7: '0.55'}
+  [Client  6] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.5770
+  [Client  4] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C4] eval model[0] mean=0.001022 | edge mean=0.001022
+[C4] n=1000 | classes=[2, 7] | acc=0.1150 | per_class={2: '0.00', 7: '0.23'}
+[C4] eval model[0] mean=0.001098 | edge mean=0.001022
+[C4] n=1000 | classes=[2, 7] | acc=0.5520 | per_class={2: '0.52', 7: '0.59'}
+  [Client  4] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.6785
+  [Client  1] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C1] eval model[0] mean=0.001022 | edge mean=0.001022
+[C1] n=1000 | classes=[3, 6] | acc=0.2700 | per_class={3: '0.05', 6: '0.50'}
+[C1] eval model[0] mean=0.000843 | edge mean=0.001022
+[C1] n=1000 | classes=[3, 6] | acc=0.5020 | per_class={3: '0.57', 6: '0.44'}
+  [Client  1] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.6118
+  [Client  0] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C0] eval model[0] mean=0.001022 | edge mean=0.001022
+[C0] n=1000 | classes=[3, 6] | acc=0.2650 | per_class={3: '0.05', 6: '0.49'}
+[C0] eval model[0] mean=0.000876 | edge mean=0.001022
+[C0] n=1000 | classes=[3, 6] | acc=0.5110 | per_class={3: '1.00', 6: '0.00'}
+  [Client  0] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.8017
+  [Client  3] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C3] eval model[0] mean=0.001022 | edge mean=0.001022
+[C3] n=1000 | classes=[5, 7] | acc=0.2060 | per_class={5: '0.16', 7: '0.26'}
+[C3] eval model[0] mean=0.001196 | edge mean=0.001022
+[C3] n=1000 | classes=[5, 7] | acc=0.5850 | per_class={5: '0.60', 7: '0.57'}
+  [Client  3] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.6518
+  [Client  5] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C5] eval model[0] mean=0.001022 | edge mean=0.001022
+[C5] n=1000 | classes=[2, 4] | acc=0.0430 | per_class={2: '0.00', 4: '0.08'}
+[C5] eval model[0] mean=0.000875 | edge mean=0.001022
+[C5] n=1000 | classes=[2, 4] | acc=0.5100 | per_class={2: '1.00', 4: '0.00'}
+  [Client  5] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=1.0037
+  [Client  2] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C2] eval model[0] mean=0.001022 | edge mean=0.001022
+[C2] n=1000 | classes=[2, 5] | acc=0.1000 | per_class={2: '0.01', 5: '0.20'}
+[C2] eval model[0] mean=0.001046 | edge mean=0.001022
+[C2] n=1000 | classes=[2, 5] | acc=0.5570 | per_class={2: '0.26', 5: '0.86'}
+  [Client  2] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.7098
+  [Edge 0] G1 | E3 | loss=0.6536
+  [Edge 0] G1 | E4 | Hier-pFedMe | Selected 10/10
+  [Client  8] Received edge weights.
+[C8] Test set: samples=500, class_dist={4: 500}
+  [Client  6] Received edge weights.
+[C6] Test set: samples=1000, class_dist={6: 493, 7: 507}
+  [Client  0] Received edge weights.
+[C0] Test set: samples=1000, class_dist={3: 511, 6: 489}
+  [Client  9] Received edge weights.
+[C9] Test set: samples=500, class_dist={4: 500}
+  [Client  7] Received edge weights.
+[C7] Test set: samples=1000, class_dist={3: 485, 5: 515}
+  [Client  3] Received edge weights.
+[C3] Test set: samples=1000, class_dist={5: 506, 7: 494}
+  [Client  5] Received edge weights.
+[C5] Test set: samples=1000, class_dist={2: 510, 4: 490}
+  [Client  2] Received edge weights.
+[C2] Test set: samples=1000, class_dist={2: 507, 5: 493}
+  [Client  1] Received edge weights.
+[C1] Test set: samples=1000, class_dist={3: 515, 6: 485}
+  [Client  4] Received edge weights.
+[C4] Test set: samples=1000, class_dist={2: 507, 7: 493}
+  [Client  8] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=94
+[C8] eval model[0] mean=0.001003 | edge mean=0.001003
+[C8] n=500 | classes=[4] | acc=0.2500 | per_class={4: '0.25'}
+[C8] eval model[0] mean=0.000618 | edge mean=0.001003
+[C8] n=500 | classes=[4] | acc=1.0000 | per_class={4: '1.00'}
+  [Client  8] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.0195
+  [Client  6] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C6] eval model[0] mean=0.001003 | edge mean=0.001003
+[C6] n=1000 | classes=[6, 7] | acc=0.2750 | per_class={6: '0.27', 7: '0.28'}
+[C6] eval model[0] mean=0.000696 | edge mean=0.001003
+[C6] n=1000 | classes=[6, 7] | acc=0.5370 | per_class={6: '0.89', 7: '0.19'}
+  [Client  6] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.4337
+  [Client  0] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C0] eval model[0] mean=0.001003 | edge mean=0.001003
+[C0] n=1000 | classes=[3, 6] | acc=0.2230 | per_class={3: '0.17', 6: '0.28'}
+[C0] eval model[0] mean=0.001569 | edge mean=0.001003
+[C0] n=1000 | classes=[3, 6] | acc=0.4890 | per_class={3: '0.00', 6: '1.00'}
+  [Client  0] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.7234
+  [Client  9] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=94
+[C9] eval model[0] mean=0.001003 | edge mean=0.001003
+[C9] n=500 | classes=[4] | acc=0.2380 | per_class={4: '0.24'}
+[C9] eval model[0] mean=0.000669 | edge mean=0.001003
+[C9] n=500 | classes=[4] | acc=1.0000 | per_class={4: '1.00'}
+  [Client  9] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.0282
+  [Client  7] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C7] eval model[0] mean=0.001003 | edge mean=0.001003
+[C7] n=1000 | classes=[3, 5] | acc=0.1430 | per_class={3: '0.15', 5: '0.13'}
+[C7] eval model[0] mean=0.001478 | edge mean=0.001003
+[C7] n=1000 | classes=[3, 5] | acc=0.5140 | per_class={3: '0.00', 5: '1.00'}
+  [Client  7] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.8054
+  [Client  3] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C3] eval model[0] mean=0.001003 | edge mean=0.001003
+[C3] n=1000 | classes=[5, 7] | acc=0.2130 | per_class={5: '0.12', 7: '0.31'}
+[C3] eval model[0] mean=0.001073 | edge mean=0.001003
+[C3] n=1000 | classes=[5, 7] | acc=0.6020 | per_class={5: '0.46', 7: '0.74'}
+  [Client  3] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.5381
+  [Client  5] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C5] eval model[0] mean=0.001003 | edge mean=0.001003
+[C5] n=1000 | classes=[2, 4] | acc=0.1410 | per_class={2: '0.01', 4: '0.28'}
+[C5] eval model[0] mean=0.001067 | edge mean=0.001003
+[C5] n=1000 | classes=[2, 4] | acc=0.4900 | per_class={2: '0.00', 4: '1.00'}
+  [Client  5] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.8207
+  [Client  2] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C2] eval model[0] mean=0.001003 | edge mean=0.001003
+[C2] n=1000 | classes=[2, 5] | acc=0.0780 | per_class={2: '0.01', 5: '0.15'}
+[C2] eval model[0] mean=0.001009 | edge mean=0.001003
+[C2] n=1000 | classes=[2, 5] | acc=0.5050 | per_class={2: '0.99', 5: '0.01'}
+  [Client  2] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.7754
+  [Client  1] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C1] eval model[0] mean=0.001003 | edge mean=0.001003
+[C1] n=1000 | classes=[3, 6] | acc=0.2450 | per_class={3: '0.18', 6: '0.32'}
+[C1] eval model[0] mean=0.001040 | edge mean=0.001003
+[C1] n=1000 | classes=[3, 6] | acc=0.5090 | per_class={3: '0.08', 6: '0.96'}
+  [Client  1] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.5056
+  [Client  4] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C4] eval model[0] mean=0.001003 | edge mean=0.001003
+[C4] n=1000 | classes=[2, 7] | acc=0.1500 | per_class={2: '0.01', 7: '0.29'}
+[C4] eval model[0] mean=0.000864 | edge mean=0.001003
+[C4] n=1000 | classes=[2, 7] | acc=0.5150 | per_class={2: '1.00', 7: '0.02'}
+  [Client  4] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.6781
+  [Edge 0] G1 | E4 | loss=0.5894
+  [Edge 0] G1 | E5 | Hier-pFedMe | Selected 10/10
+  [Client  8] Received edge weights.
+[C8] Test set: samples=500, class_dist={4: 500}
+  [Client  1] Received edge weights.
+[C1] Test set: samples=1000, class_dist={3: 515, 6: 485}
+  [Client  7] Received edge weights.
+[C7] Test set: samples=1000, class_dist={3: 485, 5: 515}
+  [Client  4] Received edge weights.
+[C4] Test set: samples=1000, class_dist={2: 507, 7: 493}
+  [Client  5] Received edge weights.
+[C5] Test set: samples=1000, class_dist={2: 510, 4: 490}
+  [Client  9] Received edge weights.
+[C9] Test set: samples=500, class_dist={4: 500}
+  [Client  3] Received edge weights.
+[C3] Test set: samples=1000, class_dist={5: 506, 7: 494}
+  [Client  0] Received edge weights.
+[C0] Test set: samples=1000, class_dist={3: 511, 6: 489}
+  [Client  6] Received edge weights.
+[C6] Test set: samples=1000, class_dist={6: 493, 7: 507}
+  [Client  2] Received edge weights.
+[C2] Test set: samples=1000, class_dist={2: 507, 5: 493}
+  [Client  8] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=94
+[C8] eval model[0] mean=0.001013 | edge mean=0.001013
+[C8] n=500 | classes=[4] | acc=0.3740 | per_class={4: '0.37'}
+[C8] eval model[0] mean=0.000816 | edge mean=0.001013
+[C8] n=500 | classes=[4] | acc=1.0000 | per_class={4: '1.00'}
+  [Client  8] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.0620
+  [Client  1] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C1] eval model[0] mean=0.001013 | edge mean=0.001013
+[C1] n=1000 | classes=[3, 6] | acc=0.2400 | per_class={3: '0.04', 6: '0.45'}
+[C1] eval model[0] mean=0.001185 | edge mean=0.001013
+[C1] n=1000 | classes=[3, 6] | acc=0.4970 | per_class={3: '0.05', 6: '0.97'}
+  [Client  1] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.6212
+  [Client  7] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C7] eval model[0] mean=0.001013 | edge mean=0.001013
+[C7] n=1000 | classes=[3, 5] | acc=0.0950 | per_class={3: '0.04', 5: '0.15'}
+[C7] eval model[0] mean=0.001352 | edge mean=0.001013
+[C7] n=1000 | classes=[3, 5] | acc=0.5570 | per_class={3: '0.54', 5: '0.57'}
+  [Client  7] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.4846
+  [Client  4] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C4] eval model[0] mean=0.001013 | edge mean=0.001013
+[C4] n=1000 | classes=[2, 7] | acc=0.0830 | per_class={2: '0.01', 7: '0.16'}
+[C4] eval model[0] mean=0.000630 | edge mean=0.001013
+[C4] n=1000 | classes=[2, 7] | acc=0.5070 | per_class={2: '1.00', 7: '0.00'}
+  [Client  4] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=1.0026
+  [Client  5] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C5] eval model[0] mean=0.001013 | edge mean=0.001013
+[C5] n=1000 | classes=[2, 4] | acc=0.2160 | per_class={2: '0.01', 4: '0.43'}
+[C5] eval model[0] mean=0.000901 | edge mean=0.001013
+[C5] n=1000 | classes=[2, 4] | acc=0.5100 | per_class={2: '1.00', 4: '0.00'}
+  [Client  5] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.7506
+  [Client  9] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=94
+[C9] eval model[0] mean=0.001013 | edge mean=0.001013
+[C9] n=500 | classes=[4] | acc=0.3640 | per_class={4: '0.36'}
+[C9] eval model[0] mean=0.000901 | edge mean=0.001013
+[C9] n=500 | classes=[4] | acc=1.0000 | per_class={4: '1.00'}
+  [Client  9] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.0533
+  [Client  3] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C3] eval model[0] mean=0.001013 | edge mean=0.001013
+[C3] n=1000 | classes=[5, 7] | acc=0.1410 | per_class={5: '0.12', 7: '0.17'}
+[C3] eval model[0] mean=0.001253 | edge mean=0.001013
+[C3] n=1000 | classes=[5, 7] | acc=0.4940 | per_class={5: '0.00', 7: '1.00'}
+  [Client  3] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.6798
+  [Client  0] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C0] eval model[0] mean=0.001013 | edge mean=0.001013
+[C0] n=1000 | classes=[3, 6] | acc=0.2290 | per_class={3: '0.05', 6: '0.42'}
+[C0] eval model[0] mean=0.001281 | edge mean=0.001013
+[C0] n=1000 | classes=[3, 6] | acc=0.5110 | per_class={3: '1.00', 6: '0.00'}
+  [Client  0] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.9140
+  [Client  6] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C6] eval model[0] mean=0.001013 | edge mean=0.001013
+[C6] n=1000 | classes=[6, 7] | acc=0.2740 | per_class={6: '0.42', 7: '0.13'}
+[C6] eval model[0] mean=0.000872 | edge mean=0.001013
+[C6] n=1000 | classes=[6, 7] | acc=0.5080 | per_class={6: '0.01', 7: '1.00'}
+  [Client  6] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.7991
+  [Client  2] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C2] eval model[0] mean=0.001013 | edge mean=0.001013
+[C2] n=1000 | classes=[2, 5] | acc=0.0940 | per_class={2: '0.01', 5: '0.18'}
+[C2] eval model[0] mean=0.000982 | edge mean=0.001013
+[C2] n=1000 | classes=[2, 5] | acc=0.5520 | per_class={2: '0.48', 5: '0.63'}
+  [Client  2] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.5930
+  [Edge 0] G1 | E5 | loss=0.6558
+  [Edge 1] G1 | E1 | Hier-pFedMe | Selected 10/10
+  [Client 10] Received edge weights.
+[C10] Test set: samples=600, class_dist={8: 292, 9: 308}
+  [Client 19] Received edge weights.
+[C19] Test set: samples=600, class_dist={0: 286, 9: 314}
+  [Client 13] Received edge weights.
+[C13] Test set: samples=600, class_dist={0: 311, 8: 289}
+  [Client 17] Received edge weights.
+[C17] Test set: samples=600, class_dist={1: 289, 9: 311}
+  [Client 12] Received edge weights.
+[C12] Test set: samples=600, class_dist={1: 308, 8: 292}
+  [Client 14] Received edge weights.
+[C14] Test set: samples=600, class_dist={0: 307, 9: 293}
+  [Client 15] Received edge weights.
+[C15] Test set: samples=600, class_dist={0: 305, 8: 295}
+  [Client 11] Received edge weights.
+[C11] Test set: samples=600, class_dist={0: 300, 1: 300}
+  [Client 16] Received edge weights.
+[C16] Test set: samples=600, class_dist={1: 291, 8: 309}
+  [Client 18] Received edge weights.
+[C18] Test set: samples=600, class_dist={1: 314, 9: 286}
+  [Client 10] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C10] eval model[0] mean=0.001070 | edge mean=0.001070
+[C10] n=600 | classes=[8, 9] | acc=0.0167 | per_class={8: '0.03', 9: '0.01'}
+[C10] eval model[0] mean=0.001472 | edge mean=0.001070
+[C10] n=600 | classes=[8, 9] | acc=0.5183 | per_class={8: '0.80', 9: '0.25'}
+  [Client 10] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.9525
+  [Client 19] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C19] eval model[0] mean=0.001070 | edge mean=0.001070
+[C19] n=600 | classes=[0, 9] | acc=0.2733 | per_class={0: '0.55', 9: '0.02'}
+[C19] eval model[0] mean=0.001192 | edge mean=0.001070
+[C19] n=600 | classes=[0, 9] | acc=0.6983 | per_class={0: '0.45', 9: '0.92'}
+  [Client 19] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.7558
+  [Client 13] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C13] eval model[0] mean=0.001070 | edge mean=0.001070
+[C13] n=600 | classes=[0, 8] | acc=0.3133 | per_class={0: '0.59', 8: '0.02'}
+[C13] eval model[0] mean=0.001265 | edge mean=0.001070
+[C13] n=600 | classes=[0, 8] | acc=0.4767 | per_class={0: '0.30', 8: '0.66'}
+  [Client 13] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.7189
+  [Client 17] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C17] eval model[0] mean=0.001070 | edge mean=0.001070
+[C17] n=600 | classes=[1, 9] | acc=0.0100 | per_class={1: '0.00', 9: '0.02'}
+[C17] eval model[0] mean=0.000995 | edge mean=0.001070
+[C17] n=600 | classes=[1, 9] | acc=0.4750 | per_class={1: '0.67', 9: '0.29'}
+  [Client 17] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.8118
+  [Client 12] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C12] eval model[0] mean=0.001070 | edge mean=0.001070
+[C12] n=600 | classes=[1, 8] | acc=0.0200 | per_class={1: '0.00', 8: '0.04'}
+[C12] eval model[0] mean=0.001143 | edge mean=0.001070
+[C12] n=600 | classes=[1, 8] | acc=0.6533 | per_class={1: '0.81', 8: '0.49'}
+  [Client 12] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.8277
+  [Client 14] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C14] eval model[0] mean=0.001070 | edge mean=0.001070
+[C14] n=600 | classes=[0, 9] | acc=0.3267 | per_class={0: '0.63', 9: '0.01'}
+[C14] eval model[0] mean=0.000977 | edge mean=0.001070
+[C14] n=600 | classes=[0, 9] | acc=0.6683 | per_class={0: '0.48', 9: '0.87'}
+  [Client 14] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.6193
+  [Client 15] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C15] eval model[0] mean=0.001070 | edge mean=0.001070
+[C15] n=600 | classes=[0, 8] | acc=0.3400 | per_class={0: '0.64', 8: '0.03'}
+[C15] eval model[0] mean=0.001516 | edge mean=0.001070
+[C15] n=600 | classes=[0, 8] | acc=0.5050 | per_class={0: '0.99', 8: '0.00'}
+  [Client 15] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.8394
+  [Client 11] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C11] eval model[0] mean=0.001070 | edge mean=0.001070
+[C11] n=600 | classes=[0, 1] | acc=0.3250 | per_class={0: '0.65', 1: '0.00'}
+[C11] eval model[0] mean=0.001426 | edge mean=0.001070
+[C11] n=600 | classes=[0, 1] | acc=0.6533 | per_class={0: '0.48', 1: '0.82'}
+  [Client 11] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.7192
+  [Client 16] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C16] eval model[0] mean=0.001070 | edge mean=0.001070
+[C16] n=600 | classes=[1, 8] | acc=0.0100 | per_class={1: '0.00', 8: '0.02'}
+[C16] eval model[0] mean=0.001199 | edge mean=0.001070
+[C16] n=600 | classes=[1, 8] | acc=0.6450 | per_class={1: '0.63', 8: '0.66'}
+  [Client 16] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.7452
+  [Client 18] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C18] eval model[0] mean=0.001070 | edge mean=0.001070
+[C18] n=600 | classes=[1, 9] | acc=0.0100 | per_class={1: '0.00', 9: '0.02'}
+[C18] eval model[0] mean=0.000705 | edge mean=0.001070
+[C18] n=600 | classes=[1, 9] | acc=0.4833 | per_class={1: '0.30', 9: '0.68'}
+  [Client 18] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.8203
+  [Edge 1] G1 | E1 | loss=0.7810
+  [Edge 1] G1 | E2 | Hier-pFedMe | Selected 10/10
+  [Client 11] Received edge weights.
+[C11] Test set: samples=600, class_dist={0: 300, 1: 300}
+  [Client 15] Received edge weights.
+[C15] Test set: samples=600, class_dist={0: 305, 8: 295}
+  [Client 19] Received edge weights.
+[C19] Test set: samples=600, class_dist={0: 286, 9: 314}
+  [Client 16] Received edge weights.
+[C16] Test set: samples=600, class_dist={1: 291, 8: 309}
+  [Client 18] Received edge weights.
+[C18] Test set: samples=600, class_dist={1: 314, 9: 286}
+  [Client 14] Received edge weights.
+[C14] Test set: samples=600, class_dist={0: 307, 9: 293}
+  [Client 17] Received edge weights.
+[C17] Test set: samples=600, class_dist={1: 289, 9: 311}
+  [Client 12] Received edge weights.
+[C12] Test set: samples=600, class_dist={1: 308, 8: 292}
+  [Client 13] Received edge weights.
+[C13] Test set: samples=600, class_dist={0: 311, 8: 289}
+  [Client 10] Received edge weights.
+[C10] Test set: samples=600, class_dist={8: 292, 9: 308}
+  [Client 11] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C11] eval model[0] mean=0.001153 | edge mean=0.001153
+[C11] n=600 | classes=[0, 1] | acc=0.4000 | per_class={0: '0.77', 1: '0.03'}
+[C11] eval model[0] mean=0.001321 | edge mean=0.001153
+[C11] n=600 | classes=[0, 1] | acc=0.6267 | per_class={0: '0.33', 1: '0.92'}
+  [Client 11] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.4691
+  [Client 15] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C15] eval model[0] mean=0.001153 | edge mean=0.001153
+[C15] n=600 | classes=[0, 8] | acc=0.4533 | per_class={0: '0.78', 8: '0.11'}
+[C15] eval model[0] mean=0.000612 | edge mean=0.001153
+[C15] n=600 | classes=[0, 8] | acc=0.5083 | per_class={0: '1.00', 8: '0.00'}
+  [Client 15] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=1.4362
+  [Client 19] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C19] eval model[0] mean=0.001153 | edge mean=0.001153
+[C19] n=600 | classes=[0, 9] | acc=0.4750 | per_class={0: '0.73', 9: '0.24'}
+[C19] eval model[0] mean=0.000883 | edge mean=0.001153
+[C19] n=600 | classes=[0, 9] | acc=0.6267 | per_class={0: '0.90', 9: '0.38'}
+  [Client 19] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.4617
+  [Client 16] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C16] eval model[0] mean=0.001153 | edge mean=0.001153
+[C16] n=600 | classes=[1, 8] | acc=0.0700 | per_class={1: '0.04', 8: '0.10'}
+[C16] eval model[0] mean=0.001366 | edge mean=0.001153
+[C16] n=600 | classes=[1, 8] | acc=0.6783 | per_class={1: '0.58', 8: '0.77'}
+  [Client 16] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.6407
+  [Client 18] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C18] eval model[0] mean=0.001153 | edge mean=0.001153
+[C18] n=600 | classes=[1, 9] | acc=0.1167 | per_class={1: '0.02', 9: '0.23'}
+[C18] eval model[0] mean=0.000826 | edge mean=0.001153
+[C18] n=600 | classes=[1, 9] | acc=0.4767 | per_class={1: '0.00', 9: '1.00'}
+  [Client 18] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.6930
+  [Client 14] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C14] eval model[0] mean=0.001153 | edge mean=0.001153
+[C14] n=600 | classes=[0, 9] | acc=0.4967 | per_class={0: '0.76', 9: '0.22'}
+[C14] eval model[0] mean=0.001384 | edge mean=0.001153
+[C14] n=600 | classes=[0, 9] | acc=0.6783 | per_class={0: '0.58', 9: '0.78'}
+  [Client 14] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.5161
+  [Client 17] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C17] eval model[0] mean=0.001153 | edge mean=0.001153
+[C17] n=600 | classes=[1, 9] | acc=0.1417 | per_class={1: '0.03', 9: '0.24'}
+[C17] eval model[0] mean=0.000906 | edge mean=0.001153
+[C17] n=600 | classes=[1, 9] | acc=0.5183 | per_class={1: '0.00', 9: '1.00'}
+  [Client 17] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.5911
+  [Client 12] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C12] eval model[0] mean=0.001153 | edge mean=0.001153
+[C12] n=600 | classes=[1, 8] | acc=0.0867 | per_class={1: '0.04', 8: '0.14'}
+[C12] eval model[0] mean=0.001637 | edge mean=0.001153
+[C12] n=600 | classes=[1, 8] | acc=0.6850 | per_class={1: '0.75', 8: '0.62'}
+  [Client 12] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.5243
+  [Client 13] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C13] eval model[0] mean=0.001153 | edge mean=0.001153
+[C13] n=600 | classes=[0, 8] | acc=0.4700 | per_class={0: '0.80', 8: '0.11'}
+[C13] eval model[0] mean=0.001045 | edge mean=0.001153
+[C13] n=600 | classes=[0, 8] | acc=0.4817 | per_class={0: '0.00', 8: '1.00'}
+  [Client 13] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=1.0990
+  [Client 10] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C10] eval model[0] mean=0.001153 | edge mean=0.001153
+[C10] n=600 | classes=[8, 9] | acc=0.1517 | per_class={8: '0.11', 9: '0.19'}
+[C10] eval model[0] mean=0.001403 | edge mean=0.001153
+[C10] n=600 | classes=[8, 9] | acc=0.5883 | per_class={8: '0.35', 9: '0.81'}
+  [Client 10] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.3756
+  [Edge 1] G1 | E2 | loss=0.6807
+  [Edge 1] G1 | E3 | Hier-pFedMe | Selected 10/10
+  [Client 10] Received edge weights.
+[C10] Test set: samples=600, class_dist={8: 292, 9: 308}
+  [Client 14] Received edge weights.
+[C14] Test set: samples=600, class_dist={0: 307, 9: 293}
+  [Client 15] Received edge weights.
+[C15] Test set: samples=600, class_dist={0: 305, 8: 295}
+  [Client 12] Received edge weights.
+[C12] Test set: samples=600, class_dist={1: 308, 8: 292}
+  [Client 18] Received edge weights.
+[C18] Test set: samples=600, class_dist={1: 314, 9: 286}
+  [Client 11] Received edge weights.
+[C11] Test set: samples=600, class_dist={0: 300, 1: 300}
+  [Client 16] Received edge weights.
+[C16] Test set: samples=600, class_dist={1: 291, 8: 309}
+  [Client 13] Received edge weights.
+[C13] Test set: samples=600, class_dist={0: 311, 8: 289}
+  [Client 17] Received edge weights.
+[C17] Test set: samples=600, class_dist={1: 289, 9: 311}
+  [Client 19] Received edge weights.
+[C19] Test set: samples=600, class_dist={0: 286, 9: 314}
+  [Client 10] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C10] eval model[0] mean=0.001125 | edge mean=0.001125
+[C10] n=600 | classes=[8, 9] | acc=0.1983 | per_class={8: '0.06', 9: '0.33'}
+[C10] eval model[0] mean=0.001080 | edge mean=0.001125
+[C10] n=600 | classes=[8, 9] | acc=0.4867 | per_class={8: '1.00', 9: '0.00'}
+  [Client 10] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.8481
+  [Client 14] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C14] eval model[0] mean=0.001125 | edge mean=0.001125
+[C14] n=600 | classes=[0, 9] | acc=0.5433 | per_class={0: '0.71', 9: '0.37'}
+[C14] eval model[0] mean=0.001159 | edge mean=0.001125
+[C14] n=600 | classes=[0, 9] | acc=0.4900 | per_class={0: '0.00', 9: '1.00'}
+  [Client 14] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.7655
+  [Client 15] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C15] eval model[0] mean=0.001125 | edge mean=0.001125
+[C15] n=600 | classes=[0, 8] | acc=0.4250 | per_class={0: '0.77', 8: '0.06'}
+[C15] eval model[0] mean=0.000788 | edge mean=0.001125
+[C15] n=600 | classes=[0, 8] | acc=0.5667 | per_class={0: '0.47', 8: '0.67'}
+  [Client 15] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=1.1417
+  [Client 12] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C12] eval model[0] mean=0.001125 | edge mean=0.001125
+[C12] n=600 | classes=[1, 8] | acc=0.0633 | per_class={1: '0.06', 8: '0.07'}
+[C12] eval model[0] mean=0.001377 | edge mean=0.001125
+[C12] n=600 | classes=[1, 8] | acc=0.6717 | per_class={1: '0.75', 8: '0.59'}
+  [Client 12] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.3056
+  [Client 18] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C18] eval model[0] mean=0.001125 | edge mean=0.001125
+[C18] n=600 | classes=[1, 9] | acc=0.1867 | per_class={1: '0.03', 9: '0.36'}
+[C18] eval model[0] mean=0.000954 | edge mean=0.001125
+[C18] n=600 | classes=[1, 9] | acc=0.5750 | per_class={1: '0.55', 9: '0.60'}
+  [Client 18] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.7294
+  [Client 11] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C11] eval model[0] mean=0.001125 | edge mean=0.001125
+[C11] n=600 | classes=[0, 1] | acc=0.4000 | per_class={0: '0.74', 1: '0.06'}
+[C11] eval model[0] mean=0.000997 | edge mean=0.001125
+[C11] n=600 | classes=[0, 1] | acc=0.6667 | per_class={0: '0.58', 1: '0.75'}
+  [Client 11] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.4784
+  [Client 16] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C16] eval model[0] mean=0.001125 | edge mean=0.001125
+[C16] n=600 | classes=[1, 8] | acc=0.0517 | per_class={1: '0.06', 8: '0.05'}
+[C16] eval model[0] mean=0.001554 | edge mean=0.001125
+[C16] n=600 | classes=[1, 8] | acc=0.6200 | per_class={1: '0.88', 8: '0.38'}
+  [Client 16] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.6520
+  [Client 13] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C13] eval model[0] mean=0.001125 | edge mean=0.001125
+[C13] n=600 | classes=[0, 8] | acc=0.4200 | per_class={0: '0.76', 8: '0.06'}
+[C13] eval model[0] mean=0.000996 | edge mean=0.001125
+[C13] n=600 | classes=[0, 8] | acc=0.5183 | per_class={0: '1.00', 8: '0.00'}
+  [Client 13] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.7989
+  [Client 17] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C17] eval model[0] mean=0.001125 | edge mean=0.001125
+[C17] n=600 | classes=[1, 9] | acc=0.2333 | per_class={1: '0.06', 9: '0.40'}
+[C17] eval model[0] mean=0.000707 | edge mean=0.001125
+[C17] n=600 | classes=[1, 9] | acc=0.4817 | per_class={1: '1.00', 9: '0.00'}
+  [Client 17] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.8148
+  [Client 19] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C19] eval model[0] mean=0.001125 | edge mean=0.001125
+[C19] n=600 | classes=[0, 9] | acc=0.5500 | per_class={0: '0.69', 9: '0.42'}
+[C19] eval model[0] mean=0.000786 | edge mean=0.001125
+[C19] n=600 | classes=[0, 9] | acc=0.5267 | per_class={0: '0.01', 9: '1.00'}
+  [Client 19] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.7153
+  [Edge 1] G1 | E3 | loss=0.7250
+  [Edge 1] G1 | E4 | Hier-pFedMe | Selected 10/10
+  [Client 12] Received edge weights.
+[C12] Test set: samples=600, class_dist={1: 308, 8: 292}
+  [Client 18] Received edge weights.
+[C18] Test set: samples=600, class_dist={1: 314, 9: 286}
+  [Client 14] Received edge weights.
+[C14] Test set: samples=600, class_dist={0: 307, 9: 293}
+  [Client 15] Received edge weights.
+[C15] Test set: samples=600, class_dist={0: 305, 8: 295}
+  [Client 10] Received edge weights.
+[C10] Test set: samples=600, class_dist={8: 292, 9: 308}
+  [Client 13] Received edge weights.
+[C13] Test set: samples=600, class_dist={0: 311, 8: 289}
+  [Client 11] Received edge weights.
+[C11] Test set: samples=600, class_dist={0: 300, 1: 300}
+  [Client 16] Received edge weights.
+[C16] Test set: samples=600, class_dist={1: 291, 8: 309}
+  [Client 19] Received edge weights.
+[C19] Test set: samples=600, class_dist={0: 286, 9: 314}
+  [Client 17] Received edge weights.
+[C17] Test set: samples=600, class_dist={1: 289, 9: 311}
+  [Client 12] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C12] eval model[0] mean=0.001066 | edge mean=0.001066
+[C12] n=600 | classes=[1, 8] | acc=0.3067 | per_class={1: '0.38', 8: '0.23'}
+[C12] eval model[0] mean=0.001123 | edge mean=0.001066
+[C12] n=600 | classes=[1, 8] | acc=0.6617 | per_class={1: '0.88', 8: '0.43'}
+  [Client 12] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.4200
+  [Client 18] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C18] eval model[0] mean=0.001066 | edge mean=0.001066
+[C18] n=600 | classes=[1, 9] | acc=0.3200 | per_class={1: '0.40', 9: '0.23'}
+[C18] eval model[0] mean=0.000991 | edge mean=0.001066
+[C18] n=600 | classes=[1, 9] | acc=0.4750 | per_class={1: '0.00', 9: '0.99'}
+  [Client 18] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.5609
+  [Client 14] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C14] eval model[0] mean=0.001066 | edge mean=0.001066
+[C14] n=600 | classes=[0, 9] | acc=0.4083 | per_class={0: '0.60', 9: '0.21'}
+[C14] eval model[0] mean=0.000852 | edge mean=0.001066
+[C14] n=600 | classes=[0, 9] | acc=0.5817 | per_class={0: '0.27', 9: '0.91'}
+  [Client 14] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.6447
+  [Client 15] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C15] eval model[0] mean=0.001066 | edge mean=0.001066
+[C15] n=600 | classes=[0, 8] | acc=0.4100 | per_class={0: '0.62', 8: '0.19'}
+[C15] eval model[0] mean=-0.000104 | edge mean=0.001066
+[C15] n=600 | classes=[0, 8] | acc=0.5083 | per_class={0: '1.00', 8: '0.00'}
+  [Client 15] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.9225
+  [Client 10] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C10] eval model[0] mean=0.001066 | edge mean=0.001066
+[C10] n=600 | classes=[8, 9] | acc=0.1650 | per_class={8: '0.16', 9: '0.17'}
+[C10] eval model[0] mean=0.000882 | edge mean=0.001066
+[C10] n=600 | classes=[8, 9] | acc=0.5233 | per_class={8: '0.02', 9: '1.00'}
+  [Client 10] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.8176
+  [Client 13] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C13] eval model[0] mean=0.001066 | edge mean=0.001066
+[C13] n=600 | classes=[0, 8] | acc=0.4400 | per_class={0: '0.65', 8: '0.21'}
+[C13] eval model[0] mean=0.000375 | edge mean=0.001066
+[C13] n=600 | classes=[0, 8] | acc=0.4817 | per_class={0: '0.00', 8: '1.00'}
+  [Client 13] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.9003
+  [Client 11] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C11] eval model[0] mean=0.001066 | edge mean=0.001066
+[C11] n=600 | classes=[0, 1] | acc=0.4733 | per_class={0: '0.59', 1: '0.36'}
+[C11] eval model[0] mean=0.001122 | edge mean=0.001066
+[C11] n=600 | classes=[0, 1] | acc=0.6267 | per_class={0: '0.78', 1: '0.47'}
+  [Client 11] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.5346
+  [Client 16] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C16] eval model[0] mean=0.001066 | edge mean=0.001066
+[C16] n=600 | classes=[1, 8] | acc=0.3017 | per_class={1: '0.40', 8: '0.21'}
+[C16] eval model[0] mean=0.001206 | edge mean=0.001066
+[C16] n=600 | classes=[1, 8] | acc=0.5750 | per_class={1: '0.96', 8: '0.21'}
+  [Client 16] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.4631
+  [Client 19] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C19] eval model[0] mean=0.001066 | edge mean=0.001066
+[C19] n=600 | classes=[0, 9] | acc=0.3900 | per_class={0: '0.54', 9: '0.25'}
+[C19] eval model[0] mean=0.000840 | edge mean=0.001066
+[C19] n=600 | classes=[0, 9] | acc=0.7283 | per_class={0: '0.63', 9: '0.82'}
+  [Client 19] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.5495
+  [Client 17] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C17] eval model[0] mean=0.001066 | edge mean=0.001066
+[C17] n=600 | classes=[1, 9] | acc=0.2650 | per_class={1: '0.34', 9: '0.20'}
+[C17] eval model[0] mean=0.000999 | edge mean=0.001066
+[C17] n=600 | classes=[1, 9] | acc=0.5867 | per_class={1: '0.40', 9: '0.76'}
+  [Client 17] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=1.1260
+  [Edge 1] G1 | E4 | loss=0.6939
+  [Edge 1] G1 | E5 | Hier-pFedMe | Selected 10/10
+  [Client 13] Received edge weights.
+[C13] Test set: samples=600, class_dist={0: 311, 8: 289}
+  [Client 16] Received edge weights.
+[C16] Test set: samples=600, class_dist={1: 291, 8: 309}
+  [Client 18] Received edge weights.
+[C18] Test set: samples=600, class_dist={1: 314, 9: 286}
+  [Client 19] Received edge weights.
+[C19] Test set: samples=600, class_dist={0: 286, 9: 314}
+  [Client 17] Received edge weights.
+[C17] Test set: samples=600, class_dist={1: 289, 9: 311}
+  [Client 15] Received edge weights.
+[C15] Test set: samples=600, class_dist={0: 305, 8: 295}
+  [Client 12] Received edge weights.
+[C12] Test set: samples=600, class_dist={1: 308, 8: 292}
+  [Client 14] Received edge weights.
+[C14] Test set: samples=600, class_dist={0: 307, 9: 293}
+  [Client 11] Received edge weights.
+[C11] Test set: samples=600, class_dist={0: 300, 1: 300}
+  [Client 10] Received edge weights.
+[C10] Test set: samples=600, class_dist={8: 292, 9: 308}
+  [Client 13] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C13] eval model[0] mean=0.000913 | edge mean=0.000913
+[C13] n=600 | classes=[0, 8] | acc=0.3717 | per_class={0: '0.57', 8: '0.16'}
+[C13] eval model[0] mean=0.000846 | edge mean=0.000913
+[C13] n=600 | classes=[0, 8] | acc=0.5183 | per_class={0: '1.00', 8: '0.00'}
+  [Client 13] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.6742
+  [Client 16] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C16] eval model[0] mean=0.000913 | edge mean=0.000913
+[C16] n=600 | classes=[1, 8] | acc=0.2133 | per_class={1: '0.26', 8: '0.17'}
+[C16] eval model[0] mean=0.000681 | edge mean=0.000913
+[C16] n=600 | classes=[1, 8] | acc=0.5733 | per_class={1: '0.16', 8: '0.96'}
+  [Client 16] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.5365
+  [Client 18] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C18] eval model[0] mean=0.000913 | edge mean=0.000913
+[C18] n=600 | classes=[1, 9] | acc=0.3900 | per_class={1: '0.29', 9: '0.50'}
+[C18] eval model[0] mean=0.001103 | edge mean=0.000913
+[C18] n=600 | classes=[1, 9] | acc=0.4767 | per_class={1: '0.00', 9: '1.00'}
+  [Client 18] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.6881
+  [Client 19] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C19] eval model[0] mean=0.000913 | edge mean=0.000913
+[C19] n=600 | classes=[0, 9] | acc=0.5100 | per_class={0: '0.48', 9: '0.54'}
+[C19] eval model[0] mean=0.001078 | edge mean=0.000913
+[C19] n=600 | classes=[0, 9] | acc=0.4783 | per_class={0: '1.00', 9: '0.01'}
+  [Client 19] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.6279
+  [Client 17] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C17] eval model[0] mean=0.000913 | edge mean=0.000913
+[C17] n=600 | classes=[1, 9] | acc=0.3800 | per_class={1: '0.25', 9: '0.50'}
+[C17] eval model[0] mean=0.000660 | edge mean=0.000913
+[C17] n=600 | classes=[1, 9] | acc=0.5183 | per_class={1: '0.00', 9: '1.00'}
+  [Client 17] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.6856
+  [Client 15] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C15] eval model[0] mean=0.000913 | edge mean=0.000913
+[C15] n=600 | classes=[0, 8] | acc=0.3567 | per_class={0: '0.56', 8: '0.14'}
+[C15] eval model[0] mean=0.000295 | edge mean=0.000913
+[C15] n=600 | classes=[0, 8] | acc=0.4917 | per_class={0: '0.00', 8: '1.00'}
+  [Client 15] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=1.1411
+  [Client 12] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C12] eval model[0] mean=0.000913 | edge mean=0.000913
+[C12] n=600 | classes=[1, 8] | acc=0.2200 | per_class={1: '0.26', 8: '0.18'}
+[C12] eval model[0] mean=0.001026 | edge mean=0.000913
+[C12] n=600 | classes=[1, 8] | acc=0.5383 | per_class={1: '0.12', 8: '0.98'}
+  [Client 12] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.7234
+  [Client 14] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C14] eval model[0] mean=0.000913 | edge mean=0.000913
+[C14] n=600 | classes=[0, 9] | acc=0.5133 | per_class={0: '0.51', 9: '0.52'}
+[C14] eval model[0] mean=0.000568 | edge mean=0.000913
+[C14] n=600 | classes=[0, 9] | acc=0.6783 | per_class={0: '0.60', 9: '0.76'}
+  [Client 14] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.6863
+  [Client 11] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C11] eval model[0] mean=0.000913 | edge mean=0.000913
+[C11] n=600 | classes=[0, 1] | acc=0.4017 | per_class={0: '0.50', 1: '0.30'}
+[C11] eval model[0] mean=0.000998 | edge mean=0.000913
+[C11] n=600 | classes=[0, 1] | acc=0.5233 | per_class={0: '0.05', 1: '1.00'}
+  [Client 11] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.6773
+  [Client 10] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=113
+[C10] eval model[0] mean=0.000913 | edge mean=0.000913
+[C10] n=600 | classes=[8, 9] | acc=0.2817 | per_class={8: '0.12', 9: '0.43'}
+[C10] eval model[0] mean=0.000995 | edge mean=0.000913
+[C10] n=600 | classes=[8, 9] | acc=0.6400 | per_class={8: '0.54', 9: '0.73'}
+  [Client 10] Round 1 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.6416
+  [Edge 1] G1 | E5 | loss=0.7082
+[C0] eval model[0] mean=0.001200 | edge mean=0.001013
+[C0] n=1000 | classes=[3, 6] | acc=0.5110 | per_class={3: '1.00', 6: '0.00'}
+[C1] eval model[0] mean=0.001133 | edge mean=0.001013
+[C1] n=1000 | classes=[3, 6] | acc=0.4990 | per_class={3: '0.07', 6: '0.96'}
+[C2] eval model[0] mean=0.000991 | edge mean=0.001013
+[C2] n=1000 | classes=[2, 5] | acc=0.5240 | per_class={2: '0.36', 5: '0.70'}
+[C3] eval model[0] mean=0.001181 | edge mean=0.001013
+[C3] n=1000 | classes=[5, 7] | acc=0.4960 | per_class={5: '0.01', 7: '1.00'}
+[C4] eval model[0] mean=0.000745 | edge mean=0.001013
+[C4] n=1000 | classes=[2, 7] | acc=0.5020 | per_class={2: '0.98', 7: '0.01'}
+[C5] eval model[0] mean=0.000935 | edge mean=0.001013
+[C5] n=1000 | classes=[2, 4] | acc=0.5110 | per_class={2: '1.00', 4: '0.00'}
+[C6] eval model[0] mean=0.000914 | edge mean=0.001013
+[C6] n=1000 | classes=[6, 7] | acc=0.5130 | per_class={6: '0.02', 7: '0.99'}
+[C7] eval model[0] mean=0.001250 | edge mean=0.001013
+[C7] n=1000 | classes=[3, 5] | acc=0.5590 | per_class={3: '0.53', 5: '0.58'}
+[C8] eval model[0] mean=0.000875 | edge mean=0.001013
+[C8] n=500 | classes=[4] | acc=1.0000 | per_class={4: '1.00'}
+[C9] eval model[0] mean=0.000934 | edge mean=0.001013
+[C9] n=500 | classes=[4] | acc=1.0000 | per_class={4: '1.00'}
+[C10] eval model[0] mean=0.000971 | edge mean=0.000913
+[C10] n=600 | classes=[8, 9] | acc=0.6317 | per_class={8: '0.50', 9: '0.76'}
+[C11] eval model[0] mean=0.000972 | edge mean=0.000913
+[C11] n=600 | classes=[0, 1] | acc=0.6133 | per_class={0: '0.25', 1: '0.98'}
+[C12] eval model[0] mean=0.000992 | edge mean=0.000913
+[C12] n=600 | classes=[1, 8] | acc=0.6083 | per_class={1: '0.30', 8: '0.93'}
+[C13] eval model[0] mean=0.000866 | edge mean=0.000913
+[C13] n=600 | classes=[0, 8] | acc=0.5183 | per_class={0: '1.00', 8: '0.00'}
+[C14] eval model[0] mean=0.000672 | edge mean=0.000913
+[C14] n=600 | classes=[0, 9] | acc=0.6683 | per_class={0: '0.57', 9: '0.77'}
+[C15] eval model[0] mean=0.000480 | edge mean=0.000913
+[C15] n=600 | classes=[0, 8] | acc=0.4917 | per_class={0: '0.00', 8: '1.00'}
+[C16] eval model[0] mean=0.000751 | edge mean=0.000913
+[C16] n=600 | classes=[1, 8] | acc=0.6183 | per_class={1: '0.28', 8: '0.94'}
+[C17] eval model[0] mean=0.000736 | edge mean=0.000913
+[C17] n=600 | classes=[1, 9] | acc=0.5200 | per_class={1: '0.00', 9: '1.00'}
+[C18] eval model[0] mean=0.001046 | edge mean=0.000913
+[C18] n=600 | classes=[1, 9] | acc=0.4833 | per_class={1: '0.03', 9: '0.99'}
+[C19] eval model[0] mean=0.001029 | edge mean=0.000913
+[C19] n=600 | classes=[0, 9] | acc=0.4967 | per_class={0: '0.97', 9: '0.07'}
+  [Cloud] GM=0.1318 | EM=0.2604 PM=0.5670 | loss=2.2810 | time=117.5s | comm=683.7MB (total=684MB)
+
+[Round   2] Broadcasting to 2 edges...
+  [Edge 0] W_n reset to global weights for new round.
+  [Edge 1] W_n reset to global weights for new round.
+  [Edge 0] G2 | E1 | Hier-pFedMe | Selected 10/10
+  [Client  9] Received edge weights.
+[C9] Test set: samples=500, class_dist={4: 500}
+  [Client  2] Received edge weights.
+[C2] Test set: samples=1000, class_dist={2: 507, 5: 493}
+  [Client  6] Received edge weights.
+[C6] Test set: samples=1000, class_dist={6: 493, 7: 507}
+  [Client  8] Received edge weights.
+[C8] Test set: samples=500, class_dist={4: 500}
+  [Client  5] Received edge weights.
+[C5] Test set: samples=1000, class_dist={2: 510, 4: 490}
+  [Client  1] Received edge weights.
+[C1] Test set: samples=1000, class_dist={3: 515, 6: 485}
+  [Client  4] Received edge weights.
+[C4] Test set: samples=1000, class_dist={2: 507, 7: 493}
+  [Client  0] Received edge weights.
+[C0] Test set: samples=1000, class_dist={3: 511, 6: 489}
+  [Client  7] Received edge weights.
+[C7] Test set: samples=1000, class_dist={3: 485, 5: 515}
+  [Client  3] Received edge weights.
+[C3] Test set: samples=1000, class_dist={5: 506, 7: 494}
+  [Client  9] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=94
+[C9] eval model[0] mean=0.000963 | edge mean=0.000963
+[C9] n=500 | classes=[4] | acc=0.0020 | per_class={4: '0.00'}
+[C9] eval model[0] mean=0.000636 | edge mean=0.000963
+[C9] n=500 | classes=[4] | acc=1.0000 | per_class={4: '1.00'}
+  [Client  9] Round 2 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.0805
+  [Client  2] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C2] eval model[0] mean=0.000963 | edge mean=0.000963
+[C2] n=1000 | classes=[2, 5] | acc=0.0110 | per_class={2: '0.00', 5: '0.02'}
+[C2] eval model[0] mean=0.001402 | edge mean=0.000963
+[C2] n=1000 | classes=[2, 5] | acc=0.5080 | per_class={2: '1.00', 5: '0.00'}
+  [Client  2] Round 2 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.7109
+  [Client  6] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C6] eval model[0] mean=0.000963 | edge mean=0.000963
+[C6] n=1000 | classes=[6, 7] | acc=0.0330 | per_class={6: '0.05', 7: '0.01'}
+[C6] eval model[0] mean=0.001002 | edge mean=0.000963
+[C6] n=1000 | classes=[6, 7] | acc=0.4990 | per_class={6: '1.00', 7: '0.01'}
+  [Client  6] Round 2 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.6134
+  [Client  8] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=94
+[C8] eval model[0] mean=0.000963 | edge mean=0.000963
+[C8] n=500 | classes=[4] | acc=0.0040 | per_class={4: '0.00'}
+[C8] eval model[0] mean=0.000823 | edge mean=0.000963
+[C8] n=500 | classes=[4] | acc=1.0000 | per_class={4: '1.00'}
+  [Client  8] Round 2 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.0464
+  [Client  5] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C5] eval model[0] mean=0.000963 | edge mean=0.000963
+[C5] n=1000 | classes=[2, 4] | acc=0.0030 | per_class={2: '0.00', 4: '0.00'}
+[C5] eval model[0] mean=0.000848 | edge mean=0.000963
+[C5] n=1000 | classes=[2, 4] | acc=0.5190 | per_class={2: '0.92', 4: '0.10'}
+  [Client  5] Round 2 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.7105
+  [Client  1] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C1] eval model[0] mean=0.000963 | edge mean=0.000963
+[C1] n=1000 | classes=[3, 6] | acc=0.0510 | per_class={3: '0.03', 6: '0.08'}
+[C1] eval model[0] mean=0.001023 | edge mean=0.000963
+[C1] n=1000 | classes=[3, 6] | acc=0.5740 | per_class={3: '0.66', 6: '0.48'}
+  [Client  1] Round 2 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.7197
+  [Client  4] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C4] eval model[0] mean=0.000963 | edge mean=0.000963
+[C4] n=1000 | classes=[2, 7] | acc=0.0120 | per_class={2: '0.00', 7: '0.02'}
+[C4] eval model[0] mean=0.000903 | edge mean=0.000963
+[C4] n=1000 | classes=[2, 7] | acc=0.4930 | per_class={2: '0.00', 7: '1.00'}
+  [Client  4] Round 2 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.8934
+  [Client  0] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C0] eval model[0] mean=0.000963 | edge mean=0.000963
+[C0] n=1000 | classes=[3, 6] | acc=0.0310 | per_class={3: '0.01', 6: '0.05'}
+[C0] eval model[0] mean=0.000953 | edge mean=0.000963
+[C0] n=1000 | classes=[3, 6] | acc=0.4890 | per_class={3: '0.00', 6: '1.00'}
+  [Client  0] Round 2 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.7884
+  [Client  7] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C7] eval model[0] mean=0.000963 | edge mean=0.000963
+[C7] n=1000 | classes=[3, 5] | acc=0.0170 | per_class={3: '0.01', 5: '0.02'}
+[C7] eval model[0] mean=0.001073 | edge mean=0.000963
+[C7] n=1000 | classes=[3, 5] | acc=0.5150 | per_class={3: '0.00', 5: '1.00'}
+  [Client  7] Round 2 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.6905
+  [Client  3] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C3] eval model[0] mean=0.000963 | edge mean=0.000963
+[C3] n=1000 | classes=[5, 7] | acc=0.0180 | per_class={5: '0.02', 7: '0.02'}
+[C3] eval model[0] mean=0.000584 | edge mean=0.000963
+[C3] n=1000 | classes=[5, 7] | acc=0.5020 | per_class={5: '0.99', 7: '0.00'}
+  [Client  3] Round 2 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.7836
+  [Edge 0] G2 | E1 | loss=0.6637
+  [Edge 0] G2 | E2 | Hier-pFedMe | Selected 10/10
+  [Client  1] Received edge weights.
+[C1] Test set: samples=1000, class_dist={3: 515, 6: 485}
+  [Client  5] Received edge weights.
+[C5] Test set: samples=1000, class_dist={2: 510, 4: 490}
+  [Client  6] Received edge weights.
+[C6] Test set: samples=1000, class_dist={6: 493, 7: 507}
+  [Client  8] Received edge weights.
+[C8] Test set: samples=500, class_dist={4: 500}
+  [Client  4] Received edge weights.
+[C4] Test set: samples=1000, class_dist={2: 507, 7: 493}
+  [Client  3] Received edge weights.
+[C3] Test set: samples=1000, class_dist={5: 506, 7: 494}
+  [Client  0] Received edge weights.
+[C0] Test set: samples=1000, class_dist={3: 511, 6: 489}
+  [Client  7] Received edge weights.
+[C7] Test set: samples=1000, class_dist={3: 485, 5: 515}
+  [Client  9] Received edge weights.
+[C9] Test set: samples=500, class_dist={4: 500}
+  [Client  2] Received edge weights.
+[C2] Test set: samples=1000, class_dist={2: 507, 5: 493}
+  [Client  1] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C1] eval model[0] mean=0.000936 | edge mean=0.000936
+[C1] n=1000 | classes=[3, 6] | acc=0.2940 | per_class={3: '0.05', 6: '0.55'}
+[C1] eval model[0] mean=0.001044 | edge mean=0.000936
+[C1] n=1000 | classes=[3, 6] | acc=0.5190 | per_class={3: '0.11', 6: '0.96'}
+  [Client  1] Round 2 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.5796
+  [Client  5] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C5] eval model[0] mean=0.000936 | edge mean=0.000936
+[C5] n=1000 | classes=[2, 4] | acc=0.1590 | per_class={2: '0.06', 4: '0.27'}
+[C5] eval model[0] mean=0.001165 | edge mean=0.000936
+[C5] n=1000 | classes=[2, 4] | acc=0.4900 | per_class={2: '0.00', 4: '1.00'}
+  [Client  5] Round 2 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.6796
+  [Client  6] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C6] eval model[0] mean=0.000936 | edge mean=0.000936
+[C6] n=1000 | classes=[6, 7] | acc=0.3060 | per_class={6: '0.53', 7: '0.08'}
+[C6] eval model[0] mean=0.000868 | edge mean=0.000936
+[C6] n=1000 | classes=[6, 7] | acc=0.4930 | per_class={6: '1.00', 7: '0.00'}
+  [Client  6] Round 2 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.5331
+  [Client  8] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=94
+[C8] eval model[0] mean=0.000936 | edge mean=0.000936
+[C8] n=500 | classes=[4] | acc=0.2440 | per_class={4: '0.24'}
+[C8] eval model[0] mean=0.000705 | edge mean=0.000936
+[C8] n=500 | classes=[4] | acc=1.0000 | per_class={4: '1.00'}
+  [Client  8] Round 2 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.0628
+  [Client  4] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C4] eval model[0] mean=0.000936 | edge mean=0.000936
+[C4] n=1000 | classes=[2, 7] | acc=0.0700 | per_class={2: '0.04', 7: '0.10'}
+[C4] eval model[0] mean=0.001050 | edge mean=0.000936
+[C4] n=1000 | classes=[2, 7] | acc=0.5010 | per_class={2: '0.89', 7: '0.10'}
+  [Client  4] Round 2 | Hier-pFedMe(λ2=35.0, K=3) | loss=1.6914
+  [Client  3] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C3] eval model[0] mean=0.000936 | edge mean=0.000936
+[C3] n=1000 | classes=[5, 7] | acc=0.1220 | per_class={5: '0.16', 7: '0.09'}
+[C3] eval model[0] mean=0.000679 | edge mean=0.000936
+[C3] n=1000 | classes=[5, 7] | acc=0.4940 | per_class={5: '0.00', 7: '1.00'}
+  [Client  3] Round 2 | Hier-pFedMe(λ2=35.0, K=3) | loss=0.7401
+  [Client  0] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=3, epochs=1, batches/epoch=188
+[C0] eval model[0] mean=0.000936 | edge mean=0.000936
+[C0] n=1000 | classes=[3, 6] | acc=0.3050 | per_class={3: '0.07', 6: '0.55'}
+[C0] eval model[0] mean=0.001260 | edge mean=0.000936

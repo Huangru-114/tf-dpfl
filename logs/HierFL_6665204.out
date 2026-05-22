@@ -1,0 +1,1865 @@
+This job can be monitored from: https://job.c3se.chalmers.se/alvis/6665204
+========================================
+Job ID      : 6665204
+Job Name    : HierFLcifar10
+Node        : alvis10-06
+Start Time  : Fri May 22 05:26:17 CEST 2026
+Working Dir : /cephyr/users/ziangg/Alvis/tf-dpfl
+========================================
+[Setup] Python: /cephyr/users/ziangg/Alvis/tf-dpfl/bin/python
+[Setup] TF version: 2.15.1
+[Setup] GPU available: [PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
+[Config] Override: wandb.enabled = True
+[Setup] Random seed: 42
+[Setup] Loading dataset...
+[Data] CIFAR-10 from Mimer: /mimer/NOBACKUP/Datasets/CIFAR
+[Setup] Building global model...
+Model: "fedavg_cnn"
+_________________________________________________________________
+ Layer (type)                Output Shape              Param #   
+=================================================================
+ input_1 (InputLayer)        [(None, 32, 32, 3)]       0         
+                                                                 
+ conv2d (Conv2D)             (None, 28, 28, 32)        2432      
+                                                                 
+ max_pooling2d (MaxPooling2  (None, 14, 14, 32)        0         
+ D)                                                              
+                                                                 
+ conv2d_1 (Conv2D)           (None, 10, 10, 64)        51264     
+                                                                 
+ max_pooling2d_1 (MaxPoolin  (None, 5, 5, 64)          0         
+ g2D)                                                            
+                                                                 
+ flatten (Flatten)           (None, 1600)              0         
+                                                                 
+ dense (Dense)               (None, 512)               819712    
+                                                                 
+ dense_1 (Dense)             (None, 10)                5130      
+                                                                 
+=================================================================
+Total params: 878538 (3.35 MB)
+Trainable params: 878538 (3.35 MB)
+Non-trainable params: 0 (0.00 Byte)
+_________________________________________________________________
+[Setup] Building clients...
+
+[Superclass-aware partition] 2 edges, 3 classes/client
+
+  Edge 0 (class pool: [2, 3, 4, 5, 6, 7]):
+  Client       Samples    Classes held                        Out-of-pool?
+  ---------------------------------------------------------------------------
+  client_0     3600       [3, 4, 7]                           OK
+  client_1     3600       [2, 4, 7]                           OK
+  client_2     3600       [2, 4, 5]                           OK
+  client_3     3600       [2, 6]                              OK
+  client_4     3600       [5, 7]                              OK
+  client_5     3600       [4, 5, 6]                           OK
+  client_6     3600       [6, 7]                              OK
+  client_7     3600       [2, 3, 6]                           OK
+  client_8     3600       [3, 5, 6]                           OK
+  client_9     3600       [3, 4]                              OK
+
+  Edge 1 (class pool: [0, 1, 8, 9]):
+  Client       Samples    Classes held                        Out-of-pool?
+  ---------------------------------------------------------------------------
+  client_10    2572       [0, 9]                              OK
+  client_11    2572       [0, 8]                              OK
+  client_12    2571       [1, 8, 9]                           OK
+  client_13    2571       [0, 1, 8]                           OK
+  client_14    2573       [1, 8, 9]                           OK
+  client_15    2571       [1, 8, 9]                           OK
+  client_16    2571       [0, 1]                              OK
+  client_17    2571       [0, 8]                              OK
+  client_18    1714       [1, 9]                              OK
+  client_19    1714       [9]                                 OK
+
+[Train/Test split] 20 clients | avg train=2250, avg test=750 samples (ratio=0.25)
+[Setup] 20 clients built (superclass_pathological) | per-client test sets injected
+[Setup] Building edge servers...
+[Assignment] Using pre-baked superclass assignments | 2 edges
+[EdgeServer 0] 10 clients | 27000 samples
+[EdgeServer 1] 10 clients | 18005 samples
+
+[Setup] Built 2 edge servers (strategy=superclass_baked)
+  Edge 0: 10 clients | 27000 samples
+  Edge 1: 10 clients | 18005 samples
+[Setup] Building per-edge test datasets (superclass-aware)...
+[CloudServer] 2 edges | model: 3.35 MB
+
+====================================================
+ HierFAVG Training Start
+====================================================
+
+[Round   1] Broadcasting to 2 edges...
+  [Edge 0] W_n reset to global weights for new round.
+  [Edge 1] W_n reset to global weights for new round.
+  [Edge 0] G1 | E1 | Hier-pFedMe | Selected 10/10
+  [Client  6] Received edge weights.
+[C6] Test set: samples=900, class_dist={6: 298, 7: 602}
+  [Client  9] Received edge weights.
+[C9] Test set: samples=900, class_dist={3: 598, 4: 302}
+  [Client  4] Received edge weights.
+[C4] Test set: samples=900, class_dist={5: 625, 7: 275}
+  [Client  5] Received edge weights.
+[C5] Test set: samples=900, class_dist={4: 293, 5: 295, 6: 312}
+  [Client  3] Received edge weights.
+[C3] Test set: samples=900, class_dist={2: 603, 6: 297}
+  [Client  8] Received edge weights.
+[C8] Test set: samples=900, class_dist={3: 272, 5: 312, 6: 316}
+  [Client  2] Received edge weights.
+[C2] Test set: samples=900, class_dist={2: 291, 4: 311, 5: 298}
+  [Client  0] Received edge weights.
+[C0] Test set: samples=900, class_dist={3: 285, 4: 311, 7: 304}
+  [Client  7] Received edge weights.
+[C7] Test set: samples=900, class_dist={2: 289, 3: 312, 6: 299}
+  [Client  1] Received edge weights.
+[C1] Test set: samples=900, class_dist={2: 292, 4: 305, 7: 303}
+  [Client  6] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  9] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  4] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  5] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+
+
+
+  [Client  5] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.9021
+  [Client  3] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  4] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5740
+  [Client  8] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  9] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5857
+  [Client  2] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  6] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4934
+  [Client  0] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  3] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5699
+  [Client  7] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  2] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.9436
+  [Client  1] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  0] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.9247  [Client  8] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.9154
+
+  [Client  7] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.9458
+  [Client  1] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.9694
+  [Edge 0] G1 | E1 | loss=0.7824
+  [Edge 0] G1 | E2 | Hier-pFedMe | Selected 10/10
+  [Client  4] Received edge weights.
+[C4] Test set: samples=900, class_dist={5: 625, 7: 275}
+  [Client  0] Received edge weights.
+[C0] Test set: samples=900, class_dist={3: 285, 4: 311, 7: 304}
+  [Client  1] Received edge weights.
+[C1] Test set: samples=900, class_dist={2: 292, 4: 305, 7: 303}
+  [Client  7] Received edge weights.
+[C7] Test set: samples=900, class_dist={2: 289, 3: 312, 6: 299}
+  [Client  6] Received edge weights.
+[C6] Test set: samples=900, class_dist={6: 298, 7: 602}
+  [Client  9] Received edge weights.
+[C9] Test set: samples=900, class_dist={3: 598, 4: 302}
+  [Client  8] Received edge weights.
+[C8] Test set: samples=900, class_dist={3: 272, 5: 312, 6: 316}
+  [Client  2] Received edge weights.
+[C2] Test set: samples=900, class_dist={2: 291, 4: 311, 5: 298}
+  [Client  5] Received edge weights.
+[C5] Test set: samples=900, class_dist={4: 293, 5: 295, 6: 312}
+  [Client  3] Received edge weights.
+[C3] Test set: samples=900, class_dist={2: 603, 6: 297}
+  [Client  0] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  1] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  7] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  4] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+
+
+
+  [Client  0] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.7876
+  [Client  6] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  1] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.8449
+  [Client  9] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  7] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.8254
+  [Client  4] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4980  [Client  8] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+
+  [Client  2] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  6] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3950
+  [Client  9] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4885
+  [Client  5] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  3] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  8] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.8128
+
+  [Client  2] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.8331
+  [Client  3] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4843
+  [Client  5] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.7740
+  [Edge 0] G1 | E2 | loss=0.6744
+  [Edge 0] G1 | E3 | Hier-pFedMe | Selected 10/10
+  [Client  8] Received edge weights.
+[C8] Test set: samples=900, class_dist={3: 272, 5: 312, 6: 316}
+  [Client  7] Received edge weights.
+[C7] Test set: samples=900, class_dist={2: 289, 3: 312, 6: 299}
+  [Client  6] Received edge weights.
+[C6] Test set: samples=900, class_dist={6: 298, 7: 602}
+  [Client  2] Received edge weights.
+[C2] Test set: samples=900, class_dist={2: 291, 4: 311, 5: 298}
+  [Client  1] Received edge weights.
+[C1] Test set: samples=900, class_dist={2: 292, 4: 305, 7: 303}
+  [Client  3] Received edge weights.
+[C3] Test set: samples=900, class_dist={2: 603, 6: 297}
+  [Client  9] Received edge weights.
+[C9] Test set: samples=900, class_dist={3: 598, 4: 302}
+  [Client  0] Received edge weights.
+[C0] Test set: samples=900, class_dist={3: 285, 4: 311, 7: 304}
+  [Client  5] Received edge weights.
+[C5] Test set: samples=900, class_dist={4: 293, 5: 295, 6: 312}
+  [Client  4] Received edge weights.
+[C4] Test set: samples=900, class_dist={5: 625, 7: 275}
+  [Client  7] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  6] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  8] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  2] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+
+
+
+  [Client  6] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3419  [Client  7] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.7498
+
+  [Client  1] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  3] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+
+  [Client  8] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.7446
+  [Client  9] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  2] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.7540
+  [Client  0] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  3] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4357
+  [Client  5] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  1] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.7661
+
+  [Client  4] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  9] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4252
+
+  [Client  0] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.7066
+  [Client  5] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6886
+  [Client  4] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4382
+  [Edge 0] G1 | E3 | loss=0.6051
+  [Edge 0] G1 | E4 | Hier-pFedMe | Selected 10/10
+  [Client  1] Received edge weights.
+[C1] Test set: samples=900, class_dist={2: 292, 4: 305, 7: 303}
+  [Client  7] Received edge weights.
+[C7] Test set: samples=900, class_dist={2: 289, 3: 312, 6: 299}
+  [Client  9] Received edge weights.
+[C9] Test set: samples=900, class_dist={3: 598, 4: 302}
+  [Client  6] Received edge weights.
+[C6] Test set: samples=900, class_dist={6: 298, 7: 602}
+  [Client  4] Received edge weights.
+[C4] Test set: samples=900, class_dist={5: 625, 7: 275}
+  [Client  3] Received edge weights.
+[C3] Test set: samples=900, class_dist={2: 603, 6: 297}
+  [Client  0] Received edge weights.
+[C0] Test set: samples=900, class_dist={3: 285, 4: 311, 7: 304}
+  [Client  5] Received edge weights.
+[C5] Test set: samples=900, class_dist={4: 293, 5: 295, 6: 312}
+  [Client  2] Received edge weights.
+[C2] Test set: samples=900, class_dist={2: 291, 4: 311, 5: 298}
+  [Client  8] Received edge weights.
+[C8] Test set: samples=900, class_dist={3: 272, 5: 312, 6: 316}
+  [Client  1] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  7] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  9] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  6] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+
+
+  [Client  1] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.7005  [Client  7] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6844
+
+  [Client  4] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  6] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2921  [Client  3] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+
+
+  [Client  0] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  9] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3802
+  [Client  5] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  3] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3975
+  [Client  4] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4083  [Client  0] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6247  [Client  5] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6204
+  [Client  2] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  8] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+
+
+  [Client  8] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6856
+  [Client  2] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6957
+  [Edge 0] G1 | E4 | loss=0.5489
+  [Edge 0] G1 | E5 | Hier-pFedMe | Selected 10/10
+  [Client  7] Received edge weights.
+[C7] Test set: samples=900, class_dist={2: 289, 3: 312, 6: 299}
+  [Client  9] Received edge weights.
+[C9] Test set: samples=900, class_dist={3: 598, 4: 302}
+  [Client  5] Received edge weights.
+[C5] Test set: samples=900, class_dist={4: 293, 5: 295, 6: 312}
+  [Client  6] Received edge weights.
+[C6] Test set: samples=900, class_dist={6: 298, 7: 602}
+  [Client  3] Received edge weights.
+[C3] Test set: samples=900, class_dist={2: 603, 6: 297}
+  [Client  8] Received edge weights.
+[C8] Test set: samples=900, class_dist={3: 272, 5: 312, 6: 316}
+  [Client  0] Received edge weights.
+[C0] Test set: samples=900, class_dist={3: 285, 4: 311, 7: 304}
+  [Client  1] Received edge weights.
+[C1] Test set: samples=900, class_dist={2: 292, 4: 305, 7: 303}
+  [Client  2] Received edge weights.
+[C2] Test set: samples=900, class_dist={2: 291, 4: 311, 5: 298}
+  [Client  4] Received edge weights.
+[C4] Test set: samples=900, class_dist={5: 625, 7: 275}
+  [Client  9] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  5] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  7] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  6] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  6] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2667
+  [Client  3] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  5] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5655
+  [Client  8] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  7] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6271
+  [Client  0] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  9] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3456
+  [Client  1] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  3] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3662
+  [Client  2] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  1] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6350
+  [Client  4] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  0] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5727
+  [Client  8] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6267
+  [Client  2] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6291
+  [Client  4] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3701
+  [Edge 0] G1 | E5 | loss=0.5005
+  [Edge 1] G1 | E1 | Hier-pFedMe | Selected 10/10
+  [Client 12] Received edge weights.
+[C12] Test set: samples=642, class_dist={1: 179, 8: 225, 9: 238}
+  [Client 13] Received edge weights.
+[C13] Test set: samples=642, class_dist={0: 201, 1: 216, 8: 225}
+  [Client 10] Received edge weights.
+[C10] Test set: samples=643, class_dist={0: 425, 9: 218}
+  [Client 18] Received edge weights.
+[C18] Test set: samples=428, class_dist={1: 227, 9: 201}
+  [Client 17] Received edge weights.
+[C17] Test set: samples=642, class_dist={0: 219, 8: 423}
+  [Client 14] Received edge weights.
+[C14] Test set: samples=643, class_dist={1: 208, 8: 214, 9: 221}
+  [Client 11] Received edge weights.
+[C11] Test set: samples=643, class_dist={0: 425, 8: 218}
+  [Client 16] Received edge weights.
+[C16] Test set: samples=642, class_dist={0: 202, 1: 440}
+  [Client 19] Received edge weights.
+[C19] Test set: samples=428, class_dist={9: 428}
+  [Client 15] Received edge weights.
+[C15] Test set: samples=642, class_dist={1: 211, 8: 212, 9: 219}
+  [Client 13] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 12] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+
+  [Client 10] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 18] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81
+  [Client 18] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.7043
+  [Client 17] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 13] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.9290
+  [Client 14] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 12] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.9342
+  [Client 11] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 10] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5419
+  [Client 16] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 17] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6051
+  [Client 19] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81
+  [Client 14] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.9434
+  [Client 15] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 11] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6210
+  [Client 16] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5241
+  [Client 19] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0178
+  [Client 15] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.9064
+  [Edge 1] G1 | E1 | loss=0.6950
+  [Edge 1] G1 | E2 | Hier-pFedMe | Selected 10/10
+  [Client 12] Received edge weights.
+[C12] Test set: samples=642, class_dist={1: 179, 8: 225, 9: 238}
+  [Client 15] Received edge weights.
+[C15] Test set: samples=642, class_dist={1: 211, 8: 212, 9: 219}
+  [Client 11] Received edge weights.
+[C11] Test set: samples=643, class_dist={0: 425, 8: 218}
+  [Client 14] Received edge weights.
+[C14] Test set: samples=643, class_dist={1: 208, 8: 214, 9: 221}
+  [Client 19] Received edge weights.
+[C19] Test set: samples=428, class_dist={9: 428}
+  [Client 17] Received edge weights.
+[C17] Test set: samples=642, class_dist={0: 219, 8: 423}
+  [Client 13] Received edge weights.
+[C13] Test set: samples=642, class_dist={0: 201, 1: 216, 8: 225}
+  [Client 10] Received edge weights.
+[C10] Test set: samples=643, class_dist={0: 425, 9: 218}
+  [Client 16] Received edge weights.
+[C16] Test set: samples=642, class_dist={0: 202, 1: 440}
+  [Client 18] Received edge weights.
+[C18] Test set: samples=428, class_dist={1: 227, 9: 201}
+  [Client 15] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 14] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 11] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 12] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+
+
+  [Client 11] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5472
+  [Client 19] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81
+  [Client 15] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.7921
+  [Client 17] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 12] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.8065
+  [Client 13] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 14] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.8130
+  [Client 10] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 19] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0102
+  [Client 16] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 17] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5287
+  [Client 18] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81
+  [Client 13] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.7964
+  [Client 10] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4502
+  [Client 18] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6188
+  [Client 16] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4394
+  [Edge 1] G1 | E2 | loss=0.5992
+  [Edge 1] G1 | E3 | Hier-pFedMe | Selected 10/10
+  [Client 15] Received edge weights.
+[C15] Test set: samples=642, class_dist={1: 211, 8: 212, 9: 219}
+  [Client 17] Received edge weights.
+[C17] Test set: samples=642, class_dist={0: 219, 8: 423}
+  [Client 18] Received edge weights.
+[C18] Test set: samples=428, class_dist={1: 227, 9: 201}
+  [Client 12] Received edge weights.
+[C12] Test set: samples=642, class_dist={1: 179, 8: 225, 9: 238}
+  [Client 19] Received edge weights.
+[C19] Test set: samples=428, class_dist={9: 428}
+  [Client 10] Received edge weights.
+[C10] Test set: samples=643, class_dist={0: 425, 9: 218}
+  [Client 16] Received edge weights.
+[C16] Test set: samples=642, class_dist={0: 202, 1: 440}
+  [Client 11] Received edge weights.
+[C11] Test set: samples=643, class_dist={0: 425, 8: 218}
+  [Client 14] Received edge weights.
+[C14] Test set: samples=643, class_dist={1: 208, 8: 214, 9: 221}
+  [Client 13] Received edge weights.
+[C13] Test set: samples=642, class_dist={0: 201, 1: 216, 8: 225}
+  [Client 17] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 18] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81  [Client 15] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 12] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+
+
+
+  [Client 18] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5569
+  [Client 19] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81
+  [Client 17] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4802
+  [Client 10] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 12] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.7150
+  [Client 16] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 15] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.7091
+  [Client 11] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 19] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0100
+  [Client 14] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 16] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3879
+  [Client 13] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 10] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4060
+  [Client 11] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5041
+  [Client 14] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.7230
+  [Client 13] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.7050
+  [Edge 1] G1 | E3 | loss=0.5366
+  [Edge 1] G1 | E4 | Hier-pFedMe | Selected 10/10
+  [Client 12] Received edge weights.
+[C12] Test set: samples=642, class_dist={1: 179, 8: 225, 9: 238}
+  [Client 17] Received edge weights.
+[C17] Test set: samples=642, class_dist={0: 219, 8: 423}
+  [Client 14] Received edge weights.
+[C14] Test set: samples=643, class_dist={1: 208, 8: 214, 9: 221}
+  [Client 13] Received edge weights.
+[C13] Test set: samples=642, class_dist={0: 201, 1: 216, 8: 225}
+  [Client 10] Received edge weights.
+[C10] Test set: samples=643, class_dist={0: 425, 9: 218}
+  [Client 15] Received edge weights.
+[C15] Test set: samples=642, class_dist={1: 211, 8: 212, 9: 219}
+  [Client 18] Received edge weights.
+[C18] Test set: samples=428, class_dist={1: 227, 9: 201}
+  [Client 11] Received edge weights.
+[C11] Test set: samples=643, class_dist={0: 425, 8: 218}
+  [Client 16] Received edge weights.
+[C16] Test set: samples=642, class_dist={0: 202, 1: 440}
+  [Client 19] Received edge weights.
+[C19] Test set: samples=428, class_dist={9: 428}
+  [Client 12] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 17] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 13] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 14] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+
+
+
+  [Client 14] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6545
+  [Client 10] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 17] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4378
+  [Client 15] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 12] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6476  [Client 13] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6426
+
+  [Client 18] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81
+  [Client 11] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 18] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5079
+  [Client 16] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 10] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3581
+  [Client 19] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81
+  [Client 15] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6300
+  [Client 11] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4534
+  [Client 19] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0092
+  [Client 16] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3484
+  [Edge 1] G1 | E4 | loss=0.4840
+  [Edge 1] G1 | E5 | Hier-pFedMe | Selected 10/10
+  [Client 12] Received edge weights.
+[C12] Test set: samples=642, class_dist={1: 179, 8: 225, 9: 238}
+  [Client 13] Received edge weights.
+[C13] Test set: samples=642, class_dist={0: 201, 1: 216, 8: 225}
+  [Client 17] Received edge weights.
+[C17] Test set: samples=642, class_dist={0: 219, 8: 423}
+  [Client 10] Received edge weights.
+[C10] Test set: samples=643, class_dist={0: 425, 9: 218}
+  [Client 15] Received edge weights.
+[C15] Test set: samples=642, class_dist={1: 211, 8: 212, 9: 219}
+  [Client 19] Received edge weights.
+[C19] Test set: samples=428, class_dist={9: 428}
+  [Client 11] Received edge weights.
+[C11] Test set: samples=643, class_dist={0: 425, 8: 218}
+  [Client 18] Received edge weights.
+[C18] Test set: samples=428, class_dist={1: 227, 9: 201}
+  [Client 14] Received edge weights.
+[C14] Test set: samples=643, class_dist={1: 208, 8: 214, 9: 221}
+  [Client 16] Received edge weights.
+[C16] Test set: samples=642, class_dist={0: 202, 1: 440}
+  [Client 12] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 13] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 17] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 10] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+
+
+
+  [Client 12] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5702  [Client 10] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3257
+  [Client 13] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5629  [Client 17] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3947
+  [Client 15] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+
+
+  [Client 19] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81  [Client 11] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 18] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81
+
+
+  [Client 18] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4723
+  [Client 14] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 19] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0079
+  [Client 16] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 11] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4189
+  [Client 15] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5659
+  [Client 14] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5922
+  [Client 16] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3167
+  [Edge 1] G1 | E5 | loss=0.4358
+[C0] n=900 | classes=[3, 4, 7] | acc=0.6233 | per_class={3: '0.86', 4: '0.39', 7: '0.64'}
+[C1] n=900 | classes=[2, 4, 7] | acc=0.5467 | per_class={2: '0.49', 4: '0.36', 7: '0.78'}
+[C2] n=900 | classes=[2, 4, 5] | acc=0.4422 | per_class={2: '0.09', 4: '0.97', 5: '0.23'}
+[C3] n=900 | classes=[2, 6] | acc=0.7878 | per_class={2: '0.86', 6: '0.63'}
+[C4] n=900 | classes=[5, 7] | acc=0.7644 | per_class={5: '0.76', 7: '0.79'}
+[C5] n=900 | classes=[4, 5, 6] | acc=0.6422 | per_class={4: '0.39', 5: '0.72', 6: '0.80'}
+[C6] n=900 | classes=[6, 7] | acc=0.8289 | per_class={6: '0.55', 7: '0.97'}
+[C7] n=900 | classes=[2, 3, 6] | acc=0.5511 | per_class={2: '0.41', 3: '0.89', 6: '0.33'}
+[C8] n=900 | classes=[3, 5, 6] | acc=0.5956 | per_class={3: '0.41', 5: '0.67', 6: '0.68'}
+[C9] n=900 | classes=[3, 4] | acc=0.8078 | per_class={3: '0.86', 4: '0.70'}
+[C10] n=643 | classes=[0, 9] | acc=0.7714 | per_class={0: '0.68', 9: '0.94'}
+[C11] n=643 | classes=[0, 8] | acc=0.7247 | per_class={0: '0.74', 8: '0.69'}
+[C12] n=642 | classes=[1, 8, 9] | acc=0.4720 | per_class={1: '0.99', 8: '0.50', 9: '0.05'}
+[C13] n=642 | classes=[0, 1, 8] | acc=0.6355 | per_class={0: '0.26', 1: '0.68', 8: '0.92'}
+[C14] n=643 | classes=[1, 8, 9] | acc=0.5568 | per_class={1: '0.46', 8: '0.95', 9: '0.26'}
+[C15] n=642 | classes=[1, 8, 9] | acc=0.5623 | per_class={1: '0.14', 8: '0.83', 9: '0.71'}
+[C16] n=642 | classes=[0, 1] | acc=0.8240 | per_class={0: '0.45', 1: '1.00'}
+[C17] n=642 | classes=[0, 8] | acc=0.7461 | per_class={0: '0.37', 8: '0.94'}
+[C18] n=428 | classes=[1, 9] | acc=0.6589 | per_class={1: '0.92', 9: '0.36'}
+[C19] n=428 | classes=[9] | acc=1.0000 | per_class={9: '1.00'}
+  [Cloud] GM=0.2365 | EM=0.4889 PM=0.6696 | loss=2.1185 | time=119.1s | comm=683.7MB (total=684MB)
+
+[Round   2] Broadcasting to 2 edges...
+  [Edge 0] W_n reset to global weights for new round.
+  [Edge 1] W_n reset to global weights for new round.
+  [Edge 0] G2 | E1 | Hier-pFedMe | Selected 10/10
+  [Client  2] Received edge weights.
+[C2] Test set: samples=900, class_dist={2: 291, 4: 311, 5: 298}
+  [Client  5] Received edge weights.
+[C5] Test set: samples=900, class_dist={4: 293, 5: 295, 6: 312}
+  [Client  1] Received edge weights.
+[C1] Test set: samples=900, class_dist={2: 292, 4: 305, 7: 303}
+  [Client  0] Received edge weights.
+[C0] Test set: samples=900, class_dist={3: 285, 4: 311, 7: 304}
+  [Client  8] Received edge weights.
+[C8] Test set: samples=900, class_dist={3: 272, 5: 312, 6: 316}
+  [Client  4] Received edge weights.
+[C4] Test set: samples=900, class_dist={5: 625, 7: 275}
+  [Client  6] Received edge weights.
+[C6] Test set: samples=900, class_dist={6: 298, 7: 602}
+  [Client  9] Received edge weights.
+[C9] Test set: samples=900, class_dist={3: 598, 4: 302}
+  [Client  3] Received edge weights.
+[C3] Test set: samples=900, class_dist={2: 603, 6: 297}
+  [Client  7] Received edge weights.
+[C7] Test set: samples=900, class_dist={2: 289, 3: 312, 6: 299}
+  [Client  2] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  5] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+
+  [Client  0] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  1] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  2] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6766
+  [Client  8] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  0] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6300
+  [Client  4] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  1] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6813
+  [Client  6] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  5] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6122
+  [Client  9] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  8] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6844
+  [Client  3] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  6] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3147
+  [Client  7] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  4] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3986
+  [Client  9] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3839
+  [Client  3] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4002
+  [Client  7] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6682
+  [Edge 0] G2 | E1 | loss=0.5450
+  [Edge 0] G2 | E2 | Hier-pFedMe | Selected 10/10
+  [Client  8] Received edge weights.
+[C8] Test set: samples=900, class_dist={3: 272, 5: 312, 6: 316}
+  [Client  2] Received edge weights.
+[C2] Test set: samples=900, class_dist={2: 291, 4: 311, 5: 298}
+  [Client  7] Received edge weights.
+[C7] Test set: samples=900, class_dist={2: 289, 3: 312, 6: 299}
+  [Client  1] Received edge weights.
+[C1] Test set: samples=900, class_dist={2: 292, 4: 305, 7: 303}
+  [Client  6] Received edge weights.
+[C6] Test set: samples=900, class_dist={6: 298, 7: 602}
+  [Client  9] Received edge weights.
+[C9] Test set: samples=900, class_dist={3: 598, 4: 302}
+  [Client  3] Received edge weights.
+[C3] Test set: samples=900, class_dist={2: 603, 6: 297}
+  [Client  0] Received edge weights.
+[C0] Test set: samples=900, class_dist={3: 285, 4: 311, 7: 304}
+  [Client  5] Received edge weights.
+[C5] Test set: samples=900, class_dist={4: 293, 5: 295, 6: 312}
+  [Client  4] Received edge weights.
+[C4] Test set: samples=900, class_dist={5: 625, 7: 275}
+  [Client  8] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  2] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  7] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  1] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+
+
+
+  [Client  1] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6011
+  [Client  6] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  2] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5917
+  [Client  9] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  8] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5934
+  [Client  3] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  7] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5827
+  [Client  0] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  6] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2569
+  [Client  5] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  9] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3254
+  [Client  4] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  3] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3443
+  [Client  0] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5414
+  [Client  5] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5251
+  [Client  4] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3370
+  [Edge 0] G2 | E2 | loss=0.4699
+  [Edge 0] G2 | E3 | Hier-pFedMe | Selected 10/10
+  [Client  8] Received edge weights.
+[C8] Test set: samples=900, class_dist={3: 272, 5: 312, 6: 316}
+  [Client  0] Received edge weights.
+[C0] Test set: samples=900, class_dist={3: 285, 4: 311, 7: 304}
+  [Client  1] Received edge weights.
+[C1] Test set: samples=900, class_dist={2: 292, 4: 305, 7: 303}
+  [Client  4] Received edge weights.
+[C4] Test set: samples=900, class_dist={5: 625, 7: 275}
+  [Client  5] Received edge weights.
+[C5] Test set: samples=900, class_dist={4: 293, 5: 295, 6: 312}
+  [Client  6] Received edge weights.
+[C6] Test set: samples=900, class_dist={6: 298, 7: 602}
+  [Client  9] Received edge weights.
+[C9] Test set: samples=900, class_dist={3: 598, 4: 302}
+  [Client  2] Received edge weights.
+[C2] Test set: samples=900, class_dist={2: 291, 4: 311, 5: 298}
+  [Client  7] Received edge weights.
+[C7] Test set: samples=900, class_dist={2: 289, 3: 312, 6: 299}
+  [Client  3] Received edge weights.
+[C3] Test set: samples=900, class_dist={2: 603, 6: 297}
+  [Client  0] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  8] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  1] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  4] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+
+
+
+  [Client  4] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3041  [Client  8] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5334
+  [Client  0] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4833
+
+  [Client  5] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  6] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  9] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+
+  [Client  1] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5387
+  [Client  2] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  2] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5251
+  [Client  9] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2912  [Client  7] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+
+  [Client  3] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  6] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2129
+  [Client  5] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4705
+  [Client  7] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5305
+  [Client  3] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3060
+  [Edge 0] G2 | E3 | loss=0.4196
+  [Edge 0] G2 | E4 | Hier-pFedMe | Selected 10/10
+  [Client  9] Received edge weights.
+[C9] Test set: samples=900, class_dist={3: 598, 4: 302}
+  [Client  7] Received edge weights.
+[C7] Test set: samples=900, class_dist={2: 289, 3: 312, 6: 299}
+  [Client  5] Received edge weights.
+[C5] Test set: samples=900, class_dist={4: 293, 5: 295, 6: 312}
+  [Client  1] Received edge weights.
+[C1] Test set: samples=900, class_dist={2: 292, 4: 305, 7: 303}
+  [Client  3] Received edge weights.
+[C3] Test set: samples=900, class_dist={2: 603, 6: 297}
+  [Client  2] Received edge weights.
+[C2] Test set: samples=900, class_dist={2: 291, 4: 311, 5: 298}
+  [Client  8] Received edge weights.
+[C8] Test set: samples=900, class_dist={3: 272, 5: 312, 6: 316}
+  [Client  6] Received edge weights.
+[C6] Test set: samples=900, class_dist={6: 298, 7: 602}
+  [Client  0] Received edge weights.
+[C0] Test set: samples=900, class_dist={3: 285, 4: 311, 7: 304}
+  [Client  4] Received edge weights.
+[C4] Test set: samples=900, class_dist={5: 625, 7: 275}
+  [Client  7] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  9] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  5] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  1] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+
+
+
+  [Client  7] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4577
+  [Client  9] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2478
+  [Client  3] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  2] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  5] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4041  [Client  1] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4716
+
+  [Client  8] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  6] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  2] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4723
+  [Client  0] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  3] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2701
+  [Client  4] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  6] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1913
+  [Client  8] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4754
+  [Client  0] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4168
+  [Client  4] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2744
+  [Edge 0] G2 | E4 | loss=0.3681
+  [Edge 0] G2 | E5 | Hier-pFedMe | Selected 10/10
+  [Client  4] Received edge weights.
+[C4] Test set: samples=900, class_dist={5: 625, 7: 275}
+  [Client  6] Received edge weights.
+[C6] Test set: samples=900, class_dist={6: 298, 7: 602}
+  [Client  0] Received edge weights.
+[C0] Test set: samples=900, class_dist={3: 285, 4: 311, 7: 304}
+  [Client  2] Received edge weights.
+[C2] Test set: samples=900, class_dist={2: 291, 4: 311, 5: 298}
+  [Client  1] Received edge weights.
+[C1] Test set: samples=900, class_dist={2: 292, 4: 305, 7: 303}
+  [Client  7] Received edge weights.
+[C7] Test set: samples=900, class_dist={2: 289, 3: 312, 6: 299}
+  [Client  5] Received edge weights.
+[C5] Test set: samples=900, class_dist={4: 293, 5: 295, 6: 312}
+  [Client  9] Received edge weights.
+[C9] Test set: samples=900, class_dist={3: 598, 4: 302}
+  [Client  3] Received edge weights.
+[C3] Test set: samples=900, class_dist={2: 603, 6: 297}
+  [Client  8] Received edge weights.
+[C8] Test set: samples=900, class_dist={3: 272, 5: 312, 6: 316}
+  [Client  4] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  6] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  0] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  2] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+
+
+
+  [Client  2] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4218
+  [Client  1] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  4] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2404
+  [Client  7] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  6] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1536
+
+  [Client  5] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  0] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3644
+  [Client  9] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  1] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4195
+  [Client  3] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  7] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4134
+  [Client  8] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  5] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3581
+  [Client  9] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2244
+  [Client  3] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2393
+  [Client  8] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4361
+  [Edge 0] G2 | E5 | loss=0.3271
+  [Edge 1] G2 | E1 | Hier-pFedMe | Selected 10/10
+  [Client 18] Received edge weights.
+[C18] Test set: samples=428, class_dist={1: 227, 9: 201}
+  [Client 12] Received edge weights.
+[C12] Test set: samples=642, class_dist={1: 179, 8: 225, 9: 238}
+  [Client 14] Received edge weights.
+[C14] Test set: samples=643, class_dist={1: 208, 8: 214, 9: 221}
+  [Client 15] Received edge weights.
+[C15] Test set: samples=642, class_dist={1: 211, 8: 212, 9: 219}
+  [Client 11] Received edge weights.
+[C11] Test set: samples=643, class_dist={0: 425, 8: 218}
+  [Client 16] Received edge weights.
+[C16] Test set: samples=642, class_dist={0: 202, 1: 440}
+  [Client 19] Received edge weights.
+[C19] Test set: samples=428, class_dist={9: 428}
+  [Client 17] Received edge weights.
+[C17] Test set: samples=642, class_dist={0: 219, 8: 423}
+  [Client 10] Received edge weights.
+[C10] Test set: samples=643, class_dist={0: 425, 9: 218}
+  [Client 13] Received edge weights.
+[C13] Test set: samples=642, class_dist={0: 201, 1: 216, 8: 225}
+  [Client 18] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81  [Client 12] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 14] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 15] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+
+
+  [Client 18] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5159
+  [Client 11] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 15] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6132
+  [Client 16] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 14] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6509
+  [Client 19] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81
+  [Client 12] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6340
+  [Client 17] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 19] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0106
+  [Client 10] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 11] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4389
+  [Client 13] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 16] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3426
+  [Client 17] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4320
+  [Client 10] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3457
+  [Client 13] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6146
+  [Edge 1] G2 | E1 | loss=0.4739
+  [Edge 1] G2 | E2 | Hier-pFedMe | Selected 10/10
+  [Client 17] Received edge weights.
+[C17] Test set: samples=642, class_dist={0: 219, 8: 423}
+  [Client 16] Received edge weights.
+[C16] Test set: samples=642, class_dist={0: 202, 1: 440}
+  [Client 11] Received edge weights.
+[C11] Test set: samples=643, class_dist={0: 425, 8: 218}
+  [Client 13] Received edge weights.
+[C13] Test set: samples=642, class_dist={0: 201, 1: 216, 8: 225}
+  [Client 18] Received edge weights.
+[C18] Test set: samples=428, class_dist={1: 227, 9: 201}
+  [Client 10] Received edge weights.
+[C10] Test set: samples=643, class_dist={0: 425, 9: 218}
+  [Client 19] Received edge weights.
+[C19] Test set: samples=428, class_dist={9: 428}
+  [Client 14] Received edge weights.
+[C14] Test set: samples=643, class_dist={1: 208, 8: 214, 9: 221}
+  [Client 15] Received edge weights.
+[C15] Test set: samples=642, class_dist={1: 211, 8: 212, 9: 219}
+  [Client 12] Received edge weights.
+[C12] Test set: samples=642, class_dist={1: 179, 8: 225, 9: 238}
+  [Client 17] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 16] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 11] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 13] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+
+  [Client 17] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3727
+  [Client 18] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81
+  [Client 13] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5188
+  [Client 16] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2858  [Client 10] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+
+  [Client 19] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81
+  [Client 11] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3807
+  [Client 14] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 18] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4437
+  [Client 15] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 19] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0069
+  [Client 12] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 10] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2905
+  [Client 14] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5396
+  [Client 15] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5190
+  [Client 12] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5398
+  [Edge 1] G2 | E2 | loss=0.4015
+  [Edge 1] G2 | E3 | Hier-pFedMe | Selected 10/10
+  [Client 19] Received edge weights.
+[C19] Test set: samples=428, class_dist={9: 428}
+  [Client 14] Received edge weights.
+[C14] Test set: samples=643, class_dist={1: 208, 8: 214, 9: 221}
+  [Client 11] Received edge weights.
+[C11] Test set: samples=643, class_dist={0: 425, 8: 218}
+  [Client 18] Received edge weights.
+[C18] Test set: samples=428, class_dist={1: 227, 9: 201}
+  [Client 10] Received edge weights.
+[C10] Test set: samples=643, class_dist={0: 425, 9: 218}
+  [Client 12] Received edge weights.
+[C12] Test set: samples=642, class_dist={1: 179, 8: 225, 9: 238}
+  [Client 15] Received edge weights.
+[C15] Test set: samples=642, class_dist={1: 211, 8: 212, 9: 219}
+  [Client 16] Received edge weights.
+[C16] Test set: samples=642, class_dist={0: 202, 1: 440}
+  [Client 13] Received edge weights.
+[C13] Test set: samples=642, class_dist={0: 201, 1: 216, 8: 225}
+  [Client 17] Received edge weights.
+[C17] Test set: samples=642, class_dist={0: 219, 8: 423}
+  [Client 19] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81  [Client 14] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 11] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 18] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81
+
+
+
+  [Client 19] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0075
+  [Client 18] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3956  [Client 10] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+
+  [Client 12] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 11] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3544
+  [Client 15] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 14] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4739
+  [Client 16] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 10] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2494
+  [Client 13] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 12] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4720
+
+  [Client 17] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 15] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4687
+  [Client 16] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2504
+  [Client 13] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4666
+  [Client 17] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3369
+  [Edge 1] G2 | E3 | loss=0.3580
+  [Edge 1] G2 | E4 | Hier-pFedMe | Selected 10/10
+  [Client 19] Received edge weights.
+[C19] Test set: samples=428, class_dist={9: 428}
+  [Client 11] Received edge weights.
+[C11] Test set: samples=643, class_dist={0: 425, 8: 218}
+  [Client 14] Received edge weights.
+[C14] Test set: samples=643, class_dist={1: 208, 8: 214, 9: 221}
+  [Client 18] Received edge weights.
+[C18] Test set: samples=428, class_dist={1: 227, 9: 201}
+  [Client 17] Received edge weights.
+[C17] Test set: samples=642, class_dist={0: 219, 8: 423}
+  [Client 12] Received edge weights.
+[C12] Test set: samples=642, class_dist={1: 179, 8: 225, 9: 238}
+  [Client 10] Received edge weights.
+[C10] Test set: samples=643, class_dist={0: 425, 9: 218}
+  [Client 15] Received edge weights.
+[C15] Test set: samples=642, class_dist={1: 211, 8: 212, 9: 219}
+  [Client 16] Received edge weights.
+[C16] Test set: samples=642, class_dist={0: 202, 1: 440}
+  [Client 13] Received edge weights.
+[C13] Test set: samples=642, class_dist={0: 201, 1: 216, 8: 225}
+  [Client 19] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81  [Client 11] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 14] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 18] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81
+
+
+
+  [Client 19] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0065
+  [Client 17] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 18] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3474
+  [Client 12] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 11] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3108
+  [Client 10] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 14] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4191
+
+  [Client 15] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 17] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2992
+  [Client 16] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 12] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4112
+  [Client 13] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 10] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2156  [Client 15] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4087
+
+  [Client 16] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2269
+  [Client 13] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4110
+  [Edge 1] G2 | E4 | loss=0.3148
+  [Edge 1] G2 | E5 | Hier-pFedMe | Selected 10/10
+  [Client 15] Received edge weights.
+[C15] Test set: samples=642, class_dist={1: 211, 8: 212, 9: 219}
+  [Client 14] Received edge weights.
+[C14] Test set: samples=643, class_dist={1: 208, 8: 214, 9: 221}
+  [Client 11] Received edge weights.
+[C11] Test set: samples=643, class_dist={0: 425, 8: 218}
+  [Client 13] Received edge weights.
+[C13] Test set: samples=642, class_dist={0: 201, 1: 216, 8: 225}
+  [Client 16] Received edge weights.
+[C16] Test set: samples=642, class_dist={0: 202, 1: 440}
+  [Client 19] Received edge weights.
+[C19] Test set: samples=428, class_dist={9: 428}
+  [Client 12] Received edge weights.
+[C12] Test set: samples=642, class_dist={1: 179, 8: 225, 9: 238}
+  [Client 17] Received edge weights.
+[C17] Test set: samples=642, class_dist={0: 219, 8: 423}
+  [Client 18] Received edge weights.
+[C18] Test set: samples=428, class_dist={1: 227, 9: 201}
+  [Client 10] Received edge weights.
+[C10] Test set: samples=643, class_dist={0: 425, 9: 218}
+  [Client 15] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 14] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 11] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 13] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+
+
+  [Client 15] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3587
+  [Client 16] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 11] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2733
+
+  [Client 13] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3403  [Client 14] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3664  [Client 19] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81
+
+
+  [Client 12] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 17] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+
+  [Client 19] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0057
+  [Client 18] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81
+  [Client 16] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1836
+  [Client 10] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 12] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3800
+  [Client 17] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2742
+  [Client 18] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3130
+  [Client 10] Round 2 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1858
+  [Edge 1] G2 | E5 | loss=0.2759
+[C0] n=900 | classes=[3, 4, 7] | acc=0.6522 | per_class={3: '0.58', 4: '0.74', 7: '0.62'}
+[C1] n=900 | classes=[2, 4, 7] | acc=0.4900 | per_class={2: '0.30', 4: '0.83', 7: '0.33'}
+[C2] n=900 | classes=[2, 4, 5] | acc=0.5511 | per_class={2: '0.40', 4: '0.43', 5: '0.83'}
+[C3] n=900 | classes=[2, 6] | acc=0.7711 | per_class={2: '0.94', 6: '0.43'}
+[C4] n=900 | classes=[5, 7] | acc=0.6778 | per_class={5: '0.61', 7: '0.83'}
+[C5] n=900 | classes=[4, 5, 6] | acc=0.6322 | per_class={4: '0.55', 5: '0.77', 6: '0.58'}
+[C6] n=900 | classes=[6, 7] | acc=0.8100 | per_class={6: '0.90', 7: '0.77'}
+[C7] n=900 | classes=[2, 3, 6] | acc=0.6422 | per_class={2: '0.48', 3: '0.64', 6: '0.81'}
+[C8] n=900 | classes=[3, 5, 6] | acc=0.6178 | per_class={3: '0.38', 5: '0.73', 6: '0.71'}
+[C9] n=900 | classes=[3, 4] | acc=0.7078 | per_class={3: '0.99', 4: '0.14'}
+[C10] n=643 | classes=[0, 9] | acc=0.8040 | per_class={0: '0.91', 9: '0.61'}
+[C11] n=643 | classes=[0, 8] | acc=0.7372 | per_class={0: '0.73', 8: '0.75'}
+[C12] n=642 | classes=[1, 8, 9] | acc=0.4907 | per_class={1: '0.94', 8: '0.32', 9: '0.32'}
+[C13] n=642 | classes=[0, 1, 8] | acc=0.7118 | per_class={0: '0.59', 1: '0.80', 8: '0.74'}
+[C14] n=643 | classes=[1, 8, 9] | acc=0.6361 | per_class={1: '0.68', 8: '0.77', 9: '0.46'}
+[C15] n=642 | classes=[1, 8, 9] | acc=0.6417 | per_class={1: '0.73', 8: '0.67', 9: '0.53'}
+[C16] n=642 | classes=[0, 1] | acc=0.7928 | per_class={0: '0.92', 1: '0.74'}
+[C17] n=642 | classes=[0, 8] | acc=0.7555 | per_class={0: '0.42', 8: '0.93'}
+[C18] n=428 | classes=[1, 9] | acc=0.6262 | per_class={1: '0.35', 9: '0.94'}
+[C19] n=428 | classes=[9] | acc=1.0000 | per_class={9: '1.00'}
+  [Cloud] GM=0.3030 | EM=0.5204 PM=0.6783 | loss=1.9973 | time=108.4s | comm=683.7MB (total=1367MB)
+
+[Round   3] Broadcasting to 2 edges...
+  [Edge 0] W_n reset to global weights for new round.
+  [Edge 1] W_n reset to global weights for new round.
+  [Edge 0] G3 | E1 | Hier-pFedMe | Selected 10/10
+  [Client  4] Received edge weights.
+[C4] Test set: samples=900, class_dist={5: 625, 7: 275}
+  [Client  9] Received edge weights.
+[C9] Test set: samples=900, class_dist={3: 598, 4: 302}
+  [Client  1] Received edge weights.
+[C1] Test set: samples=900, class_dist={2: 292, 4: 305, 7: 303}
+  [Client  7] Received edge weights.
+[C7] Test set: samples=900, class_dist={2: 289, 3: 312, 6: 299}
+  [Client  5] Received edge weights.
+[C5] Test set: samples=900, class_dist={4: 293, 5: 295, 6: 312}
+  [Client  2] Received edge weights.
+[C2] Test set: samples=900, class_dist={2: 291, 4: 311, 5: 298}
+  [Client  0] Received edge weights.
+[C0] Test set: samples=900, class_dist={3: 285, 4: 311, 7: 304}
+  [Client  3] Received edge weights.
+[C3] Test set: samples=900, class_dist={2: 603, 6: 297}
+  [Client  8] Received edge weights.
+[C8] Test set: samples=900, class_dist={3: 272, 5: 312, 6: 316}
+  [Client  6] Received edge weights.
+[C6] Test set: samples=900, class_dist={6: 298, 7: 602}
+  [Client  4] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  9] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  1] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  7] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+
+
+
+  [Client  1] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4599
+  [Client  5] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  7] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4403
+  [Client  2] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  9] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2476
+  [Client  4] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2608  [Client  0] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+
+  [Client  3] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  5] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3873
+  [Client  8] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  2] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4715
+  [Client  6] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  3] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2680
+  [Client  0] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4011
+  [Client  8] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4558
+  [Client  6] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1785
+  [Edge 0] G3 | E1 | loss=0.3571
+  [Edge 0] G3 | E2 | Hier-pFedMe | Selected 10/10
+  [Client  7] Received edge weights.
+[C7] Test set: samples=900, class_dist={2: 289, 3: 312, 6: 299}
+  [Client  6] Received edge weights.
+[C6] Test set: samples=900, class_dist={6: 298, 7: 602}
+  [Client  4] Received edge weights.
+[C4] Test set: samples=900, class_dist={5: 625, 7: 275}
+  [Client  0] Received edge weights.
+[C0] Test set: samples=900, class_dist={3: 285, 4: 311, 7: 304}
+  [Client  2] Received edge weights.
+[C2] Test set: samples=900, class_dist={2: 291, 4: 311, 5: 298}
+  [Client  5] Received edge weights.
+[C5] Test set: samples=900, class_dist={4: 293, 5: 295, 6: 312}
+  [Client  3] Received edge weights.
+[C3] Test set: samples=900, class_dist={2: 603, 6: 297}
+  [Client  1] Received edge weights.
+[C1] Test set: samples=900, class_dist={2: 292, 4: 305, 7: 303}
+  [Client  8] Received edge weights.
+[C8] Test set: samples=900, class_dist={3: 272, 5: 312, 6: 316}
+  [Client  9] Received edge weights.
+[C9] Test set: samples=900, class_dist={3: 598, 4: 302}
+  [Client  7] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  6] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  4] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  0] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+
+
+
+  [Client  4] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2093
+  [Client  2] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  7] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3691
+  [Client  5] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  6] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1403
+  [Client  3] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  0] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3352
+
+  [Client  1] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  2] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3886
+  [Client  8] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  3] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2189  [Client  1] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3700  [Client  5] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3276
+
+
+  [Client  9] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  8] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3809
+  [Client  9] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1971
+  [Edge 0] G3 | E2 | loss=0.2937
+  [Edge 0] G3 | E3 | Hier-pFedMe | Selected 10/10
+  [Client  9] Received edge weights.
+[C9] Test set: samples=900, class_dist={3: 598, 4: 302}
+  [Client  6] Received edge weights.
+[C6] Test set: samples=900, class_dist={6: 298, 7: 602}
+  [Client  4] Received edge weights.
+[C4] Test set: samples=900, class_dist={5: 625, 7: 275}
+  [Client  2] Received edge weights.
+[C2] Test set: samples=900, class_dist={2: 291, 4: 311, 5: 298}
+  [Client  3] Received edge weights.
+[C3] Test set: samples=900, class_dist={2: 603, 6: 297}
+  [Client  8] Received edge weights.
+[C8] Test set: samples=900, class_dist={3: 272, 5: 312, 6: 316}
+  [Client  5] Received edge weights.
+[C5] Test set: samples=900, class_dist={4: 293, 5: 295, 6: 312}
+  [Client  0] Received edge weights.
+[C0] Test set: samples=900, class_dist={3: 285, 4: 311, 7: 304}
+  [Client  1] Received edge weights.
+[C1] Test set: samples=900, class_dist={2: 292, 4: 305, 7: 303}
+  [Client  7] Received edge weights.
+[C7] Test set: samples=900, class_dist={2: 289, 3: 312, 6: 299}
+  [Client  9] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  6] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  4] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  2] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+
+
+  [Client  6] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1059
+  [Client  3] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  4] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1809
+  [Client  8] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  9] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1777
+  [Client  5] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  2] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3414
+  [Client  0] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  3] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1842
+  [Client  1] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  8] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3357
+  [Client  7] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  5] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2807
+  [Client  0] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2853
+  [Client  1] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3349
+  [Client  7] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3256
+  [Edge 0] G3 | E3 | loss=0.2552
+  [Edge 0] G3 | E4 | Hier-pFedMe | Selected 10/10
+  [Client  6] Received edge weights.
+[C6] Test set: samples=900, class_dist={6: 298, 7: 602}
+  [Client  5] Received edge weights.
+[C5] Test set: samples=900, class_dist={4: 293, 5: 295, 6: 312}
+  [Client  1] Received edge weights.
+[C1] Test set: samples=900, class_dist={2: 292, 4: 305, 7: 303}
+  [Client  3] Received edge weights.
+[C3] Test set: samples=900, class_dist={2: 603, 6: 297}
+  [Client  8] Received edge weights.
+[C8] Test set: samples=900, class_dist={3: 272, 5: 312, 6: 316}
+  [Client  9] Received edge weights.
+[C9] Test set: samples=900, class_dist={3: 598, 4: 302}
+  [Client  2] Received edge weights.
+[C2] Test set: samples=900, class_dist={2: 291, 4: 311, 5: 298}
+  [Client  7] Received edge weights.
+[C7] Test set: samples=900, class_dist={2: 289, 3: 312, 6: 299}
+  [Client  4] Received edge weights.
+[C4] Test set: samples=900, class_dist={5: 625, 7: 275}
+  [Client  0] Received edge weights.
+[C0] Test set: samples=900, class_dist={3: 285, 4: 311, 7: 304}
+  [Client  6] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  5] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+
+  [Client  1] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  3] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  3] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1573
+  [Client  8] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  1] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2729
+  [Client  9] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  5] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2227
+  [Client  2] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  6] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0834
+  [Client  7] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  8] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3039
+  [Client  4] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  9] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1399
+  [Client  0] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  7] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2936
+  [Client  2] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2761
+  [Client  4] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1582
+  [Client  0] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2507
+  [Edge 0] G3 | E4 | loss=0.2159
+  [Edge 0] G3 | E5 | Hier-pFedMe | Selected 10/10
+  [Client  1] Received edge weights.
+[C1] Test set: samples=900, class_dist={2: 292, 4: 305, 7: 303}
+  [Client  0] Received edge weights.
+[C0] Test set: samples=900, class_dist={3: 285, 4: 311, 7: 304}
+  [Client  2] Received edge weights.
+[C2] Test set: samples=900, class_dist={2: 291, 4: 311, 5: 298}
+  [Client  5] Received edge weights.
+[C5] Test set: samples=900, class_dist={4: 293, 5: 295, 6: 312}
+  [Client  8] Received edge weights.
+[C8] Test set: samples=900, class_dist={3: 272, 5: 312, 6: 316}
+  [Client  9] Received edge weights.
+[C9] Test set: samples=900, class_dist={3: 598, 4: 302}
+  [Client  3] Received edge weights.
+[C3] Test set: samples=900, class_dist={2: 603, 6: 297}
+  [Client  4] Received edge weights.
+[C4] Test set: samples=900, class_dist={5: 625, 7: 275}
+  [Client  7] Received edge weights.
+[C7] Test set: samples=900, class_dist={2: 289, 3: 312, 6: 299}
+  [Client  6] Received edge weights.
+[C6] Test set: samples=900, class_dist={6: 298, 7: 602}
+  [Client  1] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  0] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  2] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  5] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+
+
+  [Client  0] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2021
+  [Client  8] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  1] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2304
+  [Client  9] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  5] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1946
+  [Client  3] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  2] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2389
+  [Client  4] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  9] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1146  [Client  8] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2568
+
+  [Client  7] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  6] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  4] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1186
+
+  [Client  3] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1449
+  [Client  6] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0733  [Client  7] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2403
+
+  [Edge 0] G3 | E5 | loss=0.1814
+  [Edge 1] G3 | E1 | Hier-pFedMe | Selected 10/10
+  [Client 15] Received edge weights.
+[C15] Test set: samples=642, class_dist={1: 211, 8: 212, 9: 219}
+  [Client 19] Received edge weights.
+[C19] Test set: samples=428, class_dist={9: 428}
+  [Client 18] Received edge weights.
+[C18] Test set: samples=428, class_dist={1: 227, 9: 201}
+  [Client 14] Received edge weights.
+[C14] Test set: samples=643, class_dist={1: 208, 8: 214, 9: 221}
+  [Client 17] Received edge weights.
+[C17] Test set: samples=642, class_dist={0: 219, 8: 423}
+  [Client 12] Received edge weights.
+[C12] Test set: samples=642, class_dist={1: 179, 8: 225, 9: 238}
+  [Client 13] Received edge weights.
+[C13] Test set: samples=642, class_dist={0: 201, 1: 216, 8: 225}
+  [Client 16] Received edge weights.
+[C16] Test set: samples=642, class_dist={0: 202, 1: 440}
+  [Client 10] Received edge weights.
+[C10] Test set: samples=643, class_dist={0: 425, 9: 218}
+  [Client 11] Received edge weights.
+[C11] Test set: samples=643, class_dist={0: 425, 8: 218}
+  [Client 15] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 19] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81  [Client 18] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81  [Client 14] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+
+
+
+  [Client 19] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0071
+  [Client 18] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3395  [Client 17] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+
+  [Client 12] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 15] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3849
+  [Client 13] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 14] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4027
+  [Client 16] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 17] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2820
+  [Client 10] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 12] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4011
+  [Client 11] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 13] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3843
+  [Client 16] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2044
+  [Client 10] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2114
+  [Client 11] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2905
+  [Edge 1] G3 | E1 | loss=0.2992
+  [Edge 1] G3 | E2 | Hier-pFedMe | Selected 10/10
+  [Client 18] Received edge weights.
+[C18] Test set: samples=428, class_dist={1: 227, 9: 201}
+  [Client 13] Received edge weights.
+[C13] Test set: samples=642, class_dist={0: 201, 1: 216, 8: 225}
+  [Client 12] Received edge weights.
+[C12] Test set: samples=642, class_dist={1: 179, 8: 225, 9: 238}
+  [Client 15] Received edge weights.
+[C15] Test set: samples=642, class_dist={1: 211, 8: 212, 9: 219}
+  [Client 14] Received edge weights.
+[C14] Test set: samples=643, class_dist={1: 208, 8: 214, 9: 221}
+  [Client 19] Received edge weights.
+[C19] Test set: samples=428, class_dist={9: 428}
+  [Client 11] Received edge weights.
+[C11] Test set: samples=643, class_dist={0: 425, 8: 218}
+  [Client 10] Received edge weights.
+[C10] Test set: samples=643, class_dist={0: 425, 9: 218}
+  [Client 17] Received edge weights.
+[C17] Test set: samples=642, class_dist={0: 219, 8: 423}
+  [Client 16] Received edge weights.
+[C16] Test set: samples=642, class_dist={0: 202, 1: 440}
+  [Client 18] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81  [Client 13] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 12] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 15] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+
+
+
+  [Client 18] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2741
+  [Client 14] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 13] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3183
+  [Client 12] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3323  [Client 19] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81
+
+  [Client 11] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 15] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3119
+
+  [Client 10] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 19] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0054
+  [Client 17] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 14] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3099
+  [Client 16] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 10] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1725
+  [Client 11] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2475
+  [Client 17] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2310  [Client 16] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1425
+
+  [Edge 1] G3 | E2 | loss=0.2413
+  [Edge 1] G3 | E3 | Hier-pFedMe | Selected 10/10
+  [Client 15] Received edge weights.
+[C15] Test set: samples=642, class_dist={1: 211, 8: 212, 9: 219}
+  [Client 16] Received edge weights.
+[C16] Test set: samples=642, class_dist={0: 202, 1: 440}
+  [Client 14] Received edge weights.
+[C14] Test set: samples=643, class_dist={1: 208, 8: 214, 9: 221}
+  [Client 17] Received edge weights.
+[C17] Test set: samples=642, class_dist={0: 219, 8: 423}
+  [Client 18] Received edge weights.
+[C18] Test set: samples=428, class_dist={1: 227, 9: 201}
+  [Client 19] Received edge weights.
+[C19] Test set: samples=428, class_dist={9: 428}
+  [Client 10] Received edge weights.
+[C10] Test set: samples=643, class_dist={0: 425, 9: 218}
+  [Client 11] Received edge weights.
+[C11] Test set: samples=643, class_dist={0: 425, 8: 218}
+  [Client 12] Received edge weights.
+[C12] Test set: samples=642, class_dist={1: 179, 8: 225, 9: 238}
+  [Client 13] Received edge weights.
+[C13] Test set: samples=642, class_dist={0: 201, 1: 216, 8: 225}
+  [Client 15] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 16] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 14] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 17] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+
+
+
+  [Client 17] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2073  [Client 14] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2588
+
+  [Client 18] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81  [Client 16] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1206  [Client 15] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2605  [Client 19] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81
+
+
+
+  [Client 10] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 11] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 19] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0053  [Client 18] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2361
+
+  [Client 12] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 13] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+
+  [Client 10] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1308
+  [Client 11] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2173
+  [Client 13] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2555
+  [Client 12] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2860
+  [Edge 1] G3 | E3 | loss=0.2033
+  [Edge 1] G3 | E4 | Hier-pFedMe | Selected 10/10
+  [Client 13] Received edge weights.
+[C13] Test set: samples=642, class_dist={0: 201, 1: 216, 8: 225}
+  [Client 11] Received edge weights.
+[C11] Test set: samples=643, class_dist={0: 425, 8: 218}
+  [Client 14] Received edge weights.
+[C14] Test set: samples=643, class_dist={1: 208, 8: 214, 9: 221}
+  [Client 10] Received edge weights.
+[C10] Test set: samples=643, class_dist={0: 425, 9: 218}
+  [Client 18] Received edge weights.
+[C18] Test set: samples=428, class_dist={1: 227, 9: 201}
+  [Client 15] Received edge weights.
+[C15] Test set: samples=642, class_dist={1: 211, 8: 212, 9: 219}
+  [Client 19] Received edge weights.
+[C19] Test set: samples=428, class_dist={9: 428}
+  [Client 12] Received edge weights.
+[C12] Test set: samples=642, class_dist={1: 179, 8: 225, 9: 238}
+  [Client 16] Received edge weights.
+[C16] Test set: samples=642, class_dist={0: 202, 1: 440}
+  [Client 17] Received edge weights.
+[C17] Test set: samples=642, class_dist={0: 219, 8: 423}
+  [Client 13] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 14] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 11] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 10] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+
+
+  [Client 14] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2198
+  [Client 18] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81
+  [Client 10] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1193
+  [Client 15] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 13] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2254
+  [Client 19] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81
+  [Client 11] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1928
+  [Client 12] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 18] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2052
+  [Client 16] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 19] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0049
+  [Client 17] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 15] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2110
+  [Client 12] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2333
+  [Client 16] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1007
+  [Client 17] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1801
+  [Edge 1] G3 | E4 | loss=0.1739
+  [Edge 1] G3 | E5 | Hier-pFedMe | Selected 10/10
+  [Client 16] Received edge weights.
+[C16] Test set: samples=642, class_dist={0: 202, 1: 440}
+  [Client 14] Received edge weights.
+[C14] Test set: samples=643, class_dist={1: 208, 8: 214, 9: 221}
+  [Client 10] Received edge weights.
+[C10] Test set: samples=643, class_dist={0: 425, 9: 218}
+  [Client 13] Received edge weights.
+[C13] Test set: samples=642, class_dist={0: 201, 1: 216, 8: 225}
+  [Client 15] Received edge weights.
+[C15] Test set: samples=642, class_dist={1: 211, 8: 212, 9: 219}
+  [Client 18] Received edge weights.
+[C18] Test set: samples=428, class_dist={1: 227, 9: 201}
+  [Client 11] Received edge weights.
+[C11] Test set: samples=643, class_dist={0: 425, 8: 218}
+  [Client 12] Received edge weights.
+[C12] Test set: samples=642, class_dist={1: 179, 8: 225, 9: 238}
+  [Client 19] Received edge weights.
+[C19] Test set: samples=428, class_dist={9: 428}
+  [Client 17] Received edge weights.
+[C17] Test set: samples=642, class_dist={0: 219, 8: 423}
+  [Client 16] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 14] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 10] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 13] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+
+
+
+  [Client 13] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1793
+  [Client 15] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 14] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1964
+  [Client 18] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81
+  [Client 16] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0821
+  [Client 11] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 10] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0980
+  [Client 12] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 18] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1740
+  [Client 19] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81
+  [Client 11] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1705
+  [Client 17] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 15] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2152
+  [Client 12] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2197
+  [Client 19] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0047
+  [Client 17] Round 3 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1562
+  [Edge 1] G3 | E5 | loss=0.1539
+[C0] n=900 | classes=[3, 4, 7] | acc=0.6856 | per_class={3: '0.77', 4: '0.63', 7: '0.66'}
+[C1] n=900 | classes=[2, 4, 7] | acc=0.5878 | per_class={2: '0.63', 4: '0.57', 7: '0.56'}
+[C2] n=900 | classes=[2, 4, 5] | acc=0.5378 | per_class={2: '0.73', 4: '0.42', 5: '0.48'}
+[C3] n=900 | classes=[2, 6] | acc=0.7811 | per_class={2: '0.95', 6: '0.45'}
+[C4] n=900 | classes=[5, 7] | acc=0.7811 | per_class={5: '0.81', 7: '0.71'}
+[C5] n=900 | classes=[4, 5, 6] | acc=0.6589 | per_class={4: '0.51', 5: '0.72', 6: '0.74'}
+[C6] n=900 | classes=[6, 7] | acc=0.8744 | per_class={6: '0.66', 7: '0.98'}
+[C7] n=900 | classes=[2, 3, 6] | acc=0.6222 | per_class={2: '0.34', 3: '0.70', 6: '0.82'}
+[C8] n=900 | classes=[3, 5, 6] | acc=0.6133 | per_class={3: '0.42', 5: '0.61', 6: '0.78'}
+[C9] n=900 | classes=[3, 4] | acc=0.8044 | per_class={3: '0.87', 4: '0.68'}
+[C10] n=643 | classes=[0, 9] | acc=0.8336 | per_class={0: '0.85', 9: '0.81'}
+[C11] n=643 | classes=[0, 8] | acc=0.7714 | per_class={0: '0.87', 8: '0.59'}
+[C12] n=642 | classes=[1, 8, 9] | acc=0.7025 | per_class={1: '0.63', 8: '0.84', 9: '0.63'}
+[C13] n=642 | classes=[0, 1, 8] | acc=0.7383 | per_class={0: '0.79', 1: '0.75', 8: '0.68'}
+[C14] n=643 | classes=[1, 8, 9] | acc=0.6267 | per_class={1: '0.58', 8: '0.86', 9: '0.44'}
+[C15] n=642 | classes=[1, 8, 9] | acc=0.6495 | per_class={1: '0.69', 8: '0.70', 9: '0.57'}
+[C16] n=642 | classes=[0, 1] | acc=0.8629 | per_class={0: '0.72', 1: '0.93'}
+[C17] n=642 | classes=[0, 8] | acc=0.8006 | per_class={0: '0.71', 8: '0.85'}
+[C18] n=428 | classes=[1, 9] | acc=0.7150 | per_class={1: '0.78', 9: '0.65'}
+[C19] n=428 | classes=[9] | acc=1.0000 | per_class={9: '1.00'}
+  [Cloud] GM=0.3368 | EM=0.5368 PM=0.7223 | loss=1.9670 | time=108.0s | comm=683.7MB (total=2051MB)
+
+[Round   4] Broadcasting to 2 edges...
+  [Edge 0] W_n reset to global weights for new round.
+  [Edge 1] W_n reset to global weights for new round.
+  [Edge 0] G4 | E1 | Hier-pFedMe | Selected 10/10
+  [Client  3] Received edge weights.
+[C3] Test set: samples=900, class_dist={2: 603, 6: 297}
+  [Client  5] Received edge weights.
+[C5] Test set: samples=900, class_dist={4: 293, 5: 295, 6: 312}
+  [Client  0] Received edge weights.
+[C0] Test set: samples=900, class_dist={3: 285, 4: 311, 7: 304}
+  [Client  1] Received edge weights.
+[C1] Test set: samples=900, class_dist={2: 292, 4: 305, 7: 303}
+  [Client  2] Received edge weights.
+[C2] Test set: samples=900, class_dist={2: 291, 4: 311, 5: 298}
+  [Client  9] Received edge weights.
+[C9] Test set: samples=900, class_dist={3: 598, 4: 302}
+  [Client  4] Received edge weights.
+[C4] Test set: samples=900, class_dist={5: 625, 7: 275}
+  [Client  8] Received edge weights.
+[C8] Test set: samples=900, class_dist={3: 272, 5: 312, 6: 316}
+  [Client  6] Received edge weights.
+[C6] Test set: samples=900, class_dist={6: 298, 7: 602}
+  [Client  7] Received edge weights.
+[C7] Test set: samples=900, class_dist={2: 289, 3: 312, 6: 299}
+  [Client  5] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  3] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  0] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+
+
+  [Client  1] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  0] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2243
+  [Client  2] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  3] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1645
+  [Client  9] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  1] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2658
+  [Client  4] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  5] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2209
+  [Client  8] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  2] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2733
+  [Client  6] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  8] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2887
+  [Client  7] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  9] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1461
+  [Client  4] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1401
+  [Client  6] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0853
+  [Client  7] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2526
+  [Edge 0] G4 | E1 | loss=0.2062
+  [Edge 0] G4 | E2 | Hier-pFedMe | Selected 10/10
+  [Client  8] Received edge weights.
+[C8] Test set: samples=900, class_dist={3: 272, 5: 312, 6: 316}
+  [Client  6] Received edge weights.
+[C6] Test set: samples=900, class_dist={6: 298, 7: 602}
+  [Client  1] Received edge weights.
+[C1] Test set: samples=900, class_dist={2: 292, 4: 305, 7: 303}
+  [Client  3] Received edge weights.
+[C3] Test set: samples=900, class_dist={2: 603, 6: 297}
+  [Client  2] Received edge weights.
+[C2] Test set: samples=900, class_dist={2: 291, 4: 311, 5: 298}
+  [Client  4] Received edge weights.
+[C4] Test set: samples=900, class_dist={5: 625, 7: 275}
+  [Client  5] Received edge weights.
+[C5] Test set: samples=900, class_dist={4: 293, 5: 295, 6: 312}
+  [Client  7] Received edge weights.
+[C7] Test set: samples=900, class_dist={2: 289, 3: 312, 6: 299}
+  [Client  0] Received edge weights.
+[C0] Test set: samples=900, class_dist={3: 285, 4: 311, 7: 304}
+  [Client  9] Received edge weights.
+[C9] Test set: samples=900, class_dist={3: 598, 4: 302}
+  [Client  8] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  6] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  1] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+
+  [Client  3] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  3] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1169
+  [Client  2] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  6] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0746
+  [Client  4] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  8] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2332
+  [Client  5] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  1] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2008
+  [Client  7] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  2] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2206
+  [Client  0] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  4] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1172
+  [Client  9] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  5] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1753
+  [Client  7] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2226
+  [Client  0] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1778
+  [Client  9] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1186
+  [Edge 0] G4 | E2 | loss=0.1658
+  [Edge 0] G4 | E3 | Hier-pFedMe | Selected 10/10
+  [Client  0] Received edge weights.
+[C0] Test set: samples=900, class_dist={3: 285, 4: 311, 7: 304}
+  [Client  5] Received edge weights.
+[C5] Test set: samples=900, class_dist={4: 293, 5: 295, 6: 312}
+  [Client  9] Received edge weights.
+[C9] Test set: samples=900, class_dist={3: 598, 4: 302}
+  [Client  7] Received edge weights.
+[C7] Test set: samples=900, class_dist={2: 289, 3: 312, 6: 299}
+  [Client  2] Received edge weights.
+[C2] Test set: samples=900, class_dist={2: 291, 4: 311, 5: 298}
+  [Client  4] Received edge weights.
+[C4] Test set: samples=900, class_dist={5: 625, 7: 275}
+  [Client  3] Received edge weights.
+[C3] Test set: samples=900, class_dist={2: 603, 6: 297}
+  [Client  1] Received edge weights.
+[C1] Test set: samples=900, class_dist={2: 292, 4: 305, 7: 303}
+  [Client  6] Received edge weights.
+[C6] Test set: samples=900, class_dist={6: 298, 7: 602}
+  [Client  8] Received edge weights.
+[C8] Test set: samples=900, class_dist={3: 272, 5: 312, 6: 316}
+  [Client  0] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  5] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  9] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+
+  [Client  7] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  0] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1537
+  [Client  2] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  5] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1462
+  [Client  4] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  9] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0935
+  [Client  3] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  7] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1714
+  [Client  1] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  2] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1747
+  [Client  6] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  4] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0970
+  [Client  8] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  1] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1826
+  [Client  3] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1111
+  [Client  6] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0705
+  [Client  8] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2105
+  [Edge 0] G4 | E3 | loss=0.1411
+  [Edge 0] G4 | E4 | Hier-pFedMe | Selected 10/10
+  [Client  9] Received edge weights.
+[C9] Test set: samples=900, class_dist={3: 598, 4: 302}
+  [Client  1] Received edge weights.
+[C1] Test set: samples=900, class_dist={2: 292, 4: 305, 7: 303}
+  [Client  0] Received edge weights.
+[C0] Test set: samples=900, class_dist={3: 285, 4: 311, 7: 304}
+  [Client  8] Received edge weights.
+[C8] Test set: samples=900, class_dist={3: 272, 5: 312, 6: 316}
+  [Client  3] Received edge weights.
+[C3] Test set: samples=900, class_dist={2: 603, 6: 297}
+  [Client  5] Received edge weights.
+[C5] Test set: samples=900, class_dist={4: 293, 5: 295, 6: 312}
+  [Client  4] Received edge weights.
+[C4] Test set: samples=900, class_dist={5: 625, 7: 275}
+  [Client  7] Received edge weights.
+[C7] Test set: samples=900, class_dist={2: 289, 3: 312, 6: 299}
+  [Client  2] Received edge weights.
+[C2] Test set: samples=900, class_dist={2: 291, 4: 311, 5: 298}
+  [Client  6] Received edge weights.
+[C6] Test set: samples=900, class_dist={6: 298, 7: 602}
+  [Client  9] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  1] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  0] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+
+  [Client  8] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  9] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0768
+  [Client  3] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  8] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1563
+  [Client  5] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  0] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1263
+  [Client  4] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  1] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1429
+  [Client  7] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  7] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1470
+  [Client  2] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  5] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1266
+  [Client  6] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  4] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0755
+  [Client  3] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1067
+  [Client  6] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0528
+  [Client  2] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1572
+  [Edge 0] G4 | E4 | loss=0.1168
+  [Edge 0] G4 | E5 | Hier-pFedMe | Selected 10/10
+  [Client  8] Received edge weights.
+[C8] Test set: samples=900, class_dist={3: 272, 5: 312, 6: 316}
+  [Client  6] Received edge weights.
+[C6] Test set: samples=900, class_dist={6: 298, 7: 602}
+  [Client  3] Received edge weights.
+[C3] Test set: samples=900, class_dist={2: 603, 6: 297}
+  [Client  4] Received edge weights.
+[C4] Test set: samples=900, class_dist={5: 625, 7: 275}
+  [Client  1] Received edge weights.
+[C1] Test set: samples=900, class_dist={2: 292, 4: 305, 7: 303}
+  [Client  2] Received edge weights.
+[C2] Test set: samples=900, class_dist={2: 291, 4: 311, 5: 298}
+  [Client  7] Received edge weights.
+[C7] Test set: samples=900, class_dist={2: 289, 3: 312, 6: 299}
+  [Client  0] Received edge weights.
+[C0] Test set: samples=900, class_dist={3: 285, 4: 311, 7: 304}
+  [Client  9] Received edge weights.
+[C9] Test set: samples=900, class_dist={3: 598, 4: 302}
+  [Client  5] Received edge weights.
+[C5] Test set: samples=900, class_dist={4: 293, 5: 295, 6: 312}
+  [Client  8] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  6] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169  [Client  3] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+
+  [Client  4] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  8] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1499
+  [Client  1] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  3] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0803
+  [Client  2] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  4] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0609
+  [Client  7] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  6] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0490
+  [Client  0] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  7] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1356
+  [Client  9] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  2] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1339
+  [Client  5] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=169
+  [Client  0] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1138
+  [Client  1] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1282
+  [Client  9] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0646
+  [Client  5] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1091
+  [Edge 0] G4 | E5 | loss=0.1025
+  [Edge 1] G4 | E1 | Hier-pFedMe | Selected 10/10
+  [Client 17] Received edge weights.
+[C17] Test set: samples=642, class_dist={0: 219, 8: 423}
+  [Client 13] Received edge weights.
+[C13] Test set: samples=642, class_dist={0: 201, 1: 216, 8: 225}
+  [Client 15] Received edge weights.
+[C15] Test set: samples=642, class_dist={1: 211, 8: 212, 9: 219}
+  [Client 10] Received edge weights.
+[C10] Test set: samples=643, class_dist={0: 425, 9: 218}
+  [Client 12] Received edge weights.
+[C12] Test set: samples=642, class_dist={1: 179, 8: 225, 9: 238}
+  [Client 19] Received edge weights.
+[C19] Test set: samples=428, class_dist={9: 428}
+  [Client 16] Received edge weights.
+[C16] Test set: samples=642, class_dist={0: 202, 1: 440}
+  [Client 18] Received edge weights.
+[C18] Test set: samples=428, class_dist={1: 227, 9: 201}
+  [Client 11] Received edge weights.
+[C11] Test set: samples=643, class_dist={0: 425, 8: 218}
+  [Client 14] Received edge weights.
+[C14] Test set: samples=643, class_dist={1: 208, 8: 214, 9: 221}
+  [Client 17] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 13] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 15] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+
+  [Client 10] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 17] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1710
+  [Client 12] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 13] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2138
+  [Client 19] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81
+  [Client 15] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2141
+  [Client 16] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 10] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1093
+  [Client 18] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81
+  [Client 18] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1817
+  [Client 11] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 19] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0060
+  [Client 14] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 12] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2369
+  [Client 16] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0974
+  [Client 14] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.2037
+  [Client 11] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1767
+  [Edge 1] G4 | E1 | loss=0.1659
+  [Edge 1] G4 | E2 | Hier-pFedMe | Selected 10/10
+  [Client 15] Received edge weights.
+[C15] Test set: samples=642, class_dist={1: 211, 8: 212, 9: 219}
+  [Client 14] Received edge weights.
+[C14] Test set: samples=643, class_dist={1: 208, 8: 214, 9: 221}
+  [Client 19] Received edge weights.
+[C19] Test set: samples=428, class_dist={9: 428}
+  [Client 11] Received edge weights.
+[C11] Test set: samples=643, class_dist={0: 425, 8: 218}
+  [Client 12] Received edge weights.
+[C12] Test set: samples=642, class_dist={1: 179, 8: 225, 9: 238}
+  [Client 10] Received edge weights.
+[C10] Test set: samples=643, class_dist={0: 425, 9: 218}
+  [Client 18] Received edge weights.
+[C18] Test set: samples=428, class_dist={1: 227, 9: 201}
+  [Client 17] Received edge weights.
+[C17] Test set: samples=642, class_dist={0: 219, 8: 423}
+  [Client 13] Received edge weights.
+[C13] Test set: samples=642, class_dist={0: 201, 1: 216, 8: 225}
+  [Client 16] Received edge weights.
+[C16] Test set: samples=642, class_dist={0: 202, 1: 440}
+  [Client 15] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 14] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 19] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81
+  [Client 11] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+
+  [Client 19] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0046
+  [Client 12] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 11] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1394
+  [Client 10] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 14] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1551
+  [Client 18] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81
+  [Client 15] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1683
+  [Client 17] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 12] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1758
+  [Client 13] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 18] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1554
+  [Client 16] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 10] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0767
+  [Client 17] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1385
+  [Client 13] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1642
+  [Client 16] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0718
+  [Edge 1] G4 | E2 | loss=0.1282
+  [Edge 1] G4 | E3 | Hier-pFedMe | Selected 10/10
+  [Client 19] Received edge weights.
+[C19] Test set: samples=428, class_dist={9: 428}
+  [Client 16] Received edge weights.
+[C16] Test set: samples=642, class_dist={0: 202, 1: 440}
+  [Client 15] Received edge weights.
+[C15] Test set: samples=642, class_dist={1: 211, 8: 212, 9: 219}
+  [Client 18] Received edge weights.
+[C18] Test set: samples=428, class_dist={1: 227, 9: 201}
+  [Client 13] Received edge weights.
+[C13] Test set: samples=642, class_dist={0: 201, 1: 216, 8: 225}
+  [Client 10] Received edge weights.
+[C10] Test set: samples=643, class_dist={0: 425, 9: 218}
+  [Client 14] Received edge weights.
+[C14] Test set: samples=643, class_dist={1: 208, 8: 214, 9: 221}
+  [Client 12] Received edge weights.
+[C12] Test set: samples=642, class_dist={1: 179, 8: 225, 9: 238}
+  [Client 17] Received edge weights.
+[C17] Test set: samples=642, class_dist={0: 219, 8: 423}
+  [Client 11] Received edge weights.
+[C11] Test set: samples=643, class_dist={0: 425, 8: 218}
+  [Client 19] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81  [Client 16] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 15] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+
+  [Client 18] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81
+  [Client 19] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0042
+  [Client 13] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 18] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1250
+  [Client 10] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 16] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0522
+  [Client 14] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 15] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1311
+  [Client 12] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 13] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1247
+  [Client 17] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 10] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0668
+  [Client 11] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 14] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1361
+  [Client 12] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1488
+  [Client 11] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1211
+  [Client 17] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1185
+  [Edge 1] G4 | E3 | loss=0.1056
+  [Edge 1] G4 | E4 | Hier-pFedMe | Selected 10/10
+  [Client 18] Received edge weights.
+[C18] Test set: samples=428, class_dist={1: 227, 9: 201}
+  [Client 15] Received edge weights.
+[C15] Test set: samples=642, class_dist={1: 211, 8: 212, 9: 219}
+  [Client 19] Received edge weights.
+[C19] Test set: samples=428, class_dist={9: 428}
+  [Client 12] Received edge weights.
+[C12] Test set: samples=642, class_dist={1: 179, 8: 225, 9: 238}
+  [Client 16] Received edge weights.
+[C16] Test set: samples=642, class_dist={0: 202, 1: 440}
+  [Client 11] Received edge weights.
+[C11] Test set: samples=643, class_dist={0: 425, 8: 218}
+  [Client 14] Received edge weights.
+[C14] Test set: samples=643, class_dist={1: 208, 8: 214, 9: 221}
+  [Client 17] Received edge weights.
+[C17] Test set: samples=642, class_dist={0: 219, 8: 423}
+  [Client 10] Received edge weights.
+[C10] Test set: samples=643, class_dist={0: 425, 9: 218}
+  [Client 13] Received edge weights.
+[C13] Test set: samples=642, class_dist={0: 201, 1: 216, 8: 225}
+  [Client 18] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81  [Client 19] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81
+  [Client 15] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 12] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+
+  [Client 18] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1002
+  [Client 16] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 19] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0039
+  [Client 11] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 15] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1215
+  [Client 14] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 12] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1221
+  [Client 17] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 11] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1196
+  [Client 10] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 16] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0499
+  [Client 13] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 14] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0987
+  [Client 17] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1080
+  [Client 10] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0575
+  [Client 13] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1191
+  [Edge 1] G4 | E4 | loss=0.0928
+  [Edge 1] G4 | E5 | Hier-pFedMe | Selected 10/10
+  [Client 15] Received edge weights.
+[C15] Test set: samples=642, class_dist={1: 211, 8: 212, 9: 219}
+  [Client 19] Received edge weights.
+[C19] Test set: samples=428, class_dist={9: 428}
+  [Client 12] Received edge weights.
+[C12] Test set: samples=642, class_dist={1: 179, 8: 225, 9: 238}
+  [Client 17] Received edge weights.
+[C17] Test set: samples=642, class_dist={0: 219, 8: 423}
+  [Client 13] Received edge weights.
+[C13] Test set: samples=642, class_dist={0: 201, 1: 216, 8: 225}
+  [Client 11] Received edge weights.
+[C11] Test set: samples=643, class_dist={0: 425, 8: 218}
+  [Client 18] Received edge weights.
+[C18] Test set: samples=428, class_dist={1: 227, 9: 201}
+  [Client 16] Received edge weights.
+[C16] Test set: samples=642, class_dist={0: 202, 1: 440}
+  [Client 10] Received edge weights.
+[C10] Test set: samples=643, class_dist={0: 425, 9: 218}
+  [Client 14] Received edge weights.
+[C14] Test set: samples=643, class_dist={1: 208, 8: 214, 9: 221}
+  [Client 15] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121  [Client 19] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81
+  [Client 12] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 17] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+
+  [Client 19] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0036
+  [Client 13] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 15] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0978
+  [Client 11] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 17] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0897
+  [Client 12] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1153
+  [Client 18] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=81
+  [Client 16] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 13] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0904
+  [Client 10] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 18] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0881
+  [Client 14] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=121
+  [Client 16] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0383
+  [Client 11] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0939
+  [Client 10] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0461
+  [Client 14] Round 4 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.1090
+  [Edge 1] G4 | E5 | loss=0.0795
+[C0] n=900 | classes=[3, 4, 7] | acc=0.6700 | per_class={3: '0.62', 4: '0.56', 7: '0.83'}
+[C1] n=900 | classes=[2, 4, 7] | acc=0.6067 | per_class={2: '0.55', 4: '0.64', 7: '0.63'}
+[C2] n=900 | classes=[2, 4, 5] | acc=0.5500 | per_class={2: '0.39', 4: '0.67', 5: '0.58'}
+[C3] n=900 | classes=[2, 6] | acc=0.8044 | per_class={2: '0.83', 6: '0.75'}
+[C4] n=900 | classes=[5, 7] | acc=0.7767 | per_class={5: '0.87', 7: '0.56'}
+[C5] n=900 | classes=[4, 5, 6] | acc=0.6389 | per_class={4: '0.76', 5: '0.65', 6: '0.51'}
+[C6] n=900 | classes=[6, 7] | acc=0.8856 | per_class={6: '0.84', 7: '0.91'}
+[C7] n=900 | classes=[2, 3, 6] | acc=0.6233 | per_class={2: '0.63', 3: '0.53', 6: '0.72'}
+[C8] n=900 | classes=[3, 5, 6] | acc=0.5722 | per_class={3: '0.35', 5: '0.68', 6: '0.66'}
+[C9] n=900 | classes=[3, 4] | acc=0.7978 | per_class={3: '0.80', 4: '0.79'}
+[C10] n=643 | classes=[0, 9] | acc=0.8289 | per_class={0: '0.89', 9: '0.70'}
+[C11] n=643 | classes=[0, 8] | acc=0.7932 | per_class={0: '0.83', 8: '0.73'}
+[C12] n=642 | classes=[1, 8, 9] | acc=0.7009 | per_class={1: '0.70', 8: '0.83', 9: '0.58'}
+[C13] n=642 | classes=[0, 1, 8] | acc=0.6869 | per_class={0: '0.54', 1: '0.67', 8: '0.84'}
+[C14] n=643 | classes=[1, 8, 9] | acc=0.6423 | per_class={1: '0.56', 8: '0.82', 9: '0.55'}

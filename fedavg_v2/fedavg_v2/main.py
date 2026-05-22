@@ -4,10 +4,13 @@ import numpy as np
 import tensorflow as tf
 
 from data.dataset       import load_cifar10
-from data.partition     import iid_partition, noniid_partition
+from data.partition     import (iid_partition, noniid_partition,
+                                pathological_noniid_partition,
+                                make_per_client_test_datasets)
 from models.cnn         import build_model
 from models.model_utils import clone_model
 from client.client      import FLClient
+from client.client_pfedme import PFedMeClient
 from server.server      import FLServer
 from utils.logger       import FLLogger
 
@@ -50,38 +53,73 @@ def set_seed(seed: int):
     print(f"[Setup] Random seed: {seed}")
 
 
-def build_clients(x_train, y_train, global_model, config):
+def build_clients(x_train, y_train, x_test, y_test, global_model, config):
     """
     数据分区 + 批量实例化所有客户端。
-    每个客户端拿到自己的 dataset partition 和独立的模型副本。
-    """
-    n_clients = config["federation"]["n_clients"]
-    partition = config["federation"]["partition"]
-    alpha     = config["federation"].get("alpha", 0.5)
 
+    Args:
+        x_train, y_train : 训练集 numpy 数组
+        x_test,  y_test  : 测试集 numpy 数组（用于生成 per-client 测试集）
+        global_model     : 全局模型，每个客户端从中 clone 独立副本
+        config           : 实验配置
+
+    Returns:
+        clients : List[PFedMeClient]
+    """
+    n_clients  = config["federation"]["n_clients"]
+    partition  = config["federation"]["partition"]
+    alpha      = config["federation"].get("alpha", 0.5)
+
+    # ── 训练集分区 ────────────────────────────────────────────────────────
     if partition == "iid":
-        client_datasets = iid_partition(x_train, y_train, n_clients, config)
+        client_datasets, client_indices = iid_partition(
+            x_train, y_train, n_clients, config
+        )
     elif partition == "noniid":
-        client_datasets = noniid_partition(
+        client_datasets, client_indices = noniid_partition(
             x_train, y_train, n_clients, config, alpha=alpha
+        )
+    elif partition == "pathological":
+        client_datasets, client_indices = pathological_noniid_partition(
+            x_train, y_train, n_clients, config,
+            classes_per_client=config["federation"].get("classes_per_client", 2)
         )
     else:
         raise ValueError(f"Unknown partition type: {partition}")
 
+    # ── Per-client 测试集生成 ─────────────────────────────────────────────
+    # 根据每个客户端训练集中实际出现的类别，从测试集里过滤出同类别样本。
+    # 三种分区方式均支持：
+    #   pathological → 每客户端只有少数类别，测试集同样只含这些类别
+    #   noniid       → 每客户端持有的类别由 Dirichlet 决定，过滤掉样本数为 0 的类别
+    #   iid          → 每客户端持有几乎所有类别，测试集接近全局测试集
+    client_test_datasets = make_per_client_test_datasets(
+        x_test_np=x_test,
+        y_test_np=y_test,
+        client_train_indices=client_indices,
+        y_train_np=y_train,
+        config=config,
+    )
+
+    # ── 客户端实例化 ──────────────────────────────────────────────────────
     clients = []
-    for i, ds in enumerate(client_datasets):
+    for i, (ds, test_ds) in enumerate(zip(client_datasets, client_test_datasets)):
         client_model = clone_model(global_model)
-        client = FLClient(
+        client = PFedMeClient(
             client_id=i,
             dataset=ds,
             model=client_model,
-            config=config
+            config=config,
         )
+        if test_ds is not None:
+            client.set_test_dataset(test_ds)
         clients.append(client)
 
-    print(f"[Setup] {len(clients)} clients built "
-          f"({partition}"
-          f"{f', α={alpha}' if partition == 'noniid' else ''})")
+    print(
+        f"[Setup] {len(clients)} clients built "
+        f"({partition}"
+        f"{f', α={alpha}' if partition == 'noniid' else ''})"
+    )
     return clients
 
 
@@ -91,8 +129,11 @@ def run_experiment(config_path: str = "config/config.yaml"):
     set_seed(config.get("seed", 42))
 
     # ── 2. 数据加载 ──────────────────────────────────────────
+    # load_cifar10 返回 (train_ds, test_ds, x_train_np, y_train_np,
+    #                    x_test_np, y_test_np)
+    # 若原 load_cifar10 只返回4个值，需同步修改 dataset.py 一并返回测试集 numpy。
     print("[Setup] Loading CIFAR-10...")
-    train_ds, test_ds, x_train, y_train = load_cifar10(config)
+    train_ds, test_ds, x_train, y_train, x_test, y_test = load_cifar10(config)
 
     # ── 3. 全局模型 ──────────────────────────────────────────
     print("[Setup] Building global model...")
@@ -103,9 +144,9 @@ def run_experiment(config_path: str = "config/config.yaml"):
     )
     global_model.summary()
 
-    # ── 4. 客户端 ────────────────────────────────────────────
+    # ── 4. 客户端（含 per-client 测试集注入） ─────────────────
     print("[Setup] Building clients...")
-    clients = build_clients(x_train, y_train, global_model, config)
+    clients = build_clients(x_train, y_train, x_test, y_test, global_model, config)
 
     # ── 5. 服务端 ────────────────────────────────────────────
     server = FLServer(

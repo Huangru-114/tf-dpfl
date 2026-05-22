@@ -1,0 +1,339 @@
+This job can be monitored from: https://job.c3se.chalmers.se/alvis/6426174
+========================================
+Job ID      : 6426174
+Job Name    : HierFLcifar10
+Node        : alvis6-04
+Start Time  : Fri Apr 17 07:00:47 CEST 2026
+Working Dir : /cephyr/users/ziangg/Alvis/tf-dpfl
+========================================
+[Setup] Python: /cephyr/users/ziangg/Alvis/TF_DPFL_2026/bin/python
+[Setup] TF version: 2.15.1
+[Setup] GPU available: [PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
+[Config] Override: wandb.enabled = True
+[Setup] Random seed: 42
+[Setup] Loading dataset...
+[Data] CIFAR-100 from Mimer: /mimer/NOBACKUP/Datasets/CIFAR
+[Data] CIFAR-100 | train=50000 test=10000 classes=100
+[Setup] Building global model...
+Model: "cifar_cnn_3conv"
+_________________________________________________________________
+ Layer (type)                Output Shape              Param #   
+=================================================================
+ input_1 (InputLayer)        [(None, 32, 32, 3)]       0         
+                                                                 
+ conv2d (Conv2D)             (None, 32, 32, 32)        896       
+                                                                 
+ batch_normalization (Batch  (None, 32, 32, 32)        128       
+ Normalization)                                                  
+                                                                 
+ re_lu (ReLU)                (None, 32, 32, 32)        0         
+                                                                 
+ conv2d_1 (Conv2D)           (None, 32, 32, 64)        18496     
+                                                                 
+ batch_normalization_1 (Bat  (None, 32, 32, 64)        256       
+ chNormalization)                                                
+                                                                 
+ re_lu_1 (ReLU)              (None, 32, 32, 64)        0         
+                                                                 
+ max_pooling2d (MaxPooling2  (None, 16, 16, 64)        0         
+ D)                                                              
+                                                                 
+ conv2d_2 (Conv2D)           (None, 16, 16, 128)       73856     
+                                                                 
+ batch_normalization_2 (Bat  (None, 16, 16, 128)       512       
+ chNormalization)                                                
+                                                                 
+ re_lu_2 (ReLU)              (None, 16, 16, 128)       0         
+                                                                 
+ conv2d_3 (Conv2D)           (None, 16, 16, 128)       147584    
+                                                                 
+ batch_normalization_3 (Bat  (None, 16, 16, 128)       512       
+ chNormalization)                                                
+                                                                 
+ re_lu_3 (ReLU)              (None, 16, 16, 128)       0         
+                                                                 
+ max_pooling2d_1 (MaxPoolin  (None, 8, 8, 128)         0         
+ g2D)                                                            
+                                                                 
+ spatial_dropout2d (Spatial  (None, 8, 8, 128)         0         
+ Dropout2D)                                                      
+                                                                 
+ conv2d_4 (Conv2D)           (None, 8, 8, 256)         295168    
+                                                                 
+ batch_normalization_4 (Bat  (None, 8, 8, 256)         1024      
+ chNormalization)                                                
+                                                                 
+ re_lu_4 (ReLU)              (None, 8, 8, 256)         0         
+                                                                 
+ conv2d_5 (Conv2D)           (None, 8, 8, 256)         590080    
+                                                                 
+ batch_normalization_5 (Bat  (None, 8, 8, 256)         1024      
+ chNormalization)                                                
+                                                                 
+ re_lu_5 (ReLU)              (None, 8, 8, 256)         0         
+                                                                 
+ max_pooling2d_2 (MaxPoolin  (None, 4, 4, 256)         0         
+ g2D)                                                            
+                                                                 
+ flatten (Flatten)           (None, 4096)              0         
+                                                                 
+ dropout (Dropout)           (None, 4096)              0         
+                                                                 
+ dense (Dense)               (None, 1024)              4195328   
+                                                                 
+ dense_1 (Dense)             (None, 512)               524800    
+                                                                 
+ dropout_1 (Dropout)         (None, 512)               0         
+                                                                 
+ dense_2 (Dense)             (None, 100)               51300     
+                                                                 
+=================================================================
+Total params: 5900964 (22.51 MB)
+Trainable params: 5899236 (22.50 MB)
+Non-trainable params: 1728 (6.75 KB)
+_________________________________________________________________
+[Setup] Building clients...
+
+[Pathological non-IID] 10 clients, 10 classes/client, 100 total classes
+Client       Samples    Classes held (cls:count)
+------------------------------------------------------------------------
+client_0     5000       [cls4:500, cls14:500, cls25:500, cls42:500, cls59:500, cls60:500, cls67:500, cls76:500, cls83:500, cls88:500]
+client_1     5000       [cls0:500, cls16:500, cls32:500, cls33:500, cls36:500, cls52:500, cls71:500, cls77:500, cls84:500, cls85:500]
+client_2     5000       [cls2:500, cls7:500, cls8:500, cls15:500, cls18:500, cls56:500, cls66:500, cls72:500, cls73:500, cls95:500]
+client_3     5000       [cls5:500, cls29:500, cls34:500, cls39:500, cls54:500, cls55:500, cls63:500, cls81:500, cls86:500, cls91:500]
+client_4     5000       [cls12:500, cls22:500, cls35:500, cls45:500, cls46:500, cls47:500, cls79:500, cls87:500, cls97:500, cls98:500]
+client_5     5000       [cls1:500, cls13:500, cls19:500, cls27:500, cls40:500, cls58:500, cls62:500, cls69:500, cls93:500, cls96:500]
+client_6     5000       [cls9:500, cls23:500, cls24:500, cls30:500, cls31:500, cls49:500, cls50:500, cls65:500, cls70:500, cls75:500]
+client_7     5000       [cls21:500, cls44:500, cls51:500, cls53:500, cls57:500, cls61:500, cls78:500, cls80:500, cls82:500, cls90:500]
+client_8     5000       [cls3:500, cls11:500, cls26:500, cls28:500, cls41:500, cls43:500, cls68:500, cls74:500, cls94:500, cls99:500]
+client_9     5000       [cls6:500, cls10:500, cls17:500, cls20:500, cls37:500, cls38:500, cls48:500, cls64:500, cls89:500, cls92:500]
+
+[Test split] 10 per-client test sets, avg 1000 samples each
+[Setup] 10 clients built (pathological) | per-client test sets injected
+[Setup] Building edge servers...
+[Assignment] Random | 2 edges
+  Edge 0: clients [1, 3, 5, 6, 8]
+  Edge 1: clients [0, 2, 4, 7, 9]
+[EdgeServer 0] 5 clients | 25000 samples
+[EdgeServer 1] 5 clients | 25000 samples
+
+[Setup] Built 2 edge servers (strategy=random)
+  Edge 0: 5 clients | 25000 samples
+  Edge 1: 5 clients | 25000 samples
+[CloudServer] 2 edges | model: 22.51 MB
+
+====================================================
+ HierFAVG Training Start
+====================================================
+
+[Round   1] Broadcasting to 2 edges...
+  [Edge 0] G1 | E1 | Hier-PerFedAvg | Selected 5/5
+  [Client  8] Round * | Hier-PerFedAvg | support=5.4586 query=3.8597
+  [Client  1] Round * | Hier-PerFedAvg | support=5.0998 query=3.6928
+  [Client  5] Round * | Hier-PerFedAvg | support=5.3639 query=3.8774
+  [Client  3] Round * | Hier-PerFedAvg | support=4.8175 query=3.6183
+  [Client  6] Round * | Hier-PerFedAvg | support=5.0494 query=3.5810
+  [Edge 0] G1 | E1 | loss=3.7258
+  [Edge 0] G1 | E2 | Hier-PerFedAvg | Selected 5/5
+  [Client  6] Round * | Hier-PerFedAvg | support=4.8879 query=3.4214
+  [Client  3] Round * | Hier-PerFedAvg | support=4.7216 query=3.4522
+  [Client  1] Round * | Hier-PerFedAvg | support=4.9096 query=3.5000
+  [Client  5] Round * | Hier-PerFedAvg | support=5.1764 query=3.6938
+  [Client  8] Round * | Hier-PerFedAvg | support=5.2529 query=3.6790
+  [Edge 0] G1 | E2 | loss=3.5493
+  [Edge 1] G1 | E1 | Hier-PerFedAvg | Selected 5/5
+  [Client  9] Round * | Hier-PerFedAvg | support=5.0088 query=3.5988
+  [Client  2] Round * | Hier-PerFedAvg | support=5.1812 query=3.8256
+  [Client  0] Round * | Hier-PerFedAvg | support=4.8457 query=3.3937
+  [Client  4] Round * | Hier-PerFedAvg | support=5.2761 query=3.9417
+  [Client  7] Round * | Hier-PerFedAvg | support=5.3713 query=3.7054
+  [Edge 1] G1 | E1 | loss=3.6930
+  [Edge 1] G1 | E2 | Hier-PerFedAvg | Selected 5/5
+  [Client  9] Round * | Hier-PerFedAvg | support=4.8474 query=3.4639
+  [Client  2] Round * | Hier-PerFedAvg | support=5.0223 query=3.6780
+  [Client  7] Round * | Hier-PerFedAvg | support=5.1609 query=3.5552
+  [Client  4] Round * | Hier-PerFedAvg | support=5.1330 query=3.8173
+  [Client  0] Round * | Hier-PerFedAvg | support=4.7440 query=3.2626
+  [Edge 1] G1 | E2 | loss=3.5554
+  [Cloud] GM=0.0096 | loss=4.6061 | time=838.9s | comm=990.5MB (total=990MB)
+
+[Round   2] Broadcasting to 2 edges...
+  [Edge 0] G2 | E1 | Hier-PerFedAvg | Selected 5/5
+  [Client  1] Round * | Hier-PerFedAvg | support=4.9140 query=3.5521
+  [Client  3] Round * | Hier-PerFedAvg | support=4.7627 query=3.5143
+  [Client  5] Round * | Hier-PerFedAvg | support=5.2505 query=3.7398
+  [Client  6] Round * | Hier-PerFedAvg | support=4.9311 query=3.4275
+  [Client  8] Round * | Hier-PerFedAvg | support=5.2857 query=3.6336
+  [Edge 0] G2 | E1 | loss=3.5734
+  [Edge 0] G2 | E2 | Hier-PerFedAvg | Selected 5/5
+  [Client  6] Round * | Hier-PerFedAvg | support=4.8142 query=3.2745
+  [Client  8] Round * | Hier-PerFedAvg | support=5.1022 query=3.4848
+  [Client  1] Round * | Hier-PerFedAvg | support=4.7403 query=3.3869
+  [Client  5] Round * | Hier-PerFedAvg | support=5.1042 query=3.5783
+  [Client  3] Round * | Hier-PerFedAvg | support=4.6352 query=3.3728
+  [Edge 0] G2 | E2 | loss=3.4194
+  [Edge 1] G2 | E1 | Hier-PerFedAvg | Selected 5/5
+  [Client  2] Round * | Hier-PerFedAvg | support=5.0955 query=3.6717
+  [Client  0] Round * | Hier-PerFedAvg | support=4.7934 query=3.3209
+  [Client  9] Round * | Hier-PerFedAvg | support=4.9237 query=3.4503
+  [Client  4] Round * | Hier-PerFedAvg | support=5.1990 query=3.7976
+  [Client  7] Round * | Hier-PerFedAvg | support=5.1709 query=3.5416
+  [Edge 1] G2 | E1 | loss=3.5564
+  [Edge 1] G2 | E2 | Hier-PerFedAvg | Selected 5/5
+  [Client  2] Round * | Hier-PerFedAvg | support=4.9321 query=3.5383
+  [Client  9] Round * | Hier-PerFedAvg | support=4.7870 query=3.3327
+  [Client  7] Round * | Hier-PerFedAvg | support=5.0033 query=3.4012
+  [Client  0] Round * | Hier-PerFedAvg | support=4.7234 query=3.1704
+  [Client  4] Round * | Hier-PerFedAvg | support=5.0786 query=3.7212
+  [Edge 1] G2 | E2 | loss=3.4328
+  [Cloud] GM=0.0097 | loss=4.6057 | time=855.0s | comm=990.5MB (total=1981MB)
+
+[Round   3] Broadcasting to 2 edges...
+  [Edge 0] G3 | E1 | Hier-PerFedAvg | Selected 5/5
+  [Client  1] Round * | Hier-PerFedAvg | support=4.8280 query=3.3961
+  [Client  5] Round * | Hier-PerFedAvg | support=5.1824 query=3.5704
+  [Client  3] Round * | Hier-PerFedAvg | support=4.7680 query=3.3282
+  [Client  6] Round * | Hier-PerFedAvg | support=4.8366 query=3.3280
+  [Client  8] Round * | Hier-PerFedAvg | support=5.1452 query=3.5184
+  [Edge 0] G3 | E1 | loss=3.4282
+  [Edge 0] G3 | E2 | Hier-PerFedAvg | Selected 5/5
+  [Client  1] Round * | Hier-PerFedAvg | support=4.6583 query=3.2605
+  [Client  6] Round * | Hier-PerFedAvg | support=4.7431 query=3.1880
+  [Client  3] Round * | Hier-PerFedAvg | support=4.6378 query=3.2481
+  [Client  5] Round * | Hier-PerFedAvg | support=5.0347 query=3.4235
+  [Client  8] Round * | Hier-PerFedAvg | support=5.0011 query=3.4053
+  [Edge 0] G3 | E2 | loss=3.3051
+  [Edge 1] G3 | E1 | Hier-PerFedAvg | Selected 5/5
+  [Client  4] Round * | Hier-PerFedAvg | support=5.1226 query=3.6738
+  [Client  7] Round * | Hier-PerFedAvg | support=5.0496 query=3.3752
+  [Client  0] Round * | Hier-PerFedAvg | support=4.8179 query=3.1759
+  [Client  2] Round * | Hier-PerFedAvg | support=4.9954 query=3.5652
+  [Client  9] Round * | Hier-PerFedAvg | support=4.8615 query=3.3661
+  [Edge 1] G3 | E1 | loss=3.4312
+  [Edge 1] G3 | E2 | Hier-PerFedAvg | Selected 5/5
+  [Client  4] Round * | Hier-PerFedAvg | support=5.0144 query=3.5636
+  [Client  9] Round * | Hier-PerFedAvg | support=4.7395 query=3.2151
+  [Client  7] Round * | Hier-PerFedAvg | support=4.9044 query=3.2396
+  [Client  2] Round * | Hier-PerFedAvg | support=4.9016 query=3.3979
+  [Client  0] Round * | Hier-PerFedAvg | support=4.7099 query=3.0727
+  [Edge 1] G3 | E2 | loss=3.2978
+  [Cloud] GM=0.0103 | loss=4.6054 | time=872.6s | comm=990.5MB (total=2971MB)
+
+[Round   4] Broadcasting to 2 edges...
+  [Edge 0] G4 | E1 | Hier-PerFedAvg | Selected 5/5
+  [Client  8] Round * | Hier-PerFedAvg | support=5.0768 query=3.3420
+  [Client  1] Round * | Hier-PerFedAvg | support=4.7653 query=3.2709
+  [Client  3] Round * | Hier-PerFedAvg | support=4.7607 query=3.2881
+  [Client  6] Round * | Hier-PerFedAvg | support=4.8202 query=3.1637
+  [Client  5] Round * | Hier-PerFedAvg | support=5.1169 query=3.4246
+  [Edge 0] G4 | E1 | loss=3.2979
+  [Edge 0] G4 | E2 | Hier-PerFedAvg | Selected 5/5
+  [Client  8] Round * | Hier-PerFedAvg | support=4.9288 query=3.2503
+  [Client  6] Round * | Hier-PerFedAvg | support=4.6692 query=3.0607
+  [Client  1] Round * | Hier-PerFedAvg | support=4.6125 query=3.1658
+  [Client  5] Round * | Hier-PerFedAvg | support=4.9723 query=3.2939
+  [Client  3] Round * | Hier-PerFedAvg | support=4.6450 query=3.1312
+  [Edge 0] G4 | E2 | loss=3.1804
+  [Edge 1] G4 | E1 | Hier-PerFedAvg | Selected 5/5
+  [Client  4] Round * | Hier-PerFedAvg | support=5.0999 query=3.5382
+  [Client  2] Round * | Hier-PerFedAvg | support=4.9172 query=3.4279
+  [Client  0] Round * | Hier-PerFedAvg | support=4.7987 query=3.1197
+  [Client  7] Round * | Hier-PerFedAvg | support=4.9686 query=3.2574
+  [Client  9] Round * | Hier-PerFedAvg | support=4.8218 query=3.2476
+  [Edge 1] G4 | E1 | loss=3.3181
+  [Edge 1] G4 | E2 | Hier-PerFedAvg | Selected 5/5
+  [Client  4] Round * | Hier-PerFedAvg | support=4.9923 query=3.4125
+  [Client  2] Round * | Hier-PerFedAvg | support=4.8055 query=3.2999
+  [Client  0] Round * | Hier-PerFedAvg | support=4.7072 query=2.9537
+  [Client  9] Round * | Hier-PerFedAvg | support=4.7207 query=3.0994
+  [Client  7] Round * | Hier-PerFedAvg | support=4.8240 query=3.1318
+  [Edge 1] G4 | E2 | loss=3.1795
+  [Cloud] GM=0.0108 | loss=4.6051 | time=861.0s | comm=990.5MB (total=3962MB)
+
+[Round   5] Broadcasting to 2 edges...
+  [Edge 0] G5 | E1 | Hier-PerFedAvg | Selected 5/5
+  [Client  1] Round * | Hier-PerFedAvg | support=4.7189 query=3.1597
+  [Client  3] Round * | Hier-PerFedAvg | support=4.7333 query=3.1331
+  [Client  8] Round * | Hier-PerFedAvg | support=5.0111 query=3.2333
+  [Client  5] Round * | Hier-PerFedAvg | support=5.0780 query=3.2813
+  [Client  6] Round * | Hier-PerFedAvg | support=4.7555 query=3.0521
+  [Edge 0] G5 | E1 | loss=3.1719
+  [Edge 0] G5 | E2 | Hier-PerFedAvg | Selected 5/5
+  [Client  8] Round * | Hier-PerFedAvg | support=4.8780 query=3.1395
+  [Client  5] Round * | Hier-PerFedAvg | support=4.9333 query=3.1258
+  [Client  1] Round * | Hier-PerFedAvg | support=4.5702 query=3.0387
+  [Client  6] Round * | Hier-PerFedAvg | support=4.6391 query=2.9296
+  [Client  3] Round * | Hier-PerFedAvg | support=4.6367 query=3.0489
+  [Edge 0] G5 | E2 | loss=3.0565
+  [Edge 1] G5 | E1 | Hier-PerFedAvg | Selected 5/5
+  [Client  2] Round * | Hier-PerFedAvg | support=4.9137 query=3.2895
+  [Client  9] Round * | Hier-PerFedAvg | support=4.8173 query=3.1114
+  [Client  7] Round * | Hier-PerFedAvg | support=4.8879 query=3.1183
+  [Client  0] Round * | Hier-PerFedAvg | support=4.8568 query=3.0010
+  [Client  4] Round * | Hier-PerFedAvg | support=5.0457 query=3.4054
+  [Edge 1] G5 | E1 | loss=3.1851
+  [Edge 1] G5 | E2 | Hier-PerFedAvg | Selected 5/5
+  [Client  0] Round * | Hier-PerFedAvg | support=4.6900 query=2.8707
+  [Client  9] Round * | Hier-PerFedAvg | support=4.6819 query=3.0084
+  [Client  4] Round * | Hier-PerFedAvg | support=4.9393 query=3.2605
+  [Client  2] Round * | Hier-PerFedAvg | support=4.7928 query=3.1903
+  [Client  7] Round * | Hier-PerFedAvg | support=4.7685 query=2.9894
+  [Edge 1] G5 | E2 | loss=3.0638
+  [Cloud] GM=0.0106 | loss=4.6049 | time=875.4s | comm=990.5MB (total=4952MB)
+
+[Round   6] Broadcasting to 2 edges...
+  [Edge 0] G6 | E1 | Hier-PerFedAvg | Selected 5/5
+  [Client  6] Round * | Hier-PerFedAvg | support=4.7104 query=2.9149
+  [Client  5] Round * | Hier-PerFedAvg | support=5.0028 query=3.1561
+  [Client  3] Round * | Hier-PerFedAvg | support=4.7580 query=3.0588
+  [Client  1] Round * | Hier-PerFedAvg | support=4.6928 query=3.0644
+  [Client  8] Round * | Hier-PerFedAvg | support=4.9722 query=3.1179
+  [Edge 0] G6 | E1 | loss=3.0624
+  [Edge 0] G6 | E2 | Hier-PerFedAvg | Selected 5/5
+  [Client  1] Round * | Hier-PerFedAvg | support=4.5856 query=2.9522
+  [Client  3] Round * | Hier-PerFedAvg | support=4.6465 query=2.9607
+  [Client  5] Round * | Hier-PerFedAvg | support=4.8709 query=3.0077
+  [Client  8] Round * | Hier-PerFedAvg | support=4.8503 query=3.0090
+  [Client  6] Round * | Hier-PerFedAvg | support=4.5696 query=2.8305
+  [Edge 0] G6 | E2 | loss=2.9520
+  [Edge 1] G6 | E1 | Hier-PerFedAvg | Selected 5/5
+  [Client  4] Round * | Hier-PerFedAvg | support=5.0872 query=3.2699
+  [Client  7] Round * | Hier-PerFedAvg | support=4.8551 query=3.0009
+  [Client  2] Round * | Hier-PerFedAvg | support=4.9103 query=3.2014
+  [Client  9] Round * | Hier-PerFedAvg | support=4.8084 query=3.0431
+  [Client  0] Round * | Hier-PerFedAvg | support=4.8463 query=2.8911
+  [Edge 1] G6 | E1 | loss=3.0813
+  [Edge 1] G6 | E2 | Hier-PerFedAvg | Selected 5/5
+  [Client  2] Round * | Hier-PerFedAvg | support=4.7699 query=3.0969
+  [Client  9] Round * | Hier-PerFedAvg | support=4.6769 query=2.9308
+  [Client  0] Round * | Hier-PerFedAvg | support=4.7208 query=2.7643
+  [Client  4] Round * | Hier-PerFedAvg | support=4.9283 query=3.1724
+  [Client  7] Round * | Hier-PerFedAvg | support=4.7114 query=2.9016
+  [Edge 1] G6 | E2 | loss=2.9732
+  [Cloud] GM=0.0122 | loss=4.6046 | time=862.8s | comm=990.5MB (total=5943MB)
+
+[Round   7] Broadcasting to 2 edges...
+  [Edge 0] G7 | E1 | Hier-PerFedAvg | Selected 5/5
+  [Client  5] Round * | Hier-PerFedAvg | support=4.9599 query=3.0292
+  [Client  1] Round * | Hier-PerFedAvg | support=4.6369 query=2.9494
+  [Client  3] Round * | Hier-PerFedAvg | support=4.7202 query=2.9842
+  [Client  8] Round * | Hier-PerFedAvg | support=4.9021 query=3.0314
+  [Client  6] Round * | Hier-PerFedAvg | support=4.6728 query=2.7890
+  [Edge 0] G7 | E1 | loss=2.9567
+  [Edge 0] G7 | E2 | Hier-PerFedAvg | Selected 5/5
+  [Client  8] Round * | Hier-PerFedAvg | support=4.8027 query=2.9098
+  [Client  5] Round * | Hier-PerFedAvg | support=4.8607 query=2.8871
+  [Client  6] Round * | Hier-PerFedAvg | support=4.5346 query=2.7176
+  [Client  1] Round * | Hier-PerFedAvg | support=4.5361 query=2.8591
+  [Client  3] Round * | Hier-PerFedAvg | support=4.6539 query=2.9113
+  [Edge 0] G7 | E2 | loss=2.8570
+  [Edge 1] G7 | E1 | Hier-PerFedAvg | Selected 5/5
+  [Client  2] Round * | Hier-PerFedAvg | support=4.8528 query=3.0991
+  [Client  9] Round * | Hier-PerFedAvg | support=4.8319 query=2.9497
+  [Client  7] Round * | Hier-PerFedAvg | support=4.7860 query=2.8630
+  [Client  0] Round * | Hier-PerFedAvg | support=4.8185 query=2.7835
+  [Client  4] Round * | Hier-PerFedAvg | support=5.0221 query=3.1614
+  [Edge 1] G7 | E1 | loss=2.9713
+  [Edge 1] G7 | E2 | Hier-PerFedAvg | Selected 5/5
+  [Client  2] Round * | Hier-PerFedAvg | support=4.7256 query=2.9831
+  [Client  9] Round * | Hier-PerFedAvg | support=4.7287 query=2.8223

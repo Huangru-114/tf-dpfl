@@ -389,6 +389,22 @@ def make_per_edge_test_datasets(test_images_np, test_labels_np,
     return edge_test_datasets
 
 
+def merge_test_datasets(clients, batch_size):
+    """合并一个服务器下所有客户端的测试数据集"""
+    datasets = []
+    for client in clients:
+        ds = client.get_test_dataset()  # 返回 tf.data.Dataset，可能已经 batching
+        # 为了合并，我们去掉 batch 维度，变成每个样本
+        ds = ds.unbatch()
+        datasets.append(ds)
+    # 使用 concatenate 依次合并
+    merged = datasets[0]
+    for ds in datasets[1:]:
+        merged = merged.concatenate(ds)
+    # 重新进行批处理
+    merged = merged.batch(batch_size).prefetch(tf.data.AUTOTUNE)
+    return merged
+
 if __name__ == "__main__":
     import yaml
     from data.dataset import load_gtsrb
