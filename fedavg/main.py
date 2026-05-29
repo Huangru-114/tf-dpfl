@@ -15,8 +15,31 @@ from data.clustering    import random_assignment, warmup_gradient_assignment, hi
 from models.cnn         import build_model
 from models.model_utils import clone_model
 from client.client_pfedme      import PFedMeClient
+from client.hier_ditto_rep      import HierDittoRepClient
+from client.hier_pfedme_rep     import HierPFedMeRepClient
 from server.edge_server_pfedme import PFedMeEdgeServer
+from server.hier_ditto_rep      import HierDittoRepEdgeServer
+from server.hier_pfedme_rep     import HierPFedMeRepEdgeServer
 from server.server      import CloudServer   # 原来是 FLServer
+
+
+def _select_method_classes(config):
+    """
+    按 config["training"]["drift_correction"] 选择 client / edge 类。
+
+    新增的 Hier-Rep 方法走各自的子类，其余方法（pfedme / hierpfedme 等）
+    仍走默认的 PFedMeClient / PFedMeEdgeServer，行为不变。
+    """
+    method = config["training"].get("drift_correction", "pfedme")
+    client_cls = {
+        "hier_ditto_rep":  HierDittoRepClient,
+        "hier_pfedme_rep": HierPFedMeRepClient,
+    }.get(method, PFedMeClient)
+    edge_cls = {
+        "hier_ditto_rep":  HierDittoRepEdgeServer,
+        "hier_pfedme_rep": HierPFedMeRepEdgeServer,
+    }.get(method, PFedMeEdgeServer)
+    return client_cls, edge_cls
 from utils.logger       import FLLogger
 from utils.report       import generate_report
 
@@ -143,10 +166,11 @@ def build_clients(images_np, labels_np, global_model, config,
         images_np, labels_np, client_indices, config, test_ratio=test_ratio
     )
 
+    ClientCls, _ = _select_method_classes(config)
     clients = []
     for i, (ds, indices) in enumerate(zip(client_datasets, client_indices)):
         client_model = clone_model(global_model)
-        client = PFedMeClient(client_id=i, dataset=ds, model=client_model,
+        client = ClientCls(client_id=i, dataset=ds, model=client_model,
                           config=config, n_samples=len(indices))
         if client_test_datasets is not None:
             client.set_test_dataset(client_test_datasets[i])
@@ -218,7 +242,8 @@ def build_edge_servers(clients, global_model, config,
                   f"check n_edges vs n_clients")
             continue
         edge_model = clone_model(global_model)
-        edge       = PFedMeEdgeServer(
+        _, EdgeCls = _select_method_classes(config)
+        edge       = EdgeCls(
             edge_id=i,
             clients=group,
             model=edge_model,
