@@ -1,0 +1,58 @@
+2026-05-15 14:12:43.419095: I tensorflow/core/util/port.cc:113] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-05-15 14:12:43.455542: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-05-15 14:12:43.455584: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-05-15 14:12:43.456385: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+2026-05-15 14:12:53.519373: I tensorflow/core/util/port.cc:113] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-05-15 14:12:53.555554: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-05-15 14:12:53.555602: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-05-15 14:12:53.556418: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+2026-05-15 14:12:59.706378: I tensorflow/core/util/port.cc:113] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-05-15 14:12:59.742660: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-05-15 14:12:59.742712: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-05-15 14:12:59.743542: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+2026-05-15 14:13:09.334618: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1929] Created device /job:localhost/replica:0/task:0/device:GPU:0 with 43683 MB memory:  -> device: 0, name: NVIDIA A40, pci bus id: 0000:17:00.0, compute capability: 8.6
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /cephyr/users/ziangg/Alvis/.netrc.
+wandb: Currently logged in as: 3445339138 (3445339138-kth-royal-institute-of-technology) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: Tracking run with wandb version 0.26.1
+wandb: Run data is saved locally in /cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/wandb/run-20260515_141323-479vrtg7
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run final0_hierpfedme_c20_localepoch_1_semantic_superclass_pathological_classesperclient_2
+wandb: ⭐️ View project at https://wandb.ai/3445339138-kth-royal-institute-of-technology/HierFL-cifar10
+wandb: 🚀 View run at https://wandb.ai/3445339138-kth-royal-institute-of-technology/HierFL-cifar10/runs/479vrtg7
+Traceback (most recent call last):
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/main.py", line 474, in <module>
+    run_experiment()
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/main.py", line 389, in run_experiment
+    history = cloud.run(logger=logger)
+              ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/server/server.py", line 288, in run
+    m = self.run_round(r)
+        ^^^^^^^^^^^^^^^^^
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/server/server.py", line 210, in run_round
+    avg_edge_loss, avg_ct, comm_ce = self.collect_and_aggregate(round_idx, prev_gw)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/server/server.py", line 167, in collect_and_aggregate
+    w, n, loss, t, comm = edge.run(round_idx)
+                          ^^^^^^^^^^^^^^^^^^^
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/server/edge_server.py", line 498, in run
+    loss, t = self.run_edge_round_hierpfedme(global_round_idx, er)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/server/edge_server.py", line 315, in run_edge_round_hierpfedme
+    print(f"[C{self.client_id}] Test set stats: samples={total_samples}, "
+               ^^^^^^^^^^^^^^
+AttributeError: 'EdgeServer' object has no attribute 'client_id'

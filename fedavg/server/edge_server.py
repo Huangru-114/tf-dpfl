@@ -58,9 +58,18 @@ class EdgeServer:
         # edge round 结束后上传 W_n^{t,I} 给 Cloud。
         self.W_n = None
 
+        # ── 每个 edge 的同分布测试集（EM 评估用）──────────────────────────
+        # 由 main.py 在初始化后调用 set_test_dataset() 注入。
+        # 若未设置，evaluate_on 退化为使用传入的 fallback 数据集。
+        self.test_dataset = None
+
         print(f"[EdgeServer {edge_id}] "
               f"{len(clients)} clients | {self.n_samples} samples")
 
+
+    def get_test_dataset(self):
+        """返回 per-edge 同分布测试集"""
+        return self.test_dataset
 
     # ══════════════════════════════════════════════════════════════════════
     # 并行化
@@ -105,6 +114,39 @@ class EdgeServer:
                     print(f"    [ERROR] Client {client.client_id}: {e}")
         return results
 
+
+    def _collect_updates_serial(self, selected: list,
+                                global_round_idx: int,
+                                mode: str = "fedavg") -> list:
+        """
+        顺序执行所有选中客户端的本地训练 / 元梯度计算（串行版本）。
+
+        Args:
+            mode: "fedavg"      → 调用 client.local_train，返回权重
+                "meta_grad"   → 调用 client.compute_meta_gradient，返回元梯度
+        Returns:
+            results: mode=fedavg   → [(weights, n, loss, t), ...]
+                    mode=meta_grad → [(grads, n, loss), ...]  NaN 已过滤
+        """
+        edge_weights = self.model.get_weights()  # 拍快照，用于 meta_grad 模式
+        results = []
+
+        for client in selected:
+            try:
+                if mode == "fedavg":
+                    result = client.local_train(global_round_idx)
+                else:  # meta_grad
+                    result = client.compute_meta_gradient(edge_weights, global_round_idx)
+                    grads, n, loss = result
+                    # 检查梯度是否包含 NaN 或 Inf
+                    if any(np.isnan(g).any() or np.isinf(g).any() for g in grads):
+                        print(f"    [SKIP] Client {client.client_id}: NaN")
+                        continue
+                results.append(result)
+            except Exception as e:
+                print(f"    [ERROR] Client {client.client_id}: {e}")
+
+        return results
     # ══════════════════════════════════════════════════════════════════════
     # 初始化辅助
     # ══════════════════════════════════════════════════════════════════════
@@ -125,6 +167,10 @@ class EdgeServer:
         """接收 Cloud 广播的全局权重，覆盖本地 edge 模型。"""
         self.model.set_weights(global_weights)
 
+    def set_test_dataset(self, test_dataset: tf.data.Dataset):
+        """注入 per-edge 同分布测试集（EM 评估用，由 main.py 在初始化后调用）。"""
+        self.test_dataset = test_dataset
+
     def set_global_ref(self, global_weights: list):
         """存储 Cloud 全局权重快照，转发给 client 用作远端参考。
         Hier-pFedMe：同时将 W_n^{t,0} 重置为 W^t（每个 global round 执行一次）。
@@ -133,6 +179,7 @@ class EdgeServer:
         # Hier-pFedMe：W_n^{t,0} ← W^t（Algorithm 1 第 4 行）
         if self.config["training"].get("drift_correction") == "hierpfedme":
             self.W_n = [w.copy() for w in global_weights]
+            print(f"  [Edge {self.edge_id}] W_n reset to global weights for new round.")
 
     # ══════════════════════════════════════════════════════════════════════
     # 客户端选取与广播
@@ -249,12 +296,39 @@ class EdgeServer:
         for client in selected:
             client.set_weights(global_weights=self._global_weights_ref,
                                edge_weights=edge_w)
+            ds = client.get_test_dataset()  # 获取 client 的测试集（per-client 同分布）
+            total_samples = 0
+            all_labels = []
+            batch_count = 0
+            # 先取一个 batch 用于打印（不破坏迭代器）
+            ds_for_stats = ds.unbatch().batch(1)  # 临时 unbatch 再 batch=1 便于遍历
+            sample_batch = None
+            for i, (x, y) in enumerate(ds_for_stats):
+                if i == 0:
+                    sample_batch = (x.numpy(), y.numpy())
+                all_labels.append(y.numpy()[0])
+                total_samples += 1
+            batch_count = total_samples  # 因为 unbatch 后每个样本一个 batch
+            
+            unique, counts = np.unique(all_labels, return_counts=True)
+            class_dist = dict(zip(unique, counts))
+            print(f"[C{client.client_id}] Test set stats: samples={total_samples}, "
+                f"batches={batch_count}, class_dist={class_dist}")
+            
+            # 打印第一个 batch 的详细信息
+            if sample_batch is not None:
+                x_sample, y_sample = sample_batch
+                print(f"[C{client.client_id}] First sample: shape={x_sample.shape}, "
+                    f"value_range=[{x_sample.min():.3f}, {x_sample.max():.3f}], label={y_sample}")
 
-        # 步骤 2：client 本地训练，收集 Θ_{n,m}^{t,i,R}
-        client_updates = []
-        for client in selected:
-            w, n, loss, t = client.local_train(global_round_idx)
-            client_updates.append((w, n, loss, t))
+
+        # 步骤 2：client 本地训练，收集 Θ_{n,m}^{t,i,R}（并行）
+        # client_updates = self._collect_updates_parallel(
+        #     selected, global_round_idx, mode="fedavg"
+        # )
+        client_updates = self._collect_updates_serial(
+            selected, global_round_idx, mode="fedavg"
+        )
 
         # 步骤 3：edge 模型更新（式 7）
         # mean(Θ_{n,m}^{t,i,R})
@@ -349,14 +423,23 @@ class EdgeServer:
     # 评估
     # ══════════════════════════════════════════════════════════════════════
 
-    def evaluate_on(self, test_dataset: tf.data.Dataset):
+    def evaluate_on(self, fallback_dataset: tf.data.Dataset = None):
         """
-        在全局测试集上评估 edge 模型（Hier-pFedMe EM 评估用）。
-        self.model 持有 θ_n^{t,I}（最后一个 edge round 结束后的 edge 模型）。
+        评估 edge 模型（EM 评估）。
+        优先使用 self.test_dataset（per-edge 同分布测试集）；
+        若未设置，退化为传入的 fallback_dataset（全体测试集）。
         """
+        if self.test_dataset is None and fallback_dataset is None:
+            raise ValueError("No test dataset for evaluation.")
+        elif self.test_dataset is None:
+            print(f"  [Edge {self.edge_id}] No per-edge test dataset, "
+                  f"using fallback dataset for evaluation.")
+        ds = self.test_dataset if self.test_dataset is not None else fallback_dataset
+        if ds is None:
+            raise ValueError("No test dataset. Call set_test_dataset() or pass fallback_dataset.")
         loss_fn = tf.keras.losses.SparseCategoricalCrossentropy()
         tl = tc = tn = 0
-        for x, y in test_dataset:
+        for x, y in ds:
             p  = self.model(x, training=False)
             tl += loss_fn(y, p).numpy() * x.shape[0]
             tc += np.sum(np.argmax(p.numpy(), 1) == y.numpy())
@@ -388,16 +471,7 @@ class EdgeServer:
         # 步骤 3：广播
         self.broadcast_to_clients(selected, global_weights=self._global_weights_ref)
 
-        # # 步骤 4：本地训练 + warm-up 缓存
-        # client_updates = []
-        # warmup = self.config["federation"].get("warmup_rounds", 5)
-        # do_cache = (self.config["federation"].get("client_selection") == "clustered"
-        #             and global_round_idx <= warmup)
-        # for client in selected:
-        #     w, n, loss, t = client.local_train(global_round_idx)
-        #     client_updates.append((w, n, loss, t))
-        #     if do_cache:
-        #         self._collect_gradient_update(client, prev_edge_w)
+        # # 步骤 4：本地训练 
 
         client_updates = self._collect_updates_parallel(selected, global_round_idx, mode="fedavg")
 
@@ -428,9 +502,16 @@ class EdgeServer:
                 loss, t = self.run_edge_round(global_round_idx, er)
             round_losses.append(loss)
             round_times.append(t)
+            # for client in self.clients:
+            #     c_loss, c_acc = client.evaluate_on(
+            #         fallback_dataset=self.test_dataset
+            #         )
         comm = 2 * self.model_bytes * len(self.clients) * edge_rounds
         # Hier-pFedMe 上传 W_n^{t,I}（不是 θ_n），其他方法上传 edge 模型
-        upload_w = (self.W_n if method == "hierpfedme" and self.W_n is not None
-                    else self.model.get_weights())
+        if method == "hierpfedme":
+            if self.W_n is not None:
+                upload_w = (self.W_n)
+        else:
+            upload_w = self.model.get_weights()
         return (upload_w, self.n_samples,
                 float(np.mean(round_losses)), float(np.mean(round_times)), comm)

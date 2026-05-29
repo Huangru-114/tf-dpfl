@@ -1,0 +1,116 @@
+2026-05-20 23:11:00.398578: I tensorflow/core/util/port.cc:113] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-05-20 23:11:00.434141: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-05-20 23:11:00.434174: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-05-20 23:11:00.434828: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+2026-05-20 23:11:11.525768: I tensorflow/core/util/port.cc:113] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-05-20 23:11:11.561219: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-05-20 23:11:11.561262: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-05-20 23:11:11.561905: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+2026-05-20 23:11:18.539422: I tensorflow/core/util/port.cc:113] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-05-20 23:11:18.574374: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-05-20 23:11:18.574414: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-05-20 23:11:18.575080: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+2026-05-20 23:11:31.057820: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1929] Created device /job:localhost/replica:0/task:0/device:GPU:0 with 43683 MB memory:  -> device: 0, name: NVIDIA A40, pci bus id: 0000:ca:00.0, compute capability: 8.6
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /cephyr/users/ziangg/Alvis/.netrc.
+wandb: Currently logged in as: 3445339138 (3445339138-kth-royal-institute-of-technology) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run ve5qrnpe
+wandb: Tracking run with wandb version 0.26.1
+wandb: Run data is saved locally in /cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/wandb/run-20260520_231142-ve5qrnpe
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run final0_hierpfedme_c20_localepoch_1_semantic_superclass_pathological_classesperclient_2
+wandb: ⭐️ View project at https://wandb.ai/3445339138-kth-royal-institute-of-technology/HierFL-cifar10
+wandb: 🚀 View run at https://wandb.ai/3445339138-kth-royal-institute-of-technology/HierFL-cifar10/runs/ve5qrnpe
+2026-05-20 23:11:46.186606: I external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:454] Loaded cuDNN version 8902
+2026-05-20 23:11:49.474018: I external/local_xla/xla/service/service.cc:168] XLA service 0x150b95a9fbd0 initialized for platform CUDA (this does not guarantee that XLA will be used). Devices:
+2026-05-20 23:11:49.474054: I external/local_xla/xla/service/service.cc:176]   StreamExecutor device (0): NVIDIA A40, Compute Capability 8.6
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1779311509.687798 3588269 device_compiler.h:186] Compiled cluster using XLA!  This line is logged at most once for the lifetime of the process.
+WARNING:tensorflow:5 out of the last 7048 calls to <function PFedMeClient._inner_step at 0x151b11b83740> triggered tf.function retracing. Tracing is expensive and the excessive number of tracings could be due to (1) creating @tf.function repeatedly in a loop, (2) passing tensors with different shapes, (3) passing Python objects instead of tensors. For (1), please define your @tf.function outside of the loop. For (2), @tf.function has reduce_retracing=True option that can avoid unnecessary retracing. For (3), please refer to https://www.tensorflow.org/guide/function#controlling_retracing and https://www.tensorflow.org/api_docs/python/tf/function for  more details.
+2026-05-20 23:13:35.593285: I tensorflow/core/framework/local_rendezvous.cc:425] Local rendezvous send item cancelled. Key hash: 1726844358861520274
+2026-05-20 23:18:01.325975: I tensorflow/core/framework/local_rendezvous.cc:425] Local rendezvous send item cancelled. Key hash: 1726844358861520274
+2026-05-20 23:21:37.214290: I tensorflow/core/framework/local_rendezvous.cc:425] Local rendezvous send item cancelled. Key hash: 1726844358861520274
+2026-05-20 23:21:39.088295: I tensorflow/core/framework/local_rendezvous.cc:425] Local rendezvous send item cancelled. Key hash: 1726844358861520274
+2026-05-20 23:22:47.399878: I tensorflow/core/framework/local_rendezvous.cc:425] Local rendezvous send item cancelled. Key hash: 1726844358861520274
+2026-05-20 23:27:16.577032: I tensorflow/core/framework/local_rendezvous.cc:425] Local rendezvous send item cancelled. Key hash: 1726844358861520274
+2026-05-20 23:32:42.250905: I tensorflow/core/framework/local_rendezvous.cc:425] Local rendezvous send item cancelled. Key hash: 1726844358861520274
+2026-05-20 23:38:08.963542: I tensorflow/core/framework/local_rendezvous.cc:425] Local rendezvous send item cancelled. Key hash: 1726844358861520274
+2026-05-20 23:38:51.313890: I tensorflow/core/framework/local_rendezvous.cc:425] Local rendezvous send item cancelled. Key hash: 1726844358861520274
+2026-05-20 23:43:55.262161: I tensorflow/core/framework/local_rendezvous.cc:425] Local rendezvous send item cancelled. Key hash: 1726844358861520274
+2026-05-20 23:47:09.496792: I tensorflow/core/framework/local_rendezvous.cc:425] Local rendezvous send item cancelled. Key hash: 1726844358861520274
+2026-05-20 23:48:14.865234: I tensorflow/core/framework/local_rendezvous.cc:425] Local rendezvous send item cancelled. Key hash: 1726844358861520274
+2026-05-20 23:48:34.233713: I tensorflow/core/framework/local_rendezvous.cc:425] Local rendezvous send item cancelled. Key hash: 1726844358861520274
+2026-05-20 23:52:34.473592: I tensorflow/core/framework/local_rendezvous.cc:425] Local rendezvous send item cancelled. Key hash: 1726844358861520274
+2026-05-20 23:58:04.064150: I tensorflow/core/framework/local_rendezvous.cc:425] Local rendezvous send item cancelled. Key hash: 1726844358861520274
+2026-05-21 00:01:44.192927: I tensorflow/core/framework/local_rendezvous.cc:425] Local rendezvous send item cancelled. Key hash: 1726844358861520274
+2026-05-21 00:02:32.485024: I tensorflow/core/framework/local_rendezvous.cc:425] Local rendezvous send item cancelled. Key hash: 1726844358861520274
+2026-05-21 00:03:04.008322: I tensorflow/core/framework/local_rendezvous.cc:425] Local rendezvous send item cancelled. Key hash: 1726844358861520274
+2026-05-21 00:03:56.491143: I tensorflow/core/framework/local_rendezvous.cc:425] Local rendezvous send item cancelled. Key hash: 1726844358861520274
+wandb: updating run metadata
+wandb: uploading output.log
+wandb: uploading history steps 38-39, summary, console lines 33693-33735
+wandb: 
+wandb: Run history:
+wandb: comm/client_edge_mb ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:  comm/cloud_edge_mb ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:  comm/this_round_mb ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:       comm/total_mb ▁▁▁▂▂▂▂▂▂▃▃▃▃▃▄▄▄▄▄▄▅▅▅▅▅▅▆▆▆▆▆▇▇▇▇▇▇███
+wandb:  perf/avg_edge_loss █▇▇▆▆▆▅▅▅▄▄▄▄▃▃▃▃▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:         perf/em_acc ▁▄▄▆▄▇▇▇▆██▇▇████▇▇█▆▇▇▆▇▃▆█▇▇▇▇▃▇▇▆▄▆▅▆
+wandb:        perf/em_loss ▃▂▂▂▂▁▁▁▂▁▁▁▁▁▁▁▁▂▂▂▃▂▃▄▃▇▄▂▃▃▄▃█▄▄▄▇▄▅▆
+wandb:         perf/gm_acc ▁▄▅▆▆▆▇▇▇▇▇▇▇████████████▇██████████████
+wandb:        perf/gm_loss █▆▅▄▄▃▂▂▂▁▁▁▁▁▁▁▁▂▂▂▃▃▃▄▄▅▄▄▄▄▅▅▆▅▅▅▆▅▅▅
+wandb:         perf/pm_acc ▁▃▄▅▄▅▆▆▄▆▆▆▇▇▆▇▇▇▇▇▇▇▇█▇█▇█████████████
+wandb:                  +4 ...
+wandb: 
+wandb: Run summary:
+wandb: comm/client_edge_mb 670.2713
+wandb:  comm/cloud_edge_mb 13.40543
+wandb:  comm/this_round_mb 683.67673
+wandb:       comm/total_mb 27347.06909
+wandb:  perf/avg_edge_loss 0.01923
+wandb:         perf/em_acc 0.60433
+wandb:        perf/em_loss 2.09495
+wandb:         perf/gm_acc 0.5714
+wandb:        perf/gm_loss 1.85501
+wandb:         perf/pm_acc 0.88287
+wandb:                  +4 ...
+wandb: 
+wandb: 🚀 View run final0_hierpfedme_c20_localepoch_1_semantic_superclass_pathological_classesperclient_2 at: https://wandb.ai/3445339138-kth-royal-institute-of-technology/HierFL-cifar10/runs/ve5qrnpe
+wandb: ⭐️ View project at: https://wandb.ai/3445339138-kth-royal-institute-of-technology/HierFL-cifar10
+wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20260520_231142-ve5qrnpe/logs
+/cephyr/users/ziangg/Alvis/tf-dpfl/lib/python3.11/site-packages/sklearn/metrics/_classification.py:1833: UndefinedMetricWarning: Recall is ill-defined and being set to 0.0 in labels with no true samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, f"{metric.capitalize()} is", result.shape[0])
+/cephyr/users/ziangg/Alvis/tf-dpfl/lib/python3.11/site-packages/sklearn/metrics/_classification.py:1833: UndefinedMetricWarning: Recall is ill-defined and being set to 0.0 in labels with no true samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, f"{metric.capitalize()} is", result.shape[0])
+/cephyr/users/ziangg/Alvis/tf-dpfl/lib/python3.11/site-packages/sklearn/metrics/_classification.py:1833: UndefinedMetricWarning: Recall is ill-defined and being set to 0.0 in labels with no true samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, f"{metric.capitalize()} is", result.shape[0])
+Traceback (most recent call last):
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/main.py", line 396, in <module>
+    run_experiment()
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/main.py", line 333, in run_experiment
+    generate_report(
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/utils/report.py", line 40, in generate_report
+    lines.append(classification_report(
+                 ^^^^^^^^^^^^^^^^^^^^^^
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/lib/python3.11/site-packages/sklearn/utils/_param_validation.py", line 218, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/lib/python3.11/site-packages/sklearn/metrics/_classification.py", line 3097, in classification_report
+    raise ValueError(
+ValueError: Number of classes, 7, does not match size of target_names, 10. Try specifying the labels parameter

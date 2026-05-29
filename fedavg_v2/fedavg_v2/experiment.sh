@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=fedavg_gtsrb
-#SBATCH --account=naiss2025-22-1095          # C3SE 项目号，格式如 NAISS2024-X-XXX
+#SBATCH --account=naiss2026-4-650          # C3SE 项目号，格式如 NAISS2024-X-XXX
 #SBATCH --output=logs/fedavg_%j.out        # %j 自动替换为 job ID
 #SBATCH --error=logs/fedavg_%j.err
 #SBATCH --time=02:00:00                    # 预估时间，先给宽裕一点

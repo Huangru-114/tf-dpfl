@@ -1,25 +1,26 @@
 seed: 42
 data:
-  dataset:        "cifar100"
+  dataset:        "cifar10"
   img_size:       32
   batch_size:     16
   shuffle_buffer: 10000
-  num_classes:    100
+  num_classes:    10
+  per_client_test_ratio: 0.25
 
 federation:
-  edge_assignment:  "random"  # 可选 "random", "clustered"
+  edge_assignment:  "semantic"  # 可选 "random", "clustered"
   client_fraction:  1.0
   warmup_rounds:    5
   n_clients:        100
   n_edges:          2
   edge_rounds:      5
   n_rounds:         40
-  partition:        "pathological"  # 可选 "iid", "pathological"
+  partition:        "superclass_pathological"  # 可选 "iid", "pathological", "superclass_pathological"
   classes_per_client: 2
   alpha:            0.5
 
 training:
-  local_epochs:   5
+  local_epochs:   1
   learning_rate:  0.02
   lr_decay:       0.992
   drift_correction: "hierpfedme"  # 可选 "none", "fedprox", "feddyn", "pfedme", "hierpfedme", "hier_perfedavg"
@@ -40,20 +41,21 @@ training:
   lambda2_hier:     35.0
   beta_hier:        1.0
   # Hier-pFedMe 相关超参数
+  #inner_steps_hier, 5会使得PM直接崩溃,这和文献报告完全不同,怀疑是实现细节问题,先改成2试试
   inner_steps_hier: 1
   alpha_inner:      0.01
   beta_outer:   0.01    # 外循环边缘更新步长
   label_smoothing: 0.1  # 防 NaN
 
 model:
-  arch: "cifar_cnn_3conv"
+  arch: "fedavg_cnn"
 
 wandb:
   enabled:  true
   entity:   "3445339138-kth-royal-institute-of-technology"
-  project:  "HierFL-cifar100"
+  project:  "HierFL-cifar10"
   # run_name: "H4_hierpfedme_c10_localepoch_5_random_dirichet_alpha_0.1"
-  run_name: "final0_hierpfedme_c100_localepoch_5_random_pathological_classesperclient_2"
+  run_name: "final0_hierpfedme_c100_localepoch_1_semantic_superclass_pathological_classesperclient_2_k1"
 
 evaluation:
-  eval_interval: 10
+  eval_interval: 1

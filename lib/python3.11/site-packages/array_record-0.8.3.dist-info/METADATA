@@ -1,0 +1,34 @@
+Metadata-Version: 2.4
+Name: array_record
+Version: 0.8.3
+Summary: A file format that achieves a new frontier of IO efficiency
+Home-page: https://github.com/google/array_record
+Author: ArrayRecord team
+Author-email: no-reply@google.com
+License: Apache-2.0
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: Python :: 3.13
+Classifier: Programming Language :: Python :: 3.14
+Requires-Python: >=3.11
+License-File: LICENSE
+Requires-Dist: absl-py
+Requires-Dist: etils[epath]
+Provides-Extra: beam
+Requires-Dist: apache-beam[gcp]>=2.53.0; extra == "beam"
+Requires-Dist: google-cloud-storage>=2.11.0; extra == "beam"
+Requires-Dist: tensorflow>=2.20.0; extra == "beam"
+Provides-Extra: test
+Requires-Dist: jax; extra == "test"
+Requires-Dist: grain; extra == "test"
+Requires-Dist: tensorflow>=2.20.0; extra == "test"
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: home-page
+Dynamic: license
+Dynamic: license-file
+Dynamic: provides-extra
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary

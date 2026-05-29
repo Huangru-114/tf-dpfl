@@ -1,0 +1,232 @@
+This job can be monitored from: https://job.c3se.chalmers.se/alvis/6625434
+========================================
+Job ID      : 6625434
+Job Name    : HierFLcifar10
+Node        : alvis6-10
+Start Time  : Tue May 12 22:08:56 CEST 2026
+Working Dir : /cephyr/users/ziangg/Alvis/tf-dpfl
+========================================
+[Setup] Python: /cephyr/users/ziangg/Alvis/tf-dpfl/bin/python
+[Setup] TF version: 2.15.1
+[Setup] GPU available: [PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
+[Config] Override: wandb.enabled = True
+[Setup] Random seed: 42
+[Setup] Loading dataset...
+[Data] CIFAR-10 from Mimer: /mimer/NOBACKUP/Datasets/CIFAR
+[Setup] Building global model...
+Model: "cifar_cnn_3conv"
+_________________________________________________________________
+ Layer (type)                Output Shape              Param #   
+=================================================================
+ input_1 (InputLayer)        [(None, 32, 32, 3)]       0         
+                                                                 
+ conv2d (Conv2D)             (None, 32, 32, 32)        896       
+                                                                 
+ batch_normalization (Batch  (None, 32, 32, 32)        128       
+ Normalization)                                                  
+                                                                 
+ re_lu (ReLU)                (None, 32, 32, 32)        0         
+                                                                 
+ conv2d_1 (Conv2D)           (None, 32, 32, 64)        18496     
+                                                                 
+ batch_normalization_1 (Bat  (None, 32, 32, 64)        256       
+ chNormalization)                                                
+                                                                 
+ re_lu_1 (ReLU)              (None, 32, 32, 64)        0         
+                                                                 
+ max_pooling2d (MaxPooling2  (None, 16, 16, 64)        0         
+ D)                                                              
+                                                                 
+ conv2d_2 (Conv2D)           (None, 16, 16, 128)       73856     
+                                                                 
+ batch_normalization_2 (Bat  (None, 16, 16, 128)       512       
+ chNormalization)                                                
+                                                                 
+ re_lu_2 (ReLU)              (None, 16, 16, 128)       0         
+                                                                 
+ conv2d_3 (Conv2D)           (None, 16, 16, 128)       147584    
+                                                                 
+ batch_normalization_3 (Bat  (None, 16, 16, 128)       512       
+ chNormalization)                                                
+                                                                 
+ re_lu_3 (ReLU)              (None, 16, 16, 128)       0         
+                                                                 
+ max_pooling2d_1 (MaxPoolin  (None, 8, 8, 128)         0         
+ g2D)                                                            
+                                                                 
+ spatial_dropout2d (Spatial  (None, 8, 8, 128)         0         
+ Dropout2D)                                                      
+                                                                 
+ conv2d_4 (Conv2D)           (None, 8, 8, 256)         295168    
+                                                                 
+ batch_normalization_4 (Bat  (None, 8, 8, 256)         1024      
+ chNormalization)                                                
+                                                                 
+ re_lu_4 (ReLU)              (None, 8, 8, 256)         0         
+                                                                 
+ conv2d_5 (Conv2D)           (None, 8, 8, 256)         590080    
+                                                                 
+ batch_normalization_5 (Bat  (None, 8, 8, 256)         1024      
+ chNormalization)                                                
+                                                                 
+ re_lu_5 (ReLU)              (None, 8, 8, 256)         0         
+                                                                 
+ max_pooling2d_2 (MaxPoolin  (None, 4, 4, 256)         0         
+ g2D)                                                            
+                                                                 
+ flatten (Flatten)           (None, 4096)              0         
+                                                                 
+ dropout (Dropout)           (None, 4096)              0         
+                                                                 
+ dense (Dense)               (None, 1024)              4195328   
+                                                                 
+ dense_1 (Dense)             (None, 512)               524800    
+                                                                 
+ dropout_1 (Dropout)         (None, 512)               0         
+                                                                 
+ dense_2 (Dense)             (None, 10)                5130      
+                                                                 
+=================================================================
+Total params: 5854794 (22.33 MB)
+Trainable params: 5853066 (22.33 MB)
+Non-trainable params: 1728 (6.75 KB)
+_________________________________________________________________
+[Setup] Building clients...
+
+[Superclass-aware partition] 2 edges, 2 classes/client
+
+  Edge 0 (class pool: [2, 3, 4, 5, 6, 7]):
+  Client       Samples    Classes held                        Out-of-pool?
+  ---------------------------------------------------------------------------
+  client_0     4000       [3, 6]                              OK
+  client_1     4000       [3, 6]                              OK
+  client_2     4000       [2, 5]                              OK
+  client_3     4000       [5, 7]                              OK
+  client_4     4000       [2, 7]                              OK
+  client_5     4000       [2, 4]                              OK
+  client_6     4000       [6, 7]                              OK
+  client_7     4000       [3, 5]                              OK
+  client_8     2000       [4]                                 OK
+  client_9     2000       [4]                                 OK
+
+  Edge 1 (class pool: [0, 1, 8, 9]):
+  Client       Samples    Classes held                        Out-of-pool?
+  ---------------------------------------------------------------------------
+  client_10    2400       [8, 9]                              OK
+  client_11    2400       [0, 1]                              OK
+  client_12    2400       [1, 8]                              OK
+  client_13    2400       [0, 8]                              OK
+  client_14    2400       [0, 9]                              OK
+  client_15    2400       [0, 8]                              OK
+  client_16    2400       [1, 8]                              OK
+  client_17    2400       [1, 9]                              OK
+  client_18    2400       [1, 9]                              OK
+  client_19    2400       [0, 9]                              OK
+
+[Train/Test split] 20 clients | avg train=2400, avg test=600 samples (ratio=0.2)
+[Setup] 20 clients built (superclass_pathological) | per-client test sets injected
+[Setup] Building edge servers...
+[Assignment] Using pre-baked superclass assignments | 2 edges
+[EdgeServer 0] 10 clients | 28800 samples
+[EdgeServer 1] 10 clients | 19200 samples
+
+[Setup] Built 2 edge servers (strategy=superclass_baked)
+  Edge 0: 10 clients | 28800 samples
+  Edge 1: 10 clients | 19200 samples
+[Setup] Building per-edge test datasets (superclass-aware)...
+  [Test split] Edge 0: 6000 test samples (6 classes)
+  [Test split] Edge 1: 4000 test samples (4 classes)
+[CloudServer] 2 edges | model: 22.33 MB
+
+====================================================
+ HierFAVG Training Start
+====================================================
+
+[Round   1] Broadcasting to 2 edges...
+  [Edge 0] G1 | E1 | Hier-pFedMe | Selected 10/10
+  [C8] Round 1 | batch 0/100 | labels: [4]
+  [C9] Round 1 | batch 0/100 | labels: [4]
+  [C3] Round 1 | batch 0/200 | labels: [5 7]
+  [C6] Round 1 | batch 0/200 | labels: [6 7]
+  [Client  3] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=15.5635
+  [Client  8] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.0000
+  [C7] Round 1 | batch 0/200 | labels: [3 5]
+  [Client  6] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.0561
+  [Client  9] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.0000
+  [C1] Round 1 | batch 0/200 | labels: [3 6]
+  [C4] Round 1 | batch 0/200 | labels: [2 7]
+  [C0] Round 1 | batch 0/200 | labels: [3 6]
+  [Client  7] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=4.7855
+  [C5] Round 1 | batch 0/200 | labels: [2 4]
+  [Client  1] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=14.2104
+  [C2] Round 1 | batch 0/200 | labels: [2 5]
+  [Client  0] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=15.6871
+  [Client  4] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=16.8186
+  [Client  5] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=15.8795
+  [Client  2] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=15.8706
+  [Edge 0] G1 | E1 | loss=10.9857
+  [Edge 0] G1 | E2 | Hier-pFedMe | Selected 10/10
+  [C3] Round 1 | batch 1/200 | labels: [5 7]
+  [C0] Round 1 | batch 1/200 | labels: [3 6]
+  [C9] Round 1 | batch 1/100 | labels: [4]  [C7] Round 1 | batch 1/200 | labels: [3 5]
+
+  [Client  0] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2010
+  [Client  3] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7167
+  [Client  7] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=4.9614
+  [Client  9] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.0000
+  [C6] Round 1 | batch 1/200 | labels: [6 7]
+  [C4] Round 1 | batch 1/200 | labels: [2 7]
+  [C2] Round 1 | batch 1/200 | labels: [2 5]  [C8] Round 1 | batch 1/100 | labels: [4]
+
+  [Client  6] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5931
+  [Client  4] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2011
+  [Client  8] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.0000
+  [Client  2] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7216
+  [C5] Round 1 | batch 1/200 | labels: [2 4]
+  [C1] Round 1 | batch 1/200 | labels: [3 6]
+  [Client  5] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.6640
+  [Client  1] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.4158
+  [Edge 0] G1 | E2 | loss=1.1639
+  [Edge 0] G1 | E3 | Hier-pFedMe | Selected 10/10
+  [C7] Round 1 | batch 2/200 | labels: [3 5]
+  [C8] Round 1 | batch 2/100 | labels: [4]
+  [C9] Round 1 | batch 2/100 | labels: [4]  [C6] Round 1 | batch 2/200 | labels: [6 7]
+
+  [Client  8] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.0001
+  [Client  7] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=3.4741
+  [Client  6] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=2.9111
+  [Client  9] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.0001
+  [C4] Round 1 | batch 2/200 | labels: [2 7]
+  [C1] Round 1 | batch 2/200 | labels: [3 6]
+  [C0] Round 1 | batch 2/200 | labels: [3 6]
+  [C3] Round 1 | batch 2/200 | labels: [5 7]
+  [Client  4] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=8.7868
+  [Client  1] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=5.1072  [Client  0] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=13.1932
+
+  [Client  3] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=2.9313
+  [C5] Round 1 | batch 2/200 | labels: [2 4]
+  [C2] Round 1 | batch 2/200 | labels: [2 5]
+  [Client  5] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=6.7000
+  [Client  2] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=5.1879
+  [Edge 0] G1 | E3 | loss=5.3657
+  [Edge 0] G1 | E4 | Hier-pFedMe | Selected 10/10
+  [C0] Round 1 | batch 3/200 | labels: [3 6]
+  [C6] Round 1 | batch 3/200 | labels: [6 7]
+  [C8] Round 1 | batch 3/100 | labels: [4]
+  [C9] Round 1 | batch 3/100 | labels: [4]
+  [Client  6] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4586
+  [Client  0] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7668
+  [Client  8] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.0044
+  [Client  9] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.0068
+  [C7] Round 1 | batch 3/200 | labels: [3 5]
+  [C3] Round 1 | batch 3/200 | labels: [5 7]
+  [C5] Round 1 | batch 3/200 | labels: [2 4]
+  [C2] Round 1 | batch 3/200 | labels: [2 5]
+  [Client  7] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4752
+  [Client  3] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3571
+  [Client  5] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6536
+  [Client  2] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.9312
+  [C1] Round 1 | batch 3/200 | labels: [3 6]
+  [C4] Round 1 | batch 3/200 | labels: [2 7]
+  [Client  1] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5918
+  [Client  4] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4400

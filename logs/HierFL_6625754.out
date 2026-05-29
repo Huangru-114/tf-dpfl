@@ -1,0 +1,27 @@
+This job can be monitored from: https://job.c3se.chalmers.se/alvis/6625754
+========================================
+Job ID      : 6625754
+Job Name    : HierFLcifar10
+Node        : alvis8-06
+Start Time  : Tue May 12 22:58:21 CEST 2026
+Working Dir : /cephyr/users/ziangg/Alvis/tf-dpfl
+========================================
+[Setup] Python: /cephyr/users/ziangg/Alvis/tf-dpfl/bin/python
+[Setup] TF version: 2.15.1
+[Setup] GPU available: [PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
+Train subset : (500, 32, 32, 3)  labels unique=[0 1]
+Test  subset : (2000, 32, 32, 3)  labels unique=[0 1]
+Batch shape  : (16, 32, 32, 3)  label counts=[ 6 10]
+
+Training on batch (size=16) for 5 steps ...
+  step 1/5  loss=0.7889  batch_acc=62.50%
+  step 2/5  loss=28.8026  batch_acc=37.50%
+  step 3/5  loss=0.3026  batch_acc=75.00%
+  step 4/5  loss=3.1299  batch_acc=62.50%
+  step 5/5  loss=0.0632  batch_acc=100.00%
+
+Evaluating on test subset (2000 samples) ...
+  test loss=1.4838  test acc=50.00%
+========================================
+End Time : Tue May 12 22:58:57 CEST 2026
+========================================

@@ -28,6 +28,9 @@ class FLLogger:
             "perf/global_loss":      metrics["global_loss"],
             "perf/avg_client_loss":  metrics["avg_client_loss"],
 
+            "perf/pm_acc":  metrics["pm_acc"] if metrics.get("pm_acc") is not None else None,
+            "perf/pm_loss": metrics["pm_loss"] if metrics.get("pm_loss") is not None else None,
+
             # 时间成本
             "time/round_total_s":    metrics["round_time"],
             "time/client_avg_s":     metrics["avg_client_time"],

@@ -1,0 +1,254 @@
+This job can be monitored from: https://job.c3se.chalmers.se/alvis/6665517
+========================================
+Job ID      : 6665517
+Job Name    : HierFLcifar10
+Node        : alvis10-06
+Start Time  : Fri May 22 06:19:18 CEST 2026
+Working Dir : /cephyr/users/ziangg/Alvis/tf-dpfl
+========================================
+[Setup] Python: /cephyr/users/ziangg/Alvis/tf-dpfl/bin/python
+[Setup] TF version: 2.15.1
+[Setup] GPU available: [PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
+[Config] Override: wandb.enabled = True
+[Setup] Random seed: 42
+[Setup] Loading dataset...
+[Data] CIFAR-10 from Mimer: /mimer/NOBACKUP/Datasets/CIFAR
+[Setup] Building global model...
+Model: "fedavg_cnn"
+_________________________________________________________________
+ Layer (type)                Output Shape              Param #   
+=================================================================
+ input_1 (InputLayer)        [(None, 32, 32, 3)]       0         
+                                                                 
+ conv2d (Conv2D)             (None, 28, 28, 32)        2432      
+                                                                 
+ max_pooling2d (MaxPooling2  (None, 14, 14, 32)        0         
+ D)                                                              
+                                                                 
+ conv2d_1 (Conv2D)           (None, 10, 10, 64)        51264     
+                                                                 
+ max_pooling2d_1 (MaxPoolin  (None, 5, 5, 64)          0         
+ g2D)                                                            
+                                                                 
+ flatten (Flatten)           (None, 1600)              0         
+                                                                 
+ dense (Dense)               (None, 512)               819712    
+                                                                 
+ dense_1 (Dense)             (None, 10)                5130      
+                                                                 
+=================================================================
+Total params: 878538 (3.35 MB)
+Trainable params: 878538 (3.35 MB)
+Non-trainable params: 0 (0.00 Byte)
+_________________________________________________________________
+[Setup] Building clients...
+
+[Superclass-aware partition] 2 edges, 2 classes/client
+
+  Edge 0 (class pool: [2, 3, 4, 5, 6, 7]):
+  Client       Samples    Classes held                        Out-of-pool?
+  ---------------------------------------------------------------------------
+  client_0     4000       [3, 6]                              OK
+  client_1     4000       [3, 6]                              OK
+  client_2     4000       [2, 5]                              OK
+  client_3     4000       [5, 7]                              OK
+  client_4     4000       [2, 7]                              OK
+  client_5     4000       [2, 4]                              OK
+  client_6     4000       [6, 7]                              OK
+  client_7     4000       [3, 5]                              OK
+  client_8     2000       [4]                                 OK
+  client_9     2000       [4]                                 OK
+
+  Edge 1 (class pool: [0, 1, 8, 9]):
+  Client       Samples    Classes held                        Out-of-pool?
+  ---------------------------------------------------------------------------
+  client_10    2400       [8, 9]                              OK
+  client_11    2400       [0, 1]                              OK
+  client_12    2400       [1, 8]                              OK
+  client_13    2400       [0, 8]                              OK
+  client_14    2400       [0, 9]                              OK
+  client_15    2400       [0, 8]                              OK
+  client_16    2400       [1, 8]                              OK
+  client_17    2400       [1, 9]                              OK
+  client_18    2400       [1, 9]                              OK
+  client_19    2400       [0, 9]                              OK
+
+[Train/Test split] 20 clients | avg train=2250, avg test=750 samples (ratio=0.25)
+[Setup] 20 clients built (superclass_pathological) | per-client test sets injected
+[Setup] Building edge servers...
+[Assignment] Using pre-baked superclass assignments | 2 edges
+[EdgeServer 0] 10 clients | 27000 samples
+[EdgeServer 1] 10 clients | 18000 samples
+
+[Setup] Built 2 edge servers (strategy=superclass_baked)
+  Edge 0: 10 clients | 27000 samples
+  Edge 1: 10 clients | 18000 samples
+[Setup] Building per-edge test datasets (superclass-aware)...
+[CloudServer] 2 edges | model: 3.35 MB
+
+====================================================
+ HierFAVG Training Start
+====================================================
+
+[Round   1] Broadcasting to 2 edges...
+  [Edge 0] W_n reset to global weights for new round.
+  [Edge 1] W_n reset to global weights for new round.
+  [Edge 0] G1 | E1 | Hier-pFedMe | Selected 10/10
+  [Client  3] Received edge weights. Set local model to edge weights.
+[C3] Test set: samples=1000, class_dist={5: 506, 7: 494}
+  [Client  6] Received edge weights. Set local model to edge weights.
+[C6] Test set: samples=1000, class_dist={6: 493, 7: 507}
+  [Client  9] Received edge weights. Set local model to edge weights.
+[C9] Test set: samples=500, class_dist={4: 500}
+  [Client  8] Received edge weights. Set local model to edge weights.
+[C8] Test set: samples=500, class_dist={4: 500}
+  [Client  7] Received edge weights. Set local model to edge weights.
+[C7] Test set: samples=1000, class_dist={3: 485, 5: 515}
+  [Client  1] Received edge weights. Set local model to edge weights.
+[C1] Test set: samples=1000, class_dist={3: 515, 6: 485}
+  [Client  4] Received edge weights. Set local model to edge weights.
+[C4] Test set: samples=1000, class_dist={2: 507, 7: 493}
+  [Client  0] Received edge weights. Set local model to edge weights.
+[C0] Test set: samples=1000, class_dist={3: 511, 6: 489}
+  [Client  5] Received edge weights. Set local model to edge weights.
+[C5] Test set: samples=1000, class_dist={2: 510, 4: 490}
+  [Client  2] Received edge weights. Set local model to edge weights.
+[C2] Test set: samples=1000, class_dist={2: 507, 5: 493}
+  [Client  9] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=94  [Client  8] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=94  [Client  6] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=188  [Client  3] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=188
+
+
+
+  [Client  9] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0308
+  [Client  7] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=188
+  [Client  8] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0325
+  [Client  1] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=188
+  [Client  3] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5861
+  [Client  4] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=188
+  [Client  6] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5042
+  [Client  0] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=188
+  [Client  1] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6111
+  [Client  5] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=188
+  [Client  7] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6744
+  [Client  2] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=188
+  [Client  4] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6145
+  [Client  0] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5834
+  [Client  2] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6341
+  [Client  5] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6871
+  [Edge 0] G1 | E1 | loss=0.5474
+  [Edge 0] G1 | E2 | Hier-pFedMe | Selected 10/10
+  [Client  3] Received edge weights. Set local model to edge weights.
+[C3] Test set: samples=1000, class_dist={5: 506, 7: 494}
+  [Client  0] Received edge weights. Set local model to edge weights.
+[C0] Test set: samples=1000, class_dist={3: 511, 6: 489}
+  [Client  7] Received edge weights. Set local model to edge weights.
+[C7] Test set: samples=1000, class_dist={3: 485, 5: 515}
+  [Client  9] Received edge weights. Set local model to edge weights.
+[C9] Test set: samples=500, class_dist={4: 500}
+  [Client  6] Received edge weights. Set local model to edge weights.
+[C6] Test set: samples=1000, class_dist={6: 493, 7: 507}
+  [Client  4] Received edge weights. Set local model to edge weights.
+[C4] Test set: samples=1000, class_dist={2: 507, 7: 493}
+  [Client  2] Received edge weights. Set local model to edge weights.
+[C2] Test set: samples=1000, class_dist={2: 507, 5: 493}
+  [Client  8] Received edge weights. Set local model to edge weights.
+[C8] Test set: samples=500, class_dist={4: 500}
+  [Client  5] Received edge weights. Set local model to edge weights.
+[C5] Test set: samples=1000, class_dist={2: 510, 4: 490}
+  [Client  1] Received edge weights. Set local model to edge weights.
+[C1] Test set: samples=1000, class_dist={3: 515, 6: 485}
+  [Client  0] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=188  [Client  7] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=188  [Client  9] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=94  [Client  3] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=188
+
+
+
+  [Client  9] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0154
+  [Client  6] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=188
+  [Client  3] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5238  [Client  0] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5209
+
+  [Client  4] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=188
+  [Client  2] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=188
+  [Client  7] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6314
+  [Client  8] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=94
+  [Client  8] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0147
+  [Client  5] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=188
+  [Client  6] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4285
+  [Client  1] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=188
+  [Client  2] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5653
+  [Client  4] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5396
+  [Client  5] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6381
+  [Client  1] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5488
+  [Edge 0] G1 | E2 | loss=0.4902
+  [Edge 0] G1 | E3 | Hier-pFedMe | Selected 10/10
+  [Client  9] Received edge weights. Set local model to edge weights.
+[C9] Test set: samples=500, class_dist={4: 500}
+  [Client  7] Received edge weights. Set local model to edge weights.
+[C7] Test set: samples=1000, class_dist={3: 485, 5: 515}
+  [Client  8] Received edge weights. Set local model to edge weights.
+[C8] Test set: samples=500, class_dist={4: 500}
+  [Client  6] Received edge weights. Set local model to edge weights.
+[C6] Test set: samples=1000, class_dist={6: 493, 7: 507}
+  [Client  4] Received edge weights. Set local model to edge weights.
+[C4] Test set: samples=1000, class_dist={2: 507, 7: 493}
+  [Client  1] Received edge weights. Set local model to edge weights.
+[C1] Test set: samples=1000, class_dist={3: 515, 6: 485}
+  [Client  0] Received edge weights. Set local model to edge weights.
+[C0] Test set: samples=1000, class_dist={3: 511, 6: 489}
+  [Client  3] Received edge weights. Set local model to edge weights.
+[C3] Test set: samples=1000, class_dist={5: 506, 7: 494}
+  [Client  5] Received edge weights. Set local model to edge weights.
+[C5] Test set: samples=1000, class_dist={2: 510, 4: 490}
+  [Client  2] Received edge weights. Set local model to edge weights.
+[C2] Test set: samples=1000, class_dist={2: 507, 5: 493}
+  [Client  9] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=94  [Client  7] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=188  [Client  6] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=188  [Client  8] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=94
+
+
+
+  [Client  9] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0142
+  [Client  4] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=188
+  [Client  8] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0140
+  [Client  1] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=188
+  [Client  6] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3806
+  [Client  0] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=188
+  [Client  7] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5954
+  [Client  3] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=188
+  [Client  1] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4971
+  [Client  4] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4787
+  [Client  5] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=188
+  [Client  2] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=188
+  [Client  0] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4769  [Client  3] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4764
+
+  [Client  5] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.6040
+  [Client  2] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.5242
+  [Edge 0] G1 | E3 | loss=0.4497
+  [Edge 0] G1 | E4 | Hier-pFedMe | Selected 10/10
+  [Client  8] Received edge weights. Set local model to edge weights.
+[C8] Test set: samples=500, class_dist={4: 500}
+  [Client  6] Received edge weights. Set local model to edge weights.
+[C6] Test set: samples=1000, class_dist={6: 493, 7: 507}
+  [Client  0] Received edge weights. Set local model to edge weights.
+[C0] Test set: samples=1000, class_dist={3: 511, 6: 489}
+  [Client  9] Received edge weights. Set local model to edge weights.
+[C9] Test set: samples=500, class_dist={4: 500}
+  [Client  7] Received edge weights. Set local model to edge weights.
+[C7] Test set: samples=1000, class_dist={3: 485, 5: 515}
+  [Client  3] Received edge weights. Set local model to edge weights.
+[C3] Test set: samples=1000, class_dist={5: 506, 7: 494}
+  [Client  5] Received edge weights. Set local model to edge weights.
+[C5] Test set: samples=1000, class_dist={2: 510, 4: 490}
+  [Client  2] Received edge weights. Set local model to edge weights.
+[C2] Test set: samples=1000, class_dist={2: 507, 5: 493}
+  [Client  1] Received edge weights. Set local model to edge weights.
+[C1] Test set: samples=1000, class_dist={3: 515, 6: 485}
+  [Client  4] Received edge weights. Set local model to edge weights.
+[C4] Test set: samples=1000, class_dist={2: 507, 7: 493}
+  [Client  8] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=94  [Client  6] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=188  [Client  0] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=188  [Client  9] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=94
+
+
+
+  [Client  9] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0120  [Client  8] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.0117
+
+  [Client  7] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=188
+  [Client  3] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=188
+  [Client  0] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.4453
+  [Client  5] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=188
+  [Client  6] Round 1 | Hier-pFedMe(λ2=35.0, K=5) | loss=0.3424
+  [Client  2] Starting Hier-pFedMe | λ2=35.0, η2=0.02, inner_steps=5, epochs=1, batches/epoch=188

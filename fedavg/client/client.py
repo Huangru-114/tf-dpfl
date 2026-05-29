@@ -10,9 +10,6 @@ import numpy as np
 import tensorflow as tf
 import time
 
-tf.keras.mixed_precision.set_global_policy('mixed_float16')
-
-
 
 class FLClient:
     def __init__(self, client_id: int, dataset: tf.data.Dataset,
@@ -21,8 +18,6 @@ class FLClient:
         self.dataset   = dataset
         self.model     = model
         self.config    = config
-
-        weights_np = model.get_weights()
 
         # ── 预计算 trainable 变量在 get_weights() 中的索引 ─────────────────
         # model.get_weights() 返回全部权重（含 BatchNorm moving mean/variance 等
@@ -49,8 +44,15 @@ class FLClient:
 
         # ── pFedMe/HierpFedMe：本地个性化模型（warm-start 用，不上传）────────────────
         self.pfedme_theta = None
-        self._theta_vars = None 
-
+        self._local_vars  = None
+        # HierPFedMe 超参作为 tf.Variable 存储，@tf.function 通过引用捕获，
+        # 避免每次传 tf.constant() 导致 retrace（每个新 EagerTensor 对象触发一次 trace）。
+        self._lam2_var = None
+        self._eta2_var = None
+        #hierpfedme 的内层训练在 tf.function 内部进行，dataset 需要一次性缓存到列表中，避免迭代器耗尽导致的异常。
+        self._batch_list = list(self.dataset)  # 一次性缓存
+        self._batch_iter = iter(self._batch_list)
+        self._batch_idx  = 0  # 全局计数器，跨 round 不重置
         # ── 样本数 ─────────────────────────────────────────────────────────
         self.n_samples = n_samples if n_samples is not None else sum(
             x.shape[0] for x, _ in dataset
@@ -72,6 +74,9 @@ class FLClient:
         self.optimizer = tf.keras.optimizers.SGD(
             learning_rate=self.lr_schedule, momentum=0.9
         )
+        # self.optimizer = tf.keras.optimizers.SGD(
+        #     learning_rate=lr
+        #     )
         # self.loss_fn = tf.keras.losses.SparseCategoricalCrossentropy()
         self.loss_fn = tf.keras.losses.SparseCategoricalCrossentropy(
             reduction='sum_over_batch_size'
@@ -79,6 +84,10 @@ class FLClient:
         # ── 双层参考权重 ───────────────────────────────────────────────────
         self.global_weights = None
         self.edge_weights   = None
+
+    def get_test_dataset(self):
+        """返回 per-client 同分布测试集"""
+        return self.test_dataset
 
     # ══════════════════════════════════════════════════════════════════════
     # 权重管理
@@ -90,6 +99,7 @@ class FLClient:
         if edge_weights is not None:
             self.edge_weights = [w.copy() for w in edge_weights]
             self.model.set_weights(edge_weights)
+            print(f"  [Client {self.client_id:>2}] Received edge weights.")
         else:
             self.edge_weights = None
             self.model.set_weights(global_weights)
@@ -458,91 +468,150 @@ class FLClient:
               f"Per-FedAvg(α={alpha}) | loss={avg:.4f}")
         return meta_w, self.n_samples, avg, time.time() - t0
 
-    # ══════════════════════════════════════════════════════════════════════
-    # Hier-pFedMe  （Liu et al., ICME 2025）
-    # 三层嵌套优化的客户端部分（内层 + Moreau 梯度步）
-    #
-    # 性能关键：用 tf.Variable 持有 Theta，整个内外层更新留在 TF 图内。
-    # 避免热循环里的 set_weights / get_weights 以及 tf.function retrace。
-    #
-    # 原始慢版本的三个瓶颈：
-    #   1. 每 batch 调用 set_weights / get_weights → CPU↔GPU 数据拷贝
-    #   2. anchor_tf 每 batch 新建 tf.constant list → @tf.function 每 batch retrace
-    #   3. Moreau 步在 Python 层做 numpy 运算 → 无法 GPU 加速
-    # ══════════════════════════════════════════════════════════════════════
+
+    def evaluate_on(self, fallback_dataset: tf.data.Dataset = None):
+        w = self.model.get_weights()
+        print(f"[C{self.client_id}] eval model[0] mean={np.mean(w[0]):.6f} | "
+            f"edge mean={np.mean(self.edge_weights[0]):.6f} |")
+            
+        if self.test_dataset is None and fallback_dataset is None:
+            raise ValueError("No test dataset for evaluation.")
+        elif self.test_dataset is None:
+            print(f"  [Edge {self.edge_id}] No per-edge test dataset, "
+                  f"using fallback dataset for evaluation.")
+        ds = self.test_dataset if self.test_dataset is not None else fallback_dataset
+        if ds is None:
+            raise ValueError("No test dataset available. "
+                             "Call set_test_dataset() or pass fallback_dataset.")
+
+        tl = tc = tn = 0
+        all_preds = []
+        all_labels = []
+        for x, y in ds:
+            p  = self.model(x, training=False)
+            tl += self.loss_fn(y, p).numpy() * x.shape[0]
+            tc += np.sum(np.argmax(p.numpy(), 1) == y.numpy())
+            tn += x.shape[0]
+            all_preds.append(np.argmax(p.numpy(), 1))
+            all_labels.append(y.numpy())
+
+        all_preds  = np.concatenate(all_preds)
+        all_labels = np.concatenate(all_labels)
+        known_classes = sorted(set(all_labels.tolist()))
+
+        # 按类统计正确率
+        per_class_acc = {}
+        for c in known_classes:
+            mask = all_labels == c
+            per_class_acc[c] = np.mean(all_preds[mask] == c)
+
+        print(f"[C{self.client_id}] n={tn} | classes={known_classes} | "
+              f"acc={tc/tn:.4f} | per_class={ {c: f'{a:.2f}' for c, a in per_class_acc.items()} }")
+
+        if tn == 0:
+            return 0.0, 0.0
+        return float(tl / tn), float(tc / tn)
+
+
 
     def _local_train_hierpfedme(self, round_idx: int, ref_weights: list):
-        lam2   = float(self.config["training"].get("lambda2_hier", 35.0))
-        eta2   = float(self.config["training"]["learning_rate"])
-        epochs = int(self.config["training"]["local_epochs"])
+        lam2        = float(self.config["training"].get("lambda2_hier", 35.0))
+        eta2        = float(self.config["training"]["learning_rate"])
+        epochs      = int(self.config["training"]["local_epochs"])
+        inner_steps = int(self.config["training"].get("inner_steps_hier", 1))
 
-        # Theta 以 tf.Variable 形式持有，整轮训练只初始化一次
-        # 所有更新（内层 FedProx + 外层 Moreau）全部在 _hierpfedme_step 的
-        # tf.function 图内完成，不再跨越 Python↔TF 边界
+        # ── 变量角色对照 ──────────────────────────────────────────────────────
+        # ref_weights      : edge 下发权重 θ_n^{t,i}  ←→ pFedMe 的 server.model (w)
+        # self.model       : 内层个性化模型 θ̃          ←→ pFedMe 的 user.model
+        # self._local_vars : 本地锚点 Θ               ←→ pFedMe 的 local_model (θ)
+        # ─────────────────────────────────────────────────────────────────────
+
         trainable_ref = self._trainable_ref(ref_weights)
-        if self._theta_vars is None:
-            self._theta_vars = [
+
+        # Algorithm Line 8: Θ^0 = θ_n，每次 edge round 从 edge 权重重置
+        if self._local_vars is None:
+            self._local_vars = [
                 tf.Variable(w, trainable=False, dtype=tf.float32)
-                for w in trainable_ref]
+                for w in trainable_ref
+            ]
         else:
-            for var, w in zip(self._theta_vars, trainable_ref):
-                var.assign(w) 
-        # 将模型初始化为 Theta
-        for v, t in zip(self.model.trainable_variables, self._theta_vars):
-            v.assign(t)
+            for var, w in zip(self._local_vars, trainable_ref):
+                var.assign(w)
 
-        lam2_tf = tf.constant(lam2, dtype=tf.float32)
-        eta2_tf = tf.constant(eta2, dtype=tf.float32)
+        # Algorithm Line 6: θ̃^0 = θ_n，self.model 同样从 edge 权重重置
+        self.model.set_weights(ref_weights)
 
-        losses, t0 = [], time.time()
+        if self._lam2_var is None:
+            self._lam2_var = tf.Variable(lam2, trainable=False, dtype=tf.float32)
+            self._eta2_var = tf.Variable(eta2, trainable=False, dtype=tf.float32)
+        else:
+            self._lam2_var.assign(lam2)
+            self._eta2_var.assign(eta2)
+
+        # Algorithm Lines 9-12: 每个 mini-batch 做 inner_steps 次梯度步 + Moreau 步
+        losses = []
+        t0 = time.time()
+
+        print(f"  [Client {self.client_id:>2}] Starting Hier-pFedMe training with "
+              f"λ2={lam2}, η2={eta2}, inner_steps={inner_steps} for {epochs} epochs ({len(self._batch_list)} batches per epoch).")
+        self.evaluate_on(fallback_dataset=self.test_dataset)  # 训练前评估（调试用）
+
         for _ in range(epochs):
-            bl = [float(self._hierpfedme_step(x, y, lam2_tf, eta2_tf).numpy())
-                  for x, y in self.dataset]
-            losses.append(np.mean(bl))
+            try:
+                x, y = next(self._batch_iter)
+                print(f"[C{self.client_id}]sample: shape={x.shape}, "
+                    f"label={y}")
+                self._batch_idx += 1
+            except StopIteration:
+                self._batch_iter = iter(self._batch_list)
+                x, y = next(self._batch_iter)
+                self._batch_idx = 1
 
-        # 重建完整权重（trainable 部分 = 最终 Theta，non-trainable 不变）
-        final_weights = list(ref_weights)
-        for idx, t in zip(self._trainable_indices, self._theta_vars):
-            final_weights[idx] = t.numpy()
+            for _ in range(inner_steps):
+                loss = self._hierpfedme_inner_step(x, y)
+            
+            self._hierpfedme_moreau_step()
+
+            losses.append(float(loss.numpy()))
+
+        self.evaluate_on(fallback_dataset=self.test_dataset)  # 训练前评估（调试用）
+        print(f"  [Client {self.client_id:>2}] Finished Hier-pFedMe training for round {round_idx}.")
+
+        # Algorithm Line 14: 上传 Θ（本地锚点），而非 θ̃（内层模型）
+        # BN 滑动统计保留 θ̃ 训练产生的值；可训练参数替换为 Θ
+        upload_weights = self.model.get_weights()
+        for idx, var in zip(self._trainable_indices, self._local_vars):
+            upload_weights[idx] = var.numpy()
 
         avg = float(np.mean(losses))
         print(f"  [Client {self.client_id:>2}] Round {round_idx} | "
-              f"Hier-pFedMe(λ2={lam2}) | loss={avg:.4f}")
-        return final_weights, self.n_samples, avg, time.time() - t0
+            f"Hier-pFedMe(λ2={lam2},K={inner_steps}) | loss={avg:.4f}")
+
+        self._personalized_weights = self.model.get_weights()              # θ̃
+        self._local_weights        = [v.numpy() for v in self._local_vars] # Θ
+        return upload_weights, self.n_samples, avg, time.time() - t0
+
 
     @tf.function
-    def _hierpfedme_step(self, images, labels, lam2, eta2):
-        """
-        单 batch 的 Hier-pFedMe 更新，全程在 TF 图内执行：
-          内层：FedProx 一步，以 theta_vars 为 anchor
-                loss = CE + (λ2/2)·‖v − Θ‖²
-          外层：Moreau 梯度步，就地更新 theta_vars 并重置模型
-                Θ ← Θ − η2·λ2·(Θ − θ̃)
-                model ← Θ（为下一 batch 准备）
-        theta_vars 是 tf.Variable，作为 Variable 传入不触发 retrace。
-        """
+    def _hierpfedme_inner_step(self, images, labels):
+        """θ̃ 的一步梯度更新，以 Θ 为近端锚点。"""
         with tf.GradientTape() as tape:
             loss = self.loss_fn(labels, self.model(images, training=True))
-            loss = tf.cast(loss, tf.float32)
             prox = tf.add_n([
                 tf.reduce_sum(tf.square(v - t))
-                for v, t in zip(self.model.trainable_variables, self._theta_vars)
+                for v, t in zip(self.model.trainable_variables, self._local_vars)
             ])
-            total_loss = loss + (lam2 / 2.0) * prox
+            total_loss = loss + (self._lam2_var / 2.0) * prox
         grads = tape.gradient(total_loss, self.model.trainable_variables)
-        self.optimizer.apply_gradients(
-            zip(grads, self.model.trainable_variables))
-
-        # θ̃ = 内层更新后的模型权重
-        # Moreau 步：Θ ← Θ − η2·λ2·(Θ − θ̃)
-        # 同时将模型重置为新 Theta，为下一 batch 准备
-        for t, v in zip(self._theta_vars, self.model.trainable_variables):
-            new_t = t - eta2 * lam2 * (t - v)
-            t.assign(new_t)
-            v.assign(new_t)
-
+        self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
         return loss
 
+
+    @tf.function
+    def _hierpfedme_moreau_step(self):
+        """Moreau 步：Θ ← Θ − η2·λ2·(Θ − θ̃)"""
+        for t, v in zip(self._local_vars, self.model.trainable_variables):
+            t.assign(t - self._eta2_var * self._lam2_var * (t - v))
     # ══════════════════════════════════════════════════════════════════════
     # 本地评估（调试用）
     # ══════════════════════════════════════════════════════════════════════
@@ -556,27 +625,5 @@ class FLClient:
             tn += x.shape[0]
         return tl / tn, tc / tn
 
-    def evaluate_on(self, fallback_dataset: tf.data.Dataset = None):
-        """
-        评估当前模型（PM 评估）。
 
-        优先使用 self.test_dataset（per-client 同分布测试集，论文评估方式）。
-        若未注入，退化为 fallback_dataset（全体测试集）。
-
-        per-client 测试集：只含该 client 训练类别的测试样本，
-        与训练分布一致，所以 pathological non-IID 下不会因为
-        模型没见过其他类而被拉低精度。
-        """
-        ds = self.test_dataset if self.test_dataset is not None else fallback_dataset
-        if ds is None:
-            raise ValueError("No test dataset available. "
-                             "Call set_test_dataset() or pass fallback_dataset.")
-        tl = tc = tn = 0
-        for x, y in ds:
-            p  = self.model(x, training=False)
-            tl += self.loss_fn(y, p).numpy() * x.shape[0]
-            tc += np.sum(np.argmax(p.numpy(), 1) == y.numpy())
-            tn += x.shape[0]
-        if tn == 0:
-            return 0.0, 0.0
-        return float(tl / tn), float(tc / tn)
+    

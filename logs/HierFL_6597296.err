@@ -1,0 +1,34 @@
+2026-05-07 06:12:04.964810: I tensorflow/core/util/port.cc:113] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-05-07 06:12:05.001052: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-05-07 06:12:05.001086: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-05-07 06:12:05.001784: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+2026-05-07 06:12:17.573304: I tensorflow/core/util/port.cc:113] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-05-07 06:12:17.607893: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-05-07 06:12:17.607930: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-05-07 06:12:17.608643: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+2026-05-07 06:12:25.335679: I tensorflow/core/util/port.cc:113] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-05-07 06:12:25.373538: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-05-07 06:12:25.375482: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-05-07 06:12:25.378170: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+Traceback (most recent call last):
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/main.py", line 11, in <module>
+    from client.client      import FLClient
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/client/client.py", line 473
+    def _local_train_hierpfedme(self, round_idx: int, ref_weights: list):
+                                                                         ^
+IndentationError: unindent does not match any outer indentation level

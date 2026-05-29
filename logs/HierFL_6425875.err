@@ -1,0 +1,24 @@
+2026-04-17 05:56:38.564386: I tensorflow/core/util/port.cc:113] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-04-17 05:56:38.602878: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-04-17 05:56:38.602917: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-04-17 05:56:38.603704: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+2026-04-17 05:56:52.988503: I tensorflow/core/util/port.cc:113] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-04-17 05:56:53.025195: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-04-17 05:56:53.025234: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-04-17 05:56:53.026017: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+2026-04-17 05:57:00.677250: I tensorflow/core/util/port.cc:113] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-04-17 05:57:00.712629: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-04-17 05:57:00.712666: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-04-17 05:57:00.713456: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+2026-04-17 05:57:12.336279: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1929] Created device /job:localhost/replica:0/task:0/device:GPU:0 with 43683 MB memory:  -> device: 0, name: NVIDIA A40, pci bus id: 0000:b1:00.0, compute capability: 8.6
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /cephyr/users/ziangg/Alvis/.netrc.
+wandb: Currently logged in as: 3445339138 (3445339138-kth-royal-institute-of-technology) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run isbrm1yq
+wandb: Tracking run with wandb version 0.25.1
+wandb: Run data is saved locally in /cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/wandb/run-20260417_055725-isbrm1yq
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run hierpfedavg_test
+wandb: ⭐️ View project at https://wandb.ai/3445339138-kth-royal-institute-of-technology/HierFL-cifar100
+wandb: 🚀 View run at https://wandb.ai/3445339138-kth-royal-institute-of-technology/HierFL-cifar100/runs/isbrm1yq
+2026-04-17 05:57:27.993795: I external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:454] Loaded cuDNN version 8902
+slurmstepd: error: *** JOB 6425875 ON alvis6-04 CANCELLED AT 2026-04-17T06:52:28 ***

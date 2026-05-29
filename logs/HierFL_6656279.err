@@ -1,0 +1,35 @@
+2026-05-20 22:25:24.132197: I tensorflow/core/util/port.cc:113] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-05-20 22:25:24.364307: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-05-20 22:25:24.364347: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-05-20 22:25:24.428980: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+2026-05-20 22:25:35.362137: I tensorflow/core/util/port.cc:113] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-05-20 22:25:35.396229: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-05-20 22:25:35.396266: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-05-20 22:25:35.396886: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+2026-05-20 22:25:42.769211: I tensorflow/core/util/port.cc:113] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-05-20 22:25:42.804885: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-05-20 22:25:42.804917: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-05-20 22:25:42.805575: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+Traceback (most recent call last):
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/main.py", line 17, in <module>
+    from client.client_pfedme      import PFedMeClient
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/client/client_pfedme.py", line 27, in <module>
+    from .client_base import FLClientBase
+  File "/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/client/client_base.py", line 29, in <module>
+    from .client_base import FLClientBase
+ImportError: cannot import name 'FLClientBase' from partially initialized module 'client.client_base' (most likely due to a circular import) (/cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/client/client_base.py)

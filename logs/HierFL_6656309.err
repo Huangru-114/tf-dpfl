@@ -1,0 +1,44 @@
+2026-05-20 22:38:55.611337: I tensorflow/core/util/port.cc:113] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-05-20 22:38:55.649131: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-05-20 22:38:55.649171: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-05-20 22:38:55.650006: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+2026-05-20 22:39:06.700099: I tensorflow/core/util/port.cc:113] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-05-20 22:39:06.736327: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-05-20 22:39:06.736373: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-05-20 22:39:06.737200: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+2026-05-20 22:39:13.964950: I tensorflow/core/util/port.cc:113] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-05-20 22:39:14.002396: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-05-20 22:39:14.002446: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-05-20 22:39:14.003304: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+2026-05-20 22:39:23.435361: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1929] Created device /job:localhost/replica:0/task:0/device:GPU:0 with 43683 MB memory:  -> device: 0, name: NVIDIA A40, pci bus id: 0000:17:00.0, compute capability: 8.6
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /cephyr/users/ziangg/Alvis/.netrc.
+wandb: Currently logged in as: 3445339138 (3445339138-kth-royal-institute-of-technology) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run 2qkjcobk
+wandb: Tracking run with wandb version 0.26.1
+wandb: Run data is saved locally in /cephyr/users/ziangg/Alvis/tf-dpfl/fedavg/wandb/run-20260520_223934-2qkjcobk
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run final0_hierpfedme_c20_localepoch_1_semantic_superclass_pathological_classesperclient_2
+wandb: ⭐️ View project at https://wandb.ai/3445339138-kth-royal-institute-of-technology/HierFL-cifar10
+wandb: 🚀 View run at https://wandb.ai/3445339138-kth-royal-institute-of-technology/HierFL-cifar10/runs/2qkjcobk
+2026-05-20 22:39:37.854829: I external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:454] Loaded cuDNN version 8902
+2026-05-20 22:39:40.871961: I external/local_xla/xla/service/service.cc:168] XLA service 0x14c878015b70 initialized for platform CUDA (this does not guarantee that XLA will be used). Devices:
+2026-05-20 22:39:40.872008: I external/local_xla/xla/service/service.cc:176]   StreamExecutor device (0): NVIDIA A40, Compute Capability 8.6
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1779309580.956196  114039 device_compiler.h:186] Compiled cluster using XLA!  This line is logged at most once for the lifetime of the process.
+2026-05-20 22:48:03.486005: I tensorflow/core/framework/local_rendezvous.cc:425] Local rendezvous send item cancelled. Key hash: 17754965764104020922
+slurmstepd: error: *** JOB 6656309 ON alvis9-10 CANCELLED AT 2026-05-20T22:53:04 ***

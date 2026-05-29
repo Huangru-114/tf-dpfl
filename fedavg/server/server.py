@@ -107,47 +107,48 @@ class CloudServer:
         """
         method = self.config["training"].get("drift_correction", "fedavg")
 
-        if method == "feddyn":
-            self._init_h_g()
-            alpha_g = self.config["training"].get(
-                "alpha_feddyn_global",
-                self.config["training"].get("alpha_feddyn", 0.01),
-            )
-            return feddyn_aggregate(
-                h_state        = self.h_g,
-                active_weights = [w for w, *_ in edge_updates],
-                prev_anchor    = prev_global_weights,
-                alpha          = alpha_g,
-                total_n        = len(self.edge_servers),   # ← 全部 edge
-            )
+        # if method == "feddyn":
+        #     self._init_h_g()
+        #     alpha_g = self.config["training"].get(
+        #         "alpha_feddyn_global",
+        #         self.config["training"].get("alpha_feddyn", 0.01),
+        #     )
+        #     return feddyn_aggregate(
+        #         h_state        = self.h_g,
+        #         active_weights = [w for w, *_ in edge_updates],
+        #         prev_anchor    = prev_global_weights,
+        #         alpha          = alpha_g,
+        #         total_n        = len(self.edge_servers),   # ← 全部 edge
+        #     )
 
-        elif method == "hierpfedme":
-            # 式 (9)：W^{t+1} = (1−β)·W^t + β·(1/N)·Σ W_n^{t,I}
-            # edge_updates 中每个 w 是 W_n^{t,I}（EdgeServer.run 已正确上传）
-            # β=1 时退化为标准 FedAvg，与论文默认设置一致
-            beta           = self.config["training"].get("beta_hier", 1.0)
-            active_weights = [w for w, *_ in edge_updates]
-            mean_w = [
-                np.mean([aw[j] for aw in active_weights], axis=0)
-                for j in range(len(active_weights[0]))
-            ]
-            return [
-                (1.0 - beta) * pw + beta * mw
-                for pw, mw in zip(prev_global_weights, mean_w)
-            ]
+        # if method == "hierpfedme":
+        #     # 式 (9)：W^{t+1} = (1−β)·W^t + β·(1/N)·Σ W_n^{t,I}
+        #     # edge_updates 中每个 w 是 W_n^{t,I}（EdgeServer.run 已正确上传）
+        #     # β=1 时退化为标准 FedAvg，与论文默认设置一致
+        #     print("  [Cloud] Using Hier-pFedMe global aggregation (式 9).")
+        #     beta           = self.config["training"].get("beta_hier", 1.0)
+        #     active_weights = [w for w, *_ in edge_updates]
+        #     mean_w = [
+        #         np.mean([aw[j] for aw in active_weights], axis=0)
+        #         for j in range(len(active_weights[0]))
+        #     ]
+        #     return [
+        #         (1.0 - beta) * pw + beta * mw
+        #         for pw, mw in zip(prev_global_weights, mean_w)
+        #     ]
 
-        elif method == "scaffold" and self.config["training"].get("scaffold_cloud", False):
-            # ── 预留：Cloud 层 SCAFFOLD（需 edge 上传 c_delta）────────────
-            # 当前 edge.run() 不返回 c_delta；扩展后取消注释：
-            #   self._init_c_g()
-            #   c_deltas = [ed.get("c_delta") for ed in edge_aux if ed.get("c_delta")]
-            #   return scaffold_aggregate(self.c_g, active_weights, c_deltas, len(self.edge_servers))
-            # 暂时退化为 FedAvg（等价于 SCAFFOLD 仅在 edge 层生效）
-            return aggregate(edge_updates)
+        # elif method == "scaffold" and self.config["training"].get("scaffold_cloud", False):
+        #     # ── 预留：Cloud 层 SCAFFOLD（需 edge 上传 c_delta）────────────
+        #     # 当前 edge.run() 不返回 c_delta；扩展后取消注释：
+        #     #   self._init_c_g()
+        #     #   c_deltas = [ed.get("c_delta") for ed in edge_aux if ed.get("c_delta")]
+        #     #   return scaffold_aggregate(self.c_g, active_weights, c_deltas, len(self.edge_servers))
+        #     # 暂时退化为 FedAvg（等价于 SCAFFOLD 仅在 edge 层生效）
+        #     return aggregate(edge_updates)
 
-        else:
+        # else:
             # fedavg / fedprox / pfedme / perfedavg / scaffold(无cloud级) → FedAvg
-            return aggregate(edge_updates)
+        return aggregate(edge_updates)
 
     # ══════════════════════════════════════════════════════════════════════
     # 主训练流程
@@ -173,7 +174,6 @@ class CloudServer:
 
         total_n  = sum(n for _, n, *_ in edge_updates)
         avg_loss = sum(l * n / total_n for _, n, l, _ in edge_updates)
-        avg_t    = float(np.mean([t for *_, t, _ in edge_updates]))
         # edge_updates: (w, n, loss, time) → 最后一个是 time
         avg_t    = float(np.mean([eu[3] for eu in edge_updates]))
         return float(avg_loss), avg_t, comm_ce
@@ -218,19 +218,21 @@ class CloudServer:
         do_pm_eval    = (round_idx % eval_interval == 0) or (round_idx == n_rounds)
 
 
-        # Edge model：每轮都测
-        em_losses, em_accs = [], []
+        # Edge model：每轮都测，使用 per-edge 测试集（若已设置），按样本数加权
+        em_losses, em_accs, em_ns = [], [], []
         for edge in self.edge_servers:
-            e_loss, e_acc = edge.evaluate_on(self.test_dataset)
+            e_loss, e_acc = edge.evaluate_on(fallback_dataset=self.test_dataset)
             em_losses.append(e_loss)
             em_accs.append(e_acc)
-        avg_em_acc  = float(np.mean(em_accs))
-        avg_em_loss = float(np.mean(em_losses))
+            em_ns.append(edge.n_samples)
+        total_em_n  = sum(em_ns)
+        avg_em_acc  = float(sum(a * n / total_em_n for a, n in zip(em_accs, em_ns)))
+        avg_em_loss = float(sum(l * n / total_em_n for l, n in zip(em_losses, em_ns)))
 
-        # Personalized model：每 eval_interval 轮测一次
+        # Personalized model：每 eval_interval 轮测一次，按样本数加权
         avg_pm_acc = avg_pm_loss = None
         if do_pm_eval:
-            pm_losses, pm_accs = [], []
+            pm_losses, pm_accs, pm_ns = [], [], []
             for edge in self.edge_servers:
                 for client in edge.clients:
                     c_loss, c_acc = client.evaluate_on(
@@ -238,8 +240,10 @@ class CloudServer:
                     )
                     pm_losses.append(c_loss)
                     pm_accs.append(c_acc)
-            avg_pm_acc  = float(np.mean(pm_accs))
-            avg_pm_loss = float(np.mean(pm_losses))
+                    pm_ns.append(client.n_samples)
+            total_pm_n  = sum(pm_ns)
+            avg_pm_acc  = float(sum(a * n / total_pm_n for a, n in zip(pm_accs, pm_ns)))
+            avg_pm_loss = float(sum(l * n / total_pm_n for l, n in zip(pm_losses, pm_ns)))
 
         comm_ce_total   = 2 * self.model_bytes * len(self.edge_servers)
         comm_round      = comm_ce_total + comm_ce

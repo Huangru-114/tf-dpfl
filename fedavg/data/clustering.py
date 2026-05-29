@@ -107,58 +107,38 @@ _CIFAR100_FINE_TO_SC = {
 }
 
 # CIFAR-100 超类的语义分组：n_edges → [超类 ID 集合, ...]
-# 分组原则：同一 edge 内的超类在视觉语义上尽量相近
-#
-# n_edges=2 ：生物界 vs 人造物
-# n_edges=4 ：水生/小型动物 | 大型陆地动物 | 植物/自然/人 | 物体/交通/建筑
-# n_edges=5 ：水生 | 陆地动物 | 植物自然 | 人与室内 | 交通与建筑
-# n_edges=10：每 2 个语义相近的超类一组
-# n_edges=20：每个超类单独一个 edge（最极端设置）
+# 分组原则：同一 edge 内的超类在视觉语义上尽量相近，且每组超类数量相等
 _CIFAR100_SEMANTIC_GROUPS = {
+    # N=2：生命体 vs 无生命体/场景
+    # 每组 10 超类 = 50 细粒度类（完全平衡）
+    # edge 0：所有动物 + 人（有生命体）
+    # edge 1：植物/食物/自然场景 + 人造物
     2: [
-        {0, 1, 2, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17},  # 生物界
-        {3, 5, 6, 9, 18, 19},                                   # 人造物
+        {0, 1, 7, 8, 11, 12, 13, 14, 15, 16},  # aquatic mammals, fish, insects, large carnivores,
+                                                  # herbivores, medium mammals, invertebrates,
+                                                  # people, reptiles, small mammals
+        {2, 3, 4, 5, 6, 9, 10, 17, 18, 19},    # flowers, food containers, fruit/veg,
+                                                  # electrical, furniture, man-made outdoor,
+                                                  # natural outdoor, trees, vehicles1, vehicles2
     ],
+    # N=4：5+5+5+5 超类 = 25+25+25+25 细粒度类（完全平衡）
+    # edge 0：水生及小型无脊椎动物
+    # edge 1：大型陆地动物 + 人
+    # edge 2：植物、自然食物与户外场景
+    # edge 3：人造物品与建成环境
     4: [
-        {0, 1, 7, 13},        # 水生动物 + 昆虫/无脊椎动物
-        {8, 11, 12, 15, 16},  # 大型/中型/小型陆地动物
-        {2, 4, 10, 14, 17},   # 植物、自然场景、人
-        {3, 5, 6, 9, 18, 19}, # 食品容器、家电、家具、建筑、交通工具
+        {0, 1, 7, 13, 15},   # aquatic mammals, fish, insects, non-insect invertebrates, reptiles
+        {8, 11, 12, 14, 16}, # large carnivores, herbivores, medium mammals, people, small mammals
+        {2, 3, 4, 10, 17},   # flowers, food containers, fruit/veg, natural outdoor, trees
+        {5, 6, 9, 18, 19},   # electrical devices, furniture, man-made outdoor, vehicles1, vehicles2
     ],
-    5: [
-        {0, 1, 13},            # 水生生物（aquatic mammals, fish, invertebrates）
-        {7, 8, 11, 12, 15, 16},# 陆地动物（insects, carnivores, herbivores, mammals, reptiles）
-        {2, 4, 10, 17},        # 植物与自然（flowers, fruit/veg, natural outdoor, trees）
-        {3, 5, 6, 14},         # 室内场景（food containers, electrical, furniture, people）
-        {9, 18, 19},           # 交通与建筑（man-made outdoor, vehicles 1&2）
-    ],
-    10: [
-        {0, 1},                # 水生动物（aquatic mammals + fish）
-        {7, 13},               # 小型无脊椎动物（insects + non-insect invertebrates）
-        {8, 15},               # 爬行动物与猛兽（large carnivores + reptiles）
-        {11, 12, 16},          # 哺乳动物（large herbivores + medium + small mammals）
-        {2, 17},               # 植物（flowers + trees）
-        {4, 10},               # 食物与自然（fruit/veg + natural outdoor scenes）
-        {14},                  # 人
-        {3, 6},                # 室内物品（food containers + household furniture）
-        {5},                   # 家用电器
-        {9, 18, 19},           # 交通与建筑（man-made outdoor + vehicles 1&2）
-    ],
-    20: [{sc} for sc in range(20)],  # 每个超类独占一个 edge
 }
 
 
 def _build_cifar100_edge_groups(n_edges):
     """
-    为未预定义的 n_edges 构建 CIFAR-100 超类分组。
-
-    策略：将 20 个超类按语义顺序（ID 顺序近似语义相近）
-    轮流分配给各 edge，确保每个 edge 的超类数量尽量均匀。
-
-    这比原来的"类 ID 区间均匀划分"好，因为：
-    1. 分配单位是超类（5 个细粒度类）而非单个细粒度类
-    2. 每个 edge 的细粒度类数量仍然相同（20*5/n_edges）
-    3. 同一超类的 5 个细粒度类始终在同一 edge，保留超类语义完整性
+    为未在 _CIFAR100_SEMANTIC_GROUPS 中预定义的 n_edges 构建 CIFAR-100 超类分组。
+    按 round-robin 均匀分配，无语义优化。建议只使用预定义的 N=2/4 配置。
     """
     superclass_ids = list(range(20))
     groups = [set() for _ in range(n_edges)]

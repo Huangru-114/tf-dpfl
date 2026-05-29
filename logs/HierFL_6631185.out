@@ -1,0 +1,1154 @@
+This job can be monitored from: https://job.c3se.chalmers.se/alvis/6631185
+========================================
+Job ID      : 6631185
+Job Name    : HierFLcifar10
+Node        : alvis7-01
+Start Time  : Thu May 14 04:20:43 CEST 2026
+Working Dir : /cephyr/users/ziangg/Alvis/tf-dpfl
+========================================
+[Setup] Python: /cephyr/users/ziangg/Alvis/tf-dpfl/bin/python
+[Setup] TF version: 2.15.1
+[Setup] GPU available: [PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
+[Config] Override: wandb.enabled = True
+[Setup] Random seed: 42
+[Setup] Loading dataset...
+[Data] CIFAR-10 from Mimer: /mimer/NOBACKUP/Datasets/CIFAR
+[Setup] Building global model...
+Model: "cifar_cnn_3conv"
+_________________________________________________________________
+ Layer (type)                Output Shape              Param #   
+=================================================================
+ input_1 (InputLayer)        [(None, 32, 32, 3)]       0         
+                                                                 
+ conv2d (Conv2D)             (None, 32, 32, 32)        896       
+                                                                 
+ batch_normalization (Batch  (None, 32, 32, 32)        128       
+ Normalization)                                                  
+                                                                 
+ re_lu (ReLU)                (None, 32, 32, 32)        0         
+                                                                 
+ conv2d_1 (Conv2D)           (None, 32, 32, 64)        18496     
+                                                                 
+ batch_normalization_1 (Bat  (None, 32, 32, 64)        256       
+ chNormalization)                                                
+                                                                 
+ re_lu_1 (ReLU)              (None, 32, 32, 64)        0         
+                                                                 
+ max_pooling2d (MaxPooling2  (None, 16, 16, 64)        0         
+ D)                                                              
+                                                                 
+ conv2d_2 (Conv2D)           (None, 16, 16, 128)       73856     
+                                                                 
+ batch_normalization_2 (Bat  (None, 16, 16, 128)       512       
+ chNormalization)                                                
+                                                                 
+ re_lu_2 (ReLU)              (None, 16, 16, 128)       0         
+                                                                 
+ conv2d_3 (Conv2D)           (None, 16, 16, 128)       147584    
+                                                                 
+ batch_normalization_3 (Bat  (None, 16, 16, 128)       512       
+ chNormalization)                                                
+                                                                 
+ re_lu_3 (ReLU)              (None, 16, 16, 128)       0         
+                                                                 
+ max_pooling2d_1 (MaxPoolin  (None, 8, 8, 128)         0         
+ g2D)                                                            
+                                                                 
+ spatial_dropout2d (Spatial  (None, 8, 8, 128)         0         
+ Dropout2D)                                                      
+                                                                 
+ conv2d_4 (Conv2D)           (None, 8, 8, 256)         295168    
+                                                                 
+ batch_normalization_4 (Bat  (None, 8, 8, 256)         1024      
+ chNormalization)                                                
+                                                                 
+ re_lu_4 (ReLU)              (None, 8, 8, 256)         0         
+                                                                 
+ conv2d_5 (Conv2D)           (None, 8, 8, 256)         590080    
+                                                                 
+ batch_normalization_5 (Bat  (None, 8, 8, 256)         1024      
+ chNormalization)                                                
+                                                                 
+ re_lu_5 (ReLU)              (None, 8, 8, 256)         0         
+                                                                 
+ max_pooling2d_2 (MaxPoolin  (None, 4, 4, 256)         0         
+ g2D)                                                            
+                                                                 
+ flatten (Flatten)           (None, 4096)              0         
+                                                                 
+ dropout (Dropout)           (None, 4096)              0         
+                                                                 
+ dense (Dense)               (None, 1024)              4195328   
+                                                                 
+ dense_1 (Dense)             (None, 512)               524800    
+                                                                 
+ dropout_1 (Dropout)         (None, 512)               0         
+                                                                 
+ dense_2 (Dense)             (None, 10)                5130      
+                                                                 
+=================================================================
+Total params: 5854794 (22.33 MB)
+Trainable params: 5853066 (22.33 MB)
+Non-trainable params: 1728 (6.75 KB)
+_________________________________________________________________
+[Setup] Building clients...
+
+[Superclass-aware partition] 2 edges, 2 classes/client
+
+  Edge 0 (class pool: [2, 3, 4, 5, 6, 7]):
+  Client       Samples    Classes held                        Out-of-pool?
+  ---------------------------------------------------------------------------
+  client_0     4000       [3, 6]                              OK
+  client_1     4000       [3, 6]                              OK
+  client_2     4000       [2, 5]                              OK
+  client_3     4000       [5, 7]                              OK
+  client_4     4000       [2, 7]                              OK
+  client_5     4000       [2, 4]                              OK
+  client_6     4000       [6, 7]                              OK
+  client_7     4000       [3, 5]                              OK
+  client_8     2000       [4]                                 OK
+  client_9     2000       [4]                                 OK
+
+  Edge 1 (class pool: [0, 1, 8, 9]):
+  Client       Samples    Classes held                        Out-of-pool?
+  ---------------------------------------------------------------------------
+  client_10    2400       [8, 9]                              OK
+  client_11    2400       [0, 1]                              OK
+  client_12    2400       [1, 8]                              OK
+  client_13    2400       [0, 8]                              OK
+  client_14    2400       [0, 9]                              OK
+  client_15    2400       [0, 8]                              OK
+  client_16    2400       [1, 8]                              OK
+  client_17    2400       [1, 9]                              OK
+  client_18    2400       [1, 9]                              OK
+  client_19    2400       [0, 9]                              OK
+
+[Train/Test split] 20 clients | avg train=2400, avg test=600 samples (ratio=0.2)
+[Setup] 20 clients built (superclass_pathological) | per-client test sets injected
+[Setup] Building edge servers...
+[Assignment] Using pre-baked superclass assignments | 2 edges
+[EdgeServer 0] 10 clients | 28800 samples
+[EdgeServer 1] 10 clients | 19200 samples
+
+[Setup] Built 2 edge servers (strategy=superclass_baked)
+  Edge 0: 10 clients | 28800 samples
+  Edge 1: 10 clients | 19200 samples
+[Setup] Building per-edge test datasets (superclass-aware)...
+  [Test split] Edge 0: 6000 test samples (6 classes)
+  [Test split] Edge 1: 4000 test samples (4 classes)
+[CloudServer] 2 edges | model: 22.33 MB
+
+====================================================
+ HierFAVG Training Start
+====================================================
+
+[Round   1] Broadcasting to 2 edges...
+  [Edge 0] G1 | E1 | Hier-pFedMe | Selected 10/10
+  [C6] Round 1 | batch 0/200 x[0].mean=-0.017997
+  [C3] Round 1 | batch 0/200 x[0].mean=-0.014398
+  [C8] Round 1 | batch 0/100 x[0].mean=0.111764
+  [C9] Round 1 | batch 0/100 x[0].mean=-0.367605
+  [Client  6] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=3.1668
+  [Client  9] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0000
+  [C7] Round 1 | batch 0/200 x[0].mean=-0.362678
+  [Client  8] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0000
+  [Client  3] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5297
+  [C1] Round 1 | batch 0/200 x[0].mean=-0.234724
+  [C4] Round 1 | batch 0/200 x[0].mean=-0.166265
+  [C0] Round 1 | batch 0/200 x[0].mean=0.094203
+  [Client  7] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.1237
+  [C5] Round 1 | batch 0/200 x[0].mean=-0.322014
+  [Client  0] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.7281
+  [Client  4] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.9029
+  [C2] Round 1 | batch 0/200 x[0].mean=-0.061793
+  [Client  1] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=2.9355
+  [Client  5] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.4750
+  [Client  2] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=3.0945
+  [Edge 0] G1 | E1 | loss=1.6618
+  [Edge 0] G1 | E2 | Hier-pFedMe | Selected 10/10
+  [C7] Round 1 | batch 1/200 x[0].mean=0.093791
+  [C9] Round 1 | batch 1/100 x[0].mean=0.026352
+  [C3] Round 1 | batch 1/200 x[0].mean=-0.979361
+  [C0] Round 1 | batch 1/200 x[0].mean=-0.408875
+  [Client  7] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=13.4263
+  [Client  9] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0000
+  [Client  3] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=10.3516
+  [Client  0] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=10.7122
+  [C6] Round 1 | batch 1/200 x[0].mean=0.154985
+  [C4] Round 1 | batch 1/200 x[0].mean=-0.203395
+  [C2] Round 1 | batch 1/200 x[0].mean=-0.217916
+  [C8] Round 1 | batch 1/100 x[0].mean=-0.572515
+  [Client  6] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=13.9030
+  [Client  2] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=15.3890
+  [Client  4] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=16.9810
+  [Client  8] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0000
+  [C5] Round 1 | batch 1/200 x[0].mean=0.101609
+  [C1] Round 1 | batch 1/200 x[0].mean=-0.177495
+  [Client  5] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=9.0986
+  [Client  1] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=11.3552
+  [Edge 0] G1 | E2 | loss=11.2463
+  [Edge 0] G1 | E3 | Hier-pFedMe | Selected 10/10
+  [C8] Round 1 | batch 2/100 x[0].mean=-0.595982
+  [C7] Round 1 | batch 2/200 x[0].mean=-0.570697
+  [C9] Round 1 | batch 2/100 x[0].mean=-0.021376  [C6] Round 1 | batch 2/200 x[0].mean=-0.034197
+
+  [Client  8] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0400
+  [Client  7] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=3.3034
+  [Client  6] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=3.1191  [Client  9] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0903
+
+  [C4] Round 1 | batch 2/200 x[0].mean=0.587130
+  [C1] Round 1 | batch 2/200 x[0].mean=0.167787
+  [C0] Round 1 | batch 2/200 x[0].mean=-0.035586
+  [C3] Round 1 | batch 2/200 x[0].mean=-0.135628
+  [Client  4] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.9167
+  [Client  1] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=3.1501
+  [Client  0] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=2.5912
+  [Client  3] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=5.1133
+  [C5] Round 1 | batch 2/200 x[0].mean=-0.390070
+  [C2] Round 1 | batch 2/200 x[0].mean=1.472151
+  [Client  5] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=2.3239
+  [Client  2] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=2.4418
+  [Edge 0] G1 | E3 | loss=2.6694
+  [Edge 0] G1 | E4 | Hier-pFedMe | Selected 10/10
+  [C6] Round 1 | batch 3/200 x[0].mean=0.272158
+  [C8] Round 1 | batch 3/100 x[0].mean=-0.291116
+  [C0] Round 1 | batch 3/200 x[0].mean=0.295408
+  [C9] Round 1 | batch 3/100 x[0].mean=0.092517
+  [Client  8] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0149
+  [Client  6] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.1722
+  [Client  0] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.0940
+  [Client  9] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0123
+  [C7] Round 1 | batch 3/200 x[0].mean=0.379744
+  [C3] Round 1 | batch 3/200 x[0].mean=0.451674
+  [C5] Round 1 | batch 3/200 x[0].mean=-0.009540
+  [C2] Round 1 | batch 3/200 x[0].mean=0.102398
+  [Client  3] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.0814  [Client  7] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=2.3718
+
+  [Client  5] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.9412
+  [Client  2] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.0311
+  [C1] Round 1 | batch 3/200 x[0].mean=-0.423602  [C4] Round 1 | batch 3/200 x[0].mean=-0.366408
+
+  [Client  4] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.7770  [Client  1] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.2104
+
+  [Edge 0] G1 | E4 | loss=1.0770
+  [Edge 0] G1 | E5 | Hier-pFedMe | Selected 10/10
+  [C7] Round 1 | batch 4/200 x[0].mean=-0.094319  [C1] Round 1 | batch 4/200 x[0].mean=0.461138
+  [C8] Round 1 | batch 4/100 x[0].mean=-0.007849
+
+  [C4] Round 1 | batch 4/200 x[0].mean=-0.132090
+  [Client  8] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0141  [Client  1] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.9063  [Client  7] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.7134
+  [Client  4] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.6471
+
+
+  [C9] Round 1 | batch 4/100 x[0].mean=-0.396168
+  [C5] Round 1 | batch 4/200 x[0].mean=-0.451593
+  [C3] Round 1 | batch 4/200 x[0].mean=0.009519
+  [C0] Round 1 | batch 4/200 x[0].mean=-0.140663
+  [Client  5] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.4445  [Client  9] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0120
+
+  [Client  3] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.7669
+  [Client  0] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.6506
+  [C6] Round 1 | batch 4/200 x[0].mean=0.043346
+  [C2] Round 1 | batch 4/200 x[0].mean=-0.233278
+  [Client  6] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.9246
+  [Client  2] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5745
+  [Edge 0] G1 | E5 | loss=0.7379
+  [Edge 1] G1 | E1 | Hier-pFedMe | Selected 10/10
+  [C19] Round 1 | batch 0/120 x[0].mean=0.115851
+  [C17] Round 1 | batch 0/120 x[0].mean=1.112112
+  [C13] Round 1 | batch 0/120 x[0].mean=-0.091199
+  [C10] Round 1 | batch 0/120 x[0].mean=-0.120547
+  [Client 19] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.6676
+  [C12] Round 1 | batch 0/120 x[0].mean=0.213736
+  [Client 13] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=4.2002
+  [Client 17] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=2.7021
+  [Client 10] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.9095
+  [C14] Round 1 | batch 0/120 x[0].mean=-0.334136
+  [C15] Round 1 | batch 0/120 x[0].mean=0.089710
+  [C11] Round 1 | batch 0/120 x[0].mean=0.013209
+  [Client 12] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.3122
+  [C16] Round 1 | batch 0/120 x[0].mean=0.251391
+  [Client 14] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=2.9006
+  [C18] Round 1 | batch 0/120 x[0].mean=-0.160595
+  [Client 15] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=5.0544
+  [Client 11] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=4.1940
+  [Client 16] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.0517
+  [Client 18] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=2.0678
+  [Edge 1] G1 | E1 | loss=2.4060
+  [Edge 1] G1 | E2 | Hier-pFedMe | Selected 10/10
+  [C11] Round 1 | batch 1/120 x[0].mean=-0.201861
+  [C19] Round 1 | batch 1/120 x[0].mean=0.469685  [C15] Round 1 | batch 1/120 x[0].mean=0.140942
+
+  [C16] Round 1 | batch 1/120 x[0].mean=-0.571528
+  [Client 11] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=11.0738
+  [Client 19] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=5.6016  [Client 15] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=2.5561
+
+  [Client 16] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=5.8516
+  [C18] Round 1 | batch 1/120 x[0].mean=-0.253209
+  [C14] Round 1 | batch 1/120 x[0].mean=-0.383798
+  [C17] Round 1 | batch 1/120 x[0].mean=0.531034
+  [C12] Round 1 | batch 1/120 x[0].mean=0.715971
+  [Client 18] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=20.8508
+  [Client 17] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=7.4896
+  [Client 14] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=10.0596
+  [Client 12] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.1877
+  [C13] Round 1 | batch 1/120 x[0].mean=0.948139
+  [C10] Round 1 | batch 1/120 x[0].mean=-0.139204
+  [Client 13] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=9.2511
+  [Client 10] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=12.1490
+  [Edge 1] G1 | E2 | loss=8.5071
+  [Edge 1] G1 | E3 | Hier-pFedMe | Selected 10/10
+  [C15] Round 1 | batch 2/120 x[0].mean=-0.008859
+  [C10] Round 1 | batch 2/120 x[0].mean=-0.206725
+  [C12] Round 1 | batch 2/120 x[0].mean=0.336381  [C14] Round 1 | batch 2/120 x[0].mean=0.225058
+
+  [Client 15] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=3.9819
+  [Client 10] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.4857
+  [Client 14] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=2.0265  [Client 12] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=2.3896
+
+  [C18] Round 1 | batch 2/120 x[0].mean=-0.039000
+  [C11] Round 1 | batch 2/120 x[0].mean=-0.173693
+  [C16] Round 1 | batch 2/120 x[0].mean=0.522159
+  [C13] Round 1 | batch 2/120 x[0].mean=0.254162
+  [Client 18] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=2.3161
+  [Client 11] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=2.6285
+  [Client 16] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=3.6816  [Client 13] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=2.9889
+
+  [C17] Round 1 | batch 2/120 x[0].mean=-0.162420
+  [C19] Round 1 | batch 2/120 x[0].mean=1.042529
+  [Client 17] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.2897
+  [Client 19] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=6.0538
+  [Edge 1] G1 | E3 | loss=2.8842
+  [Edge 1] G1 | E4 | Hier-pFedMe | Selected 10/10
+  [C14] Round 1 | batch 3/120 x[0].mean=0.179382
+  [C12] Round 1 | batch 3/120 x[0].mean=-0.001764
+  [C18] Round 1 | batch 3/120 x[0].mean=0.101018
+  [C15] Round 1 | batch 3/120 x[0].mean=0.290828
+  [Client 14] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.7862  [Client 12] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.8930
+
+  [Client 15] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=2.6311  [Client 18] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.6142
+
+  [C10] Round 1 | batch 3/120 x[0].mean=-0.200028
+  [C13] Round 1 | batch 3/120 x[0].mean=0.708175
+  [C11] Round 1 | batch 3/120 x[0].mean=-0.036130
+  [C16] Round 1 | batch 3/120 x[0].mean=1.372775
+  [Client 10] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.3869
+  [Client 13] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.2758
+  [Client 11] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.2157
+  [Client 16] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.6421
+  [C19] Round 1 | batch 3/120 x[0].mean=0.299426
+  [C17] Round 1 | batch 3/120 x[0].mean=-0.456343
+  [Client 19] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.2069
+  [Client 17] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.7716
+  [Edge 1] G1 | E4 | loss=1.2423
+  [Edge 1] G1 | E5 | Hier-pFedMe | Selected 10/10
+  [C18] Round 1 | batch 4/120 x[0].mean=-0.189648
+  [C16] Round 1 | batch 4/120 x[0].mean=0.043146
+  [C19] Round 1 | batch 4/120 x[0].mean=0.067468
+  [C13] Round 1 | batch 4/120 x[0].mean=0.173949
+  [Client 18] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5676
+  [Client 16] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.9185
+  [Client 19] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.6708
+  [Client 13] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.6330
+  [C17] Round 1 | batch 4/120 x[0].mean=-0.079386
+  [C15] Round 1 | batch 4/120 x[0].mean=0.101830
+  [C12] Round 1 | batch 4/120 x[0].mean=-0.412991
+  [C14] Round 1 | batch 4/120 x[0].mean=0.075557
+  [Client 17] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.2638
+  [Client 15] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.3507
+  [Client 12] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5125
+  [Client 14] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.9412
+  [C11] Round 1 | batch 4/120 x[0].mean=-0.243664
+  [C10] Round 1 | batch 4/120 x[0].mean=0.050821
+  [Client 11] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5714
+  [Client 10] Round 1 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.3931
+  [Edge 1] G1 | E5 | loss=0.7823
+[C0] eval model[0] mean=0.000306 | θ̃ mean=0.000306 | edge mean=-0.000140
+[C0] acc_full=0.5625 | acc_masked=0.5625
+[C1] eval model[0] mean=0.000436 | θ̃ mean=0.000436 | edge mean=-0.000140
+[C1] acc_full=0.5625 | acc_masked=0.5625
+[C2] eval model[0] mean=0.000026 | θ̃ mean=0.000026 | edge mean=-0.000140
+[C2] acc_full=0.6875 | acc_masked=0.6875
+[C3] eval model[0] mean=-0.000217 | θ̃ mean=-0.000217 | edge mean=-0.000140
+[C3] acc_full=0.4375 | acc_masked=0.4375
+[C4] eval model[0] mean=0.000372 | θ̃ mean=0.000372 | edge mean=-0.000140
+[C4] acc_full=0.3750 | acc_masked=0.3750
+[C5] eval model[0] mean=-0.000215 | θ̃ mean=-0.000215 | edge mean=-0.000140
+[C5] acc_full=0.5000 | acc_masked=0.5000
+[C6] eval model[0] mean=-0.000700 | θ̃ mean=-0.000700 | edge mean=-0.000140
+[C6] acc_full=0.4375 | acc_masked=0.4375
+[C7] eval model[0] mean=-0.000068 | θ̃ mean=-0.000068 | edge mean=-0.000140
+[C7] acc_full=0.5000 | acc_masked=0.5000
+[C8] eval model[0] mean=-0.000038 | θ̃ mean=-0.000038 | edge mean=-0.000140
+[C8] acc_full=1.0000 | acc_masked=1.0000
+[C9] eval model[0] mean=-0.000476 | θ̃ mean=-0.000476 | edge mean=-0.000140
+[C9] acc_full=1.0000 | acc_masked=1.0000
+[C10] eval model[0] mean=0.000404 | θ̃ mean=0.000404 | edge mean=0.000562
+[C10] acc_full=0.5625 | acc_masked=0.5625
+[C11] eval model[0] mean=0.000331 | θ̃ mean=0.000331 | edge mean=0.000562
+[C11] acc_full=0.3750 | acc_masked=0.3750
+[C12] eval model[0] mean=0.000110 | θ̃ mean=0.000110 | edge mean=0.000562
+[C12] acc_full=0.7500 | acc_masked=0.7500
+[C13] eval model[0] mean=0.000698 | θ̃ mean=0.000698 | edge mean=0.000562
+[C13] acc_full=0.5000 | acc_masked=0.5000
+[C14] eval model[0] mean=0.000816 | θ̃ mean=0.000816 | edge mean=0.000562
+[C14] acc_full=0.3750 | acc_masked=0.3750
+[C15] eval model[0] mean=0.000682 | θ̃ mean=0.000682 | edge mean=0.000562
+[C15] acc_full=0.3750 | acc_masked=0.3750
+[C16] eval model[0] mean=0.001109 | θ̃ mean=0.001109 | edge mean=0.000562
+[C16] acc_full=0.6250 | acc_masked=0.6250
+[C17] eval model[0] mean=0.001229 | θ̃ mean=0.001229 | edge mean=0.000562
+[C17] acc_full=0.5000 | acc_masked=0.5000
+[C18] eval model[0] mean=0.000368 | θ̃ mean=0.000368 | edge mean=0.000562
+[C18] acc_full=0.6875 | acc_masked=0.6875
+[C19] eval model[0] mean=0.000373 | θ̃ mean=0.000373 | edge mean=0.000562
+[C19] acc_full=0.5625 | acc_masked=0.5625
+  [Cloud] GM=0.1050 | EM=0.2154 PM=0.5527 | loss=2.3030 | time=71.1s | comm=4556.2MB (total=4556MB)
+
+[Round   2] Broadcasting to 2 edges...
+  [Edge 0] G2 | E1 | Hier-pFedMe | Selected 10/10
+  [C8] Round 2 | batch 5/100 x[0].mean=-0.299562
+  [C2] Round 2 | batch 5/200 x[0].mean=-0.411819
+  [C6] Round 2 | batch 5/200 x[0].mean=-0.339980
+  [C9] Round 2 | batch 5/100 x[0].mean=0.271918
+  [Client  8] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0412
+  [Client  2] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.7932
+  [Client  6] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.8230
+  [Client  9] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0461
+  [C5] Round 2 | batch 5/200 x[0].mean=0.524607
+  [C1] Round 2 | batch 5/200 x[0].mean=0.149622
+  [C4] Round 2 | batch 5/200 x[0].mean=0.259564
+  [C0] Round 2 | batch 5/200 x[0].mean=-0.444050
+  [Client  5] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.4745
+  [Client  1] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.9248
+  [Client  4] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.8855
+  [Client  0] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.9319
+  [C7] Round 2 | batch 5/200 x[0].mean=0.161461
+  [C3] Round 2 | batch 5/200 x[0].mean=0.484895
+  [Client  7] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.9236
+  [Client  3] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.8435
+  [Edge 0] G2 | E1 | loss=0.7382
+  [Edge 0] G2 | E2 | Hier-pFedMe | Selected 10/10
+  [C8] Round 2 | batch 6/100 x[0].mean=-0.386471
+  [C6] Round 2 | batch 6/200 x[0].mean=-0.132021  [C5] Round 2 | batch 6/200 x[0].mean=-0.290863
+
+  [C1] Round 2 | batch 6/200 x[0].mean=-0.063926
+  [Client  8] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0069
+  [Client  5] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5929
+  [Client  6] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.9389  [Client  1] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.9747
+
+  [C4] Round 2 | batch 6/200 x[0].mean=-0.324067  [C3] Round 2 | batch 6/200 x[0].mean=0.052824
+
+  [C0] Round 2 | batch 6/200 x[0].mean=-0.135714
+  [C7] Round 2 | batch 6/200 x[0].mean=-0.070186
+  [Client  3] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.0082
+  [Client  4] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.1121
+  [Client  0] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.2711  [Client  7] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.8181
+
+  [C9] Round 2 | batch 6/100 x[0].mean=-0.389036
+  [C2] Round 2 | batch 6/200 x[0].mean=0.017856
+  [Client  9] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0147
+  [Client  2] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.6654
+  [Edge 0] G2 | E2 | loss=0.8214
+  [Edge 0] G2 | E3 | Hier-pFedMe | Selected 10/10
+  [C8] Round 2 | batch 7/100 x[0].mean=-0.206325  [C1] Round 2 | batch 7/200 x[0].mean=-0.134880
+  [C3] Round 2 | batch 7/200 x[0].mean=-0.055491
+
+  [C6] Round 2 | batch 7/200 x[0].mean=-0.051483
+  [Client  3] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.9825  [Client  8] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0055  [Client  6] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.4925
+
+
+  [Client  1] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.0488
+  [C0] Round 2 | batch 7/200 x[0].mean=-0.255013  [C9] Round 2 | batch 7/100 x[0].mean=0.456850
+
+  [C5] Round 2 | batch 7/200 x[0].mean=-0.380947
+  [C4] Round 2 | batch 7/200 x[0].mean=0.041444
+  [Client  9] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0036
+  [Client  0] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.0813
+  [Client  5] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.4040
+  [Client  4] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.5151
+  [C2] Round 2 | batch 7/200 x[0].mean=0.598496
+  [C7] Round 2 | batch 7/200 x[0].mean=-0.318886
+  [Client  2] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.0453
+  [Client  7] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.2404
+  [Edge 0] G2 | E3 | loss=1.2016
+  [Edge 0] G2 | E4 | Hier-pFedMe | Selected 10/10
+  [C2] Round 2 | batch 8/200 x[0].mean=-0.320988  [C1] Round 2 | batch 8/200 x[0].mean=-0.745606  [C6] Round 2 | batch 8/200 x[0].mean=-0.021347
+
+
+  [C5] Round 2 | batch 8/200 x[0].mean=-0.172336
+  [Client  1] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5219
+  [Client  6] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.2913
+  [Client  5] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=2.3482  [Client  2] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=2.2910
+
+  [C8] Round 2 | batch 8/100 x[0].mean=-0.377628
+  [C0] Round 2 | batch 8/200 x[0].mean=-0.613557
+  [C7] Round 2 | batch 8/200 x[0].mean=-0.884164
+  [C4] Round 2 | batch 8/200 x[0].mean=-0.338878
+  [Client  8] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0058
+  [Client  0] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.4888
+  [Client  7] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.1530
+  [Client  4] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.0113
+  [C3] Round 2 | batch 8/200 x[0].mean=-0.496865
+  [C9] Round 2 | batch 8/100 x[0].mean=-0.294042
+  [Client  3] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.2405
+  [Client  9] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0023
+  [Edge 0] G2 | E4 | loss=1.2611
+  [Edge 0] G2 | E5 | Hier-pFedMe | Selected 10/10
+  [C6] Round 2 | batch 9/200 x[0].mean=0.315596  [C5] Round 2 | batch 9/200 x[0].mean=-0.467143
+
+  [C2] Round 2 | batch 9/200 x[0].mean=-0.095325
+  [C1] Round 2 | batch 9/200 x[0].mean=-0.531034
+  [Client  6] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.8651
+  [Client  5] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.1740  [Client  2] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.1507
+
+  [Client  1] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.4354
+  [C8] Round 2 | batch 9/100 x[0].mean=-0.078130
+  [C3] Round 2 | batch 9/200 x[0].mean=0.553881
+  [C9] Round 2 | batch 9/100 x[0].mean=-0.540022
+  [C7] Round 2 | batch 9/200 x[0].mean=-0.122964
+  [Client  8] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0051  [Client  3] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.6872
+
+  [Client  9] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0038
+  [Client  7] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.0425
+  [C4] Round 2 | batch 9/200 x[0].mean=0.257114
+  [C0] Round 2 | batch 9/200 x[0].mean=0.252351
+  [Client  4] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.4835
+  [Client  0] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.7463
+  [Edge 0] G2 | E5 | loss=0.7321
+  [Edge 1] G2 | E1 | Hier-pFedMe | Selected 10/10
+  [C11] Round 2 | batch 5/120 x[0].mean=0.581822  [C14] Round 2 | batch 5/120 x[0].mean=0.153471
+
+  [C16] Round 2 | batch 5/120 x[0].mean=-0.622296
+  [C17] Round 2 | batch 5/120 x[0].mean=0.042922
+  [Client 11] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.7057
+  [Client 14] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.7299
+  [Client 16] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.7876  [Client 17] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.1650
+
+  [C13] Round 2 | batch 5/120 x[0].mean=0.039449
+  [C19] Round 2 | batch 5/120 x[0].mean=-0.067900
+  [C12] Round 2 | batch 5/120 x[0].mean=0.346375
+  [C10] Round 2 | batch 5/120 x[0].mean=0.008355
+  [Client 13] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.8988
+  [Client 19] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5463
+  [Client 12] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5635
+  [Client 10] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.4343
+  [C15] Round 2 | batch 5/120 x[0].mean=-0.156398
+  [C18] Round 2 | batch 5/120 x[0].mean=-0.263019
+  [Client 15] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.0138
+  [Client 18] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.9289
+  [Edge 1] G2 | E1 | loss=0.7774
+  [Edge 1] G2 | E2 | Hier-pFedMe | Selected 10/10
+  [C12] Round 2 | batch 6/120 x[0].mean=0.029621  [C11] Round 2 | batch 6/120 x[0].mean=-0.445750  [C10] Round 2 | batch 6/120 x[0].mean=-0.017840
+
+
+  [C13] Round 2 | batch 6/120 x[0].mean=0.166118
+  [Client 12] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.8973
+  [Client 11] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.3906  [Client 13] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.7716
+  [Client 10] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.3659
+
+  [C17] Round 2 | batch 6/120 x[0].mean=0.395242
+  [C19] Round 2 | batch 6/120 x[0].mean=0.687517  [C16] Round 2 | batch 6/120 x[0].mean=-0.102896
+
+  [C18] Round 2 | batch 6/120 x[0].mean=-0.436876
+  [Client 17] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.3085
+  [Client 16] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.7411
+  [Client 19] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.3114
+  [Client 18] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.9566
+  [C15] Round 2 | batch 6/120 x[0].mean=-0.125950
+  [C14] Round 2 | batch 6/120 x[0].mean=0.955490
+  [Client 15] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.8233
+  [Client 14] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.3792
+  [Edge 1] G2 | E2 | loss=0.6946
+  [Edge 1] G2 | E3 | Hier-pFedMe | Selected 10/10
+  [C10] Round 2 | batch 7/120 x[0].mean=0.410478
+  [C13] Round 2 | batch 7/120 x[0].mean=0.548333
+  [C12] Round 2 | batch 7/120 x[0].mean=0.279574
+  [C14] Round 2 | batch 7/120 x[0].mean=-0.410304
+  [Client 10] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.6189
+  [Client 13] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=2.0202
+  [Client 12] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5706
+  [Client 14] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.1706
+  [C17] Round 2 | batch 7/120 x[0].mean=0.441224
+  [C18] Round 2 | batch 7/120 x[0].mean=-0.250306
+  [C16] Round 2 | batch 7/120 x[0].mean=0.276289
+  [C19] Round 2 | batch 7/120 x[0].mean=-0.113169
+  [Client 17] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.9036  [Client 18] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.7477
+
+  [Client 16] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.0074
+  [Client 19] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.4621
+  [C15] Round 2 | batch 7/120 x[0].mean=0.155885
+  [C11] Round 2 | batch 7/120 x[0].mean=0.597378
+  [Client 15] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.3577
+  [Client 11] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.6853
+  [Edge 1] G2 | E3 | loss=0.9544
+  [Edge 1] G2 | E4 | Hier-pFedMe | Selected 10/10
+  [C14] Round 2 | batch 8/120 x[0].mean=0.376109
+  [C15] Round 2 | batch 8/120 x[0].mean=0.506404
+  [C19] Round 2 | batch 8/120 x[0].mean=-0.435508  [C11] Round 2 | batch 8/120 x[0].mean=0.939433
+
+  [Client 14] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.3248
+  [Client 15] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.2482
+  [Client 11] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.6727  [Client 19] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5199
+
+  [C12] Round 2 | batch 8/120 x[0].mean=0.308531
+  [C17] Round 2 | batch 8/120 x[0].mean=-0.419061
+  [C10] Round 2 | batch 8/120 x[0].mean=-0.065259
+  [C13] Round 2 | batch 8/120 x[0].mean=0.412918
+  [Client 12] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.3444
+  [Client 17] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.5332
+  [Client 10] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.1114
+  [Client 13] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.1715
+  [C16] Round 2 | batch 8/120 x[0].mean=0.137428
+  [C18] Round 2 | batch 8/120 x[0].mean=-0.004673
+  [Client 16] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.2899
+  [Client 18] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.2155
+  [Edge 1] G2 | E4 | loss=1.0431
+  [Edge 1] G2 | E5 | Hier-pFedMe | Selected 10/10
+  [C13] Round 2 | batch 9/120 x[0].mean=0.652969
+  [C18] Round 2 | batch 9/120 x[0].mean=-0.373777
+  [C11] Round 2 | batch 9/120 x[0].mean=-0.097480
+  [C14] Round 2 | batch 9/120 x[0].mean=0.700805
+  [Client 13] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.6955  [Client 18] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.7381
+
+  [Client 11] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.0716
+  [Client 14] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.3414
+  [C17] Round 2 | batch 9/120 x[0].mean=-0.297090
+  [C16] Round 2 | batch 9/120 x[0].mean=0.549186
+  [C10] Round 2 | batch 9/120 x[0].mean=-0.207661
+  [C15] Round 2 | batch 9/120 x[0].mean=0.549413
+  [Client 16] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.8965
+  [Client 17] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.2959
+  [Client 10] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5485
+  [Client 15] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.8937
+  [C19] Round 2 | batch 9/120 x[0].mean=0.531905
+  [C12] Round 2 | batch 9/120 x[0].mean=0.581348
+  [Client 19] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.0855
+  [Client 12] Round 2 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.2149
+  [Edge 1] G2 | E5 | loss=0.8782
+[C0] eval model[0] mean=-0.000780 | θ̃ mean=-0.000780 | edge mean=0.000013
+[C0] acc_full=0.6250 | acc_masked=0.6250
+[C1] eval model[0] mean=-0.000147 | θ̃ mean=-0.000147 | edge mean=0.000013
+[C1] acc_full=0.4375 | acc_masked=0.4375
+[C2] eval model[0] mean=0.000111 | θ̃ mean=0.000111 | edge mean=0.000013
+[C2] acc_full=0.3750 | acc_masked=0.3750
+[C3] eval model[0] mean=-0.000113 | θ̃ mean=-0.000113 | edge mean=0.000013
+[C3] acc_full=0.5625 | acc_masked=0.5625
+[C4] eval model[0] mean=0.001206 | θ̃ mean=0.001206 | edge mean=0.000013
+[C4] acc_full=0.6250 | acc_masked=0.6250
+[C5] eval model[0] mean=-0.000119 | θ̃ mean=-0.000119 | edge mean=0.000013
+[C5] acc_full=0.5000 | acc_masked=0.5000
+[C6] eval model[0] mean=0.000437 | θ̃ mean=0.000437 | edge mean=0.000013
+[C6] acc_full=0.8125 | acc_masked=0.8125
+[C7] eval model[0] mean=0.000075 | θ̃ mean=0.000075 | edge mean=0.000013
+[C7] acc_full=0.5000 | acc_masked=0.5000
+[C8] eval model[0] mean=0.000184 | θ̃ mean=0.000184 | edge mean=0.000013
+[C8] acc_full=1.0000 | acc_masked=1.0000
+[C9] eval model[0] mean=-0.000475 | θ̃ mean=-0.000475 | edge mean=0.000013
+[C9] acc_full=1.0000 | acc_masked=1.0000
+[C10] eval model[0] mean=0.000650 | θ̃ mean=0.000650 | edge mean=0.000367
+[C10] acc_full=0.5625 | acc_masked=0.5625
+[C11] eval model[0] mean=0.000660 | θ̃ mean=0.000660 | edge mean=0.000367
+[C11] acc_full=0.6875 | acc_masked=0.6875
+[C12] eval model[0] mean=0.000402 | θ̃ mean=0.000402 | edge mean=0.000367
+[C12] acc_full=0.3125 | acc_masked=0.3125
+[C13] eval model[0] mean=0.000530 | θ̃ mean=0.000530 | edge mean=0.000367
+[C13] acc_full=0.5000 | acc_masked=0.5000
+[C14] eval model[0] mean=0.001103 | θ̃ mean=0.001103 | edge mean=0.000367
+[C14] acc_full=0.5625 | acc_masked=0.5625
+[C15] eval model[0] mean=-0.000250 | θ̃ mean=-0.000250 | edge mean=0.000367
+[C15] acc_full=0.3750 | acc_masked=0.3750
+[C16] eval model[0] mean=0.000474 | θ̃ mean=0.000474 | edge mean=0.000367
+[C16] acc_full=0.6250 | acc_masked=0.6250
+[C17] eval model[0] mean=0.000468 | θ̃ mean=0.000468 | edge mean=0.000367
+[C17] acc_full=0.5000 | acc_masked=0.5000
+[C18] eval model[0] mean=-0.000050 | θ̃ mean=-0.000050 | edge mean=0.000367
+[C18] acc_full=0.3125 | acc_masked=0.3125
+[C19] eval model[0] mean=0.000437 | θ̃ mean=0.000437 | edge mean=0.000367
+[C19] acc_full=0.6250 | acc_masked=0.6250
+  [Cloud] GM=0.1120 | EM=0.2319 PM=0.5716 | loss=2.2982 | time=37.0s | comm=4556.2MB (total=9112MB)
+
+[Round   3] Broadcasting to 2 edges...
+  [Edge 0] G3 | E1 | Hier-pFedMe | Selected 10/10
+  [C9] Round 3 | batch 10/100 x[0].mean=-0.157964
+  [C6] Round 3 | batch 10/200 x[0].mean=-0.275053
+  [C3] Round 3 | batch 10/200 x[0].mean=-0.108167
+  [C4] Round 3 | batch 10/200 x[0].mean=0.187551
+  [Client  6] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.2665
+  [Client  3] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.1860  [Client  9] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0437
+
+  [Client  4] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.6652
+  [C1] Round 3 | batch 10/200 x[0].mean=0.635241
+  [C5] Round 3 | batch 10/200 x[0].mean=0.000313
+  [C0] Round 3 | batch 10/200 x[0].mean=-0.277778
+  [C7] Round 3 | batch 10/200 x[0].mean=0.290277
+  [Client  1] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.9202
+  [Client  5] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5469
+  [Client  7] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.8531
+  [Client  0] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.7627
+  [C8] Round 3 | batch 10/100 x[0].mean=0.007781
+  [C2] Round 3 | batch 10/200 x[0].mean=0.340767
+  [Client  8] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0446
+  [Client  2] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.6187
+  [Edge 0] G3 | E1 | loss=0.7626
+  [Edge 0] G3 | E2 | Hier-pFedMe | Selected 10/10
+  [C4] Round 3 | batch 11/200 x[0].mean=0.440445
+  [C5] Round 3 | batch 11/200 x[0].mean=0.406131
+  [C9] Round 3 | batch 11/100 x[0].mean=-0.097811
+  [C6] Round 3 | batch 11/200 x[0].mean=-0.008069
+  [Client  5] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.4412
+  [Client  4] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.1226
+  [Client  9] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0161
+  [Client  6] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.9564
+  [C7] Round 3 | batch 11/200 x[0].mean=-0.102758
+  [C1] Round 3 | batch 11/200 x[0].mean=-0.010010
+  [C8] Round 3 | batch 11/100 x[0].mean=0.103789
+  [C0] Round 3 | batch 11/200 x[0].mean=0.001905
+  [Client  7] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.6533
+  [Client  1] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.8383
+  [Client  8] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0107
+  [Client  0] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.7600
+  [C2] Round 3 | batch 11/200 x[0].mean=-0.594689  [C3] Round 3 | batch 11/200 x[0].mean=-0.129564
+
+  [Client  3] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.3554
+  [Client  2] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5571
+  [Edge 0] G3 | E2 | loss=0.7442
+  [Edge 0] G3 | E3 | Hier-pFedMe | Selected 10/10
+  [C9] Round 3 | batch 12/100 x[0].mean=0.159180
+  [C7] Round 3 | batch 12/200 x[0].mean=0.279252
+  [C5] Round 3 | batch 12/200 x[0].mean=0.807889
+  [C6] Round 3 | batch 12/200 x[0].mean=0.095314
+  [Client  9] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0096
+  [Client  7] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.7728
+  [Client  5] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.4563
+  [Client  6] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.4570
+  [C4] Round 3 | batch 12/200 x[0].mean=0.348796
+  [C2] Round 3 | batch 12/200 x[0].mean=-0.397889
+  [C1] Round 3 | batch 12/200 x[0].mean=-0.359079
+  [C0] Round 3 | batch 12/200 x[0].mean=-0.048074
+  [Client  4] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.7486
+  [Client  2] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5074
+  [Client  1] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.2534
+  [Client  0] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.0659
+  [C3] Round 3 | batch 12/200 x[0].mean=-0.428784
+  [C8] Round 3 | batch 12/100 x[0].mean=0.001886
+  [Client  3] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.7946
+  [Client  8] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0050
+  [Edge 0] G3 | E3 | loss=0.7848
+  [Edge 0] G3 | E4 | Hier-pFedMe | Selected 10/10
+  [C7] Round 3 | batch 13/200 x[0].mean=-0.284182
+  [C0] Round 3 | batch 13/200 x[0].mean=0.164481
+  [C1] Round 3 | batch 13/200 x[0].mean=-0.300231
+  [C8] Round 3 | batch 13/100 x[0].mean=-0.498774
+  [Client  0] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.6499
+  [Client  7] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.8130
+  [Client  1] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.8001
+  [Client  8] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0031
+  [C2] Round 3 | batch 13/200 x[0].mean=-0.434424
+  [C3] Round 3 | batch 13/200 x[0].mean=0.182684
+  [C9] Round 3 | batch 13/100 x[0].mean=0.024244
+  [C6] Round 3 | batch 13/200 x[0].mean=0.752571
+  [Client  2] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.2360
+  [Client  3] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.6358
+  [Client  9] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0058
+  [Client  6] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.1474
+  [C5] Round 3 | batch 13/200 x[0].mean=-0.382051
+  [C4] Round 3 | batch 13/200 x[0].mean=0.346835
+  [Client  5] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.4892
+  [Client  4] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.7069
+  [Edge 0] G3 | E4 | loss=0.8314
+  [Edge 0] G3 | E5 | Hier-pFedMe | Selected 10/10
+  [C4] Round 3 | batch 14/200 x[0].mean=0.016076
+  [C9] Round 3 | batch 14/100 x[0].mean=-0.818716
+  [C5] Round 3 | batch 14/200 x[0].mean=0.145269
+  [C0] Round 3 | batch 14/200 x[0].mean=0.350745
+  [Client  4] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.0774
+  [Client  9] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0035
+  [Client  5] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.3748
+  [Client  0] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.1824
+  [C3] Round 3 | batch 14/200 x[0].mean=-0.231274
+  [C7] Round 3 | batch 14/200 x[0].mean=-0.004963
+  [C2] Round 3 | batch 14/200 x[0].mean=0.110879
+  [C6] Round 3 | batch 14/200 x[0].mean=-0.207135
+  [Client  3] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.0841
+  [Client  2] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.7122
+  [Client  7] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.2935
+  [Client  6] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.3114
+  [C1] Round 3 | batch 14/200 x[0].mean=-0.630950
+  [C8] Round 3 | batch 14/100 x[0].mean=-0.516746
+  [Client  1] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.6458
+  [Client  8] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0030
+  [Edge 0] G3 | E5 | loss=0.9650
+  [Edge 1] G3 | E1 | Hier-pFedMe | Selected 10/10
+  [C11] Round 3 | batch 10/120 x[0].mean=0.245638
+  [C12] Round 3 | batch 10/120 x[0].mean=0.138286
+  [C17] Round 3 | batch 10/120 x[0].mean=0.031383
+  [C18] Round 3 | batch 10/120 x[0].mean=-0.332390
+  [Client 11] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.8553
+  [Client 17] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.9580
+  [Client 18] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.8183
+  [Client 12] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.1698
+  [C10] Round 3 | batch 10/120 x[0].mean=0.473356
+  [C15] Round 3 | batch 10/120 x[0].mean=0.998053
+  [C19] Round 3 | batch 10/120 x[0].mean=-0.064330
+  [C13] Round 3 | batch 10/120 x[0].mean=-0.546069
+  [Client 10] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.6435  [Client 15] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.6742
+
+  [Client 19] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.6194
+  [Client 13] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.1648
+  [C14] Round 3 | batch 10/120 x[0].mean=-0.159649
+  [C16] Round 3 | batch 10/120 x[0].mean=0.038915
+  [Client 14] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.3402
+  [Client 16] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.7910
+  [Edge 1] G3 | E1 | loss=0.8034
+  [Edge 1] G3 | E2 | Hier-pFedMe | Selected 10/10
+  [C10] Round 3 | batch 11/120 x[0].mean=0.141478
+  [C12] Round 3 | batch 11/120 x[0].mean=-0.192071
+  [C13] Round 3 | batch 11/120 x[0].mean=0.593864  [C15] Round 3 | batch 11/120 x[0].mean=0.078971
+
+  [Client 10] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.4399
+  [Client 12] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.7514
+  [Client 13] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.0231
+  [Client 15] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.3659
+  [C17] Round 3 | batch 11/120 x[0].mean=-0.301912
+  [C16] Round 3 | batch 11/120 x[0].mean=0.558497
+  [C19] Round 3 | batch 11/120 x[0].mean=0.514024
+  [C18] Round 3 | batch 11/120 x[0].mean=-0.422701
+  [Client 17] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.4753
+  [Client 16] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5193  [Client 19] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.4065
+
+  [Client 18] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.6982
+  [C14] Round 3 | batch 11/120 x[0].mean=-0.213363
+  [C11] Round 3 | batch 11/120 x[0].mean=-0.335852
+  [Client 14] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5627
+  [Client 11] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.8853
+  [Edge 1] G3 | E2 | loss=0.6128
+  [Edge 1] G3 | E3 | Hier-pFedMe | Selected 10/10
+  [C16] Round 3 | batch 12/120 x[0].mean=0.339497
+  [C10] Round 3 | batch 12/120 x[0].mean=0.044022
+  [C17] Round 3 | batch 12/120 x[0].mean=-0.180807
+  [C15] Round 3 | batch 12/120 x[0].mean=0.253260
+  [Client 16] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.4844  [Client 10] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5949
+
+  [Client 15] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.4449  [Client 17] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.4854
+
+  [C12] Round 3 | batch 12/120 x[0].mean=0.228497
+  [C18] Round 3 | batch 12/120 x[0].mean=-0.214824  [C14] Round 3 | batch 12/120 x[0].mean=1.102088
+
+  [C19] Round 3 | batch 12/120 x[0].mean=-0.100985
+  [Client 12] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.0086
+  [Client 18] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.9857
+  [Client 14] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.4823
+  [Client 19] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.3379
+  [C13] Round 3 | batch 12/120 x[0].mean=-0.757815
+  [C11] Round 3 | batch 12/120 x[0].mean=0.198511
+  [Client 13] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.4172
+  [Client 11] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.2537
+  [Edge 1] G3 | E3 | loss=0.7495
+  [Edge 1] G3 | E4 | Hier-pFedMe | Selected 10/10
+  [C10] Round 3 | batch 13/120 x[0].mean=-0.060606  [C15] Round 3 | batch 13/120 x[0].mean=0.160132  [C19] Round 3 | batch 13/120 x[0].mean=-0.138986
+  [C13] Round 3 | batch 13/120 x[0].mean=0.037036
+
+
+  [Client 10] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.1815
+  [Client 13] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.1883
+  [Client 15] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.6019  [Client 19] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5022
+
+  [C17] Round 3 | batch 13/120 x[0].mean=-0.453292  [C16] Round 3 | batch 13/120 x[0].mean=0.636919
+
+  [C12] Round 3 | batch 13/120 x[0].mean=-0.027654
+  [C11] Round 3 | batch 13/120 x[0].mean=-0.103727
+  [Client 16] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.0785
+  [Client 17] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.4865
+  [Client 12] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.7352
+  [Client 11] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.3888
+  [C14] Round 3 | batch 13/120 x[0].mean=-0.520163
+  [C18] Round 3 | batch 13/120 x[0].mean=0.366663
+  [Client 14] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.8991
+  [Client 18] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.8291
+  [Edge 1] G3 | E4 | loss=0.8891
+  [Edge 1] G3 | E5 | Hier-pFedMe | Selected 10/10
+  [C13] Round 3 | batch 14/120 x[0].mean=0.519263
+  [C10] Round 3 | batch 14/120 x[0].mean=0.244843
+  [C12] Round 3 | batch 14/120 x[0].mean=0.641908  [C14] Round 3 | batch 14/120 x[0].mean=-0.268154
+
+  [Client 13] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.0808
+  [Client 10] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.5280
+  [Client 14] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5551
+  [Client 12] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.6851
+  [C19] Round 3 | batch 14/120 x[0].mean=0.165519
+  [C11] Round 3 | batch 14/120 x[0].mean=-0.261880
+  [C17] Round 3 | batch 14/120 x[0].mean=-0.049455
+  [C15] Round 3 | batch 14/120 x[0].mean=0.197457
+  [Client 19] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.8926
+  [Client 11] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.0437
+  [Client 17] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5269
+  [Client 15] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.9428
+  [C18] Round 3 | batch 14/120 x[0].mean=-0.269630
+  [C16] Round 3 | batch 14/120 x[0].mean=0.916524
+  [Client 18] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.3949
+  [Client 16] Round 3 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.9897
+  [Edge 1] G3 | E5 | loss=0.9640
+[C0] eval model[0] mean=0.000084 | θ̃ mean=0.000084 | edge mean=0.000345
+[C0] acc_full=0.5625 | acc_masked=0.5625
+[C1] eval model[0] mean=0.000594 | θ̃ mean=0.000594 | edge mean=0.000345
+[C1] acc_full=0.6250 | acc_masked=0.6250
+[C2] eval model[0] mean=0.000175 | θ̃ mean=0.000175 | edge mean=0.000345
+[C2] acc_full=0.6875 | acc_masked=0.6875
+[C3] eval model[0] mean=0.000705 | θ̃ mean=0.000705 | edge mean=0.000345
+[C3] acc_full=0.4375 | acc_masked=0.4375
+[C4] eval model[0] mean=0.000864 | θ̃ mean=0.000864 | edge mean=0.000345
+[C4] acc_full=0.5000 | acc_masked=0.5000
+[C5] eval model[0] mean=0.000019 | θ̃ mean=0.000019 | edge mean=0.000345
+[C5] acc_full=0.3750 | acc_masked=0.3750
+[C6] eval model[0] mean=0.001364 | θ̃ mean=0.001364 | edge mean=0.000345
+[C6] acc_full=0.8125 | acc_masked=0.8125
+[C7] eval model[0] mean=-0.000126 | θ̃ mean=-0.000126 | edge mean=0.000345
+[C7] acc_full=0.5000 | acc_masked=0.5000
+[C8] eval model[0] mean=0.000539 | θ̃ mean=0.000539 | edge mean=0.000345
+[C8] acc_full=1.0000 | acc_masked=1.0000
+[C9] eval model[0] mean=0.000500 | θ̃ mean=0.000500 | edge mean=0.000345
+[C9] acc_full=1.0000 | acc_masked=1.0000
+[C10] eval model[0] mean=0.000894 | θ̃ mean=0.000894 | edge mean=0.000474
+[C10] acc_full=0.5625 | acc_masked=0.5625
+[C11] eval model[0] mean=0.000585 | θ̃ mean=0.000585 | edge mean=0.000474
+[C11] acc_full=0.8750 | acc_masked=0.8750
+[C12] eval model[0] mean=0.000475 | θ̃ mean=0.000475 | edge mean=0.000474
+[C12] acc_full=0.6250 | acc_masked=0.6250
+[C13] eval model[0] mean=0.000381 | θ̃ mean=0.000381 | edge mean=0.000474
+[C13] acc_full=0.5000 | acc_masked=0.5000
+[C14] eval model[0] mean=0.000465 | θ̃ mean=0.000465 | edge mean=0.000474
+[C14] acc_full=0.6875 | acc_masked=0.6875
+[C15] eval model[0] mean=0.001375 | θ̃ mean=0.001375 | edge mean=0.000474
+[C15] acc_full=0.5000 | acc_masked=0.5000
+[C16] eval model[0] mean=0.000188 | θ̃ mean=0.000188 | edge mean=0.000474
+[C16] acc_full=0.7500 | acc_masked=0.7500
+[C17] eval model[0] mean=0.000450 | θ̃ mean=0.000450 | edge mean=0.000474
+[C17] acc_full=0.5625 | acc_masked=0.5625
+[C18] eval model[0] mean=0.000542 | θ̃ mean=0.000542 | edge mean=0.000474
+[C18] acc_full=0.6875 | acc_masked=0.6875
+[C19] eval model[0] mean=0.000242 | θ̃ mean=0.000242 | edge mean=0.000474
+[C19] acc_full=0.6250 | acc_masked=0.6250
+  [Cloud] GM=0.1375 | EM=0.2663 PM=0.5951 | loss=2.2672 | time=37.4s | comm=4556.2MB (total=13669MB)
+
+[Round   4] Broadcasting to 2 edges...
+  [Edge 0] G4 | E1 | Hier-pFedMe | Selected 10/10
+  [C6] Round 4 | batch 15/200 x[0].mean=0.672498
+  [C7] Round 4 | batch 15/200 x[0].mean=-0.679340
+  [C5] Round 4 | batch 15/200 x[0].mean=0.266554
+  [C2] Round 4 | batch 15/200 x[0].mean=-0.027024
+  [Client  6] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.9439
+  [Client  7] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.1936
+  [Client  5] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.6757
+  [Client  2] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.6699
+  [C1] Round 4 | batch 15/200 x[0].mean=-0.724860
+  [C8] Round 4 | batch 15/100 x[0].mean=-0.087480
+  [C0] Round 4 | batch 15/200 x[0].mean=-0.224947
+  [C4] Round 4 | batch 15/200 x[0].mean=0.182077
+  [Client  1] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.8100
+  [Client  8] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0126
+  [Client  0] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.0961
+  [Client  4] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5691
+  [C9] Round 4 | batch 15/100 x[0].mean=0.105200
+  [C3] Round 4 | batch 15/200 x[0].mean=-0.154902
+  [Client  9] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0248
+  [Client  3] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.3758
+  [Edge 0] G4 | E1 | loss=0.9281
+  [Edge 0] G4 | E2 | Hier-pFedMe | Selected 10/10
+  [C1] Round 4 | batch 16/200 x[0].mean=0.069728
+  [C2] Round 4 | batch 16/200 x[0].mean=-0.788933
+  [C4] Round 4 | batch 16/200 x[0].mean=-0.185915
+  [C6] Round 4 | batch 16/200 x[0].mean=0.299756
+  [Client  1] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.9313
+  [Client  2] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.9246
+  [Client  6] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5790
+  [Client  4] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5189
+  [C3] Round 4 | batch 16/200 x[0].mean=0.088819
+  [C5] Round 4 | batch 16/200 x[0].mean=0.100747
+  [C9] Round 4 | batch 16/100 x[0].mean=-0.272310
+  [C0] Round 4 | batch 16/200 x[0].mean=-0.052432
+  [Client  3] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.8395
+  [Client  5] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.6113
+  [Client  9] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0150
+  [Client  0] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.8197
+  [C8] Round 4 | batch 16/100 x[0].mean=-0.206574
+  [C7] Round 4 | batch 16/200 x[0].mean=0.096229
+  [Client  8] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0128
+  [Client  7] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.8297
+  [Edge 0] G4 | E2 | loss=0.6742
+  [Edge 0] G4 | E3 | Hier-pFedMe | Selected 10/10
+  [C8] Round 4 | batch 17/100 x[0].mean=-0.497225
+  [C3] Round 4 | batch 17/200 x[0].mean=-0.121921
+  [C2] Round 4 | batch 17/200 x[0].mean=-0.471020
+  [C6] Round 4 | batch 17/200 x[0].mean=-0.606175
+  [Client  8] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0075
+  [Client  3] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5274
+  [Client  2] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.0077
+  [Client  6] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.4784
+  [C7] Round 4 | batch 17/200 x[0].mean=-0.097605
+  [C1] Round 4 | batch 17/200 x[0].mean=0.059868
+  [C0] Round 4 | batch 17/200 x[0].mean=-0.175030  [C9] Round 4 | batch 17/100 x[0].mean=-0.895592
+
+  [Client  7] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5039
+  [Client  1] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.1403
+  [Client  9] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0079
+  [Client  0] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5957
+  [C4] Round 4 | batch 17/200 x[0].mean=0.083045
+  [C5] Round 4 | batch 17/200 x[0].mean=-0.298478
+  [Client  4] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.4274
+  [Client  5] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.4656
+  [Edge 0] G4 | E3 | loss=0.5727
+  [Edge 0] G4 | E4 | Hier-pFedMe | Selected 10/10
+  [C2] Round 4 | batch 18/200 x[0].mean=0.038945
+  [C4] Round 4 | batch 18/200 x[0].mean=-1.057238
+  [C7] Round 4 | batch 18/200 x[0].mean=0.029858
+  [C9] Round 4 | batch 18/100 x[0].mean=-0.015749
+  [Client  2] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.3328
+  [Client  4] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.3223
+  [Client  9] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0032
+  [Client  7] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.9106
+  [C0] Round 4 | batch 18/200 x[0].mean=-0.629827
+  [C6] Round 4 | batch 18/200 x[0].mean=-0.037522
+  [C1] Round 4 | batch 18/200 x[0].mean=-0.882517
+  [C3] Round 4 | batch 18/200 x[0].mean=0.165625
+  [Client  0] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.8526
+  [Client  6] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.6261
+  [Client  1] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.7806
+  [Client  3] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.2637
+  [C8] Round 4 | batch 18/100 x[0].mean=-0.688701
+  [C5] Round 4 | batch 18/200 x[0].mean=-0.155869
+  [Client  8] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0013
+  [Client  5] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.4694
+  [Edge 0] G4 | E4 | loss=0.8400
+  [Edge 0] G4 | E5 | Hier-pFedMe | Selected 10/10
+  [C4] Round 4 | batch 19/200 x[0].mean=0.580481  [C8] Round 4 | batch 19/100 x[0].mean=-0.305756
+
+  [C2] Round 4 | batch 19/200 x[0].mean=0.156793
+  [C1] Round 4 | batch 19/200 x[0].mean=-0.180606
+  [Client  4] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.3263
+  [Client  8] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0039
+  [Client  1] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5860
+  [Client  2] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.9755
+  [C5] Round 4 | batch 19/200 x[0].mean=0.995636
+  [C9] Round 4 | batch 19/100 x[0].mean=0.036769
+  [C0] Round 4 | batch 19/200 x[0].mean=0.332569
+  [C3] Round 4 | batch 19/200 x[0].mean=0.540687
+  [Client  5] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.4854
+  [Client  0] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.6526
+  [Client  9] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.0063
+  [Client  3] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.1805
+  [C7] Round 4 | batch 19/200 x[0].mean=0.499079
+  [C6] Round 4 | batch 19/200 x[0].mean=-0.571373
+  [Client  7] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.8402
+  [Client  6] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5466
+  [Edge 0] G4 | E5 | loss=0.7331
+  [Edge 1] G4 | E1 | Hier-pFedMe | Selected 10/10
+  [C10] Round 4 | batch 15/120 x[0].mean=-0.849518
+  [C17] Round 4 | batch 15/120 x[0].mean=-0.562899
+  [C14] Round 4 | batch 15/120 x[0].mean=0.209973
+  [C13] Round 4 | batch 15/120 x[0].mean=0.393523
+  [Client 14] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5278
+  [Client 17] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5440
+  [Client 10] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.9034
+  [Client 13] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.7503
+  [C12] Round 4 | batch 15/120 x[0].mean=0.597011
+  [C11] Round 4 | batch 15/120 x[0].mean=-0.137401
+  [C18] Round 4 | batch 15/120 x[0].mean=-0.070951
+  [C19] Round 4 | batch 15/120 x[0].mean=-0.187396
+  [Client 12] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.8088
+  [Client 11] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.7528
+  [Client 18] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.7426
+  [Client 19] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.9690
+  [C16] Round 4 | batch 15/120 x[0].mean=-0.665875
+  [C15] Round 4 | batch 15/120 x[0].mean=0.363939
+  [Client 16] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.7173
+  [Client 15] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.6963
+  [Edge 1] G4 | E1 | loss=0.8412
+  [Edge 1] G4 | E2 | Hier-pFedMe | Selected 10/10
+  [C10] Round 4 | batch 16/120 x[0].mean=0.433505
+  [C16] Round 4 | batch 16/120 x[0].mean=0.575059
+  [C17] Round 4 | batch 16/120 x[0].mean=0.066471
+  [C11] Round 4 | batch 16/120 x[0].mean=0.173562
+  [Client 10] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.2627
+  [Client 16] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5813
+  [Client 17] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.4789
+  [Client 11] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.4649
+  [C19] Round 4 | batch 16/120 x[0].mean=-0.085852
+  [C15] Round 4 | batch 16/120 x[0].mean=0.149446
+  [C12] Round 4 | batch 16/120 x[0].mean=0.239946
+  [C14] Round 4 | batch 16/120 x[0].mean=0.693141
+  [Client 19] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5759
+  [Client 15] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.7267
+  [Client 12] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.7212
+  [Client 14] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.2241
+  [C13] Round 4 | batch 16/120 x[0].mean=0.028898
+  [C18] Round 4 | batch 16/120 x[0].mean=0.140768
+  [Client 13] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5325
+  [Client 18] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.0539
+  [Edge 1] G4 | E2 | loss=0.5622
+  [Edge 1] G4 | E3 | Hier-pFedMe | Selected 10/10
+  [C18] Round 4 | batch 17/120 x[0].mean=-0.228106  [C14] Round 4 | batch 17/120 x[0].mean=-0.388996
+
+  [C12] Round 4 | batch 17/120 x[0].mean=0.683626
+  [C10] Round 4 | batch 17/120 x[0].mean=0.972263
+  [Client 12] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5369
+  [Client 14] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.3650
+  [Client 10] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5504  [Client 18] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.8230
+
+  [C16] Round 4 | batch 17/120 x[0].mean=0.030846
+  [C19] Round 4 | batch 17/120 x[0].mean=0.141798
+  [C17] Round 4 | batch 17/120 x[0].mean=0.283177
+  [C11] Round 4 | batch 17/120 x[0].mean=0.519959
+  [Client 16] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.7557
+  [Client 19] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.4138
+  [Client 17] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5750
+  [Client 11] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.6611
+  [C13] Round 4 | batch 17/120 x[0].mean=-0.139546
+  [C15] Round 4 | batch 17/120 x[0].mean=0.098924
+  [Client 13] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.4402
+  [Client 15] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5251
+  [Edge 1] G4 | E3 | loss=0.5646
+  [Edge 1] G4 | E4 | Hier-pFedMe | Selected 10/10
+  [C19] Round 4 | batch 18/120 x[0].mean=0.097118
+  [C10] Round 4 | batch 18/120 x[0].mean=-0.008755
+  [C17] Round 4 | batch 18/120 x[0].mean=0.032025
+  [C14] Round 4 | batch 18/120 x[0].mean=-0.047083
+  [Client 19] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.2078
+  [Client 17] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.0604
+  [Client 10] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.6626
+  [Client 14] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.2964
+  [C16] Round 4 | batch 18/120 x[0].mean=0.009110
+  [C18] Round 4 | batch 18/120 x[0].mean=0.941191
+  [C13] Round 4 | batch 18/120 x[0].mean=-0.042727
+  [C11] Round 4 | batch 18/120 x[0].mean=0.348885
+  [Client 16] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.9860
+  [Client 18] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.7801
+  [Client 13] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.9912
+  [Client 11] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.2810
+  [C15] Round 4 | batch 18/120 x[0].mean=-0.200066
+  [C12] Round 4 | batch 18/120 x[0].mean=0.033103
+  [Client 15] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5538
+  [Client 12] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5302
+  [Edge 1] G4 | E4 | loss=0.6349
+  [Edge 1] G4 | E5 | Hier-pFedMe | Selected 10/10
+  [C10] Round 4 | batch 19/120 x[0].mean=0.552901
+  [C11] Round 4 | batch 19/120 x[0].mean=0.345253
+  [C14] Round 4 | batch 19/120 x[0].mean=0.218951
+  [C17] Round 4 | batch 19/120 x[0].mean=-0.199205
+  [Client 11] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.2661
+  [Client 10] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.3098
+  [Client 14] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.7060
+  [Client 17] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.1461
+  [C13] Round 4 | batch 19/120 x[0].mean=-0.490385
+  [C15] Round 4 | batch 19/120 x[0].mean=0.091385
+  [C18] Round 4 | batch 19/120 x[0].mean=0.506897
+  [C19] Round 4 | batch 19/120 x[0].mean=1.297275
+  [Client 13] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.3373
+  [Client 15] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.9835
+  [Client 18] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=1.5301
+  [Client 19] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5685
+  [C16] Round 4 | batch 19/120 x[0].mean=0.139753
+  [C12] Round 4 | batch 19/120 x[0].mean=-0.079996
+  [Client 16] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.5279
+  [Client 12] Round 4 | Hier-pFedMe(λ2=35.0,K=2) | loss=0.9090
+  [Edge 1] G4 | E5 | loss=0.9284

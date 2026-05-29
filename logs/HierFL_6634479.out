@@ -1,0 +1,1875 @@
+This job can be monitored from: https://job.c3se.chalmers.se/alvis/6634479
+========================================
+Job ID      : 6634479
+Job Name    : HierFLcifar10
+Node        : alvis5-06
+Start Time  : Fri May 15 07:13:53 CEST 2026
+Working Dir : /cephyr/users/ziangg/Alvis/tf-dpfl
+========================================
+[Setup] Python: /cephyr/users/ziangg/Alvis/tf-dpfl/bin/python
+[Setup] TF version: 2.15.1
+[Setup] GPU available: [PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
+[Config] Override: wandb.enabled = True
+[Setup] Random seed: 42
+[Setup] Loading dataset...
+[Data] CIFAR-10 from Mimer: /mimer/NOBACKUP/Datasets/CIFAR
+[Setup] Building global model...
+Model: "cifar_cnn_3conv"
+_________________________________________________________________
+ Layer (type)                Output Shape              Param #   
+=================================================================
+ input_1 (InputLayer)        [(None, 32, 32, 3)]       0         
+                                                                 
+ conv2d (Conv2D)             (None, 32, 32, 32)        896       
+                                                                 
+ batch_normalization (Batch  (None, 32, 32, 32)        128       
+ Normalization)                                                  
+                                                                 
+ re_lu (ReLU)                (None, 32, 32, 32)        0         
+                                                                 
+ conv2d_1 (Conv2D)           (None, 32, 32, 64)        18496     
+                                                                 
+ batch_normalization_1 (Bat  (None, 32, 32, 64)        256       
+ chNormalization)                                                
+                                                                 
+ re_lu_1 (ReLU)              (None, 32, 32, 64)        0         
+                                                                 
+ max_pooling2d (MaxPooling2  (None, 16, 16, 64)        0         
+ D)                                                              
+                                                                 
+ conv2d_2 (Conv2D)           (None, 16, 16, 128)       73856     
+                                                                 
+ batch_normalization_2 (Bat  (None, 16, 16, 128)       512       
+ chNormalization)                                                
+                                                                 
+ re_lu_2 (ReLU)              (None, 16, 16, 128)       0         
+                                                                 
+ conv2d_3 (Conv2D)           (None, 16, 16, 128)       147584    
+                                                                 
+ batch_normalization_3 (Bat  (None, 16, 16, 128)       512       
+ chNormalization)                                                
+                                                                 
+ re_lu_3 (ReLU)              (None, 16, 16, 128)       0         
+                                                                 
+ max_pooling2d_1 (MaxPoolin  (None, 8, 8, 128)         0         
+ g2D)                                                            
+                                                                 
+ spatial_dropout2d (Spatial  (None, 8, 8, 128)         0         
+ Dropout2D)                                                      
+                                                                 
+ conv2d_4 (Conv2D)           (None, 8, 8, 256)         295168    
+                                                                 
+ batch_normalization_4 (Bat  (None, 8, 8, 256)         1024      
+ chNormalization)                                                
+                                                                 
+ re_lu_4 (ReLU)              (None, 8, 8, 256)         0         
+                                                                 
+ conv2d_5 (Conv2D)           (None, 8, 8, 256)         590080    
+                                                                 
+ batch_normalization_5 (Bat  (None, 8, 8, 256)         1024      
+ chNormalization)                                                
+                                                                 
+ re_lu_5 (ReLU)              (None, 8, 8, 256)         0         
+                                                                 
+ max_pooling2d_2 (MaxPoolin  (None, 4, 4, 256)         0         
+ g2D)                                                            
+                                                                 
+ flatten (Flatten)           (None, 4096)              0         
+                                                                 
+ dropout (Dropout)           (None, 4096)              0         
+                                                                 
+ dense (Dense)               (None, 1024)              4195328   
+                                                                 
+ dense_1 (Dense)             (None, 512)               524800    
+                                                                 
+ dropout_1 (Dropout)         (None, 512)               0         
+                                                                 
+ dense_2 (Dense)             (None, 10)                5130      
+                                                                 
+=================================================================
+Total params: 5854794 (22.33 MB)
+Trainable params: 5853066 (22.33 MB)
+Non-trainable params: 1728 (6.75 KB)
+_________________________________________________________________
+[Setup] Building clients...
+
+[Non-IID] α=0.5, 20 clients, 10 classes
+Client       Samples    All classes (cls:count)
+------------------------------------------------------------------------
+client_0     2112       cls0:138, cls1:4, cls2:211, cls3:53, cls4:473, cls5:13, cls6:195, cls7:374, cls8:584, cls9:67
+client_1     2990       cls0:55, cls1:87, cls2:129, cls3:135, cls4:786, cls5:671, cls6:30, cls7:26, cls8:695, cls9:376
+client_2     3545       cls0:104, cls1:103, cls2:681, cls3:79, cls4:25, cls5:1, cls6:218, cls7:2075, cls8:157, cls9:102
+client_3     2846       cls0:1184, cls1:66, cls2:3, cls4:287, cls5:2, cls6:4, cls7:160, cls8:258, cls9:882
+client_4     2787       cls0:453, cls1:160, cls2:1218, cls3:395, cls4:13, cls5:287, cls6:58, cls7:173, cls8:11, cls9:19
+client_5     2692       cls0:263, cls1:250, cls2:739, cls3:665, cls4:20, cls5:420, cls6:157, cls7:1, cls8:36, cls9:141
+client_6     3097       cls0:2, cls1:1, cls2:216, cls3:478, cls4:34, cls5:510, cls6:1702, cls7:84, cls8:32, cls9:38
+client_7     3374       cls0:326, cls1:334, cls2:339, cls3:1113, cls4:138, cls5:131, cls6:277, cls7:404, cls8:202, cls9:110
+client_8     2093       cls0:41, cls1:3, cls2:36, cls3:6, cls4:146, cls5:823, cls6:51, cls7:18, cls9:969
+client_9     5222       cls0:14, cls1:1182, cls2:379, cls3:230, cls4:868, cls5:1, cls6:109, cls7:1935, cls8:88, cls9:416
+client_10    2469       cls0:56, cls1:628, cls2:13, cls3:180, cls4:110, cls5:2, cls6:27, cls7:13, cls8:1364, cls9:76
+client_11    2203       cls0:86, cls1:452, cls2:462, cls3:38, cls4:187, cls5:10, cls6:341, cls7:42, cls8:371, cls9:214
+client_12    2360       cls0:1759, cls1:2, cls2:34, cls3:66, cls4:85, cls6:95, cls7:157, cls8:153, cls9:9
+client_13    1925       cls0:1, cls1:520, cls2:125, cls3:286, cls4:3, cls5:171, cls6:181, cls7:140, cls8:435, cls9:63
+client_14    1449       cls0:22, cls1:14, cls2:346, cls3:603, cls4:2, cls5:14, cls6:5, cls7:42, cls8:103, cls9:298
+client_15    3243       cls0:6, cls1:4, cls2:332, cls3:712, cls4:93, cls5:154, cls6:883, cls7:1, cls8:281, cls9:777
+client_16    5310       cls0:420, cls1:390, cls2:79, cls3:29, cls4:1917, cls5:88, cls6:1280, cls7:10, cls8:391, cls9:706
+client_17    2910       cls0:211, cls1:958, cls2:217, cls3:710, cls4:4, cls5:437, cls6:141, cls7:111, cls8:108, cls9:13
+client_18    5152       cls0:587, cls1:532, cls2:303, cls3:18, cls4:472, cls5:2069, cls6:1, cls7:159, cls8:295, cls9:716
+client_19    2221       cls0:272, cls1:310, cls2:138, cls3:204, cls4:337, cls5:196, cls6:245, cls7:75, cls8:436, cls9:8
+
+[Train/Test split] 20 clients | avg train=2250, avg test=750 samples (ratio=0.25)
+[Setup] 20 clients built (noniid, α=0.5) | per-client test sets injected
+[Setup] Building edge servers...
+
+[Assignment] Semantic | 2 edges | dataset=cifar10
+  Edge 0: clients [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+  Edge 1: clients []
+[EdgeServer 0] 20 clients | 45007 samples
+  Warning: Edge 1 has 0 clients, check n_edges vs n_clients
+
+[Setup] Built 1 edge servers (strategy=semantic)
+  Edge 0: 20 clients | 45007 samples
+[Setup] Building per-edge test datasets (from held classes)...
+  Edge 0: 10 classes, 10000 test samples
+[CloudServer] 1 edges | model: 22.33 MB
+
+====================================================
+ HierFAVG Training Start
+====================================================
+
+[Round   1] Broadcasting to 1 edges...
+  [Edge 0] W_n reset to global weights for new round.
+  [Edge 0] G1 | E1 | Hier-pFedMe | Selected 20/20
+  [Client 17] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client 13] Received edge weights.
+  [Client  5] Received edge weights.
+  [Client 15] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client 10] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client  7] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client  1] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client  0] Received edge weights.
+  [Client 19] Received edge weights.
+  [Client  3] Received edge weights.
+  [Client  4] Received edge weights.
+  [Client 17] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=6.4241
+  [Client 14] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=12.1242
+  [Client 11] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=7.7133
+  [Client 13] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=8.6990
+  [Client  5] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=10.1174
+  [Client 15] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=6.0227
+  [Client  6] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=12.0540
+  [Client 18] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=9.6069
+  [Client 10] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=12.3599
+  [Client 12] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7762
+  [Client  9] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=6.6349
+  [Client  7] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=8.0707
+  [Client  2] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=8.2720
+  [Client  8] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=8.6834
+  [Client  1] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=11.9953
+  [Client 16] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=8.1612
+  [Client  0] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=2.6301
+  [Client 19] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=3.2039
+  [Client  3] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=8.5431
+  [Client  4] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=4.2023
+  [Edge 0] G1 | E1 | loss=7.8869
+  [Edge 0] G1 | E2 | Hier-pFedMe | Selected 20/20
+  [Client  3] Received edge weights.
+  [Client 19] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client  0] Received edge weights.
+  [Client  4] Received edge weights.
+  [Client  5] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client 13] Received edge weights.
+  [Client 17] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client  7] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client  1] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client 10] Received edge weights.
+  [Client 15] Received edge weights.
+  [Client 19] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=3.0932
+  [Client  3] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=2.9702
+  [Client 14] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.1919
+  [Client 18] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.3429
+  [Client  0] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.1345
+  [Client  4] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.8523
+  [Client  5] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=4.2604
+  [Client  8] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.0802
+  [Client  9] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=2.1711
+  [Client 13] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=2.0563
+  [Client 17] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=3.1435
+  [Client  6] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=2.8140
+  [Client  2] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.7035
+  [Client  7] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.1711
+  [Client 12] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=2.5204
+  [Client  1] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=2.8187
+  [Client 11] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.1787
+  [Client 16] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.8024
+  [Client 10] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4921
+  [Client 15] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=2.8053
+  [Edge 0] G1 | E2 | loss=1.9527
+  [Edge 0] G1 | E3 | Hier-pFedMe | Selected 20/20
+  [Client  4] Received edge weights.
+  [Client 19] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client 15] Received edge weights.
+  [Client  7] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client  1] Received edge weights.
+  [Client 17] Received edge weights.
+  [Client  5] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client  0] Received edge weights.
+  [Client  3] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client 13] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client 10] Received edge weights.
+  [Client 12] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4110
+  [Client 18] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=5.4529
+  [Client 19] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.3955  [Client  4] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=2.8949
+
+  [Client 14] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=8.7080
+  [Client 15] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=4.7107
+  [Client  2] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=3.1168
+  [Client  7] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=8.7793
+  [Client  1] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=4.9358
+  [Client 17] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=2.5925
+  [Client  5] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=2.6516
+  [Client  8] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=2.3482
+  [Client  0] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=2.1007
+  [Client  3] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=2.0934
+  [Client 16] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=3.8432
+  [Client 13] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=7.5146
+  [Client  9] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.8294
+  [Client  6] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=3.1527
+  [Client 11] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=5.3309
+  [Client 10] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=2.3816
+  [Edge 0] G1 | E3 | loss=3.7561
+  [Edge 0] G1 | E4 | Hier-pFedMe | Selected 20/20
+  [Client 13] Received edge weights.
+  [Client  4] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client  0] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client  5] Received edge weights.
+  [Client 17] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client  3] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client 10] Received edge weights.
+  [Client 19] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client  1] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client 15] Received edge weights.
+  [Client  7] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client 13] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.4639
+  [Client  4] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6019
+  [Client  9] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.1919
+  [Client  0] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.9901
+  [Client 11] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.0427
+  [Client  6] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6762
+  [Client  5] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=2.2100
+  [Client 17] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.6190
+  [Client 16] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.9773
+  [Client  2] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.0224
+  [Client  3] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.2890
+  [Client 18] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.6116
+  [Client 10] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.8891
+  [Client 19] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=2.2762
+  [Client 14] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.2043
+  [Client  1] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.4581
+  [Client 12] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3495
+  [Client 15] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6556
+  [Client  7] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.0219
+  [Client  8] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7154
+  [Edge 0] G1 | E4 | loss=1.1650
+  [Edge 0] G1 | E5 | Hier-pFedMe | Selected 20/20
+  [Client  5] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client 19] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client 17] Received edge weights.
+  [Client 13] Received edge weights.
+  [Client  0] Received edge weights.
+  [Client  3] Received edge weights.
+  [Client 15] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client  7] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client  1] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client  4] Received edge weights.
+  [Client 10] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client 19] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.9022
+  [Client 14] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=5.8130
+  [Client  5] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=3.3544
+  [Client  2] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.8068
+  [Client 18] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=4.4598
+  [Client 17] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.9912
+  [Client 13] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=3.5741
+  [Client  0] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.0705
+  [Client  3] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.4284
+  [Client 15] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.3005
+  [Client 11] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.3837
+  [Client 16] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=2.7535
+  [Client  7] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=2.6531
+  [Client  8] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5783
+  [Client  6] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=5.3619
+  [Client  1] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4587
+  [Client  9] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.7030
+  [Client  4] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.8877
+  [Client 10] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=2.6980
+  [Client 12] Round 1 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4892
+  [Edge 0] G1 | E5 | loss=2.2820
+[C0] eval model[0] mean=-0.005906 | θ̃ mean=-0.005906 | edge mean=-0.004740
+[C0] n=528 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.3693 | per_class={0: '0.00', 1: '0.00', 2: '0.00', 3: '0.00', 4: '0.45', 5: '0.00', 6: '0.04', 7: '0.00', 8: '0.96', 9: '0.00'}
+[C1] eval model[0] mean=-0.005120 | θ̃ mean=-0.005120 | edge mean=-0.004740
+[C1] n=747 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.3708 | per_class={0: '0.00', 1: '0.00', 2: '0.00', 3: '0.00', 4: '0.76', 5: '0.00', 6: '0.00', 7: '0.00', 8: '0.80', 9: '0.00'}
+[C2] eval model[0] mean=-0.002890 | θ̃ mean=-0.002890 | edge mean=-0.004740
+[C2] n=886 | classes=[0, 1, 2, 3, 4, 6, 7, 8, 9] | acc=0.0677 | per_class={0: '0.00', 1: '0.00', 2: '0.00', 3: '0.00', 4: '0.00', 6: '1.00', 7: '0.00', 8: '0.00', 9: '0.00'}
+[C3] eval model[0] mean=-0.005229 | θ̃ mean=-0.005229 | edge mean=-0.004740
+[C3] n=711 | classes=[0, 1, 2, 4, 5, 6, 7, 8, 9] | acc=0.1041 | per_class={0: '0.05', 1: '0.00', 2: '0.00', 4: '0.92', 5: '0.00', 6: '0.00', 7: '0.00', 8: '0.00', 9: '0.00'}
+[C4] eval model[0] mean=-0.005778 | θ̃ mean=-0.005778 | edge mean=-0.004740
+[C4] n=696 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.4310 | per_class={0: '0.00', 1: '0.00', 2: '0.99', 3: '0.01', 4: '0.00', 5: '0.00', 6: '0.00', 7: '0.00', 8: '0.00', 9: '0.00'}
+[C5] eval model[0] mean=-0.005589 | θ̃ mean=-0.005589 | edge mean=-0.004740
+[C5] n=673 | classes=[0, 1, 2, 3, 4, 5, 6, 8, 9] | acc=0.1753 | per_class={0: '0.00', 1: '0.18', 2: '0.00', 3: '0.00', 4: '0.00', 5: '0.94', 6: '0.07', 8: '0.00', 9: '0.00'}
+[C6] eval model[0] mean=-0.006558 | θ̃ mean=-0.006558 | edge mean=-0.004740
+[C6] n=774 | classes=[2, 3, 4, 5, 6, 7, 8, 9] | acc=0.1434 | per_class={2: '0.02', 3: '0.00', 4: '0.20', 5: '0.84', 6: '0.00', 7: '0.00', 8: '0.14', 9: '0.00'}
+[C7] eval model[0] mean=-0.005148 | θ̃ mean=-0.005148 | edge mean=-0.004740
+[C7] n=843 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.1507 | per_class={0: '0.34', 1: '0.90', 2: '0.29', 3: '0.00', 4: '0.00', 5: '0.00', 6: '0.00', 7: '0.00', 8: '0.00', 9: '0.00'}
+[C8] eval model[0] mean=-0.005280 | θ̃ mean=-0.005280 | edge mean=-0.004740
+[C8] n=523 | classes=[0, 2, 3, 4, 5, 6, 7, 9] | acc=0.3786 | per_class={0: '0.00', 2: '0.00', 3: '0.00', 4: '0.00', 5: '1.00', 6: '0.00', 7: '0.00', 9: '0.00'}
+[C9] eval model[0] mean=-0.004346 | θ̃ mean=-0.004346 | edge mean=-0.004740
+[C9] n=1305 | classes=[0, 1, 2, 3, 4, 6, 7, 8, 9] | acc=0.2000 | per_class={0: '0.00', 1: '0.00', 2: '0.00', 3: '0.00', 4: '0.93', 6: '0.00', 7: '0.14', 8: '0.00', 9: '0.00'}
+[C10] eval model[0] mean=-0.005561 | θ̃ mean=-0.005561 | edge mean=-0.004740
+[C10] n=617 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.5300 | per_class={0: '0.00', 1: '0.00', 2: '0.00', 3: '0.12', 4: '0.00', 5: '0.00', 6: '0.00', 7: '0.00', 8: '0.94', 9: '0.00'}
+[C11] eval model[0] mean=-0.005082 | θ̃ mean=-0.005082 | edge mean=-0.004740
+[C11] n=550 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.1691 | per_class={0: '0.00', 1: '0.00', 2: '0.00', 3: '0.00', 4: '0.00', 5: '0.00', 6: '0.02', 7: '0.00', 8: '1.00', 9: '0.00'}
+[C12] eval model[0] mean=-0.005004 | θ̃ mean=-0.005004 | edge mean=-0.004740
+[C12] n=590 | classes=[0, 1, 2, 3, 4, 6, 7, 8, 9] | acc=0.1831 | per_class={0: '0.19', 1: '0.00', 2: '0.00', 3: '0.00', 4: '0.96', 6: '0.00', 7: '0.00', 8: '0.00', 9: '0.00'}
+[C13] eval model[0] mean=-0.003649 | θ̃ mean=-0.003649 | edge mean=-0.004740
+[C13] n=481 | classes=[0, 1, 2, 3, 5, 6, 7, 8, 9] | acc=0.1247 | per_class={0: '0.00', 1: '0.13', 2: '0.00', 3: '0.08', 5: '0.28', 6: '0.24', 7: '0.44', 8: '0.00', 9: '0.00'}
+[C14] eval model[0] mean=-0.004911 | θ̃ mean=-0.004911 | edge mean=-0.004740
+[C14] n=362 | classes=[0, 1, 2, 3, 5, 6, 7, 8, 9] | acc=0.0912 | per_class={0: '0.14', 1: '0.00', 2: '0.00', 3: '0.00', 5: '0.00', 6: '0.00', 7: '0.00', 8: '0.94', 9: '0.03'}
+[C15] eval model[0] mean=-0.004804 | θ̃ mean=-0.004804 | edge mean=-0.004740
+[C15] n=810 | classes=[0, 1, 2, 3, 4, 5, 6, 8, 9] | acc=0.2716 | per_class={0: '0.00', 1: '0.00', 2: '0.00', 3: '0.00', 4: '0.00', 5: '0.00', 6: '0.91', 8: '0.00', 9: '0.03'}
+[C16] eval model[0] mean=-0.004772 | θ̃ mean=-0.004772 | edge mean=-0.004740
+[C16] n=1327 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.4039 | per_class={0: '0.00', 1: '0.00', 2: '0.00', 3: '0.00', 4: '0.91', 5: '0.00', 6: '0.00', 7: '0.00', 8: '0.00', 9: '0.45'}
+[C17] eval model[0] mean=-0.004704 | θ̃ mean=-0.004704 | edge mean=-0.004740
+[C17] n=727 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.3700 | per_class={0: '0.08', 1: '0.65', 2: '0.02', 3: '0.64', 4: '0.00', 5: '0.00', 6: '0.00', 7: '0.00', 8: '0.00', 9: '0.00'}
+[C18] eval model[0] mean=-0.005814 | θ̃ mean=-0.005814 | edge mean=-0.004740
+[C18] n=1288 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.0365 | per_class={0: '0.01', 1: '0.08', 2: '0.00', 3: '0.00', 4: '0.00', 5: '0.00', 6: '0.00', 7: '0.80', 8: '0.00', 9: '0.00'}
+[C19] eval model[0] mean=-0.004709 | θ̃ mean=-0.004709 | edge mean=-0.004740
+[C19] n=555 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.1477 | per_class={0: '0.00', 1: '0.02', 2: '0.30', 3: '0.65', 4: '0.00', 5: '0.00', 6: '0.03', 7: '0.00', 8: '0.32', 9: '0.00'}
+  [Cloud] GM=0.1076 | EM=0.1091 PM=0.2332 | loss=2.2990 | time=75.0s | comm=4511.5MB (total=4512MB)
+
+[Round   2] Broadcasting to 1 edges...
+  [Edge 0] W_n reset to global weights for new round.
+  [Edge 0] G2 | E1 | Hier-pFedMe | Selected 20/20
+  [Client  0] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client  1] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client  5] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client 17] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client  3] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client  4] Received edge weights.
+  [Client 15] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client 13] Received edge weights.
+  [Client  7] Received edge weights.
+  [Client 10] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client 19] Received edge weights.
+  [Client  0] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6415
+  [Client  8] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2425
+  [Client  9] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.2971
+  [Client  1] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.8900
+  [Client  5] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.1784
+  [Client 18] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7493
+  [Client 17] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.9494
+  [Client 14] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.3316
+  [Client  2] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.1234
+  [Client 12] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6017
+  [Client  3] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7167
+  [Client  6] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6294
+  [Client  4] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6449
+  [Client 15] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6404
+  [Client 16] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.1407
+  [Client 13] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.3061
+  [Client  7] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.3340
+  [Client 10] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7679
+  [Client 11] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.0131
+  [Client 19] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.9618
+  [Edge 0] G2 | E1 | loss=0.9271
+  [Edge 0] G2 | E2 | Hier-pFedMe | Selected 20/20
+  [Client  3] Received edge weights.
+  [Client  0] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client  4] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client 19] Received edge weights.
+  [Client 17] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client  1] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client  5] Received edge weights.
+  [Client 15] Received edge weights.
+  [Client 10] Received edge weights.
+  [Client  7] Received edge weights.
+  [Client 13] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client 18] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=2.4877
+  [Client 12] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4284
+  [Client  0] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.8230
+  [Client  3] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5425
+  [Client  6] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.9523
+  [Client  4] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.8116
+  [Client 14] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=3.5185
+  [Client 19] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.9237
+  [Client 17] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.9522
+  [Client  8] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4695
+  [Client  1] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5105
+  [Client  2] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.8942
+  [Client  5] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.5241
+  [Client 15] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.0009
+  [Client 10] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.6346
+  [Client  7] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=2.5947
+  [Client 13] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=2.7843
+  [Client 16] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=3.4096
+  [Client 11] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.0087
+  [Client  9] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7503
+  [Edge 0] G2 | E2 | loss=1.5127
+  [Edge 0] G2 | E3 | Hier-pFedMe | Selected 20/20
+  [Client  5] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client 15] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client  4] Received edge weights.
+  [Client 13] Received edge weights.
+  [Client 17] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client  7] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client  0] Received edge weights.
+  [Client 19] Received edge weights.
+  [Client  3] Received edge weights.
+  [Client  1] Received edge weights.
+  [Client 10] Received edge weights.
+  [Client 15] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.8693
+  [Client  6] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7675
+  [Client  2] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4733
+  [Client  5] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7219
+  [Client 12] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1896
+  [Client 13] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.9442
+  [Client  4] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7667
+  [Client 17] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5521
+  [Client  8] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4602
+  [Client 18] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7876
+  [Client  7] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7316
+  [Client  9] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4506
+  [Client 11] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.8236
+  [Client 14] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.0958
+  [Client 16] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7273
+  [Client  0] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5441
+  [Client 19] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5351
+  [Client  3] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4482
+  [Client  1] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5665
+  [Client 10] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4550
+  [Edge 0] G2 | E3 | loss=0.6394
+  [Edge 0] G2 | E4 | Hier-pFedMe | Selected 20/20
+  [Client 19] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client  4] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client  1] Received edge weights.
+  [Client 17] Received edge weights.
+  [Client  5] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client 13] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client 10] Received edge weights.
+  [Client 15] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client  3] Received edge weights.
+  [Client  7] Received edge weights.
+  [Client  0] Received edge weights.
+  [Client 19] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7309
+  [Client  4] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6522
+  [Client  2] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3474
+  [Client  6] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.2200
+  [Client  8] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4589
+  [Client  1] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7531
+  [Client  5] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.4213
+  [Client 17] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.9238
+  [Client 18] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7835
+  [Client 12] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4846
+  [Client  9] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6610
+  [Client 11] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7686
+  [Client 13] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.9050
+  [Client 14] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6345
+  [Client 10] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.9541
+  [Client 15] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6417
+  [Client 16] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.1770
+  [Client  3] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3837
+  [Client  7] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4840
+  [Client  0] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6099
+  [Edge 0] G2 | E4 | loss=0.7644
+  [Edge 0] G2 | E5 | Hier-pFedMe | Selected 20/20
+  [Client  1] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client  7] Received edge weights.
+  [Client 19] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client  3] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client 10] Received edge weights.
+  [Client  4] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client 15] Received edge weights.
+  [Client  0] Received edge weights.
+  [Client 13] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client  5] Received edge weights.
+  [Client 17] Received edge weights.
+  [Client 19] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.8079
+  [Client  7] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7228
+  [Client  1] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6851
+  [Client 16] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.0423
+  [Client 14] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7859
+  [Client  3] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6803
+  [Client  8] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.0896
+  [Client  2] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7097
+  [Client 10] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5216
+  [Client  4] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4959
+  [Client 11] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4455
+  [Client 15] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4215
+  [Client  0] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5517
+  [Client 13] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7118
+  [Client  6] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7746
+  [Client 12] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3966
+  [Client  9] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6648
+  [Client 18] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6132
+  [Client  5] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.8298
+  [Client 17] Round 2 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6725
+  [Edge 0] G2 | E5 | loss=0.6551
+[C0] eval model[0] mean=-0.005064 | θ̃ mean=-0.005064 | edge mean=-0.004893
+[C0] n=528 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.2936 | per_class={0: '0.00', 1: '0.00', 2: '0.00', 3: '0.00', 4: '0.94', 5: '0.00', 6: '0.04', 7: '0.00', 8: '0.27', 9: '0.00'}
+[C1] eval model[0] mean=-0.004680 | θ̃ mean=-0.004680 | edge mean=-0.004893
+[C1] n=747 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.3681 | per_class={0: '0.00', 1: '0.00', 2: '0.03', 3: '0.00', 4: '0.46', 5: '0.18', 6: '0.00', 7: '0.00', 8: '0.89', 9: '0.08'}
+[C2] eval model[0] mean=-0.004734 | θ̃ mean=-0.004734 | edge mean=-0.004893
+[C2] n=886 | classes=[0, 1, 2, 3, 4, 6, 7, 8, 9] | acc=0.3149 | per_class={0: '0.20', 1: '0.00', 2: '0.56', 3: '0.07', 4: '0.00', 6: '0.03', 7: '0.34', 8: '0.12', 9: '0.00'}
+[C3] eval model[0] mean=-0.004637 | θ̃ mean=-0.004637 | edge mean=-0.004893
+[C3] n=711 | classes=[0, 1, 2, 4, 5, 6, 7, 8, 9] | acc=0.1702 | per_class={0: '0.18', 1: '0.00', 2: '0.00', 4: '0.12', 5: '0.00', 6: '0.00', 7: '0.00', 8: '0.91', 9: '0.00'}
+[C4] eval model[0] mean=-0.005097 | θ̃ mean=-0.005097 | edge mean=-0.004893
+[C4] n=696 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.4239 | per_class={0: '0.05', 1: '0.00', 2: '0.91', 3: '0.12', 4: '0.00', 5: '0.05', 6: '0.00', 7: '0.00', 8: '0.00', 9: '0.00'}
+[C5] eval model[0] mean=-0.005251 | θ̃ mean=-0.005251 | edge mean=-0.004893
+[C5] n=673 | classes=[0, 1, 2, 3, 4, 5, 6, 8, 9] | acc=0.3016 | per_class={0: '0.02', 1: '0.00', 2: '0.64', 3: '0.52', 4: '0.00', 5: '0.00', 6: '0.00', 8: '0.10', 9: '0.00'}
+[C6] eval model[0] mean=-0.004788 | θ̃ mean=-0.004788 | edge mean=-0.004893
+[C6] n=774 | classes=[2, 3, 4, 5, 6, 7, 8, 9] | acc=0.5620 | per_class={2: '0.00', 3: '0.00', 4: '0.00', 5: '0.02', 6: '0.99', 7: '0.00', 8: '0.00', 9: '0.00'}
+[C7] eval model[0] mean=-0.005423 | θ̃ mean=-0.005423 | edge mean=-0.004893
+[C7] n=843 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.2989 | per_class={0: '0.03', 1: '0.00', 2: '0.00', 3: '0.92', 4: '0.00', 5: '0.00', 6: '0.00', 7: '0.00', 8: '0.20', 9: '0.00'}
+[C8] eval model[0] mean=-0.004825 | θ̃ mean=-0.004825 | edge mean=-0.004893
+[C8] n=523 | classes=[0, 2, 3, 4, 5, 6, 7, 9] | acc=0.5449 | per_class={0: '0.00', 2: '0.00', 3: '0.00', 4: '0.00', 5: '0.91', 6: '0.00', 7: '0.00', 9: '0.42'}
+[C9] eval model[0] mean=-0.004952 | θ̃ mean=-0.004952 | edge mean=-0.004893
+[C9] n=1305 | classes=[0, 1, 2, 3, 4, 6, 7, 8, 9] | acc=0.3257 | per_class={0: '0.00', 1: '0.23', 2: '0.00', 3: '0.01', 4: '0.48', 6: '0.00', 7: '0.48', 8: '0.05', 9: '0.27'}
+[C10] eval model[0] mean=-0.004592 | θ̃ mean=-0.004592 | edge mean=-0.004893
+[C10] n=617 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.5818 | per_class={0: '0.00', 1: '0.23', 2: '0.00', 3: '0.02', 4: '0.00', 5: '0.00', 6: '0.00', 7: '0.00', 8: '0.94', 9: '0.00'}
+[C11] eval model[0] mean=-0.004587 | θ̃ mean=-0.004587 | edge mean=-0.004893
+[C11] n=550 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.2327 | per_class={0: '0.00', 1: '0.10', 2: '0.00', 3: '0.00', 4: '0.56', 5: '0.00', 6: '0.08', 7: '0.00', 8: '0.80', 9: '0.20'}
+[C12] eval model[0] mean=-0.005003 | θ̃ mean=-0.005003 | edge mean=-0.004893
+[C12] n=590 | classes=[0, 1, 2, 3, 4, 6, 7, 8, 9] | acc=0.7492 | per_class={0: '0.99', 1: '0.00', 2: '0.00', 3: '0.00', 4: '0.00', 6: '0.00', 7: '0.00', 8: '0.00', 9: '0.00'}
+[C13] eval model[0] mean=-0.005066 | θ̃ mean=-0.005066 | edge mean=-0.004893
+[C13] n=481 | classes=[0, 1, 2, 3, 5, 6, 7, 8, 9] | acc=0.3617 | per_class={0: '0.00', 1: '0.60', 2: '0.00', 3: '0.17', 5: '0.03', 6: '0.02', 7: '0.00', 8: '0.76', 9: '0.00'}
+[C14] eval model[0] mean=-0.004932 | θ̃ mean=-0.004932 | edge mean=-0.004893
+[C14] n=362 | classes=[0, 1, 2, 3, 5, 6, 7, 8, 9] | acc=0.3978 | per_class={0: '0.00', 1: '0.00', 2: '0.58', 3: '0.58', 5: '0.00', 6: '0.00', 7: '0.00', 8: '0.16', 9: '0.10'}
+[C15] eval model[0] mean=-0.004778 | θ̃ mean=-0.004778 | edge mean=-0.004893
+[C15] n=810 | classes=[0, 1, 2, 3, 4, 5, 6, 8, 9] | acc=0.3123 | per_class={0: '0.00', 1: '0.00', 2: '0.00', 3: '0.28', 4: '0.00', 5: '0.00', 6: '0.84', 8: '0.00', 9: '0.04'}
+[C16] eval model[0] mean=-0.005035 | θ̃ mean=-0.005035 | edge mean=-0.004893
+[C16] n=1327 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.3768 | per_class={0: '0.09', 1: '0.00', 2: '0.00', 3: '0.00', 4: '0.85', 5: '0.00', 6: '0.18', 7: '0.00', 8: '0.00', 9: '0.00'}
+[C17] eval model[0] mean=-0.005420 | θ̃ mean=-0.005420 | edge mean=-0.004893
+[C17] n=727 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.2641 | per_class={0: '0.00', 1: '0.07', 2: '0.00', 3: '0.83', 4: '0.00', 5: '0.17', 6: '0.04', 7: '0.00', 8: '0.00', 9: '0.00'}
+[C18] eval model[0] mean=-0.005088 | θ̃ mean=-0.005088 | edge mean=-0.004893
+[C18] n=1288 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.3975 | per_class={0: '0.00', 1: '0.00', 2: '0.07', 3: '0.00', 4: '0.01', 5: '0.97', 6: '0.00', 7: '0.00', 8: '0.00', 9: '0.02'}
+[C19] eval model[0] mean=-0.004651 | θ̃ mean=-0.004651 | edge mean=-0.004893
+[C19] n=555 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.2180 | per_class={0: '0.09', 1: '0.11', 2: '0.00', 3: '0.24', 4: '0.00', 5: '0.31', 6: '0.04', 7: '0.00', 8: '0.68', 9: '0.00'}
+  [Cloud] GM=0.1732 | EM=0.1855 PM=0.3702 | loss=2.2541 | time=39.2s | comm=4511.5MB (total=9023MB)
+
+[Round   3] Broadcasting to 1 edges...
+  [Edge 0] W_n reset to global weights for new round.
+  [Edge 0] G3 | E1 | Hier-pFedMe | Selected 20/20
+  [Client  7] Received edge weights.
+  [Client 19] Received edge weights.
+  [Client 10] Received edge weights.
+  [Client  5] Received edge weights.
+  [Client  0] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client  3] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client 13] Received edge weights.
+  [Client  4] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client  1] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client 15] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client 17] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client 10] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5831
+  [Client  5] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7119
+  [Client  7] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.8188
+  [Client 19] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4987
+  [Client  0] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4726
+  [Client  6] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.8500
+  [Client  3] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4034
+  [Client 11] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6847
+  [Client 16] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.9966
+  [Client 13] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6105
+  [Client  4] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4393
+  [Client 12] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4090
+  [Client  1] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4783
+  [Client  8] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4260
+  [Client 14] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.2898
+  [Client 18] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7648
+  [Client 15] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4108
+  [Client  9] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4747
+  [Client 17] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5594
+  [Client  2] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6098
+  [Edge 0] G3 | E1 | loss=0.7202
+  [Edge 0] G3 | E2 | Hier-pFedMe | Selected 20/20
+  [Client  7] Received edge weights.
+  [Client  1] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client  5] Received edge weights.
+  [Client  4] Received edge weights.
+  [Client  3] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client 15] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client 13] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client  0] Received edge weights.
+  [Client 17] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client 19] Received edge weights.
+  [Client 10] Received edge weights.
+  [Client  7] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3988
+  [Client  9] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3870
+  [Client  1] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5176
+  [Client  8] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4998
+  [Client  5] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5567
+  [Client  4] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4725
+  [Client  3] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4332
+  [Client 11] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5750
+  [Client 14] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6192
+  [Client 18] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4364
+  [Client 15] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4290
+  [Client  2] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2839
+  [Client 12] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2384
+  [Client 13] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7692
+  [Client  6] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2758
+  [Client  0] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3436
+  [Client 17] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5986
+  [Client 16] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.2127
+  [Client 19] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6175
+  [Client 10] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3344
+  [Edge 0] G3 | E2 | loss=0.5137
+  [Edge 0] G3 | E3 | Hier-pFedMe | Selected 20/20
+  [Client  9] Received edge weights.
+  [Client  3] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client 19] Received edge weights.
+  [Client 17] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client  1] Received edge weights.
+  [Client  0] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client 13] Received edge weights.
+  [Client 10] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client  7] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client 15] Received edge weights.
+  [Client  4] Received edge weights.
+  [Client  5] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client  3] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3871
+  [Client 19] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3820
+  [Client  9] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3653
+  [Client  6] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3590
+  [Client  1] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6061
+  [Client 16] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.5678
+  [Client 17] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4744
+  [Client  0] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5961
+  [Client  2] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6887
+  [Client 13] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7324
+  [Client 12] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2715
+  [Client 10] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.9627
+  [Client  8] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5634
+  [Client 11] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5218
+  [Client  7] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4235
+  [Client 18] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4689
+  [Client 15] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.9456
+  [Client  4] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5306
+  [Client  5] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6578
+  [Client 14] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=2.1110
+  [Edge 0] G3 | E3 | loss=0.6694
+  [Edge 0] G3 | E4 | Hier-pFedMe | Selected 20/20
+  [Client 10] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client  0] Received edge weights.
+  [Client  7] Received edge weights.
+  [Client  1] Received edge weights.
+  [Client  5] Received edge weights.
+  [Client 19] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client 15] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client 17] Received edge weights.
+  [Client  3] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client 13] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client  4] Received edge weights.
+  [Client 14] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4169
+  [Client 10] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5390
+  [Client  6] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4666
+  [Client 12] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2205
+  [Client  0] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4931
+  [Client  1] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4926
+  [Client  7] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3567
+  [Client  5] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4645
+  [Client 19] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3948
+  [Client 18] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4833
+  [Client  8] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1832
+  [Client 15] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5581
+  [Client 17] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3484
+  [Client 16] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4785
+  [Client  3] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3395
+  [Client  2] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.8443
+  [Client  9] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2994
+  [Client 13] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6873
+  [Client 11] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5409
+  [Client  4] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1660
+  [Edge 0] G3 | E4 | loss=0.4414
+  [Edge 0] G3 | E5 | Hier-pFedMe | Selected 20/20
+  [Client  0] Received edge weights.
+  [Client 15] Received edge weights.
+  [Client 17] Received edge weights.
+  [Client 10] Received edge weights.
+  [Client 13] Received edge weights.
+  [Client 19] Received edge weights.
+  [Client  4] Received edge weights.
+  [Client  7] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client  3] Received edge weights.
+  [Client  5] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client  1] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client  0] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2602
+  [Client 17] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3670
+  [Client 15] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7535
+  [Client 10] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2338
+  [Client 13] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4128
+  [Client 19] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5884
+  [Client  4] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7809
+  [Client  7] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4660
+  [Client 11] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3599
+  [Client  9] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7209
+  [Client 12] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1251
+  [Client  6] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3541
+  [Client  8] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6003
+  [Client  3] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3188
+  [Client  5] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6067
+  [Client  2] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2750
+  [Client 14] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3748
+  [Client 18] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5223
+  [Client  1] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2767
+  [Client 16] Round 3 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2800
+  [Edge 0] G3 | E5 | loss=0.4460
+[C0] eval model[0] mean=-0.005124 | θ̃ mean=-0.005124 | edge mean=-0.004934
+[C0] n=528 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.3258 | per_class={0: '0.13', 1: '0.00', 2: '0.28', 3: '0.00', 4: '0.51', 5: '0.00', 6: '0.00', 7: '0.13', 8: '0.54', 9: '0.12'}
+[C1] eval model[0] mean=-0.005352 | θ̃ mean=-0.005352 | edge mean=-0.004934
+[C1] n=747 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.3989 | per_class={0: '0.00', 1: '0.00', 2: '0.00', 3: '0.16', 4: '0.72', 5: '0.02', 6: '0.00', 7: '0.00', 8: '0.88', 9: '0.07'}
+[C2] eval model[0] mean=-0.004484 | θ̃ mean=-0.004484 | edge mean=-0.004934
+[C2] n=886 | classes=[0, 1, 2, 3, 4, 6, 7, 8, 9] | acc=0.1840 | per_class={0: '0.00', 1: '0.00', 2: '0.97', 3: '0.00', 4: '0.00', 6: '0.00', 7: '0.01', 8: '0.00', 9: '0.00'}
+[C3] eval model[0] mean=-0.005208 | θ̃ mean=-0.005208 | edge mean=-0.004934
+[C3] n=711 | classes=[0, 1, 2, 4, 5, 6, 7, 8, 9] | acc=0.4543 | per_class={0: '0.79', 1: '0.00', 2: '0.00', 4: '0.45', 5: '0.00', 6: '0.00', 7: '0.16', 8: '0.38', 9: '0.11'}
+[C4] eval model[0] mean=-0.004839 | θ̃ mean=-0.004839 | edge mean=-0.004934
+[C4] n=696 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.4670 | per_class={0: '0.60', 1: '0.07', 2: '0.77', 3: '0.24', 4: '0.00', 5: '0.00', 6: '0.00', 7: '0.00', 8: '0.00', 9: '0.00'}
+[C5] eval model[0] mean=-0.004484 | θ̃ mean=-0.004484 | edge mean=-0.004934
+[C5] n=673 | classes=[0, 1, 2, 3, 4, 5, 6, 8, 9] | acc=0.3388 | per_class={0: '0.34', 1: '0.66', 2: '0.71', 3: '0.11', 4: '0.00', 5: '0.20', 6: '0.00', 8: '0.50', 9: '0.00'}
+[C6] eval model[0] mean=-0.004860 | θ̃ mean=-0.004860 | edge mean=-0.004934
+[C6] n=774 | classes=[2, 3, 4, 5, 6, 7, 8, 9] | acc=0.5142 | per_class={2: '0.08', 3: '0.00', 4: '0.00', 5: '0.47', 6: '0.76', 7: '0.00', 8: '0.71', 9: '0.00'}
+[C7] eval model[0] mean=-0.005023 | θ̃ mean=-0.005023 | edge mean=-0.004934
+[C7] n=843 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.2539 | per_class={0: '0.34', 1: '0.06', 2: '0.42', 3: '0.50', 4: '0.07', 5: '0.00', 6: '0.00', 7: '0.02', 8: '0.04', 9: '0.42'}
+[C8] eval model[0] mean=-0.005406 | θ̃ mean=-0.005406 | edge mean=-0.004934
+[C8] n=523 | classes=[0, 2, 3, 4, 5, 6, 7, 9] | acc=0.6099 | per_class={0: '0.00', 2: '0.00', 3: '0.00', 4: '0.00', 5: '0.82', 6: '0.00', 7: '0.00', 9: '0.63'}
+[C9] eval model[0] mean=-0.004926 | θ̃ mean=-0.004926 | edge mean=-0.004934
+[C9] n=1305 | classes=[0, 1, 2, 3, 4, 6, 7, 8, 9] | acc=0.3318 | per_class={0: '0.00', 1: '0.91', 2: '0.00', 3: '0.15', 4: '0.65', 6: '0.00', 7: '0.01', 8: '0.14', 9: '0.00'}
+[C10] eval model[0] mean=-0.005015 | θ̃ mean=-0.005015 | edge mean=-0.004934
+[C10] n=617 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.5900 | per_class={0: '0.08', 1: '0.51', 2: '0.00', 3: '0.26', 4: '0.00', 5: '0.00', 6: '0.00', 7: '0.00', 8: '0.79', 9: '0.00'}
+[C11] eval model[0] mean=-0.005011 | θ̃ mean=-0.005011 | edge mean=-0.004934
+[C11] n=550 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.3218 | per_class={0: '0.00', 1: '0.34', 2: '0.75', 3: '0.00', 4: '0.00', 5: '0.00', 6: '0.18', 7: '0.00', 8: '0.42', 9: '0.00'}
+[C12] eval model[0] mean=-0.005134 | θ̃ mean=-0.005134 | edge mean=-0.004934
+[C12] n=590 | classes=[0, 1, 2, 3, 4, 6, 7, 8, 9] | acc=0.6525 | per_class={0: '0.81', 1: '0.00', 2: '0.00', 3: '0.00', 4: '0.68', 6: '0.00', 7: '0.00', 8: '0.19', 9: '0.00'}
+[C13] eval model[0] mean=-0.004853 | θ̃ mean=-0.004853 | edge mean=-0.004934
+[C13] n=481 | classes=[0, 1, 2, 3, 5, 6, 7, 8, 9] | acc=0.2162 | per_class={0: '0.00', 1: '0.39', 2: '0.89', 3: '0.00', 5: '0.00', 6: '0.04', 7: '0.00', 8: '0.26', 9: '0.00'}
+[C14] eval model[0] mean=-0.005372 | θ̃ mean=-0.005372 | edge mean=-0.004934
+[C14] n=362 | classes=[0, 1, 2, 3, 5, 6, 7, 8, 9] | acc=0.4365 | per_class={0: '0.00', 1: '0.00', 2: '0.12', 3: '0.90', 5: '0.00', 6: '0.00', 7: '0.00', 8: '0.03', 9: '0.22'}
+[C15] eval model[0] mean=-0.004679 | θ̃ mean=-0.004679 | edge mean=-0.004934
+[C15] n=810 | classes=[0, 1, 2, 3, 4, 5, 6, 8, 9] | acc=0.2691 | per_class={0: '0.00', 1: '0.00', 2: '0.23', 3: '0.00', 4: '0.00', 5: '0.58', 6: '0.32', 8: '0.67', 9: '0.33'}
+[C16] eval model[0] mean=-0.005212 | θ̃ mean=-0.005212 | edge mean=-0.004934
+[C16] n=1327 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.3791 | per_class={0: '0.00', 1: '0.85', 2: '0.00', 3: '0.00', 4: '0.68', 5: '0.00', 6: '0.25', 7: '0.00', 8: '0.01', 9: '0.01'}
+[C17] eval model[0] mean=-0.005104 | θ̃ mean=-0.005104 | edge mean=-0.004934
+[C17] n=727 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.3851 | per_class={0: '0.04', 1: '0.60', 2: '0.56', 3: '0.62', 4: '0.00', 5: '0.02', 6: '0.00', 7: '0.00', 8: '0.00', 9: '0.00'}
+[C18] eval model[0] mean=-0.005196 | θ̃ mean=-0.005196 | edge mean=-0.004934
+[C18] n=1288 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.3835 | per_class={0: '0.21', 1: '0.07', 2: '0.00', 3: '0.00', 4: '0.63', 5: '0.54', 6: '0.00', 7: '0.14', 8: '0.19', 9: '0.44'}
+[C19] eval model[0] mean=-0.004642 | θ̃ mean=-0.004642 | edge mean=-0.004934
+[C19] n=555 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.2631 | per_class={0: '0.13', 1: '0.08', 2: '0.35', 3: '0.35', 4: '0.04', 5: '0.00', 6: '0.21', 7: '0.05', 8: '0.75', 9: '0.00'}
+  [Cloud] GM=0.2277 | EM=0.2297 PM=0.3803 | loss=2.1077 | time=39.7s | comm=4511.5MB (total=13535MB)
+
+[Round   4] Broadcasting to 1 edges...
+  [Edge 0] W_n reset to global weights for new round.
+  [Edge 0] G4 | E1 | Hier-pFedMe | Selected 20/20
+  [Client 10] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client 15] Received edge weights.
+  [Client  4] Received edge weights.
+  [Client 19] Received edge weights.
+  [Client  5] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client  1] Received edge weights.
+  [Client  3] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client  0] Received edge weights.
+  [Client 13] Received edge weights.
+  [Client  7] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client 17] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client 15] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5127
+  [Client 10] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2902
+  [Client 16] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4482
+  [Client 18] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5578
+  [Client  4] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.8709
+  [Client 19] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4905
+  [Client  6] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3792
+  [Client  5] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7506
+  [Client  1] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4303
+  [Client  3] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2682
+  [Client 14] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3992
+  [Client  0] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3580
+  [Client 13] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4836
+  [Client  7] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3653
+  [Client  8] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3114
+  [Client  9] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2046
+  [Client  2] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2581
+  [Client 17] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3087
+  [Client 11] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3679
+  [Client 12] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.0655
+  [Edge 0] G4 | E1 | loss=0.4065
+  [Edge 0] G4 | E2 | Hier-pFedMe | Selected 20/20
+  [Client  4] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client  3] Received edge weights.
+  [Client 10] Received edge weights.
+  [Client  0] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client 15] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client 19] Received edge weights.
+  [Client 13] Received edge weights.
+  [Client 17] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client  7] Received edge weights.
+  [Client  5] Received edge weights.
+  [Client  1] Received edge weights.
+  [Client  4] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5020
+  [Client  3] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6019
+  [Client  9] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3085
+  [Client 10] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4807
+  [Client  0] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7124
+  [Client  2] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3690
+  [Client 12] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1924
+  [Client 15] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6043
+  [Client 14] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2502
+  [Client  6] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3252
+  [Client 11] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5318
+  [Client 16] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3210
+  [Client  8] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7021
+  [Client 19] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3228
+  [Client 13] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3237
+  [Client 17] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6261
+  [Client  7] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4520
+  [Client 18] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2930
+  [Client  5] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3139
+  [Client  1] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2496
+  [Edge 0] G4 | E2 | loss=0.4107
+  [Edge 0] G4 | E3 | Hier-pFedMe | Selected 20/20
+  [Client 15] Received edge weights.
+  [Client  1] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client  0] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client 19] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client  4] Received edge weights.
+  [Client  7] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client 17] Received edge weights.
+  [Client 13] Received edge weights.
+  [Client  5] Received edge weights.
+  [Client 10] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client  3] Received edge weights.
+  [Client 11] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3337
+  [Client  1] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1697
+  [Client 15] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3097
+  [Client  0] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3184
+  [Client 16] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3487
+  [Client 18] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.8088
+  [Client 19] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3400
+  [Client  8] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.5246
+  [Client  4] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.8771
+  [Client  7] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3886
+  [Client  6] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2032
+  [Client  9] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6894
+  [Client  2] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7704
+  [Client 17] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5412
+  [Client 13] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3595
+  [Client  5] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5653
+  [Client 10] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1971
+  [Client 12] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1279
+  [Client 14] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3148
+  [Client  3] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6694
+  [Edge 0] G4 | E3 | loss=0.5090
+  [Edge 0] G4 | E4 | Hier-pFedMe | Selected 20/20
+  [Client  6] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client  0] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client 10] Received edge weights.
+  [Client 15] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client 13] Received edge weights.
+  [Client  1] Received edge weights.
+  [Client  3] Received edge weights.
+  [Client  4] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client 17] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client 19] Received edge weights.
+  [Client  7] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client  5] Received edge weights.
+  [Client 16] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.0254
+  [Client  6] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1546
+  [Client  8] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.2419
+  [Client  0] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5708
+  [Client 15] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3183
+  [Client  2] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6686
+  [Client 10] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5125
+  [Client 13] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3886
+  [Client  1] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2481
+  [Client  3] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.9937
+  [Client  4] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7636
+  [Client 12] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.0039
+  [Client 17] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3916
+  [Client 18] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2790
+  [Client 19] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4429
+  [Client  7] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.8854
+  [Client  9] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.2147
+  [Client 14] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1714
+  [Client 11] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4749
+  [Client  5] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3362
+  [Edge 0] G4 | E4 | loss=0.5990
+  [Edge 0] G4 | E5 | Hier-pFedMe | Selected 20/20
+  [Client  3] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client  1] Received edge weights.
+  [Client  5] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client 13] Received edge weights.
+  [Client 17] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client 15] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client  7] Received edge weights.
+  [Client 10] Received edge weights.
+  [Client  4] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client 19] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client  0] Received edge weights.
+  [Client  3] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.8627
+  [Client  1] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1889
+  [Client 12] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7577
+  [Client  5] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3554
+  [Client  2] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1998
+  [Client 17] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4572
+  [Client 13] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6048
+  [Client 16] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3095
+  [Client  8] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5852
+  [Client 11] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3633
+  [Client 15] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.8710
+  [Client  6] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2323
+  [Client 14] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1870
+  [Client  7] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.8593
+  [Client 10] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2784
+  [Client  4] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6285
+  [Client 18] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3640
+  [Client 19] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4257
+  [Client  9] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.3204
+  [Client  0] Round 4 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6158
+  [Edge 0] G4 | E5 | loss=0.5942
+[C0] eval model[0] mean=-0.005027 | θ̃ mean=-0.005027 | edge mean=-0.005035
+[C0] n=528 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.2197 | per_class={0: '0.62', 1: '0.00', 2: '0.47', 3: '0.00', 4: '0.00', 5: '0.00', 6: '0.31', 7: '0.30', 8: '0.16', 9: '0.24'}
+[C1] eval model[0] mean=-0.005089 | θ̃ mean=-0.005089 | edge mean=-0.005035
+[C1] n=747 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.4029 | per_class={0: '0.00', 1: '0.04', 2: '0.15', 3: '0.00', 4: '0.51', 5: '0.60', 6: '0.00', 7: '0.00', 8: '0.63', 9: '0.02'}
+[C2] eval model[0] mean=-0.005153 | θ̃ mean=-0.005153 | edge mean=-0.005035
+[C2] n=886 | classes=[0, 1, 2, 3, 4, 6, 7, 8, 9] | acc=0.4436 | per_class={0: '0.00', 1: '0.09', 2: '0.38', 3: '0.00', 4: '0.00', 6: '0.47', 7: '0.49', 8: '0.80', 9: '0.50'}
+[C3] eval model[0] mean=-0.005626 | θ̃ mean=-0.005626 | edge mean=-0.005035
+[C3] n=711 | classes=[0, 1, 2, 4, 5, 6, 7, 8, 9] | acc=0.3165 | per_class={0: '0.00', 1: '0.00', 2: '0.00', 4: '0.00', 5: '0.00', 6: '0.00', 7: '0.18', 8: '0.08', 9: '1.00'}
+[C4] eval model[0] mean=-0.004864 | θ̃ mean=-0.004864 | edge mean=-0.005035
+[C4] n=696 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.2787 | per_class={0: '0.71', 1: '0.00', 2: '0.10', 3: '0.49', 4: '0.00', 5: '0.50', 6: '0.00', 7: '0.00', 8: '0.00', 9: '0.00'}
+[C5] eval model[0] mean=-0.005342 | θ̃ mean=-0.005342 | edge mean=-0.005035
+[C5] n=673 | classes=[0, 1, 2, 3, 4, 5, 6, 8, 9] | acc=0.3418 | per_class={0: '0.60', 1: '0.28', 2: '0.51', 3: '0.12', 4: '0.00', 5: '0.43', 6: '0.14', 8: '0.20', 9: '0.44'}
+[C6] eval model[0] mean=-0.005165 | θ̃ mean=-0.005165 | edge mean=-0.005035
+[C6] n=774 | classes=[2, 3, 4, 5, 6, 7, 8, 9] | acc=0.5362 | per_class={2: '0.00', 3: '0.47', 4: '0.00', 5: '0.11', 6: '0.79', 7: '0.00', 8: '0.14', 9: '0.10'}
+[C7] eval model[0] mean=-0.005204 | θ̃ mean=-0.005204 | edge mean=-0.005035
+[C7] n=843 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.2005 | per_class={0: '0.44', 1: '0.13', 2: '0.36', 3: '0.02', 4: '0.00', 5: '0.00', 6: '0.34', 7: '0.39', 8: '0.20', 9: '0.46'}
+[C8] eval model[0] mean=-0.005526 | θ̃ mean=-0.005526 | edge mean=-0.005035
+[C8] n=523 | classes=[0, 2, 3, 4, 5, 6, 7, 9] | acc=0.3671 | per_class={0: '0.00', 2: '0.00', 3: '0.00', 4: '0.20', 5: '0.89', 6: '0.00', 7: '0.00', 9: '0.03'}
+[C9] eval model[0] mean=-0.004672 | θ̃ mean=-0.004672 | edge mean=-0.005035
+[C9] n=1305 | classes=[0, 1, 2, 3, 4, 6, 7, 8, 9] | acc=0.2690 | per_class={0: '0.00', 1: '0.91', 2: '0.66', 3: '0.00', 4: '0.02', 6: '0.00', 7: '0.00', 8: '0.18', 9: '0.00'}
+[C10] eval model[0] mean=-0.005498 | θ̃ mean=-0.005498 | edge mean=-0.005035
+[C10] n=617 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.6126 | per_class={0: '0.23', 1: '0.46', 2: '0.00', 3: '0.14', 4: '0.66', 5: '0.00', 6: '0.33', 7: '0.00', 8: '0.80', 9: '0.00'}
+[C11] eval model[0] mean=-0.005205 | θ̃ mean=-0.005205 | edge mean=-0.005035
+[C11] n=550 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.3327 | per_class={0: '0.11', 1: '0.21', 2: '0.77', 3: '0.00', 4: '0.00', 5: '0.00', 6: '0.33', 7: '0.00', 8: '0.16', 9: '0.45'}
+[C12] eval model[0] mean=-0.004677 | θ̃ mean=-0.004677 | edge mean=-0.005035
+[C12] n=590 | classes=[0, 1, 2, 3, 4, 6, 7, 8, 9] | acc=0.6102 | per_class={0: '0.71', 1: '0.00', 2: '0.10', 3: '0.50', 4: '0.24', 6: '0.50', 7: '0.15', 8: '0.45', 9: '0.00'}
+[C13] eval model[0] mean=-0.004535 | θ̃ mean=-0.004535 | edge mean=-0.005035
+[C13] n=481 | classes=[0, 1, 2, 3, 5, 6, 7, 8, 9] | acc=0.3597 | per_class={0: '0.00', 1: '0.20', 2: '0.39', 3: '0.56', 5: '0.23', 6: '0.18', 7: '0.03', 8: '0.69', 9: '0.00'}
+[C14] eval model[0] mean=-0.004812 | θ̃ mean=-0.004812 | edge mean=-0.005035
+[C14] n=362 | classes=[0, 1, 2, 3, 5, 6, 7, 8, 9] | acc=0.4503 | per_class={0: '0.00', 1: '0.00', 2: '0.60', 3: '0.43', 5: '0.00', 6: '0.00', 7: '0.00', 8: '0.10', 9: '0.57'}
+[C15] eval model[0] mean=-0.005554 | θ̃ mean=-0.005554 | edge mean=-0.005035
+[C15] n=810 | classes=[0, 1, 2, 3, 4, 5, 6, 8, 9] | acc=0.4765 | per_class={0: '0.50', 1: '0.00', 2: '0.21', 3: '0.36', 4: '0.18', 5: '0.00', 6: '0.45', 8: '0.30', 9: '0.86'}
+[C16] eval model[0] mean=-0.004463 | θ̃ mean=-0.004463 | edge mean=-0.005035
+[C16] n=1327 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.3888 | per_class={0: '0.04', 1: '0.71', 2: '0.00', 3: '0.00', 4: '0.40', 5: '0.00', 6: '0.53', 7: '0.00', 8: '0.67', 9: '0.12'}
+[C17] eval model[0] mean=-0.004648 | θ̃ mean=-0.004648 | edge mean=-0.005035
+[C17] n=727 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.4278 | per_class={0: '0.00', 1: '0.81', 2: '0.38', 3: '0.32', 4: '0.00', 5: '0.23', 6: '0.00', 7: '0.21', 8: '0.57', 9: '0.00'}
+[C18] eval model[0] mean=-0.005170 | θ̃ mean=-0.005170 | edge mean=-0.005035
+[C18] n=1288 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.4495 | per_class={0: '0.04', 1: '0.44', 2: '0.00', 3: '0.00', 4: '0.06', 5: '0.92', 6: '0.00', 7: '0.00', 8: '0.42', 9: '0.00'}
+[C19] eval model[0] mean=-0.005012 | θ̃ mean=-0.005012 | edge mean=-0.005035
+[C19] n=555 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.2739 | per_class={0: '0.42', 1: '0.58', 2: '0.55', 3: '0.04', 4: '0.11', 5: '0.04', 6: '0.30', 7: '0.11', 8: '0.26', 9: '0.00'}
+  [Cloud] GM=0.2776 | EM=0.2809 PM=0.3860 | loss=1.9583 | time=39.1s | comm=4511.5MB (total=18046MB)
+
+[Round   5] Broadcasting to 1 edges...
+  [Edge 0] W_n reset to global weights for new round.
+  [Edge 0] G5 | E1 | Hier-pFedMe | Selected 20/20
+  [Client 17] Received edge weights.
+  [Client 13] Received edge weights.
+  [Client 15] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client  5] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client 19] Received edge weights.
+  [Client 10] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client  1] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client  3] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client  7] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client  0] Received edge weights.
+  [Client  4] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client 14] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4870
+  [Client 15] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4005
+  [Client 17] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3197
+  [Client 13] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.2260
+  [Client  5] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4681
+  [Client 11] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7267
+  [Client 19] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3522
+  [Client 10] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2620
+  [Client  6] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5018
+  [Client  1] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3045
+  [Client 16] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3367
+  [Client  3] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.7419
+  [Client  9] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6239
+  [Client  8] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.9110
+  [Client  7] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7615
+  [Client 12] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2182
+  [Client  0] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4571
+  [Client  4] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3401
+  [Client  2] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4301
+  [Client 18] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3701
+  [Edge 0] G5 | E1 | loss=0.5747
+  [Edge 0] G5 | E2 | Hier-pFedMe | Selected 20/20
+  [Client  1] Received edge weights.
+  [Client 10] Received edge weights.
+  [Client 15] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client 19] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client  5] Received edge weights.
+  [Client  4] Received edge weights.
+  [Client 13] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client 17] Received edge weights.
+  [Client  7] Received edge weights.
+  [Client  0] Received edge weights.
+  [Client  3] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client 10] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2299
+  [Client  6] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7977
+  [Client  1] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3892
+  [Client 15] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2954
+  [Client 19] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2285
+  [Client 18] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4686
+  [Client 16] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3999
+  [Client  2] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2189
+  [Client  9] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.6994
+  [Client  5] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4121
+  [Client  4] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.1367
+  [Client 13] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4075
+  [Client  8] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6755
+  [Client 11] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4773
+  [Client 17] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3073
+  [Client  7] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=2.1568
+  [Client  0] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4489
+  [Client  3] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.7810
+  [Client 14] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6822
+  [Client 12] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4595
+  [Edge 0] G5 | E2 | loss=0.7274
+  [Edge 0] G5 | E3 | Hier-pFedMe | Selected 20/20
+  [Client  0] Received edge weights.
+  [Client 17] Received edge weights.
+  [Client 15] Received edge weights.
+  [Client  7] Received edge weights.
+  [Client 19] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client 13] Received edge weights.
+  [Client  1] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client  5] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client 10] Received edge weights.
+  [Client  4] Received edge weights.
+  [Client  3] Received edge weights.
+  [Client  0] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3154
+  [Client  7] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5315
+  [Client 17] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1988
+  [Client 15] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2691
+  [Client  2] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4054
+  [Client 19] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3531
+  [Client 14] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4307
+  [Client 13] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3895
+  [Client  6] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2203
+  [Client  1] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2063
+  [Client  9] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7064
+  [Client  5] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.1732
+  [Client 12] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1114
+  [Client 16] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3559
+  [Client 11] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4871
+  [Client  8] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.6410
+  [Client 18] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3860
+  [Client 10] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3468
+  [Client  4] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4974
+  [Client  3] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.0038
+  [Edge 0] G5 | E3 | loss=0.4900
+  [Edge 0] G5 | E4 | Hier-pFedMe | Selected 20/20
+  [Client 19] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client 15] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client  7] Received edge weights.
+  [Client  3] Received edge weights.
+  [Client  0] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client  5] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client  4] Received edge weights.
+  [Client 17] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client 10] Received edge weights.
+  [Client 13] Received edge weights.
+  [Client  1] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client 15] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3387
+  [Client 19] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5595
+  [Client  2] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.9579
+  [Client 16] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6792
+  [Client  7] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4082
+  [Client  3] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3353
+  [Client  9] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=3.6200
+  [Client  0] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1814
+  [Client  8] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6971
+  [Client 14] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2407
+  [Client  5] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5838
+  [Client 12] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.0356
+  [Client  4] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5152
+  [Client 17] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1879
+  [Client 18] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3070
+  [Client 11] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3144
+  [Client 10] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1179
+  [Client 13] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3046
+  [Client  1] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3955
+  [Client  6] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.8234
+  [Edge 0] G5 | E4 | loss=0.7215
+  [Edge 0] G5 | E5 | Hier-pFedMe | Selected 20/20
+  [Client 19] Received edge weights.
+  [Client 10] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client  5] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client  3] Received edge weights.
+  [Client  1] Received edge weights.
+  [Client 17] Received edge weights.
+  [Client  7] Received edge weights.
+  [Client  4] Received edge weights.
+  [Client 15] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client  0] Received edge weights.
+  [Client 13] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client 16] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4348
+  [Client 10] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2047
+  [Client 19] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1892
+  [Client  6] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5602
+  [Client 11] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2842
+  [Client  8] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.5476
+  [Client 14] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2215
+  [Client  5] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5568
+  [Client  2] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3802
+  [Client  3] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3415
+  [Client  1] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1945
+  [Client 17] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3529
+  [Client  7] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4490
+  [Client  4] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2763
+  [Client 15] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1345
+  [Client  9] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.9200
+  [Client 18] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2147
+  [Client  0] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1917
+  [Client 13] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3718
+  [Client 12] Round 5 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1180
+  [Edge 0] G5 | E5 | loss=0.4102
+[C0] eval model[0] mean=-0.004847 | θ̃ mean=-0.004847 | edge mean=-0.004983
+[C0] n=528 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.4432 | per_class={0: '0.00', 1: '0.00', 2: '0.00', 3: '0.00', 4: '0.67', 5: '0.00', 6: '0.10', 7: '0.17', 8: '0.90', 9: '0.00'}
+[C1] eval model[0] mean=-0.005182 | θ̃ mean=-0.005182 | edge mean=-0.004983
+[C1] n=747 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.4926 | per_class={0: '0.00', 1: '0.00', 2: '0.00', 3: '0.00', 4: '0.68', 5: '0.41', 6: '0.10', 7: '0.00', 8: '0.56', 9: '0.73'}
+[C2] eval model[0] mean=-0.005418 | θ̃ mean=-0.005418 | edge mean=-0.004983
+[C2] n=886 | classes=[0, 1, 2, 3, 4, 6, 7, 8, 9] | acc=0.4944 | per_class={0: '0.24', 1: '0.13', 2: '0.46', 3: '0.00', 4: '0.00', 6: '0.25', 7: '0.59', 8: '0.42', 9: '0.47'}
+[C3] eval model[0] mean=-0.004583 | θ̃ mean=-0.004583 | edge mean=-0.004983
+[C3] n=711 | classes=[0, 1, 2, 4, 5, 6, 7, 8, 9] | acc=0.5851 | per_class={0: '0.86', 1: '0.00', 2: '0.00', 4: '0.05', 5: '0.00', 6: '0.00', 7: '0.10', 8: '0.00', 9: '0.70'}
+[C4] eval model[0] mean=-0.005344 | θ̃ mean=-0.005344 | edge mean=-0.004983
+[C4] n=696 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.4267 | per_class={0: '0.76', 1: '0.00', 2: '0.53', 3: '0.56', 4: '0.00', 5: '0.00', 6: '0.00', 7: '0.00', 8: '0.00', 9: '0.25'}
+[C5] eval model[0] mean=-0.004612 | θ̃ mean=-0.004612 | edge mean=-0.004983
+[C5] n=673 | classes=[0, 1, 2, 3, 4, 5, 6, 8, 9] | acc=0.3001 | per_class={0: '0.34', 1: '0.10', 2: '0.58', 3: '0.15', 4: '0.00', 5: '0.17', 6: '0.26', 8: '0.60', 9: '0.44'}
+[C6] eval model[0] mean=-0.004723 | θ̃ mean=-0.004723 | edge mean=-0.004983
+[C6] n=774 | classes=[2, 3, 4, 5, 6, 7, 8, 9] | acc=0.4910 | per_class={2: '0.18', 3: '0.56', 4: '0.00', 5: '0.00', 6: '0.70', 7: '0.00', 8: '0.00', 9: '0.20'}
+[C7] eval model[0] mean=-0.005171 | θ̃ mean=-0.005171 | edge mean=-0.004983
+[C7] n=843 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.3084 | per_class={0: '0.07', 1: '0.40', 2: '0.21', 3: '0.62', 4: '0.12', 5: '0.00', 6: '0.31', 7: '0.06', 8: '0.02', 9: '0.19'}
+[C8] eval model[0] mean=-0.004704 | θ̃ mean=-0.004704 | edge mean=-0.004983
+[C8] n=523 | classes=[0, 2, 3, 4, 5, 6, 7, 9] | acc=0.5029 | per_class={0: '0.10', 2: '0.00', 3: '0.00', 4: '0.49', 5: '0.01', 6: '0.00', 7: '0.00', 9: '0.98'}
+[C9] eval model[0] mean=-0.005200 | θ̃ mean=-0.005200 | edge mean=-0.004983
+[C9] n=1305 | classes=[0, 1, 2, 3, 4, 6, 7, 8, 9] | acc=0.3954 | per_class={0: '0.00', 1: '0.00', 2: '0.00', 3: '0.00', 4: '0.31', 6: '0.07', 7: '0.80', 8: '0.18', 9: '0.69'}
+[C10] eval model[0] mean=-0.005122 | θ̃ mean=-0.005122 | edge mean=-0.004983
+[C10] n=617 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.5900 | per_class={0: '0.00', 1: '0.07', 2: '0.00', 3: '0.19', 4: '0.41', 5: '0.00', 6: '0.17', 7: '0.00', 8: '0.97', 9: '0.00'}
+[C11] eval model[0] mean=-0.004720 | θ̃ mean=-0.004720 | edge mean=-0.004983
+[C11] n=550 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.3691 | per_class={0: '0.00', 1: '0.45', 2: '0.40', 3: '0.00', 4: '0.00', 5: '0.00', 6: '0.28', 7: '0.14', 8: '0.88', 9: '0.00'}
+[C12] eval model[0] mean=-0.005173 | θ̃ mean=-0.005173 | edge mean=-0.004983
+[C12] n=590 | classes=[0, 1, 2, 3, 4, 6, 7, 8, 9] | acc=0.7153 | per_class={0: '0.89', 1: '0.00', 2: '0.00', 3: '0.17', 4: '0.28', 6: '0.12', 7: '0.28', 8: '0.10', 9: '0.00'}
+[C13] eval model[0] mean=-0.004684 | θ̃ mean=-0.004684 | edge mean=-0.004983
+[C13] n=481 | classes=[0, 1, 2, 3, 5, 6, 7, 8, 9] | acc=0.4304 | per_class={0: '0.00', 1: '0.54', 2: '0.36', 3: '0.44', 5: '0.05', 6: '0.18', 7: '0.12', 8: '0.73', 9: '0.00'}
+[C14] eval model[0] mean=-0.004758 | θ̃ mean=-0.004758 | edge mean=-0.004983
+[C14] n=362 | classes=[0, 1, 2, 3, 5, 6, 7, 8, 9] | acc=0.4503 | per_class={0: '0.00', 1: '0.00', 2: '0.33', 3: '0.34', 5: '0.00', 6: '0.00', 7: '0.00', 8: '0.58', 9: '0.79'}
+[C15] eval model[0] mean=-0.004847 | θ̃ mean=-0.004847 | edge mean=-0.004983
+[C15] n=810 | classes=[0, 1, 2, 3, 4, 5, 6, 8, 9] | acc=0.4617 | per_class={0: '0.00', 1: '0.00', 2: '0.00', 3: '0.47', 4: '0.00', 5: '0.04', 6: '0.40', 8: '0.65', 9: '0.77'}
+[C16] eval model[0] mean=-0.004937 | θ̃ mean=-0.004937 | edge mean=-0.004983
+[C16] n=1327 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.4318 | per_class={0: '0.70', 1: '0.00', 2: '0.00', 3: '0.00', 4: '0.85', 5: '0.00', 6: '0.09', 7: '0.00', 8: '0.40', 9: '0.00'}
+[C17] eval model[0] mean=-0.004747 | θ̃ mean=-0.004747 | edge mean=-0.004983
+[C17] n=727 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.3315 | per_class={0: '0.12', 1: '0.37', 2: '0.02', 3: '0.60', 4: '0.00', 5: '0.04', 6: '0.29', 7: '0.00', 8: '0.93', 9: '0.00'}
+[C18] eval model[0] mean=-0.004998 | θ̃ mean=-0.004998 | edge mean=-0.004983
+[C18] n=1288 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.4371 | per_class={0: '0.13', 1: '0.06', 2: '0.16', 3: '0.00', 4: '0.28', 5: '0.62', 6: '0.00', 7: '0.00', 8: '0.66', 9: '0.63'}
+[C19] eval model[0] mean=-0.005332 | θ̃ mean=-0.005332 | edge mean=-0.004983
+[C19] n=555 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.3225 | per_class={0: '0.39', 1: '0.38', 2: '0.00', 3: '0.29', 4: '0.23', 5: '0.00', 6: '0.36', 7: '0.00', 8: '0.65', 9: '0.00'}
+  [Cloud] GM=0.3037 | EM=0.3064 PM=0.4444 | loss=1.8962 | time=39.6s | comm=4511.5MB (total=22558MB)
+
+[Round   6] Broadcasting to 1 edges...
+  [Edge 0] W_n reset to global weights for new round.
+  [Edge 0] G6 | E1 | Hier-pFedMe | Selected 20/20
+  [Client  0] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client  1] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client  5] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client  4] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client 15] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client  3] Received edge weights.
+  [Client 19] Received edge weights.
+  [Client  7] Received edge weights.
+  [Client 17] Received edge weights.
+  [Client 13] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client 10] Received edge weights.
+  [Client  9] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.9008
+  [Client  1] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2403
+  [Client  2] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1910
+  [Client  0] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2112
+  [Client  8] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2802
+  [Client  5] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7744
+  [Client 12] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1260
+  [Client 11] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2597
+  [Client  4] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4819
+  [Client 16] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1672
+  [Client 15] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2298
+  [Client 14] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3300
+  [Client 18] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3084
+  [Client 19] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3569
+  [Client  3] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.8514
+  [Client  7] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2238
+  [Client 17] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2920
+  [Client 13] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3462
+  [Client  6] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6907
+  [Client 10] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1673
+  [Edge 0] G6 | E1 | loss=0.4732
+  [Edge 0] G6 | E2 | Hier-pFedMe | Selected 20/20
+  [Client 13] Received edge weights.
+  [Client 15] Received edge weights.
+  [Client 17] Received edge weights.
+  [Client  0] Received edge weights.
+  [Client  4] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client  7] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client  1] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client 10] Received edge weights.
+  [Client  5] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client 19] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client  3] Received edge weights.
+  [Client 15] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5866
+  [Client  0] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3618
+  [Client 17] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3354
+  [Client 13] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1470
+  [Client  4] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3687
+  [Client 11] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3159
+  [Client 12] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1156
+  [Client  8] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.8089
+  [Client  6] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7799
+  [Client  7] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3431
+  [Client 18] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3691
+  [Client 14] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3943
+  [Client  1] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4251
+  [Client  2] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1666
+  [Client 10] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2373
+  [Client  5] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.4349
+  [Client 16] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3134
+  [Client 19] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3181
+  [Client  9] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5411
+  [Client  3] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1849
+  [Edge 0] G6 | E2 | loss=0.4631
+  [Edge 0] G6 | E3 | Hier-pFedMe | Selected 20/20
+  [Client 12] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client  0] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client 19] Received edge weights.
+  [Client 10] Received edge weights.
+  [Client 13] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client  3] Received edge weights.
+  [Client 15] Received edge weights.
+  [Client  4] Received edge weights.
+  [Client  7] Received edge weights.
+  [Client  1] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client 17] Received edge weights.
+  [Client  5] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client 14] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1876
+  [Client 18] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3034
+  [Client  0] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2705
+  [Client 12] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.0761
+  [Client 19] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4111
+  [Client 10] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2672
+  [Client 13] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2706
+  [Client  8] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.0889
+  [Client  3] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3962
+  [Client 15] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3583
+  [Client  4] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2197
+  [Client  7] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4392
+  [Client  1] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3116
+  [Client  9] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3671
+  [Client  2] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1480
+  [Client  6] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2878
+  [Client 17] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1817
+  [Client  5] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7058
+  [Client 11] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3399
+  [Client 16] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2958
+  [Edge 0] G6 | E3 | loss=0.3044
+  [Edge 0] G6 | E4 | Hier-pFedMe | Selected 20/20
+  [Client  3] Received edge weights.
+  [Client  7] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client  4] Received edge weights.
+  [Client 15] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client  0] Received edge weights.
+  [Client 17] Received edge weights.
+  [Client 10] Received edge weights.
+  [Client 19] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client  1] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client  5] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client 13] Received edge weights.
+  [Client 14] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1964
+  [Client 18] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1899
+  [Client  7] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5567
+  [Client  3] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4892
+  [Client 16] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.0952
+  [Client  4] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5038
+  [Client 15] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3028
+  [Client  9] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3620
+  [Client  0] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3015
+  [Client 17] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3895
+  [Client 10] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2042
+  [Client 19] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4643
+  [Client  2] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5776
+  [Client 12] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.0854
+  [Client  1] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2189
+  [Client  8] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.1286
+  [Client  6] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1525
+  [Client  5] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.7227
+  [Client 11] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3061
+  [Client 13] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3817
+  [Edge 0] G6 | E4 | loss=0.3619
+  [Edge 0] G6 | E5 | Hier-pFedMe | Selected 20/20
+  [Client  8] Received edge weights.
+  [Client 13] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client  5] Received edge weights.
+  [Client  3] Received edge weights.
+  [Client  7] Received edge weights.
+  [Client  1] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client 15] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client 10] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client 19] Received edge weights.
+  [Client  4] Received edge weights.
+  [Client  0] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client 17] Received edge weights.
+  [Client  8] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1478
+  [Client 13] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3485
+  [Client  5] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4214
+  [Client 18] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2482
+  [Client  3] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.0848
+  [Client  7] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1546
+  [Client  1] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1744
+  [Client 11] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1800
+  [Client 16] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1694
+  [Client 15] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1320
+  [Client 14] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5257
+  [Client  6] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1878
+  [Client 10] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.0824
+  [Client  9] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2760
+  [Client 19] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3313
+  [Client  4] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2463
+  [Client  0] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.8502
+  [Client 12] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1301
+  [Client  2] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3140
+  [Client 17] Round 6 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1826
+  [Edge 0] G6 | E5 | loss=0.2426
+[C0] eval model[0] mean=-0.004859 | θ̃ mean=-0.004859 | edge mean=-0.004859
+[C0] n=528 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.3617 | per_class={0: '0.23', 1: '0.00', 2: '0.37', 3: '0.00', 4: '0.00', 5: '0.00', 6: '0.08', 7: '0.25', 8: '0.93', 9: '0.12'}
+[C1] eval model[0] mean=-0.004409 | θ̃ mean=-0.004409 | edge mean=-0.004859
+[C1] n=747 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.5047 | per_class={0: '0.30', 1: '0.12', 2: '0.00', 3: '0.05', 4: '0.68', 5: '0.61', 6: '0.10', 7: '0.00', 8: '0.69', 9: '0.28'}
+[C2] eval model[0] mean=-0.004893 | θ̃ mean=-0.004893 | edge mean=-0.004859
+[C2] n=886 | classes=[0, 1, 2, 3, 4, 6, 7, 8, 9] | acc=0.4041 | per_class={0: '0.44', 1: '0.65', 2: '0.60', 3: '0.07', 4: '0.00', 6: '0.00', 7: '0.42', 8: '0.35', 9: '0.00'}
+[C3] eval model[0] mean=-0.005276 | θ̃ mean=-0.005276 | edge mean=-0.004859
+[C3] n=711 | classes=[0, 1, 2, 4, 5, 6, 7, 8, 9] | acc=0.6301 | per_class={0: '0.75', 1: '0.00', 2: '0.00', 4: '0.42', 5: '1.00', 6: '0.50', 7: '0.31', 8: '0.02', 9: '0.83'}
+[C4] eval model[0] mean=-0.004632 | θ̃ mean=-0.004632 | edge mean=-0.004859
+[C4] n=696 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.4641 | per_class={0: '0.73', 1: '0.59', 2: '0.62', 3: '0.30', 4: '0.00', 5: '0.04', 6: '0.00', 7: '0.00', 8: '0.00', 9: '0.00'}
+[C5] eval model[0] mean=-0.004538 | θ̃ mean=-0.004538 | edge mean=-0.004859
+[C5] n=673 | classes=[0, 1, 2, 3, 4, 5, 6, 8, 9] | acc=0.3611 | per_class={0: '0.64', 1: '0.74', 2: '0.61', 3: '0.03', 4: '0.00', 5: '0.33', 6: '0.19', 8: '0.30', 9: '0.12'}
+[C6] eval model[0] mean=-0.004874 | θ̃ mean=-0.004874 | edge mean=-0.004859
+[C6] n=774 | classes=[2, 3, 4, 5, 6, 7, 8, 9] | acc=0.4483 | per_class={2: '0.00', 3: '0.76', 4: '0.00', 5: '0.05', 6: '0.57', 7: '0.00', 8: '0.29', 9: '0.10'}
+[C7] eval model[0] mean=-0.004927 | θ̃ mean=-0.004927 | edge mean=-0.004859
+[C7] n=843 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.3215 | per_class={0: '0.16', 1: '0.69', 2: '0.12', 3: '0.59', 4: '0.00', 5: '0.11', 6: '0.00', 7: '0.13', 8: '0.36', 9: '0.00'}
+[C8] eval model[0] mean=-0.004162 | θ̃ mean=-0.004162 | edge mean=-0.004859
+[C8] n=523 | classes=[0, 2, 3, 4, 5, 6, 7, 9] | acc=0.6501 | per_class={0: '0.50', 2: '0.00', 3: '0.00', 4: '0.03', 5: '0.84', 6: '0.00', 7: '0.00', 9: '0.68'}
+[C9] eval model[0] mean=-0.004224 | θ̃ mean=-0.004224 | edge mean=-0.004859
+[C9] n=1305 | classes=[0, 1, 2, 3, 4, 6, 7, 8, 9] | acc=0.3885 | per_class={0: '0.20', 1: '0.65', 2: '0.01', 3: '0.25', 4: '0.65', 6: '0.00', 7: '0.28', 8: '0.18', 9: '0.19'}
+[C10] eval model[0] mean=-0.004875 | θ̃ mean=-0.004875 | edge mean=-0.004859
+[C10] n=617 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.6580 | per_class={0: '0.00', 1: '0.61', 2: '0.00', 3: '0.37', 4: '0.16', 5: '0.00', 6: '0.17', 7: '0.00', 8: '0.84', 9: '0.00'}
+[C11] eval model[0] mean=-0.004733 | θ̃ mean=-0.004733 | edge mean=-0.004859
+[C11] n=550 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.3873 | per_class={0: '0.05', 1: '0.34', 2: '0.36', 3: '0.12', 4: '0.22', 5: '0.00', 6: '0.41', 7: '0.14', 8: '0.75', 9: '0.26'}
+[C12] eval model[0] mean=-0.005009 | θ̃ mean=-0.005009 | edge mean=-0.004859
+[C12] n=590 | classes=[0, 1, 2, 3, 4, 6, 7, 8, 9] | acc=0.4661 | per_class={0: '0.49', 1: '0.00', 2: '0.00', 3: '0.08', 4: '0.12', 6: '0.38', 7: '0.46', 8: '0.77', 9: '0.00'}
+[C13] eval model[0] mean=-0.004607 | θ̃ mean=-0.004607 | edge mean=-0.004859
+[C13] n=481 | classes=[0, 1, 2, 3, 5, 6, 7, 8, 9] | acc=0.3763 | per_class={0: '0.00', 1: '0.50', 2: '0.21', 3: '0.34', 5: '0.55', 6: '0.20', 7: '0.12', 8: '0.46', 9: '0.00'}
+[C14] eval model[0] mean=-0.004577 | θ̃ mean=-0.004577 | edge mean=-0.004859
+[C14] n=362 | classes=[0, 1, 2, 3, 5, 6, 7, 8, 9] | acc=0.5249 | per_class={0: '0.00', 1: '1.00', 2: '0.46', 3: '0.51', 5: '0.00', 6: '0.00', 7: '0.29', 8: '0.68', 9: '0.64'}
+[C15] eval model[0] mean=-0.005192 | θ̃ mean=-0.005192 | edge mean=-0.004859
+[C15] n=810 | classes=[0, 1, 2, 3, 4, 5, 6, 8, 9] | acc=0.5062 | per_class={0: '0.00', 1: '0.00', 2: '0.39', 3: '0.20', 4: '0.00', 5: '0.27', 6: '0.71', 8: '0.55', 9: '0.67'}
+[C16] eval model[0] mean=-0.004933 | θ̃ mean=-0.004933 | edge mean=-0.004859
+[C16] n=1327 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.3753 | per_class={0: '0.49', 1: '0.65', 2: '0.38', 3: '0.00', 4: '0.43', 5: '0.04', 6: '0.29', 7: '0.00', 8: '0.43', 9: '0.18'}
+[C17] eval model[0] mean=-0.005013 | θ̃ mean=-0.005013 | edge mean=-0.004859
+[C17] n=727 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.3618 | per_class={0: '0.02', 1: '0.55', 2: '0.33', 3: '0.35', 4: '0.00', 5: '0.17', 6: '0.29', 7: '0.28', 8: '0.80', 9: '0.00'}
+[C18] eval model[0] mean=-0.004979 | θ̃ mean=-0.004979 | edge mean=-0.004859
+[C18] n=1288 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.4969 | per_class={0: '0.23', 1: '0.16', 2: '0.00', 3: '0.00', 4: '0.00', 5: '0.83', 6: '0.00', 7: '0.05', 8: '0.63', 9: '0.55'}
+[C19] eval model[0] mean=-0.004957 | θ̃ mean=-0.004957 | edge mean=-0.004859
+[C19] n=555 | classes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] | acc=0.2973 | per_class={0: '0.54', 1: '0.52', 2: '0.40', 3: '0.00', 4: '0.49', 5: '0.11', 6: '0.00', 7: '0.00', 8: '0.31', 9: '0.00'}
+  [Cloud] GM=0.3127 | EM=0.3157 PM=0.4433 | loss=1.8545 | time=39.0s | comm=4511.5MB (total=27069MB)
+
+[Round   7] Broadcasting to 1 edges...
+  [Edge 0] W_n reset to global weights for new round.
+  [Edge 0] G7 | E1 | Hier-pFedMe | Selected 20/20
+  [Client  3] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client 17] Received edge weights.
+  [Client  7] Received edge weights.
+  [Client 15] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client  5] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client 13] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client  4] Received edge weights.
+  [Client  0] Received edge weights.
+  [Client 10] Received edge weights.
+  [Client  1] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client 19] Received edge weights.
+  [Client  3] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1921
+  [Client 18] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1776
+  [Client  2] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=2.1852
+  [Client  9] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2266
+  [Client  8] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.4870
+  [Client 17] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1856
+  [Client  7] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3027
+  [Client 15] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6052
+  [Client  6] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2044
+  [Client 12] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.0606
+  [Client  5] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3488
+  [Client 11] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2130
+  [Client 13] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1797
+  [Client 14] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1458
+  [Client  4] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5310
+  [Client  0] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3525
+  [Client 10] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5165
+  [Client  1] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1016
+  [Client 16] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2568
+  [Client 19] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2444
+  [Edge 0] G7 | E1 | loss=0.4247
+  [Edge 0] G7 | E2 | Hier-pFedMe | Selected 20/20
+  [Client 10] Received edge weights.
+  [Client 15] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client 13] Received edge weights.
+  [Client 17] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client  5] Received edge weights.
+  [Client 19] Received edge weights.
+  [Client  3] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client  0] Received edge weights.
+  [Client  7] Received edge weights.
+  [Client  1] Received edge weights.
+  [Client  4] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client 18] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1734
+  [Client 13] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.0902
+  [Client 15] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6967
+  [Client 10] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5238
+  [Client 17] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2802
+  [Client  8] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2205
+  [Client  2] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3747
+  [Client 14] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2261
+  [Client  5] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4172
+  [Client 16] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2001
+  [Client 19] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2076
+  [Client  3] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2866
+  [Client 11] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2196
+  [Client 12] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2367
+  [Client  6] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1324
+  [Client  0] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.8426
+  [Client  7] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2751
+  [Client  1] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3094
+  [Client  4] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1139
+  [Client  9] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2205
+  [Edge 0] G7 | E2 | loss=0.2928
+  [Edge 0] G7 | E3 | Hier-pFedMe | Selected 20/20
+  [Client 15] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client  0] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client  1] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client 10] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client  3] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client  4] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client 17] Received edge weights.
+  [Client  5] Received edge weights.
+  [Client 19] Received edge weights.
+  [Client 13] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client  7] Received edge weights.
+  [Client 11] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2650
+  [Client 16] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2693
+  [Client 15] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.9218
+  [Client  0] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3248
+  [Client  8] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.6913
+  [Client  1] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1720
+  [Client  2] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=2.0251
+  [Client 12] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1139
+  [Client 10] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4930
+  [Client  9] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1658
+  [Client  3] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1422
+  [Client 14] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4034
+  [Client  4] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1594
+  [Client 18] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1451
+  [Client 17] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2160
+  [Client  5] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2309
+  [Client 19] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1544
+  [Client 13] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4671
+  [Client  6] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1603
+  [Client  7] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4331
+  [Edge 0] G7 | E3 | loss=0.3969
+  [Edge 0] G7 | E4 | Hier-pFedMe | Selected 20/20
+  [Client  0] Received edge weights.
+  [Client  7] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client  3] Received edge weights.
+  [Client 17] Received edge weights.
+  [Client 15] Received edge weights.
+  [Client  1] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client 19] Received edge weights.
+  [Client  5] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client 13] Received edge weights.
+  [Client 10] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client  4] Received edge weights.
+  [Client  3] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5905
+  [Client 18] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2062
+  [Client  0] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.0316
+  [Client  7] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4022
+  [Client 15] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.0996
+  [Client 17] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2409
+  [Client  1] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1855
+  [Client  6] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1824
+  [Client 19] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1595
+  [Client  5] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4318
+  [Client 14] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1105
+  [Client 12] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1298
+  [Client  9] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2025
+  [Client 16] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3041
+  [Client  8] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3449
+  [Client 11] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4624
+  [Client 13] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1091
+  [Client 10] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4091
+  [Client  2] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5072
+  [Client  4] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1828
+  [Edge 0] G7 | E4 | loss=0.2706
+  [Edge 0] G7 | E5 | Hier-pFedMe | Selected 20/20
+  [Client 10] Received edge weights.
+  [Client  0] Received edge weights.
+  [Client  7] Received edge weights.
+  [Client  1] Received edge weights.
+  [Client 18] Received edge weights.
+  [Client  5] Received edge weights.
+  [Client 13] Received edge weights.
+  [Client  6] Received edge weights.
+  [Client 19] Received edge weights.
+  [Client 12] Received edge weights.
+  [Client 11] Received edge weights.
+  [Client  4] Received edge weights.
+  [Client 14] Received edge weights.
+  [Client 17] Received edge weights.
+  [Client  3] Received edge weights.
+  [Client  8] Received edge weights.
+  [Client 16] Received edge weights.
+  [Client 15] Received edge weights.
+  [Client  2] Received edge weights.
+  [Client  9] Received edge weights.
+  [Client  7] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2351
+  [Client  1] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4273
+  [Client 10] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.4173
+  [Client  0] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5881
+  [Client 18] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1111
+  [Client  5] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.5849
+  [Client 13] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1303
+  [Client  6] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1571
+  [Client 19] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1952
+  [Client 12] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.0524
+  [Client 11] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1735
+  [Client  4] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1429
+  [Client 14] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.2387
+  [Client 17] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.2278
+  [Client  3] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.1241
+  [Client  8] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.0520
+  [Client 15] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=1.1866
+  [Client 16] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3511
+  [Client  2] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.8668
+  [Client  9] Round 7 | Hier-pFedMe(λ2=35.0,K=3) | loss=0.3798
+  [Edge 0] G7 | E5 | loss=0.3709

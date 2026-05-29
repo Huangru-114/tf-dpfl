@@ -1,0 +1,335 @@
+This job can be monitored from: https://job.c3se.chalmers.se/alvis/6425875
+========================================
+Job ID      : 6425875
+Job Name    : HierFLcifar10
+Node        : alvis6-04
+Start Time  : Fri Apr 17 05:56:36 CEST 2026
+Working Dir : /cephyr/users/ziangg/Alvis/tf-dpfl
+========================================
+[Setup] Python: /cephyr/users/ziangg/Alvis/TF_DPFL_2026/bin/python
+[Setup] TF version: 2.15.1
+[Setup] GPU available: [PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
+[Config] Override: wandb.enabled = True
+[Setup] Random seed: 42
+[Setup] Loading dataset...
+[Data] CIFAR-100 from Mimer: /mimer/NOBACKUP/Datasets/CIFAR
+[Data] CIFAR-100 | train=50000 test=10000 classes=100
+[Setup] Building global model...
+Model: "cifar_cnn_3conv"
+_________________________________________________________________
+ Layer (type)                Output Shape              Param #   
+=================================================================
+ input_1 (InputLayer)        [(None, 32, 32, 3)]       0         
+                                                                 
+ conv2d (Conv2D)             (None, 32, 32, 32)        896       
+                                                                 
+ batch_normalization (Batch  (None, 32, 32, 32)        128       
+ Normalization)                                                  
+                                                                 
+ re_lu (ReLU)                (None, 32, 32, 32)        0         
+                                                                 
+ conv2d_1 (Conv2D)           (None, 32, 32, 64)        18496     
+                                                                 
+ batch_normalization_1 (Bat  (None, 32, 32, 64)        256       
+ chNormalization)                                                
+                                                                 
+ re_lu_1 (ReLU)              (None, 32, 32, 64)        0         
+                                                                 
+ max_pooling2d (MaxPooling2  (None, 16, 16, 64)        0         
+ D)                                                              
+                                                                 
+ conv2d_2 (Conv2D)           (None, 16, 16, 128)       73856     
+                                                                 
+ batch_normalization_2 (Bat  (None, 16, 16, 128)       512       
+ chNormalization)                                                
+                                                                 
+ re_lu_2 (ReLU)              (None, 16, 16, 128)       0         
+                                                                 
+ conv2d_3 (Conv2D)           (None, 16, 16, 128)       147584    
+                                                                 
+ batch_normalization_3 (Bat  (None, 16, 16, 128)       512       
+ chNormalization)                                                
+                                                                 
+ re_lu_3 (ReLU)              (None, 16, 16, 128)       0         
+                                                                 
+ max_pooling2d_1 (MaxPoolin  (None, 8, 8, 128)         0         
+ g2D)                                                            
+                                                                 
+ spatial_dropout2d (Spatial  (None, 8, 8, 128)         0         
+ Dropout2D)                                                      
+                                                                 
+ conv2d_4 (Conv2D)           (None, 8, 8, 256)         295168    
+                                                                 
+ batch_normalization_4 (Bat  (None, 8, 8, 256)         1024      
+ chNormalization)                                                
+                                                                 
+ re_lu_4 (ReLU)              (None, 8, 8, 256)         0         
+                                                                 
+ conv2d_5 (Conv2D)           (None, 8, 8, 256)         590080    
+                                                                 
+ batch_normalization_5 (Bat  (None, 8, 8, 256)         1024      
+ chNormalization)                                                
+                                                                 
+ re_lu_5 (ReLU)              (None, 8, 8, 256)         0         
+                                                                 
+ max_pooling2d_2 (MaxPoolin  (None, 4, 4, 256)         0         
+ g2D)                                                            
+                                                                 
+ flatten (Flatten)           (None, 4096)              0         
+                                                                 
+ dropout (Dropout)           (None, 4096)              0         
+                                                                 
+ dense (Dense)               (None, 1024)              4195328   
+                                                                 
+ dense_1 (Dense)             (None, 512)               524800    
+                                                                 
+ dropout_1 (Dropout)         (None, 512)               0         
+                                                                 
+ dense_2 (Dense)             (None, 100)               51300     
+                                                                 
+=================================================================
+Total params: 5900964 (22.51 MB)
+Trainable params: 5899236 (22.50 MB)
+Non-trainable params: 1728 (6.75 KB)
+_________________________________________________________________
+[Setup] Building clients...
+
+[Pathological non-IID] 10 clients, 10 classes/client, 100 total classes
+Client       Samples    Classes held (cls:count)
+------------------------------------------------------------------------
+client_0     5000       [cls4:500, cls14:500, cls25:500, cls42:500, cls59:500, cls60:500, cls67:500, cls76:500, cls83:500, cls88:500]
+client_1     5000       [cls0:500, cls16:500, cls32:500, cls33:500, cls36:500, cls52:500, cls71:500, cls77:500, cls84:500, cls85:500]
+client_2     5000       [cls2:500, cls7:500, cls8:500, cls15:500, cls18:500, cls56:500, cls66:500, cls72:500, cls73:500, cls95:500]
+client_3     5000       [cls5:500, cls29:500, cls34:500, cls39:500, cls54:500, cls55:500, cls63:500, cls81:500, cls86:500, cls91:500]
+client_4     5000       [cls12:500, cls22:500, cls35:500, cls45:500, cls46:500, cls47:500, cls79:500, cls87:500, cls97:500, cls98:500]
+client_5     5000       [cls1:500, cls13:500, cls19:500, cls27:500, cls40:500, cls58:500, cls62:500, cls69:500, cls93:500, cls96:500]
+client_6     5000       [cls9:500, cls23:500, cls24:500, cls30:500, cls31:500, cls49:500, cls50:500, cls65:500, cls70:500, cls75:500]
+client_7     5000       [cls21:500, cls44:500, cls51:500, cls53:500, cls57:500, cls61:500, cls78:500, cls80:500, cls82:500, cls90:500]
+client_8     5000       [cls3:500, cls11:500, cls26:500, cls28:500, cls41:500, cls43:500, cls68:500, cls74:500, cls94:500, cls99:500]
+client_9     5000       [cls6:500, cls10:500, cls17:500, cls20:500, cls37:500, cls38:500, cls48:500, cls64:500, cls89:500, cls92:500]
+
+[Test split] 10 per-client test sets, avg 1000 samples each
+[Setup] 10 clients built (pathological) | per-client test sets injected
+[Setup] Building edge servers...
+
+  [Semantic] CIFAR-100 edge groups (superclass level):
+    Edge 0: ['aquatic mammals', 'fish', 'flowers', 'fruit/veg', 'insects', 'large carnivores', 'natural outdoor', 'herbivores', 'medium mammals', 'invertebrates', 'people', 'reptiles', 'small mammals', 'trees']  (fine classes: 70)
+    Edge 1: ['food containers', 'electrical', 'furniture', 'man-made outdoor', 'vehicles1', 'vehicles2']  (fine classes: 30)
+
+[Assignment] Semantic | 2 edges | dataset=cifar100
+  Edge 0: clients [0, 1, 2, 3, 4, 5, 6, 7, 8]
+  Edge 1: clients [9]
+[EdgeServer 0] 9 clients | 45000 samples
+[EdgeServer 1] 1 clients | 5000 samples
+
+[Setup] Built 2 edge servers (strategy=semantic)
+  Edge 0: 9 clients | 45000 samples
+  Edge 1: 1 clients | 5000 samples
+[CloudServer] 2 edges | model: 22.51 MB
+
+====================================================
+ HierFAVG Training Start
+====================================================
+
+[Round   1] Broadcasting to 2 edges...
+  [Edge 0] G1 | E1 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G1 | E1 | loss=3.6209
+  [Edge 0] G1 | E2 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G1 | E2 | loss=3.5401
+  [Edge 1] G1 | E1 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G1 | E1 | loss=3.6617
+  [Edge 1] G1 | E2 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G1 | E2 | loss=2.9417
+  [Cloud] GM=0.0098 | loss=4.6054 | time=179.4s | comm=990.5MB (total=990MB)
+
+[Round   2] Broadcasting to 2 edges...
+  [Edge 0] G2 | E1 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G2 | E1 | loss=3.4747
+  [Edge 0] G2 | E2 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G2 | E2 | loss=3.3959
+  [Edge 1] G2 | E1 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G2 | E1 | loss=3.5220
+  [Edge 1] G2 | E2 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G2 | E2 | loss=2.8518
+  [Cloud] GM=0.0099 | loss=4.6051 | time=175.8s | comm=990.5MB (total=1981MB)
+
+[Round   3] Broadcasting to 2 edges...
+  [Edge 0] G3 | E1 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G3 | E1 | loss=3.3540
+  [Edge 0] G3 | E2 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G3 | E2 | loss=3.2824
+  [Edge 1] G3 | E1 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G3 | E1 | loss=3.4051
+  [Edge 1] G3 | E2 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G3 | E2 | loss=2.7718
+  [Cloud] GM=0.0098 | loss=4.6049 | time=176.3s | comm=990.5MB (total=2971MB)
+
+[Round   4] Broadcasting to 2 edges...
+  [Edge 0] G4 | E1 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G4 | E1 | loss=3.2256
+  [Edge 0] G4 | E2 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G4 | E2 | loss=3.1793
+  [Edge 1] G4 | E1 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G4 | E1 | loss=3.2841
+  [Edge 1] G4 | E2 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G4 | E2 | loss=2.6802
+  [Cloud] GM=0.0100 | loss=4.6047 | time=175.7s | comm=990.5MB (total=3962MB)
+
+[Round   5] Broadcasting to 2 edges...
+  [Edge 0] G5 | E1 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G5 | E1 | loss=3.1564
+  [Edge 0] G5 | E2 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G5 | E2 | loss=3.1436
+  [Edge 1] G5 | E1 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G5 | E1 | loss=3.1983
+  [Edge 1] G5 | E2 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G5 | E2 | loss=2.6759
+  [Cloud] GM=0.0100 | loss=4.6046 | time=175.9s | comm=990.5MB (total=4952MB)
+
+[Round   6] Broadcasting to 2 edges...
+  [Edge 0] G6 | E1 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G6 | E1 | loss=3.1696
+  [Edge 0] G6 | E2 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G6 | E2 | loss=3.1983
+  [Edge 1] G6 | E1 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G6 | E1 | loss=3.1664
+  [Edge 1] G6 | E2 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G6 | E2 | loss=2.5732
+  [Cloud] GM=0.0100 | loss=4.6045 | time=174.1s | comm=990.5MB (total=5943MB)
+
+[Round   7] Broadcasting to 2 edges...
+  [Edge 0] G7 | E1 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G7 | E1 | loss=3.2413
+  [Edge 0] G7 | E2 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G7 | E2 | loss=3.2486
+  [Edge 1] G7 | E1 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G7 | E1 | loss=3.1878
+  [Edge 1] G7 | E2 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G7 | E2 | loss=2.5411
+  [Cloud] GM=0.0100 | loss=4.6045 | time=176.6s | comm=990.5MB (total=6933MB)
+
+[Round   8] Broadcasting to 2 edges...
+  [Edge 0] G8 | E1 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G8 | E1 | loss=3.2273
+  [Edge 0] G8 | E2 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G8 | E2 | loss=3.1821
+  [Edge 1] G8 | E1 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G8 | E1 | loss=3.2377
+  [Edge 1] G8 | E2 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G8 | E2 | loss=2.5214
+  [Cloud] GM=0.0100 | loss=4.6044 | time=175.8s | comm=990.5MB (total=7924MB)
+
+[Round   9] Broadcasting to 2 edges...
+  [Edge 0] G9 | E1 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G9 | E1 | loss=3.1412
+  [Edge 0] G9 | E2 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G9 | E2 | loss=3.1008
+  [Edge 1] G9 | E1 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G9 | E1 | loss=3.2218
+  [Edge 1] G9 | E2 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G9 | E2 | loss=2.5187
+  [Cloud] GM=0.0100 | loss=4.6044 | time=176.0s | comm=990.5MB (total=8914MB)
+
+[Round  10] Broadcasting to 2 edges...
+  [Edge 0] G10 | E1 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G10 | E1 | loss=3.0656
+  [Edge 0] G10 | E2 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G10 | E2 | loss=3.0074
+  [Edge 1] G10 | E1 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G10 | E1 | loss=3.1909
+  [Edge 1] G10 | E2 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G10 | E2 | loss=2.4965
+  [Cloud] GM=0.0100 | EM=0.0100 PM=0.0100 | loss=4.6044 | time=198.7s | comm=990.5MB (total=9905MB)
+
+[Round  11] Broadcasting to 2 edges...
+  [Edge 0] G11 | E1 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G11 | E1 | loss=2.9903
+  [Edge 0] G11 | E2 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G11 | E2 | loss=2.9310
+  [Edge 1] G11 | E1 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G11 | E1 | loss=3.1362
+  [Edge 1] G11 | E2 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G11 | E2 | loss=2.4789
+  [Cloud] GM=0.0100 | loss=4.6043 | time=176.7s | comm=990.5MB (total=10895MB)
+
+[Round  12] Broadcasting to 2 edges...
+  [Edge 0] G12 | E1 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G12 | E1 | loss=2.9302
+  [Edge 0] G12 | E2 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G12 | E2 | loss=2.8576
+  [Edge 1] G12 | E1 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G12 | E1 | loss=3.0878
+  [Edge 1] G12 | E2 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G12 | E2 | loss=2.3940
+  [Cloud] GM=0.0100 | loss=4.6043 | time=175.4s | comm=990.5MB (total=11885MB)
+
+[Round  13] Broadcasting to 2 edges...
+  [Edge 0] G13 | E1 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G13 | E1 | loss=2.8530
+  [Edge 0] G13 | E2 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G13 | E2 | loss=2.7844
+  [Edge 1] G13 | E1 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G13 | E1 | loss=2.9864
+  [Edge 1] G13 | E2 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G13 | E2 | loss=2.3597
+  [Cloud] GM=0.0100 | loss=4.6043 | time=177.7s | comm=990.5MB (total=12876MB)
+
+[Round  14] Broadcasting to 2 edges...
+  [Edge 0] G14 | E1 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G14 | E1 | loss=2.7744
+  [Edge 0] G14 | E2 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G14 | E2 | loss=2.7432
+  [Edge 1] G14 | E1 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G14 | E1 | loss=2.9709
+  [Edge 1] G14 | E2 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G14 | E2 | loss=2.5419
+  [Cloud] GM=0.0100 | loss=4.6042 | time=177.2s | comm=990.5MB (total=13866MB)
+
+[Round  15] Broadcasting to 2 edges...
+  [Edge 0] G15 | E1 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G15 | E1 | loss=2.7219
+  [Edge 0] G15 | E2 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G15 | E2 | loss=2.6948
+  [Edge 1] G15 | E1 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G15 | E1 | loss=2.9773
+  [Edge 1] G15 | E2 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G15 | E2 | loss=2.5597
+  [Cloud] GM=0.0100 | loss=4.6042 | time=179.3s | comm=990.5MB (total=14857MB)
+
+[Round  16] Broadcasting to 2 edges...
+  [Edge 0] G16 | E1 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G16 | E1 | loss=2.6689
+  [Edge 0] G16 | E2 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G16 | E2 | loss=2.6520
+  [Edge 1] G16 | E1 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G16 | E1 | loss=2.8873
+  [Edge 1] G16 | E2 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G16 | E2 | loss=2.5231
+  [Cloud] GM=0.0100 | loss=4.6042 | time=177.1s | comm=990.5MB (total=15847MB)
+
+[Round  17] Broadcasting to 2 edges...
+  [Edge 0] G17 | E1 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G17 | E1 | loss=2.6200
+  [Edge 0] G17 | E2 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G17 | E2 | loss=2.5984
+  [Edge 1] G17 | E1 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G17 | E1 | loss=2.8528
+  [Edge 1] G17 | E2 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G17 | E2 | loss=2.5851
+  [Cloud] GM=0.0100 | loss=4.6042 | time=177.5s | comm=990.5MB (total=16838MB)
+
+[Round  18] Broadcasting to 2 edges...
+  [Edge 0] G18 | E1 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G18 | E1 | loss=2.5907
+  [Edge 0] G18 | E2 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G18 | E2 | loss=2.5563
+  [Edge 1] G18 | E1 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G18 | E1 | loss=2.7686
+  [Edge 1] G18 | E2 | Hier-PerFedAvg | Selected 1/1
+  [Edge 1] G18 | E2 | loss=2.4136
+  [Cloud] GM=0.0100 | loss=4.6042 | time=180.2s | comm=990.5MB (total=17828MB)
+
+[Round  19] Broadcasting to 2 edges...
+  [Edge 0] G19 | E1 | Hier-PerFedAvg | Selected 9/9
+  [Edge 0] G19 | E1 | loss=2.5450
+  [Edge 0] G19 | E2 | Hier-PerFedAvg | Selected 9/9

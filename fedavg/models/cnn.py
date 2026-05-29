@@ -80,10 +80,165 @@ def build_cifar_cnn_3conv(input_shape=(32, 32, 3), num_classes=10):
 
     return tf.keras.Model(inputs, outputs, name="cifar_cnn_3conv")
 
+def build_net_cnn(input_shape=(32, 32, 3), num_classes=10):
+    """
+    将 PyTorch 中的 Net 模型改写为 TensorFlow 实现。
+    原模型描述：一个四层 CNN（两个卷积层 + 两个全连接层），用于 MNIST 图像分类。
+
+    架构（与原始 Net 完全一致）：
+        Conv2D(16, kernel=2, stride=1) + ReLU
+        MaxPool2D(pool_size=2, strides=1)
+        Dropout(0.25)
+        Conv2D(32, kernel=2, stride=1) + ReLU
+        MaxPool2D(pool_size=2, strides=1)
+        Dropout(0.5)
+        Flatten
+        Dense(128) + ReLU
+        Dense(num_classes, activation='softmax')   # 原始使用 log_softmax，此处用 softmax 配合分类交叉熵
+
+    参数：
+        input_shape: 输入图像形状 (H, W, C)，默认 (28, 28, 1) 对应 MNIST
+        num_classes: 分类数量，默认 10
+
+    返回：
+        tf.keras.Model
+    """
+    inputs = tf.keras.Input(shape=input_shape)
+
+    # 第一卷积块
+    x = tf.keras.layers.Conv2D(16, 2, strides=1, padding='valid', activation='relu')(inputs)
+    x = tf.keras.layers.MaxPooling2D(pool_size=2, strides=1)(x)
+    x = tf.keras.layers.Dropout(0.25)(x)
+
+    # 第二卷积块
+    x = tf.keras.layers.Conv2D(32, 2, strides=1, padding='valid', activation='relu')(x)
+    x = tf.keras.layers.MaxPooling2D(pool_size=2, strides=1)(x)
+    x = tf.keras.layers.Dropout(0.5)(x)
+
+    # 分类器
+    x = tf.keras.layers.Flatten()(x)
+    x = tf.keras.layers.Dense(128, activation='relu')(x)
+    outputs = tf.keras.layers.Dense(num_classes, activation='softmax')(x)
+
+    model = tf.keras.Model(inputs=inputs, outputs=outputs, name="net_cnn")
+    return model
+
+def build_fedavg_cnn(input_shape=(32, 32, 3), num_classes=10, dim=1024):
+    """
+    FedAvgCNN 的 TensorFlow 复现：
+        Conv2D(32, kernel=5, stride=1, valid) + ReLU + MaxPool2D(2, strides=2)
+        Conv2D(64, kernel=5, stride=1, valid) + ReLU + MaxPool2D(2, strides=2)
+        Flatten
+        Dense(512) + ReLU
+        Dense(num_classes, activation='softmax')
+
+    参数：
+        input_shape: 输入图像形状 (H, W, C)，默认 (28, 28, 1) 对应 MNIST
+        num_classes: 分类数量，默认 10
+        dim: Flatten 后的维度，默认 1024（对应 MNIST 28×28×1 输入）
+
+    返回：
+        tf.keras.Model
+    """
+    inputs = tf.keras.Input(shape=input_shape)
+
+    # 第一卷积块
+    x = tf.keras.layers.Conv2D(32, 5, strides=1, padding='valid', activation='relu')(inputs)
+    x = tf.keras.layers.MaxPooling2D(pool_size=2, strides=2)(x)
+
+    # 第二卷积块
+    x = tf.keras.layers.Conv2D(64, 5, strides=1, padding='valid', activation='relu')(x)
+    x = tf.keras.layers.MaxPooling2D(pool_size=2, strides=2)(x)
+
+    # 分类器
+    x = tf.keras.layers.Flatten()(x)
+    x = tf.keras.layers.Dense(512, activation='relu')(x)
+    outputs = tf.keras.layers.Dense(num_classes, activation='softmax')(x)
+
+    model = tf.keras.Model(inputs=inputs, outputs=outputs, name="fedavg_cnn")
+    return model
+
+
 def build_model(input_shape=(32, 32, 3), num_classes=10, arch="cifar_cnn_3conv"):
     registry = {
         "cifar_cnn_3conv":  build_cifar_cnn_3conv,
+        "net_cnn":  build_net_cnn,
         "gtsrb_cnn":  build_gtsrb_cnn,
+        "fedavg_cnn":  build_fedavg_cnn,
     }
     assert arch in registry, f"Unknown arch: {arch}. Choose from {list(registry)}"
     return registry[arch](input_shape=input_shape, num_classes=num_classes)
+
+
+def get_base_head_indices(model, num_classes):
+    """
+    FedRep 式 backbone / head 切分（索引方案，不实体化两个子模型）。
+
+    head = 模型最后一个 Dense(num_classes) 的 kernel + bias，
+           即 get_weights() 列表末尾的两个元素。
+    backbone = 其余所有权重（卷积、BN 的 trainable gamma/beta 与
+               non-trainable moving_mean/variance、head 之前的 Dense）。
+
+    判定方式：从 get_weights() 末尾向前扫描，找
+        - shape == (num_classes,) 的 1-D bias
+        - shape[-1] == num_classes 的 2-D kernel
+    这两个即 head。兼容 cifar_cnn_3conv（末尾 Dense(1024)→Dense(512)→
+    Dense(num_classes)），只取最后这个 Dense。
+
+    Keras 约定（已验证）：
+        model.weights 与 model.get_weights() 索引一一对齐；
+        model.trainable_variables 是 model.weights 的有序子集
+        （BN moving_mean/variance 不在其中）。
+        因此可用 id() 把 get_weights 索引映射到 trainable 索引。
+
+    Returns:
+        {
+          "head_weight_indices":    [...],  # get_weights() 中 head 的 2 个索引
+          "base_weight_indices":    [...],  # 其余索引
+          "head_trainable_indices": [...],  # trainable_variables 中 head 索引
+          "base_trainable_indices": [...],  # trainable_variables 中 backbone 索引
+        }
+    """
+    weights = model.get_weights()
+    n = len(weights)
+
+    # ── 从末尾扫描定位 head 的 kernel 与 bias ─────────────────────────────
+    head_bias_idx = head_kernel_idx = None
+    for i in range(n - 1, -1, -1):
+        w = weights[i]
+        if head_bias_idx is None and w.ndim == 1 and w.shape[0] == num_classes:
+            head_bias_idx = i
+            continue
+        if head_bias_idx is not None and w.ndim == 2 and w.shape[-1] == num_classes:
+            head_kernel_idx = i
+            break
+
+    if head_bias_idx is None or head_kernel_idx is None:
+        raise ValueError(
+            f"Cannot locate head (Dense(num_classes={num_classes})) in get_weights(); "
+            f"found bias_idx={head_bias_idx}, kernel_idx={head_kernel_idx}."
+        )
+
+    head_weight_indices = sorted([head_kernel_idx, head_bias_idx])
+    head_weight_set     = set(head_weight_indices)
+    base_weight_indices = [i for i in range(n) if i not in head_weight_set]
+
+    # ── get_weights 索引 → trainable_variables 索引（按变量身份映射） ──────
+    tv_map = {id(v): j for j, v in enumerate(model.trainable_variables)}
+    model_weights = model.weights  # 与 get_weights() 同序
+    head_trainable_indices = [
+        tv_map[id(model_weights[i])]
+        for i in head_weight_indices
+        if id(model_weights[i]) in tv_map
+    ]
+    head_tv_set = set(head_trainable_indices)
+    base_trainable_indices = [
+        j for j in range(len(model.trainable_variables)) if j not in head_tv_set
+    ]
+
+    return {
+        "head_weight_indices":    head_weight_indices,
+        "base_weight_indices":    base_weight_indices,
+        "head_trainable_indices": head_trainable_indices,
+        "base_trainable_indices": base_trainable_indices,
+    }
