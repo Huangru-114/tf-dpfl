@@ -17,9 +17,13 @@ from models.model_utils import clone_model
 from client.client_pfedme      import PFedMeClient
 from client.hier_ditto_rep      import HierDittoRepClient
 from client.hier_pfedme_rep     import HierPFedMeRepClient
+from client.hier_ditto          import HierDittoClient
+from client.hier_perfedavg      import HierPerFedAvgClient
 from server.edge_server_pfedme import PFedMeEdgeServer
 from server.hier_ditto_rep      import HierDittoRepEdgeServer
 from server.hier_pfedme_rep     import HierPFedMeRepEdgeServer
+from server.hier_ditto          import HierDittoEdgeServer
+from server.hier_perfedavg      import HierPerFedAvgEdgeServer
 from server.server      import CloudServer   # 原来是 FLServer
 
 
@@ -27,17 +31,22 @@ def _select_method_classes(config):
     """
     按 config["training"]["drift_correction"] 选择 client / edge 类。
 
-    新增的 Hier-Rep 方法走各自的子类，其余方法（pfedme / hierpfedme 等）
-    仍走默认的 PFedMeClient / PFedMeEdgeServer，行为不变。
+    新增的 Hier-Rep / Hier-Ditto / Hier-PerFedAvg 方法走各自的子类，
+    其余方法（pfedme / hierpfedme 等）仍走默认的
+    PFedMeClient / PFedMeEdgeServer，行为不变。
     """
     method = config["training"].get("drift_correction", "pfedme")
     client_cls = {
         "hier_ditto_rep":  HierDittoRepClient,
         "hier_pfedme_rep": HierPFedMeRepClient,
+        "hier_ditto":      HierDittoClient,
+        "hier_perfedavg":  HierPerFedAvgClient,
     }.get(method, PFedMeClient)
     edge_cls = {
         "hier_ditto_rep":  HierDittoRepEdgeServer,
         "hier_pfedme_rep": HierPFedMeRepEdgeServer,
+        "hier_ditto":      HierDittoEdgeServer,
+        "hier_perfedavg":  HierPerFedAvgEdgeServer,
     }.get(method, PFedMeEdgeServer)
     return client_cls, edge_cls
 from utils.logger       import FLLogger
@@ -229,10 +238,36 @@ def build_edge_servers(clients, global_model, config,
     else:
         raise ValueError(f"Unknown edge_assignment: {strategy}")
 
-    # ── Step 2：按分配方案构建 EdgeServer ─────────────────
+    # ── Step 2a：（可选）划分 train / test client ─────────────────
+    # test-client 评估设定：把一定比例的 client 整体留出，不参与任何 FL 训练，
+    # 其数据（含 per-client test 部分）在训练中从不泄露；训练结束后这些 test
+    # client 接收其分配 edge 的模型、做一组微调，再在留出的 test 数据上评估，
+    # 衡量模型对「新客户端」的泛化能力。train client 行为不变。
+    eval_cfg   = config.get("evaluation", {})
+    tc_enabled = bool(eval_cfg.get("test_client_eval", False))
+    tc_ratio   = float(eval_cfg.get("test_client_ratio", 0.2))
+    n_clients  = len(clients)
+    is_test    = np.zeros(n_clients, dtype=bool)
+    if tc_enabled and tc_ratio > 0:
+        n_test = max(1, int(n_clients * tc_ratio))
+        test_idx = np.random.choice(n_clients, n_test, replace=False)
+        is_test[test_idx] = True
+        print(f"[Test-client holdout] {n_test}/{n_clients} clients held out "
+              f"(ratio={tc_ratio}); excluded from FL training.")
+
+    # ── Step 2b：按分配方案构建 EdgeServer（仅 train client 入 edge） ──────
+    test_clients  = []
     client_groups = [[] for _ in range(n_edges)]
     for client_idx, edge_idx in enumerate(assignments):
-        client_groups[edge_idx].append(clients[client_idx])
+        c = clients[client_idx]
+        if is_test[client_idx]:
+            c.is_test_client = True
+            c.assigned_edge  = int(edge_idx)
+            test_clients.append(c)
+        else:
+            c.is_test_client = False
+            c.assigned_edge  = int(edge_idx)
+            client_groups[edge_idx].append(c)
 
     edge_servers = []
     for i, group in enumerate(client_groups):
@@ -258,8 +293,11 @@ def build_edge_servers(clients, global_model, config,
         print(f"  Edge {e.edge_id}: "
               f"{len(e.clients)} clients | "
               f"{e.n_samples} samples")
+    if test_clients:
+        print(f"  [Held-out] {len(test_clients)} test clients "
+              f"(not in any edge training set)")
 
-    return edge_servers
+    return edge_servers, test_clients
 
 def run_experiment(config_path="config/config.yaml"):
     config       = load_config(config_path)
@@ -303,8 +341,9 @@ def run_experiment(config_path="config/config.yaml"):
 
     # 把 clients 分组给 Edge Server
     print("[Setup] Building edge servers...")
-    edge_servers = build_edge_servers(clients, global_model, config,
-                                      precomputed_assignments=baked_assignments)
+    edge_servers, test_clients = build_edge_servers(
+        clients, global_model, config,
+        precomputed_assignments=baked_assignments)
 
     # 为每个 edge 注入与其训练分布匹配的测试集（EM 评估用）。
     # superclass_pathological：使用预定义的超类细粒度类集合。
@@ -400,7 +439,94 @@ def run_experiment(config_path="config/config.yaml"):
         save_path    = f"report_PM_{run_name}.txt"
     )
 
+    # Held-out test-client 评估（仅当启用了 test-client 留出设定时）
+    if test_clients:
+        _evaluate_test_clients(test_clients, edge_servers, global_model,
+                               config, run_name, test_ds)
+
     return history
+
+def _evaluate_test_clients(test_clients, edge_servers, global_model, config,
+                           run_name, fallback_test_ds):
+    """
+    Held-out test-client 评估（衡量对新客户端的泛化）：
+
+      每个 test client 接收其分配 edge 的模型（下发模型），在自身 train 数据上
+      微调 test_finetune_steps 个 epoch，再在训练中从未泄露的 per-client test
+      数据上评估。最后按样本数加权汇总，并生成 TestClient 报告。
+
+    train client 不受影响；test client 全程未参与任何 FL 训练。
+    """
+    eval_cfg = config.get("evaluation", {})
+    steps    = int(eval_cfg.get("test_finetune_steps",
+                                eval_cfg.get("pm_steps", 1)))
+    lr       = float(eval_cfg.get("test_finetune_lr",
+                                  config["training"]["learning_rate"]))
+    loss_fn  = tf.keras.losses.SparseCategoricalCrossentropy()
+    edge_by_id = {e.edge_id: e for e in edge_servers}
+
+    print("\n" + "=" * 52)
+    print(f" Held-out Test-Client Evaluation "
+          f"(finetune {steps} epoch(s), lr={lr})")
+    print("=" * 52)
+
+    accs, losses, ns = [], [], []
+    all_labels, all_preds, all_probs = [], [], []
+    ft_model = clone_model(global_model)
+
+    for tc in test_clients:
+        edge  = edge_by_id.get(getattr(tc, "assigned_edge", None))
+        src_w = edge.model.get_weights() if edge is not None \
+            else global_model.get_weights()
+        ft_model.set_weights(src_w)
+
+        # 微调：在 test client 自身 train 数据上（每个 client 用全新 SGD）
+        opt = tf.keras.optimizers.SGD(learning_rate=lr)
+        for _ in range(steps):
+            for x, y in tc.dataset:
+                with tf.GradientTape() as tape:
+                    loss = loss_fn(y, ft_model(x, training=True))
+                grads = tape.gradient(loss, ft_model.trainable_variables)
+                opt.apply_gradients(zip(grads, ft_model.trainable_variables))
+
+        # 评估：在留出的 per-client test 数据上（从未参与训练）
+        ds = tc.test_dataset if tc.test_dataset is not None else fallback_test_ds
+        tl = tcorr = tn = 0
+        for x, y in ds:
+            p = ft_model(x, training=False).numpy()
+            tl    += loss_fn(y, p).numpy() * x.shape[0]
+            tcorr += np.sum(np.argmax(p, 1) == y.numpy())
+            tn    += x.shape[0]
+            all_probs.append(p)
+            all_preds.append(np.argmax(p, 1))
+            all_labels.append(y.numpy())
+        if tn == 0:
+            continue
+        accs.append(tcorr / tn)
+        losses.append(tl / tn)
+        ns.append(tn)
+        print(f"  [TestClient {tc.client_id:>2}] edge={getattr(tc,'assigned_edge','-')} "
+              f"| n={tn} | acc={tcorr/tn:.4f} loss={tl/tn:.4f}")
+
+    if not ns:
+        print("  [Held-out] no test client produced predictions.")
+        return
+
+    total = sum(ns)
+    wacc  = sum(a * n / total for a, n in zip(accs, ns))
+    wloss = sum(l * n / total for l, n in zip(losses, ns))
+    print(f"\n  Held-out test-client: weighted acc={wacc:.4f} | loss={wloss:.4f} "
+          f"over {len(ns)} clients / {total} samples")
+
+    generate_report(
+        model        = None,
+        test_dataset = None,
+        all_labels   = np.concatenate(all_labels),
+        all_preds    = np.concatenate(all_preds),
+        all_probs    = np.concatenate(all_probs),
+        save_path    = f"report_TestClient_{run_name}.txt"
+    )
+
 
 def _print_summary(history: dict):
     best_idx  = int(np.argmax(history["global_acc"]))

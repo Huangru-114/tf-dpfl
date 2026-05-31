@@ -23,7 +23,8 @@ training:
   local_epochs:   1
   learning_rate:  0.02
   lr_decay:       0.992
-  drift_correction: "hierpfedme"  # 可选 "none", "fedprox", "feddyn", "pfedme", "hierpfedme", "hier_perfedavg"
+  drift_correction: "hierpfedme"  # 可选 "none", "fedprox", "feddyn", "pfedme", "hierpfedme", "hier_perfedavg",
+                                  #      "hier_ditto", "hier_ditto_rep", "hier_pfedme_rep"
   proximal_ref:     "edge"
   # fedprox 相关超参数
   mu:               1.0
@@ -46,6 +47,10 @@ training:
   alpha_inner:      0.01
   beta_outer:   0.01    # 外循环边缘更新步长
   label_smoothing: 0.1  # 防 NaN
+  # Hier-Rep / Hier-Ditto 相关超参数
+  plocal_epochs:    5   # FedRep: head 训练 epoch 数（须 > local_epochs）
+  lambda_ditto:     0.1 # Ditto 个性化近端系数（client backbone / 整模型）
+  ditto_pers_epochs: 1  # Hier-Ditto: 个性化模型 v_k 训练 epoch 数
 
 model:
   arch: "fedavg_cnn"
@@ -59,3 +64,8 @@ wandb:
 
 evaluation:
   eval_interval: 1
+  # Held-out test-client 评估设定（衡量对新客户端的泛化）
+  test_client_eval:    false  # 置 true 开启：留出一部分 client 不参与训练
+  test_client_ratio:   0.2    # 留出比例
+  test_finetune_steps: 5      # test client 接收 edge 模型后微调的 epoch 数
+  # test_finetune_lr:  0.02   # 微调学习率，默认回退 training.learning_rate
