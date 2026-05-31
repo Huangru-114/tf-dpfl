@@ -15,11 +15,13 @@ from data.clustering    import random_assignment, warmup_gradient_assignment, hi
 from models.cnn         import build_model
 from models.model_utils import clone_model
 from client.client_pfedme      import PFedMeClient
+from client.client_fedavg       import FedAvgClient
 from client.hier_ditto_rep      import HierDittoRepClient
 from client.hier_pfedme_rep     import HierPFedMeRepClient
 from client.hier_ditto          import HierDittoClient
 from client.hier_perfedavg      import HierPerFedAvgClient
 from server.edge_server_pfedme import PFedMeEdgeServer
+from server.edge_server_fedavg import FedAvgEdgeServer
 from server.hier_ditto_rep      import HierDittoRepEdgeServer
 from server.hier_pfedme_rep     import HierPFedMeRepEdgeServer
 from server.hier_ditto          import HierDittoEdgeServer
@@ -31,18 +33,22 @@ def _select_method_classes(config):
     """
     按 config["training"]["drift_correction"] 选择 client / edge 类。
 
-    新增的 Hier-Rep / Hier-Ditto / Hier-PerFedAvg 方法走各自的子类，
-    其余方法（pfedme / hierpfedme 等）仍走默认的
+    新增的 Hier-FedAvg / Hier-Rep / Hier-Ditto / Hier-PerFedAvg 方法走各自的
+    子类，其余方法（pfedme / hierpfedme 等）仍走默认的
     PFedMeClient / PFedMeEdgeServer，行为不变。
     """
     method = config["training"].get("drift_correction", "pfedme")
     client_cls = {
+        "fedavg":          FedAvgClient,
+        "hierfedavg":      FedAvgClient,
         "hier_ditto_rep":  HierDittoRepClient,
         "hier_pfedme_rep": HierPFedMeRepClient,
         "hier_ditto":      HierDittoClient,
         "hier_perfedavg":  HierPerFedAvgClient,
     }.get(method, PFedMeClient)
     edge_cls = {
+        "fedavg":          FedAvgEdgeServer,
+        "hierfedavg":      FedAvgEdgeServer,
         "hier_ditto_rep":  HierDittoRepEdgeServer,
         "hier_pfedme_rep": HierPFedMeRepEdgeServer,
         "hier_ditto":      HierDittoEdgeServer,
@@ -381,7 +387,15 @@ def run_experiment(config_path="config/config.yaml"):
 
     method   = config["training"].get("drift_correction", "fedavg")
     run_name = config.get("wandb", {}).get("run_name", method)
-    pm_steps = int(config.get("evaluation", {}).get("pm_steps", 1))
+    eval_cfg = config.get("evaluation", {})
+    pm_steps = int(eval_cfg.get("pm_steps", 1))
+
+    # 最后微调选项：PM 评估前对下发的 edge 模型做少步本地微调
+    # （主要用于 Hier-FedAvg 等无个性化模型的方法，得到「FedAvg + 微调」baseline）。
+    do_final_ft = bool(eval_cfg.get("final_finetune", False))
+    ft_steps    = int(eval_cfg.get("final_finetune_steps", pm_steps))
+    ft_lr       = float(eval_cfg.get("final_finetune_lr",
+                                     config["training"]["learning_rate"]))
 
     # GM
     print("\n[Final Report] GM")
@@ -404,6 +418,9 @@ def run_experiment(config_path="config/config.yaml"):
     print("\n[Final Report] PM — collecting predictions from all clients...")
     all_labels, all_preds, all_probs = [], [], []
 
+    if do_final_ft:
+        print(f"  [Final fine-tuning] enabled | steps={ft_steps}, lr={ft_lr}")
+
     for edge in edge_servers:
         for client in edge.clients:
             if method == "hier_perfedavg":
@@ -412,6 +429,10 @@ def run_experiment(config_path="config/config.yaml"):
                     steps=pm_steps,
                     fallback_dataset=edge.get_test_dataset()
                 )
+            elif do_final_ft:
+                # 下发 edge 模型 + 少步本地微调，微调后的模型留在 client.model
+                _finetune_client_model(client, edge.model.get_weights(),
+                                       ft_steps, ft_lr)
             if client.test_dataset is not None:
                 ds = client.test_dataset
                 print(f"  [Client {client.client_id:>2}] Using per-client test dataset "
@@ -445,6 +466,22 @@ def run_experiment(config_path="config/config.yaml"):
                                config, run_name, test_ds)
 
     return history
+
+def _finetune_client_model(client, src_weights, steps, lr):
+    """
+    把下发模型 src_weights 载入 client.model，在 client 自身训练数据上微调
+    steps 个 epoch（每次用全新 SGD，避免跨 client 状态与优化器变量集冲突）。
+    微调后的模型留在 client.model 供后续评估。
+    """
+    client.model.set_weights(src_weights)
+    opt = tf.keras.optimizers.SGD(learning_rate=lr)
+    for _ in range(int(steps)):
+        for x, y in client.dataset:
+            with tf.GradientTape() as tape:
+                loss = client.loss_fn(y, client.model(x, training=True))
+            grads = tape.gradient(loss, client.model.trainable_variables)
+            opt.apply_gradients(zip(grads, client.model.trainable_variables))
+
 
 def _evaluate_test_clients(test_clients, edge_servers, global_model, config,
                            run_name, fallback_test_ds):

@@ -23,8 +23,8 @@ training:
   local_epochs:   1
   learning_rate:  0.02
   lr_decay:       0.992
-  drift_correction: "hierpfedme"  # 可选 "none", "fedprox", "feddyn", "pfedme", "hierpfedme", "hier_perfedavg",
-                                  #      "hier_ditto", "hier_ditto_rep", "hier_pfedme_rep"
+  drift_correction: "hierpfedme"  # 可选 "fedavg"/"hierfedavg", "fedprox", "feddyn", "pfedme", "hierpfedme",
+                                  #      "hier_perfedavg", "hier_ditto", "hier_ditto_rep", "hier_pfedme_rep"
   proximal_ref:     "edge"
   # fedprox 相关超参数
   mu:               1.0
@@ -64,6 +64,10 @@ wandb:
 
 evaluation:
   eval_interval: 1
+  # 最后微调选项（PM 评估前对下发 edge 模型做少步本地微调；主要用于 Hier-FedAvg）
+  final_finetune:       false  # 置 true 开启「FedAvg + 微调」式 PM 评估
+  final_finetune_steps: 5      # 微调 epoch 数（默认回退 pm_steps）
+  # final_finetune_lr:  0.02   # 微调学习率，默认回退 training.learning_rate
   # Held-out test-client 评估设定（衡量对新客户端的泛化）
   test_client_eval:    false  # 置 true 开启：留出一部分 client 不参与训练
   test_client_ratio:   0.2    # 留出比例
