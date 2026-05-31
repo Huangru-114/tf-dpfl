@@ -463,7 +463,7 @@ def run_experiment(config_path="config/config.yaml"):
     # Held-out test-client 评估（仅当启用了 test-client 留出设定时）
     if test_clients:
         _evaluate_test_clients(test_clients, edge_servers, global_model,
-                               config, run_name, test_ds)
+                               config, test_ds)
 
     return history
 
@@ -484,13 +484,13 @@ def _finetune_client_model(client, src_weights, steps, lr):
 
 
 def _evaluate_test_clients(test_clients, edge_servers, global_model, config,
-                           run_name, fallback_test_ds):
+                           fallback_test_ds):
     """
     Held-out test-client 评估（衡量对新客户端的泛化）：
 
       每个 test client 接收其分配 edge 的模型（下发模型），在自身 train 数据上
       微调 test_finetune_steps 个 epoch，再在训练中从未泄露的 per-client test
-      数据上评估。最后按样本数加权汇总，并生成 TestClient 报告。
+      数据上评估。结果按样本数加权汇总后直接打印到日志（不生成报告文件）。
 
     train client 不受影响；test client 全程未参与任何 FL 训练。
     """
@@ -508,7 +508,6 @@ def _evaluate_test_clients(test_clients, edge_servers, global_model, config,
     print("=" * 52)
 
     accs, losses, ns = [], [], []
-    all_labels, all_preds, all_probs = [], [], []
     ft_model = clone_model(global_model)
 
     for tc in test_clients:
@@ -534,9 +533,6 @@ def _evaluate_test_clients(test_clients, edge_servers, global_model, config,
             tl    += loss_fn(y, p).numpy() * x.shape[0]
             tcorr += np.sum(np.argmax(p, 1) == y.numpy())
             tn    += x.shape[0]
-            all_probs.append(p)
-            all_preds.append(np.argmax(p, 1))
-            all_labels.append(y.numpy())
         if tn == 0:
             continue
         accs.append(tcorr / tn)
@@ -554,15 +550,6 @@ def _evaluate_test_clients(test_clients, edge_servers, global_model, config,
     wloss = sum(l * n / total for l, n in zip(losses, ns))
     print(f"\n  Held-out test-client: weighted acc={wacc:.4f} | loss={wloss:.4f} "
           f"over {len(ns)} clients / {total} samples")
-
-    generate_report(
-        model        = None,
-        test_dataset = None,
-        all_labels   = np.concatenate(all_labels),
-        all_preds    = np.concatenate(all_preds),
-        all_probs    = np.concatenate(all_probs),
-        save_path    = f"report_TestClient_{run_name}.txt"
-    )
 
 
 def _print_summary(history: dict):
