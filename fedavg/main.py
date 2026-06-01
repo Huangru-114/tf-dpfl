@@ -27,6 +27,10 @@ from server.hier_pfedme_rep     import HierPFedMeRepEdgeServer
 from server.hier_ditto          import HierDittoEdgeServer
 from server.hier_perfedavg      import HierPerFedAvgEdgeServer
 from server.server      import CloudServer   # 原来是 FLServer
+from server.backdoor_server import BackdoorCloudServer
+from attack.triggers        import build_trigger
+from attack.backdoor        import (get_malicious_ids, build_poisoned_dataset,
+                                    install_forced_participation)
 
 
 def _select_method_classes(config):
@@ -181,12 +185,28 @@ def build_clients(images_np, labels_np, global_model, config,
         images_np, labels_np, client_indices, config, test_ratio=test_ratio
     )
 
+    # ── 后门攻击：恶意客户端用投毒数据集替换原本地数据集 ───────────────────
+    bd_cfg        = config.get("backdoor", {})
+    bd_enabled    = bool(bd_cfg.get("enabled", False))
+    malicious_ids = get_malicious_ids(bd_cfg)
+    bd_trigger    = build_trigger(bd_cfg, img_size=config["data"]["img_size"]) if bd_enabled else None
+    bd_target     = int(bd_cfg.get("target_label", 9))
+    bd_poison     = float(bd_cfg.get("poison_ratio", 0.5))
+
     ClientCls, _ = _select_method_classes(config)
     clients = []
     for i, (ds, indices) in enumerate(zip(client_datasets, client_indices)):
+        is_mal = bd_enabled and (i in malicious_ids)
+        if is_mal:
+            # 在构造 client 前替换数据集（pfedme/rep 等会在 __init__ 缓存 list(dataset)）
+            print(f"[Backdoor] Client {i} is MALICIOUS "
+                  f"(trigger={bd_cfg.get('trigger')}, target={bd_target}, poison={bd_poison})")
+            ds = build_poisoned_dataset(images_np, labels_np, indices, config,
+                                        bd_trigger, bd_target, bd_poison)
         client_model = clone_model(global_model)
         client = ClientCls(client_id=i, dataset=ds, model=client_model,
                           config=config, n_samples=len(indices))
+        client.is_malicious = is_mal
         if client_test_datasets is not None:
             client.set_test_dataset(client_test_datasets[i])
         # Store training class set for per-edge test dataset construction later.
@@ -364,12 +384,34 @@ def run_experiment(config_path="config/config.yaml"):
 
     g_test_ds = merge_test_datasets(edge_servers, config["data"]["batch_size"])
 
-    cloud = CloudServer(
-        global_model=global_model,
-        edge_servers=edge_servers,
-        test_dataset=g_test_ds,
-        config=config
-    )
+    # ── 后门攻击：用 BackdoorCloudServer + fix-frequency 强制参与 ───────────
+    bd_cfg     = config.get("backdoor", {})
+    bd_enabled = bool(bd_cfg.get("enabled", False))
+    if bd_enabled:
+        malicious_ids = get_malicious_ids(bd_cfg)
+        bd_trigger    = build_trigger(bd_cfg, img_size=config["data"]["img_size"])
+        cloud = BackdoorCloudServer(
+            global_model=global_model,
+            edge_servers=edge_servers,
+            test_dataset=g_test_ds,
+            config=config,
+            bd_cfg=bd_cfg,
+            x_test=x_test, y_test=y_test,
+            trigger_fn=bd_trigger,
+            malicious_ids=malicious_ids,
+        )
+        # fix-frequency：强制恶意客户端每 Q 轮参与一次
+        Q = int(bd_cfg.get("attack_freq_Q", 10))
+        for mc in clients:
+            if int(mc.client_id) in malicious_ids:
+                install_forced_participation(edge_servers, mc, Q)
+    else:
+        cloud = CloudServer(
+            global_model=global_model,
+            edge_servers=edge_servers,
+            test_dataset=g_test_ds,
+            config=config
+        )
 
     logger = None
     if config.get("wandb", {}).get("enabled", False):

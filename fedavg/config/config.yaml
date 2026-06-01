@@ -55,6 +55,22 @@ training:
 model:
   arch: "fedavg_cnn"
 
+# 后门攻击（KDD 2023 复现）。enabled=false 时对训练/评估无任何影响。
+backdoor:
+  enabled:        false
+  trigger:        "badnet"      # "badnet"（3×3 白方块）| "blended"（图案混合）
+  target_label:   9             # CIFAR-10 目标类（FEMNIST 用 1）
+  poison_ratio:   0.5           # 恶意客户端本地数据投毒比例
+  malicious_ids:  [15]          # 恶意客户端编号
+  attack_freq_Q:  10            # fix-frequency：每 Q 轮强制参与一次
+  badnet_size:    3             # BadNet 方块边长
+  badnet_value:   1.0           # 方块像素值（[0,1] 空间，标准化前）
+  blended_alpha:  0.2           # Blended 混合比例 α
+  blended_image:  "attack/triggers/hello_kitty.png"  # 用户提供的图案文件
+  eval_interval:  50            # 每多少轮算一次 C-Acc/ASR
+  asr_max_samples: 0            # ASR 测试子采样上限（0=用全部非目标类样本）
+  verbose_clients: true         # 是否逐 client 打印 C-Acc/ASR
+
 wandb:
   enabled:  true
   entity:   "3445339138-kth-royal-institute-of-technology"
