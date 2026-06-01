@@ -458,10 +458,10 @@ def run_experiment(config_path="config/config.yaml"):
 
     # PM（所有客户端汇总）
     print("\n[Final Report] PM — collecting predictions from all clients...")
-    all_labels, all_preds, all_probs = [], [], []
-
     if do_final_ft:
         print(f"  [Final fine-tuning] enabled | steps={ft_steps}, lr={ft_lr}")
+    all_labels, all_preds, all_probs = [], [], []
+    pm_accs, pm_ns = [], []
 
     for edge in edge_servers:
         for client in edge.clients:
@@ -475,23 +475,33 @@ def run_experiment(config_path="config/config.yaml"):
                 # 下发 edge 模型 + 少步本地微调，微调后的模型留在 client.model
                 _finetune_client_model(client, edge.model.get_weights(),
                                        ft_steps, ft_lr)
-            if client.test_dataset is not None:
-                ds = client.test_dataset
-                print(f"  [Client {client.client_id:>2}] Using per-client test dataset "
-                      f"({len(ds)} batches)")
-            else:
-                ds = edge.get_test_dataset()
-                print(f"  [Client {client.client_id:>2}] Using edge-level test dataset "
-                      f"({len(ds)} batches)")
+            ds = client.test_dataset if client.test_dataset is not None \
+                else edge.get_test_dataset()
+            c_correct = c_total = 0
             for x, y in ds:
                 probs = client.model(x, training=False).numpy()
+                preds = np.argmax(probs, axis=1)
+                yn    = y.numpy()
                 all_probs.append(probs)
-                all_preds.append(np.argmax(probs, axis=1))
-                all_labels.append(y.numpy())
+                all_preds.append(preds)
+                all_labels.append(yn)
+                c_correct += int(np.sum(preds == yn))
+                c_total   += int(len(yn))
+            c_acc = c_correct / c_total if c_total else 0.0
+            pm_accs.append(c_acc)
+            pm_ns.append(c_total)
+            tag = "finetuned " if do_final_ft else ""
+            print(f"  [Client {client.client_id:>2}] {tag}C-Acc={c_acc:.4f} (n={c_total})")
 
     all_labels = np.concatenate(all_labels)
     all_preds  = np.concatenate(all_preds)
     all_probs  = np.concatenate(all_probs)
+
+    _tot  = sum(pm_ns)
+    _wacc = sum(a * n / _tot for a, n in zip(pm_accs, pm_ns)) if _tot else 0.0
+    _ftlabel = " (after final fine-tuning)" if do_final_ft else ""
+    print(f"\n[Final PM]{_ftlabel} weighted C-Acc = {_wacc:.4f} "
+          f"over {len(pm_ns)} clients / {_tot} samples")
 
     generate_report(
         model        = None,           # PM 直接传预计算结果
