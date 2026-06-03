@@ -20,12 +20,14 @@ from client.hier_ditto_rep      import HierDittoRepClient
 from client.hier_pfedme_rep     import HierPFedMeRepClient
 from client.hier_ditto          import HierDittoClient
 from client.hier_perfedavg      import HierPerFedAvgClient
+from client.hier_fedrep         import HierFedRepClient
 from server.edge_server_pfedme import PFedMeEdgeServer
 from server.edge_server_fedavg import FedAvgEdgeServer
 from server.hier_ditto_rep      import HierDittoRepEdgeServer
 from server.hier_pfedme_rep     import HierPFedMeRepEdgeServer
 from server.hier_ditto          import HierDittoEdgeServer
 from server.hier_perfedavg      import HierPerFedAvgEdgeServer
+from server.hier_fedrep         import HierFedRepEdgeServer
 from server.server      import CloudServer   # 原来是 FLServer
 from server.backdoor_server import BackdoorCloudServer
 from attack.triggers        import build_trigger
@@ -50,6 +52,7 @@ def _select_method_classes(config):
         "hier_pfedme_rep": HierPFedMeRepClient,
         "hier_ditto":      HierDittoClient,
         "hier_perfedavg":  HierPerFedAvgClient,
+        "hier_fedrep":     HierFedRepClient,
     }.get(method, PFedMeClient)
     edge_cls = {
         "fedavg":          FedAvgEdgeServer,
@@ -58,6 +61,7 @@ def _select_method_classes(config):
         "hier_pfedme_rep": HierPFedMeRepEdgeServer,
         "hier_ditto":      HierDittoEdgeServer,
         "hier_perfedavg":  HierPerFedAvgEdgeServer,
+        "hier_fedrep":     HierFedRepEdgeServer,
     }.get(method, PFedMeEdgeServer)
     return client_cls, edge_cls
 from utils.logger       import FLLogger
@@ -71,7 +75,8 @@ FRAMEWORK_MAP = {
     "hier_fedavg_ft": {"drift_correction": "hierfedavg", "final_finetune": True},
     "hier_pfedme":    {"drift_correction": "hierpfedme", "final_finetune": False},
     "hier_ditto":     {"drift_correction": "hier_ditto", "final_finetune": False},
-    # TODO: "hier_fedavg_fedbn", "hier_fedavg_fedrep"
+    "hier_fedavg_fedrep": {"drift_correction": "hier_fedrep", "final_finetune": False},
+    # TODO: "hier_fedavg_fedbn"
 }
 
 

@@ -16,7 +16,8 @@ method: grid
 
 parameters:
   framework:
-    values: ["hier_fedavg", "hier_fedavg_ft", "hier_pfedme", "hier_ditto"]
+    values: ["hier_fedavg", "hier_fedavg_ft", "hier_pfedme", "hier_ditto",
+             "hier_fedavg_fedrep"]
   distribution_config:
     values: ["D1_patho_2", "D4_dir_05", "D6_iid",
              "H1_patho_in_dir_out", "H2_dir_in_patho_out"]

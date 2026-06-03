@@ -24,8 +24,8 @@ parameters:
       - "hier_fedavg_ft"
       - "hier_pfedme"
       - "hier_ditto"
+      - "hier_fedavg_fedrep"
       # - "hier_fedavg_fedbn"   # TODO: 未实现
-      # - "hier_fedavg_fedrep"  # TODO: 未实现
   distribution_config:
     values:
       - "D1_patho_2"

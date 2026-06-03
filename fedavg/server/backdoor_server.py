@@ -22,7 +22,7 @@ from utils.logger import FLLogger
 # 个性化 / 微调方法：遗忘曲线对这些方法有意义（client.model 训练后停在个性化模型）
 _PERSONALIZED_METHODS = {
     "hierpfedme", "pfedme", "hier_ditto", "hier_ditto_rep", "hier_pfedme_rep",
-    "hier_perfedavg",
+    "hier_perfedavg", "hier_fedrep",
 }
 
 
