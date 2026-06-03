@@ -1,0 +1,57 @@
+# experiments/sweep_smoke.yaml  –  迷你冒烟 sweep（验证每组参数能否正确运行）
+#
+# 目的：用最少算力把「framework × distribution × attack」每个组合都跑一遍，
+#       只确认不报错、指标能记录，不追求收敛。
+#
+# 省资源手段（全部经 command 段的 --override 注入，不动正式 config.yaml）：
+#   - n_clients=10, n_edges=2, n_rounds=4, edge_rounds=2, warmup=1
+#   - eval/backdoor eval_interval=2（保证至少触发一次分层评估 + 最后一轮）
+#   - 特征/遗忘评估抽样砍小；恶意客户端 2 个（跨 2 edge 分散）
+#   - seed 只取 1 个；用最便宜的 T4 GPU + 短 walltime（见 sweep_agent_smoke.sh）
+#
+# 组合数：4 framework × 5 distribution × 3 attack × 1 seed = 60 个迷你 run。
+
+program: main.py
+method: grid
+
+parameters:
+  framework:
+    values: ["hier_fedavg", "hier_fedavg_ft", "hier_pfedme", "hier_ditto"]
+  distribution_config:
+    values: ["D1_patho_2", "D4_dir_05", "D6_iid",
+             "H1_patho_in_dir_out", "H2_dir_in_patho_out"]
+  attack_method:
+    values: ["badnet", "blended", "none"]
+  seed:
+    values: [42]
+
+# ${args} 提供 --framework/--distribution_config/... ；其后的 --override 最后生效（覆盖一切）
+command:
+  - ${env}
+  - ${interpreter}
+  - ${program}
+  - ${args}
+  - "--override"
+  - "federation.n_clients=10"
+  - "--override"
+  - "federation.n_edges=2"
+  - "--override"
+  - "federation.n_rounds=4"
+  - "--override"
+  - "federation.edge_rounds=2"
+  - "--override"
+  - "federation.warmup_rounds=1"
+  - "--override"
+  - "training.local_epochs=1"
+  - "--override"
+  - "evaluation.eval_interval=2"
+  - "--override"
+  - "backdoor.eval_interval=2"
+  - "--override"
+  - "backdoor.n_malicious=2"
+  - "--override"
+  - "backdoor.feature_eval_samples=50"
+  - "--override"
+  - "backdoor.feature_clean_per_class=10"
+  - "--override"
+  - "backdoor.forgetting_epochs=2"
