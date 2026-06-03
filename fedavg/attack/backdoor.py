@@ -22,6 +22,80 @@ def get_malicious_ids(bd_cfg: dict) -> set:
     return set(int(i) for i in bd_cfg.get("malicious_ids", [15]))
 
 
+def assign_malicious_across_edges(n_clients, n_malicious, assignments=None,
+                                  seed=42):
+    """
+    把 n_malicious 个恶意客户端**尽量分散到不同边缘节点**（每 edge ≥1，
+    当 n_malicious ≥ n_edges 时）。固定 seed 保证可复现。
+
+    Args:
+        n_clients    : 客户端总数
+        n_malicious  : 恶意客户端数量
+        assignments  : List[int] 或 None。client→edge 归属（baked 分区时可用）。
+                       为 None 时退化为在 client id 空间上等距取点（统计上也能分散）。
+        seed         : 随机种子
+    Returns:
+        set[int] 恶意客户端 id
+    """
+    rng = np.random.default_rng(seed)
+    n_malicious = max(0, min(int(n_malicious), int(n_clients)))
+    if n_malicious == 0:
+        return set()
+
+    if assignments is None:
+        # 无 edge 归属信息：在 id 空间等距取点，随机分配后统计上也能跨 edge 分散
+        picks = np.linspace(0, n_clients - 1, n_malicious).round().astype(int)
+        return set(int(i) for i in np.unique(picks))
+
+    # 按 edge 分组，轮转挑选，保证每 edge 至少 1 个（数量允许时）
+    edges = {}
+    for cid, e in enumerate(assignments):
+        edges.setdefault(int(e), []).append(cid)
+    for e in edges:
+        rng.shuffle(edges[e])
+
+    chosen, edge_keys = [], sorted(edges.keys())
+    round_i = 0
+    while len(chosen) < n_malicious:
+        progressed = False
+        for e in edge_keys:
+            if round_i < len(edges[e]):
+                chosen.append(edges[e][round_i])
+                progressed = True
+                if len(chosen) >= n_malicious:
+                    break
+        round_i += 1
+        if not progressed:           # 所有 edge 都取尽
+            break
+    return set(int(i) for i in chosen)
+
+
+def resolve_malicious_ids(bd_cfg: dict, n_clients: int,
+                          assignments=None, seed=42) -> set:
+    """
+    统一解析恶意客户端 id，支持两种放置策略（默认 spread）：
+
+      malicious_placement == "spread"       跨 edge 分散（assign_malicious_across_edges）
+      malicious_placement == "concentrated" 直接用显式 malicious_ids（集中攻击实验）
+
+    恶意数量优先取 bd_cfg["n_malicious"]，否则回退显式 malicious_ids 的长度。
+    建议在 build_clients 解析一次后写回 bd_cfg["malicious_ids"]，保证后续调用一致。
+    """
+    if not bd_cfg or not bd_cfg.get("enabled", False):
+        return set()
+
+    placement = str(bd_cfg.get("malicious_placement", "spread")).lower()
+    explicit = bd_cfg.get("malicious_ids", None)
+    n_mal = int(bd_cfg.get("n_malicious", 0))
+
+    if placement == "concentrated" or (n_mal <= 0 and explicit is not None):
+        return set(int(i) for i in (explicit if explicit else [15]))
+
+    if n_mal <= 0:
+        n_mal = len(explicit) if explicit else 1
+    return assign_malicious_across_edges(n_clients, n_mal, assignments, seed)
+
+
 def build_poisoned_dataset(images_np, labels_np, train_idx, config,
                            trigger_fn, target_label, poison_ratio):
     """

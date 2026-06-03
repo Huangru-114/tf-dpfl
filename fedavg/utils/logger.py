@@ -39,6 +39,51 @@ class FLLogger:
         """记录单个客户端的本地训练 loss（可选，数据量大时可以关掉）。"""
         wandb.log({f"client_{client_id}/train_loss": loss}, step=round_idx)
 
+    @staticmethod
+    def log_round_metrics(round_idx: int, metrics_dict: dict):
+        """
+        记录分层后门评估指标（任务3）。命名空间：
+          global/*  edge/*  local/*  feature/*  forgetting/epoch_i
+        只在后门评估轮调用；缺省字段安全跳过，避免 wandb 断点。
+        """
+        if wandb.run is None:
+            return
+
+        def _g(key, default=None):
+            return metrics_dict.get(key, default)
+
+        log = {"round": round_idx}
+        mapping = {
+            "global/asr":               "global_asr",
+            "global/acc":               "global_acc",
+            "edge/asr_mean":            "edge_asr_mean",
+            "edge/asr_std":             "edge_asr_std",
+            "edge/acc_mean":            "edge_acc_mean",
+            "local/asr_mean":           "local_asr_mean",
+            "local/asr_std":            "local_asr_std",
+            "local/asr_benign_mean":    "local_asr_benign_mean",
+            "local/asr_malicious_mean": "local_asr_malicious_mean",
+            "local/asr_same_edge":      "local_asr_same_edge",
+            "local/asr_diff_edge":      "local_asr_diff_edge",
+            "local/acc_mean":           "local_acc_mean",
+            "feature/separation_score_global": "sep_score_global",
+            "feature/separation_score_local":  "sep_score_local",
+        }
+        for wk, mk in mapping.items():
+            v = _g(mk)
+            if v is not None:
+                log[wk] = v
+
+        # 每个边缘节点的 ASR（层级结构特有，便于细粒度对比）
+        for i, asr in enumerate(_g("edge_asr_per_node", []) or []):
+            log[f"edge/asr_node_{i}"] = asr
+
+        # 后门遗忘曲线（只在评估轮有值）
+        for i, asr in enumerate(_g("forgetting_curve", []) or []):
+            log[f"forgetting/epoch_{i}"] = asr
+
+        wandb.log(log, step=round_idx)
+
     def finish(self):
         """实验结束后关闭 wandb run。"""
         wandb.finish()

@@ -29,7 +29,8 @@ from server.hier_perfedavg      import HierPerFedAvgEdgeServer
 from server.server      import CloudServer   # 原来是 FLServer
 from server.backdoor_server import BackdoorCloudServer
 from attack.triggers        import build_trigger
-from attack.backdoor        import (get_malicious_ids, build_poisoned_dataset,
+from attack.backdoor        import (get_malicious_ids, resolve_malicious_ids,
+                                    build_poisoned_dataset,
                                     install_forced_participation)
 
 
@@ -63,10 +64,82 @@ from utils.logger       import FLLogger
 from utils.report       import generate_report
 
 
+# ── 高层实验维度 → 现有 config 字段的映射（任务3：sweep / CLI 用） ───────────
+# 本轮仅实现 4 个方法；FedBN / 纯 FedRep 暂缓（见计划文件）。
+FRAMEWORK_MAP = {
+    "hier_fedavg":    {"drift_correction": "hierfedavg", "final_finetune": False},
+    "hier_fedavg_ft": {"drift_correction": "hierfedavg", "final_finetune": True},
+    "hier_pfedme":    {"drift_correction": "hierpfedme", "final_finetune": False},
+    "hier_ditto":     {"drift_correction": "hier_ditto", "final_finetune": False},
+    # TODO: "hier_fedavg_fedbn", "hier_fedavg_fedrep"
+}
+
+
+def _set_nested(config: dict, key_path: str, value):
+    keys = key_path.split(".")
+    d = config
+    for k in keys[:-1]:
+        d = d.setdefault(k, {})
+    d[keys[-1]] = value
+
+
+def apply_experiment_args(config: dict, args) -> dict:
+    """
+    把高层实验维度（framework / distribution_config / attack_method / seed）
+    展开为现有 config 字段，并按规范生成 wandb run 名：
+        {framework}_{distribution}_{attack}_seed{seed}
+    例：hier_fedavg_ft_D4_dir_05_badnet_seed42
+    """
+    from experiments.distributions import resolve_distribution
+
+    if args.seed is not None:
+        config["seed"] = int(args.seed)
+
+    if args.framework is not None:
+        if args.framework not in FRAMEWORK_MAP:
+            raise ValueError(
+                f"Unknown framework: {args.framework!r}. "
+                f"Available: {list(FRAMEWORK_MAP)}")
+        fm = FRAMEWORK_MAP[args.framework]
+        _set_nested(config, "training.drift_correction", fm["drift_correction"])
+        _set_nested(config, "evaluation.final_finetune", fm["final_finetune"])
+
+    if args.distribution_config is not None:
+        dist = resolve_distribution(args.distribution_config)
+        for k, v in dist.items():
+            _set_nested(config, f"federation.{k}", v)
+
+    if args.attack_method is not None:
+        am = args.attack_method.lower()
+        if am == "none":
+            _set_nested(config, "backdoor.enabled", False)
+        elif am in ("badnet", "blended"):
+            _set_nested(config, "backdoor.enabled", True)
+            _set_nested(config, "backdoor.trigger", am)
+        else:
+            raise ValueError(f"Unknown attack_method: {args.attack_method!r}")
+
+    # run 命名规范（仅当提供了高层维度时覆盖）
+    if any(v is not None for v in
+           (args.framework, args.distribution_config, args.attack_method)):
+        fw = args.framework or config["training"].get("drift_correction", "fl")
+        dist = args.distribution_config or config["federation"].get("partition", "dist")
+        atk = args.attack_method or (
+            config["backdoor"].get("trigger", "badnet")
+            if config.get("backdoor", {}).get("enabled") else "none")
+        seed = config.get("seed", 42)
+        _set_nested(config, "wandb.run_name", f"{fw}_{dist}_{atk}_seed{seed}")
+        print(f"[Config] run_name = {config['wandb']['run_name']}")
+
+    return config
+
+
 def load_config(path: str = "config/config.yaml") -> dict:
     """
-    加载 config.yaml，支持命令行 --override key=value 覆盖任意字段。
-    key 用点号表示嵌套，例如 federation.alpha=0.1
+    加载 config.yaml，支持：
+      --override key=value          覆盖任意字段（点号表示嵌套，如 federation.alpha=0.1）
+      --framework / --distribution_config / --attack_method / --seed
+                                    高层实验维度（展开为现有字段 + 生成 run_name）
     """
     with open(path, "r") as f:
         config = yaml.safe_load(f)
@@ -75,9 +148,16 @@ def load_config(path: str = "config/config.yaml") -> dict:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config",   type=str, default=path)
     parser.add_argument("--override", type=str, action="append", default=[])
+    parser.add_argument("--framework",           type=str, default=None)
+    parser.add_argument("--distribution_config", type=str, default=None)
+    parser.add_argument("--attack_method",       type=str, default=None)
+    parser.add_argument("--seed",                type=str, default=None)
     args, _ = parser.parse_known_args()
 
-    # 应用覆盖
+    # 先应用高层维度（可被后续显式 --override 进一步覆盖）
+    config = apply_experiment_args(config, args)
+
+    # 应用 --override
     for override in args.override:
         key_path, value = override.split("=", 1)
         keys = key_path.split(".")
@@ -144,6 +224,20 @@ def build_clients(images_np, labels_np, global_model, config,
             classes_per_client=config["federation"].get("classes_per_client", 10)
         )
 
+    elif partition == "hierarchical":
+        # 层级两段式划分（任务1 核心）：先 inter_edge 分到 edge，再 intra_edge 分到 client。
+        # 返回 assignments，走 baked 通道（与 superclass_pathological 同款）。
+        from data.hierarchical_partition import hierarchical_partition
+        n_edges   = config["federation"]["n_edges"]
+        inter_cfg = config["federation"]["inter_edge"]
+        intra_cfg = config["federation"]["intra_edge"]
+        min_samp  = int(config["federation"].get("min_samples", 10))
+        client_datasets, client_indices, assignments = hierarchical_partition(
+            images_np, labels_np, n_clients, n_edges,
+            inter_cfg, intra_cfg, config,
+            min_samples=min_samp, seed=config.get("seed", 42),
+        )
+
     elif partition == "superclass_pathological":
         # 导入聚类模块，构建每个 edge 的细粒度类别集合
         from data.clustering import (
@@ -188,7 +282,15 @@ def build_clients(images_np, labels_np, global_model, config,
     # ── 后门攻击：恶意客户端用投毒数据集替换原本地数据集 ───────────────────
     bd_cfg        = config.get("backdoor", {})
     bd_enabled    = bool(bd_cfg.get("enabled", False))
-    malicious_ids = get_malicious_ids(bd_cfg)
+    # 解析恶意客户端（默认跨 edge 分散，需要 assignments；非 baked 分区退化为等距）。
+    # 解析结果写回 bd_cfg["malicious_ids"]，保证 run_experiment 后续调用一致。
+    malicious_ids = resolve_malicious_ids(
+        bd_cfg, n_clients, assignments=assignments, seed=config.get("seed", 42))
+    if bd_enabled:
+        bd_cfg["malicious_ids"] = sorted(int(i) for i in malicious_ids)
+        print(f"[Backdoor] resolved malicious clients "
+              f"(placement={bd_cfg.get('malicious_placement', 'spread')}): "
+              f"{bd_cfg['malicious_ids']}")
     bd_trigger    = build_trigger(bd_cfg, img_size=config["data"]["img_size"]) if bd_enabled else None
     bd_target     = int(bd_cfg.get("target_label", 9))
     bd_poison     = float(bd_cfg.get("poison_ratio", 0.5))

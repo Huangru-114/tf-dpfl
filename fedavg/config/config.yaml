@@ -15,9 +15,15 @@ federation:
   n_edges:          2
   edge_rounds:      5
   n_rounds:         40
-  partition:        "superclass_pathological"  # 可选 "iid", "pathological", "superclass_pathological"
+  partition:        "superclass_pathological"  # 可选 "iid", "noniid", "pathological", "superclass_pathological", "hierarchical"
   classes_per_client: 2
   alpha:            0.5
+  # ── 层级两段式划分（partition="hierarchical" 时生效，任务1）──────────────
+  # inter_edge=跨边缘节点分布，intra_edge=边缘节点内部分布。可由 H1–H4 配置展开。
+  # type ∈ {iid, dirichlet, pathological}；pathological 在 inter 层用 classes_per_edge。
+  inter_edge:       {type: "dirichlet", alpha: 0.5}
+  intra_edge:       {type: "pathological", classes_per_client: 2}
+  min_samples:      10            # 每客户端最小样本阈值（两段切分后均衡用）
 
 training:
   local_epochs:   1
@@ -61,15 +67,22 @@ backdoor:
   trigger:        "badnet"      # "badnet"（3×3 白方块）| "blended"（图案混合）
   target_label:   9             # CIFAR-10 目标类（FEMNIST 用 1）
   poison_ratio:   0.5           # 恶意客户端本地数据投毒比例
-  malicious_ids:  [15]          # 恶意客户端编号
+  malicious_ids:  [15]          # 恶意客户端编号（concentrated 或显式时用；spread 时被解析结果覆盖）
+  malicious_placement: "spread" # "spread"=跨 edge 分散（每 edge≥1）| "concentrated"=用 malicious_ids
+  n_malicious:    4             # spread 时的恶意客户端数量（<=0 时回退 malicious_ids 长度）
   attack_freq_Q:  10            # fix-frequency：每 Q 轮强制参与一次
   badnet_size:    3             # BadNet 方块边长
   badnet_value:   1.0           # 方块像素值（[0,1] 空间，标准化前）
   blended_alpha:  0.2           # Blended 混合比例 α
   blended_image:  "attack/triggers/hello_kitty.png"  # 用户提供的图案文件
-  eval_interval:  50            # 每多少轮算一次 C-Acc/ASR
+  eval_interval:  5             # 每多少轮算一次分层 ASR（建议 5，重型评估开销大）
   asr_max_samples: 0            # ASR 测试子采样上限（0=用全部非目标类样本）
   verbose_clients: true         # 是否逐 client 打印 C-Acc/ASR
+  # ── 分层后门评估扩展（任务2）────────────────────────────────────────────
+  feature_eval:          true   # 是否算特征空间分离度（global + 抽样 local）
+  feature_eval_samples:  200    # 后门样本抽样数（特征分离度用，控制显存）
+  feature_clean_per_class: 50   # 每类干净样本抽样数（特征质心用）
+  forgetting_epochs:     5      # 遗忘曲线记录的本地 epoch 数（仅个性化/微调方法、仅评估轮）
 
 wandb:
   enabled:  true
