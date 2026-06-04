@@ -55,8 +55,48 @@ def make_blended_trigger(image_path, mean=CIFAR10_MEAN, std=CIFAR10_STD,
     return apply
 
 
+def make_dba_local_trigger(poison_pattern, mean=CIFAR10_MEAN, std=CIFAR10_STD,
+                           value=1.0):
+    """
+    DBA 局部触发器（AI-secure/DBA, image_helper.add_pixel_pattern）：
+    把 poison_pattern 列出的像素坐标 [[r,c], ...] 置为 value（标准化空间）。
+    每个恶意客户端分到一个局部 pattern，本地投毒只用自己的 pattern。
+
+    Args:
+        poison_pattern : 坐标列表，如 [[0,0],[0,1],[0,2],[0,3],[0,4],[0,5]]
+    返回作用于标准化 numpy batch 的函数 apply(x)。
+    """
+    val_std = (np.float32(value) - np.asarray(mean, np.float32)) / np.asarray(std, np.float32)  # (C,)
+    coords  = np.asarray(poison_pattern, dtype=np.int64)
+    rows, cols = coords[:, 0], coords[:, 1]
+
+    def apply(x):
+        x = np.array(x, dtype=np.float32, copy=True)
+        x[:, rows, cols, :] = val_std   # (N,P,C) ← (C,) 广播
+        return x
+
+    return apply
+
+
+def make_dba_global_trigger(all_patterns, mean=CIFAR10_MEAN, std=CIFAR10_STD,
+                            value=1.0):
+    """
+    DBA 全局触发器：所有局部 pattern 的坐标合并（ASR 评估用，与官方
+    centralized_test_trigger=True 一致）。
+    Args:
+        all_patterns : List[局部 pattern]，每个是坐标列表
+    """
+    merged = [pt for pattern in all_patterns for pt in pattern]
+    return make_dba_local_trigger(merged, mean=mean, std=std, value=value)
+
+
 def build_trigger(bd_cfg, img_size=32):
-    """根据 config['backdoor'] 构建 trigger 函数。"""
+    """
+    根据 config['backdoor'] 构建**投毒/评估侧静态 trigger 函数** apply(x)。
+
+    DBA：返回**全局触发器**（合并所有局部 pattern），用于 ASR 评估；
+    各恶意客户端的局部投毒触发器由 attack/backdoor.build_dba_poisoned_datasets 单独构建。
+    """
     kind = bd_cfg.get("trigger", "badnet")
     if kind == "badnet":
         return make_badnet_trigger(
@@ -75,4 +115,10 @@ def build_trigger(bd_cfg, img_size=32):
             alpha=float(bd_cfg.get("blended_alpha", 0.2)),
             img_size=int(img_size),
         )
-    raise ValueError(f"Unknown backdoor trigger: {kind!r} (choose 'badnet' or 'blended')")
+    if kind == "dba":
+        patterns = bd_cfg.get("dba_patterns")
+        if not patterns:
+            raise ValueError("trigger='dba' 需要 backdoor.dba_patterns（局部触发器坐标列表）。")
+        return make_dba_global_trigger(
+            patterns, value=float(bd_cfg.get("badnet_value", 1.0)))
+    raise ValueError(f"Unknown backdoor trigger: {kind!r} (choose 'badnet'/'blended'/'dba')")

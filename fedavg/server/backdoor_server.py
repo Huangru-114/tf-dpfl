@@ -75,7 +75,9 @@ class BackdoorCloudServer(CloudServer):
         non_target = np.where(y != self.bd_target)[0]
         if len(non_target) > self.feature_eval_samples:
             non_target = non_target[:self.feature_eval_samples]
-        poisoned = self.trigger_fn(x[non_target])
+        # 评估侧 trigger 约定 (model, x)；静态触发器忽略 model，这里用 global_model。
+        # （Phase 2 的 model-dependent 触发器若需 per-model 特征样本，再单独处理。）
+        poisoned = self.trigger_fn(self.global_model, x[non_target])
         poisoned_true = y[non_target]
         self._feat_data = (poisoned, poisoned_true, clean_by_class)
         return self._feat_data

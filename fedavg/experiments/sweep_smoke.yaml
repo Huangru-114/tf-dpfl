@@ -22,7 +22,7 @@ parameters:
     values: ["D1_patho_2", "D4_dir_05", "D6_iid",
              "H1_patho_in_dir_out", "H2_dir_in_patho_out"]
   attack_method:
-    values: ["badnet", "blended", "none"]
+    values: ["badnet", "blended", "dba", "neurotoxin", "none"]
   seed:
     values: [42]
 

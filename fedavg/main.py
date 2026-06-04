@@ -33,7 +33,9 @@ from server.backdoor_server import BackdoorCloudServer
 from attack.triggers        import build_trigger
 from attack.backdoor        import (get_malicious_ids, resolve_malicious_ids,
                                     build_poisoned_dataset,
+                                    make_dba_local_triggers,
                                     install_forced_participation)
+from client.client_neurotoxin import NeurotoxinClient
 
 
 def _select_method_classes(config):
@@ -79,6 +81,31 @@ FRAMEWORK_MAP = {
     # TODO: "hier_fedavg_fedbn"
 }
 
+# ── attack_method 友好别名 → 两个正交轴 (trigger × malicious_strategy) ────────
+# 配置内部始终是两正交轴；CLI/sweep 用单一 attack_method 别名，便于网格扫描。
+ATTACK_METHOD_MAP = {
+    "none":      {"enabled": False, "trigger": "badnet",     "strategy": "vanilla"},
+    "badnet":    {"enabled": True,  "trigger": "badnet",     "strategy": "vanilla"},
+    "blended":   {"enabled": True,  "trigger": "blended",    "strategy": "vanilla"},
+    "dba":       {"enabled": True,  "trigger": "dba",        "strategy": "vanilla"},
+    "neurotoxin":{"enabled": True,  "trigger": "badnet",     "strategy": "neurotoxin"},
+    # Phase 2（动态投毒 + model-dependent 评估）：
+    # "cerp":    {"enabled": True,  "trigger": "cerp",       "strategy": "cerp"},
+    # "badpfl":  {"enabled": True,  "trigger": "badpfl_gen", "strategy": "badpfl"},
+}
+
+
+def select_malicious_client_class(strategy: str):
+    """
+    恶意客户端用的「攻击策略类」（继承 FedAvgClient，与 PFL 方法正交）。
+    返回 None 表示用方法类（vanilla：badnet/blended/dba 走方法类 + 投毒数据，
+    保持与既有实验一致的行为）。
+    """
+    return {
+        "neurotoxin": NeurotoxinClient,
+        # Phase 2: "cerp": CerPClient, "badpfl": BadPFLClient,
+    }.get(str(strategy).lower())
+
 
 def _set_nested(config: dict, key_path: str, value):
     keys = key_path.split(".")
@@ -116,13 +143,16 @@ def apply_experiment_args(config: dict, args) -> dict:
 
     if args.attack_method is not None:
         am = args.attack_method.lower()
-        if am == "none":
-            _set_nested(config, "backdoor.enabled", False)
-        elif am in ("badnet", "blended"):
-            _set_nested(config, "backdoor.enabled", True)
-            _set_nested(config, "backdoor.trigger", am)
-        else:
-            raise ValueError(f"Unknown attack_method: {args.attack_method!r}")
+        if am not in ATTACK_METHOD_MAP:
+            raise ValueError(
+                f"Unknown attack_method: {args.attack_method!r}. "
+                f"Available: {list(ATTACK_METHOD_MAP)}")
+        spec = ATTACK_METHOD_MAP[am]
+        _set_nested(config, "backdoor.enabled", spec["enabled"])
+        if spec["enabled"]:
+            # 友好别名展开为两个正交轴：trigger × malicious_strategy
+            _set_nested(config, "backdoor.trigger", spec["trigger"])
+            _set_nested(config, "backdoor.malicious_strategy", spec["strategy"])
 
     # run 命名规范（仅当提供了高层维度时覆盖）
     if any(v is not None for v in
@@ -299,20 +329,35 @@ def build_clients(images_np, labels_np, global_model, config,
     bd_trigger    = build_trigger(bd_cfg, img_size=config["data"]["img_size"]) if bd_enabled else None
     bd_target     = int(bd_cfg.get("target_label", 9))
     bd_poison     = float(bd_cfg.get("poison_ratio", 0.5))
+    strategy      = str(bd_cfg.get("malicious_strategy", "vanilla")).lower()
+    trigger_kind  = bd_cfg.get("trigger", "badnet")
+
+    # DBA：每个恶意客户端分到一个**局部**触发器用于投毒（评估侧用全局触发器）
+    dba_triggers  = (make_dba_local_triggers(bd_cfg, malicious_ids)
+                     if (bd_enabled and trigger_kind == "dba") else {})
+    # 动态投毒策略（Phase 2 CerP/Bad-PFL）：恶意客户端保留 clean 数据，训练时动态投毒
+    dynamic_poison = strategy in ("cerp", "badpfl")
 
     ClientCls, _ = _select_method_classes(config)
+    MalCls       = select_malicious_client_class(strategy)  # None => 用方法类
+
     clients = []
     for i, (ds, indices) in enumerate(zip(client_datasets, client_indices)):
-        is_mal = bd_enabled and (i in malicious_ids)
+        is_mal  = bd_enabled and (i in malicious_ids)
+        use_cls = ClientCls
         if is_mal:
-            # 在构造 client 前替换数据集（pfedme/rep 等会在 __init__ 缓存 list(dataset)）
-            print(f"[Backdoor] Client {i} is MALICIOUS "
-                  f"(trigger={bd_cfg.get('trigger')}, target={bd_target}, poison={bd_poison})")
-            ds = build_poisoned_dataset(images_np, labels_np, indices, config,
-                                        bd_trigger, bd_target, bd_poison)
+            use_cls = MalCls or ClientCls
+            if not dynamic_poison:
+                # 静态投毒：构造 client 前替换数据集（DBA 用局部触发器，否则用统一触发器）
+                poison_trig = dba_triggers.get(i, bd_trigger)
+                ds = build_poisoned_dataset(images_np, labels_np, indices, config,
+                                            poison_trig, bd_target, bd_poison)
+            print(f"[Backdoor] Client {i} MALICIOUS | strategy={strategy} | "
+                  f"trigger={trigger_kind} | target={bd_target} | poison={bd_poison}"
+                  f"{' | dynamic-poison (clean kept)' if dynamic_poison else ''}")
         client_model = clone_model(global_model)
-        client = ClientCls(client_id=i, dataset=ds, model=client_model,
-                          config=config, n_samples=len(indices))
+        client = use_cls(client_id=i, dataset=ds, model=client_model,
+                         config=config, n_samples=len(indices))
         client.is_malicious = is_mal
         if client_test_datasets is not None:
             client.set_test_dataset(client_test_datasets[i])
@@ -496,7 +541,11 @@ def run_experiment(config_path="config/config.yaml"):
     bd_enabled = bool(bd_cfg.get("enabled", False))
     if bd_enabled:
         malicious_ids = get_malicious_ids(bd_cfg)
+        # 投毒侧静态触发器（badnet/blended，或 DBA 全局触发器）
         bd_trigger    = build_trigger(bd_cfg, img_size=config["data"]["img_size"])
+        # 评估侧 trigger 统一为 (model, x)：静态触发器忽略 model。
+        # Phase 2（CerP/Bad-PFL 动态触发器）将在此处返回真正依赖 model 的评估触发器。
+        eval_trigger  = (lambda model, x, _f=bd_trigger: _f(x))
         cloud = BackdoorCloudServer(
             global_model=global_model,
             edge_servers=edge_servers,
@@ -504,7 +553,7 @@ def run_experiment(config_path="config/config.yaml"):
             config=config,
             bd_cfg=bd_cfg,
             x_test=x_test, y_test=y_test,
-            trigger_fn=bd_trigger,
+            trigger_fn=eval_trigger,
             malicious_ids=malicious_ids,
         )
         # fix-frequency：强制恶意客户端每 Q 轮参与一次

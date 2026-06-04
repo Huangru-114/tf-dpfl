@@ -37,6 +37,11 @@ def compute_asr(model, x_test, y_test, trigger_fn, target_label, batch_size=256)
     """
     ASR = 加 trigger 的非目标类样本被预测为 target_label 的比例。
     x_test/y_test 为已标准化的完整测试集 numpy。
+
+    评估侧 trigger 约定：trigger_fn(model, x) -> 加触发器后的 x。
+    静态触发器（badnet/blended/dba 全局）忽略 model；动态/model-dependent
+    触发器（CerP/Bad-PFL）用 model 生成。投毒侧触发器仍是 trigger_fn(x)，
+    见 attack/backdoor.build_poisoned_dataset。
     """
     y_test = np.asarray(y_test).reshape(-1)
     mask = (y_test != int(target_label))
@@ -44,7 +49,7 @@ def compute_asr(model, x_test, y_test, trigger_fn, target_label, batch_size=256)
     n = len(xt)
     if n == 0:
         return 0.0
-    xp = trigger_fn(xt)
+    xp = trigger_fn(model, xt)
     hits = 0
     for i in range(0, n, batch_size):
         p = model(xp[i:i + batch_size], training=False).numpy()
