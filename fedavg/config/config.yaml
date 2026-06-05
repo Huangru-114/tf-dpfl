@@ -65,7 +65,7 @@ model:
 backdoor:
   enabled:        false
   trigger:        "badnet"      # 触发器轴："badnet" | "blended" | "dba"（分布式像素）
-  malicious_strategy: "vanilla" # 训练策略轴："vanilla" | "neurotoxin"（Phase2: cerp/badpfl）
+  malicious_strategy: "vanilla" # 训练策略轴："vanilla" | "neurotoxin" | "cerp" | "badpfl"
   target_label:   9             # CIFAR-10 目标类（FEMNIST 用 1）
   poison_ratio:   0.5           # 恶意客户端本地数据投毒比例
   malicious_ids:  [15]          # 恶意客户端编号（concentrated 或显式时用；spread 时被解析结果覆盖）
@@ -85,6 +85,17 @@ backdoor:
     - [[4,9],[4,10],[4,11],[4,12],[4,13],[4,14]]
   # Neurotoxin（malicious_strategy="neurotoxin"）：屏蔽 benign 梯度幅值 top-k% 坐标。
   neurotoxin_mask_ratio: 0.05
+  # CerP（malicious_strategy="cerp"，动态投毒）：可训练触发器 + 模型距离 + peer 余弦正则。
+  cerp_alpha:         0.0001   # ‖θ−θ_clean‖₂ 系数
+  cerp_beta:          0.0001   # Σ cos(θ,θ_peer) 系数
+  cerp_trigger_lr:    0.1      # 触发器梯度下降步长
+  cerp_trigger_phi:   10.0     # 触发器 L2 球半径（标准化空间，可调）
+  cerp_trigger_steps: 1        # 每轮触发器细调步数
+  # Bad-PFL（malicious_strategy="badpfl"，动态投毒）：生成器触发器 + FGSM 破坏性噪声。
+  badpfl_epsilon:     0.01569  # 生成器扰动幅度 ε=4/255（[0,1] 像素空间，内部逐通道换算）
+  badpfl_sigma:       0.01569  # FGSM 噪声幅度 σ=4/255
+  badpfl_gen_steps:   30       # 每轮生成器训练步数
+  badpfl_gen_lr:      0.01     # 生成器 Adam 学习率
   eval_interval:  5             # 每多少轮算一次分层 ASR（建议 5，重型评估开销大）
   asr_max_samples: 0            # ASR 测试子采样上限（0=用全部非目标类样本）
   verbose_clients: true         # 是否逐 client 打印 C-Acc/ASR

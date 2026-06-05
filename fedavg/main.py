@@ -36,6 +36,8 @@ from attack.backdoor        import (get_malicious_ids, resolve_malicious_ids,
                                     make_dba_local_triggers,
                                     install_forced_participation)
 from client.client_neurotoxin import NeurotoxinClient
+from client.client_cerp        import CerPClient
+from client.client_badpfl      import BadPFLClient
 
 
 def _select_method_classes(config):
@@ -89,9 +91,10 @@ ATTACK_METHOD_MAP = {
     "blended":   {"enabled": True,  "trigger": "blended",    "strategy": "vanilla"},
     "dba":       {"enabled": True,  "trigger": "dba",        "strategy": "vanilla"},
     "neurotoxin":{"enabled": True,  "trigger": "badnet",     "strategy": "neurotoxin"},
-    # Phase 2（动态投毒 + model-dependent 评估）：
-    # "cerp":    {"enabled": True,  "trigger": "cerp",       "strategy": "cerp"},
-    # "badpfl":  {"enabled": True,  "trigger": "badpfl_gen", "strategy": "badpfl"},
+    # Phase 2（动态投毒 + model-dependent 评估，触发器在 local_train 内动态生成，
+    # 故 trigger 字段仅作标签用；投毒不走 build_poisoned_dataset）：
+    "cerp":      {"enabled": True,  "trigger": "badnet",     "strategy": "cerp"},
+    "badpfl":    {"enabled": True,  "trigger": "badnet",     "strategy": "badpfl"},
 }
 
 
@@ -103,8 +106,25 @@ def select_malicious_client_class(strategy: str):
     """
     return {
         "neurotoxin": NeurotoxinClient,
-        # Phase 2: "cerp": CerPClient, "badpfl": BadPFLClient,
+        "cerp":       CerPClient,
+        "badpfl":     BadPFLClient,
     }.get(str(strategy).lower())
+
+
+def build_eval_trigger(bd_cfg, static_trigger, clients, config):
+    """
+    构建评估侧触发器 trigger_fn(model, x, y=None) -> 加触发器的 numpy x。
+
+    - 静态策略（vanilla/neurotoxin：badnet/blended/dba）：忽略 model/y，套用静态触发器。
+    - CerP / Bad-PFL（动态/model-dependent）：用首个对应恶意客户端的触发器/生成器。
+      CerP 用其固定 _trigger 变量；Bad-PFL 用被评估模型自身 + 该客户端 generator。
+    """
+    strategy = str(bd_cfg.get("malicious_strategy", "vanilla")).lower()
+    mal = [c for c in clients if getattr(c, "is_malicious", False)]
+    if strategy in ("cerp", "badpfl") and mal:
+        c0 = mal[0]
+        return lambda model, x, y=None: c0.eval_trigger(model, x, y)
+    return lambda model, x, y=None: static_trigger(x)
 
 
 def _set_nested(config: dict, key_path: str, value):
@@ -543,9 +563,9 @@ def run_experiment(config_path="config/config.yaml"):
         malicious_ids = get_malicious_ids(bd_cfg)
         # 投毒侧静态触发器（badnet/blended，或 DBA 全局触发器）
         bd_trigger    = build_trigger(bd_cfg, img_size=config["data"]["img_size"])
-        # 评估侧 trigger 统一为 (model, x)：静态触发器忽略 model。
-        # Phase 2（CerP/Bad-PFL 动态触发器）将在此处返回真正依赖 model 的评估触发器。
-        eval_trigger  = (lambda model, x, _f=bd_trigger: _f(x))
+        # 评估侧 trigger 统一为 (model, x, y)：静态触发器忽略 model/y。
+        # CerP/Bad-PFL 动态触发器在此处替换为真正依赖 model/y 的评估触发器。
+        eval_trigger  = build_eval_trigger(bd_cfg, bd_trigger, clients, config)
         cloud = BackdoorCloudServer(
             global_model=global_model,
             edge_servers=edge_servers,

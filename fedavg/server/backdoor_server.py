@@ -54,10 +54,24 @@ class BackdoorCloudServer(CloudServer):
 
     def run_round(self, round_idx: int):
         metrics = super().run_round(round_idx)
+        # CerP：cloud 层协调器，按上一轮快照给恶意客户端互相分发 peer 权重
+        self._coordinate_cerp_peers()
         n_rounds = int(self.config["federation"]["n_rounds"])
         if (round_idx % self.bd_eval_interval == 0) or (round_idx == n_rounds):
             self._backdoor_eval(round_idx)
         return metrics
+
+    def _coordinate_cerp_peers(self):
+        """收集 CerP 恶意客户端最新权重，互相分发（排除自身），供下一轮 cos 正则使用。"""
+        cerp = [c for c in self._all_clients
+                if getattr(c, "is_malicious", False)
+                and hasattr(c, "set_peer_malicious_weights")]
+        if not cerp:
+            return
+        snaps = [(c, c.model.get_weights()) for c in cerp]
+        for c in cerp:
+            peers = [w for oc, w in snaps if oc is not c]
+            c.set_peer_malicious_weights(peers)
 
     # ── 特征评估用数据：固定一次，避免每轮重建 ──────────────────────────────
     def _prepare_feature_data(self):
@@ -75,9 +89,9 @@ class BackdoorCloudServer(CloudServer):
         non_target = np.where(y != self.bd_target)[0]
         if len(non_target) > self.feature_eval_samples:
             non_target = non_target[:self.feature_eval_samples]
-        # 评估侧 trigger 约定 (model, x)；静态触发器忽略 model，这里用 global_model。
+        # 评估侧 trigger 约定 (model, x, y)；静态触发器忽略 model/y，这里用 global_model。
         # （Phase 2 的 model-dependent 触发器若需 per-model 特征样本，再单独处理。）
-        poisoned = self.trigger_fn(self.global_model, x[non_target])
+        poisoned = self.trigger_fn(self.global_model, x[non_target], y[non_target])
         poisoned_true = y[non_target]
         self._feat_data = (poisoned, poisoned_true, clean_by_class)
         return self._feat_data
