@@ -358,6 +358,14 @@ def build_clients(images_np, labels_np, global_model, config,
     # 动态投毒策略（Phase 2 CerP/Bad-PFL）：恶意客户端保留 clean 数据，训练时动态投毒
     dynamic_poison = strategy in ("cerp", "badpfl")
 
+    # 安全防护：CerP/Bad-PFL 的恶意客户端用自定义 eager 训练（可训练触发器 / generator），
+    # 与良性客户端的 @tf.function 路径在线程池里并发会互相污染 TF 图（reshape/形状错乱）。
+    # 故对动态策略强制串行收集（n_workers=1）。Neurotoxin 已复用 @tf.function 路径，无需串行。
+    if bd_enabled and dynamic_poison:
+        config["federation"]["n_workers"] = 1
+        print(f"[Backdoor] strategy={strategy}: forcing serial client collection "
+              f"(federation.n_workers=1) to avoid eager/@tf.function 线程冲突。")
+
     ClientCls, _ = _select_method_classes(config)
     MalCls       = select_malicious_client_class(strategy)  # None => 用方法类
 
