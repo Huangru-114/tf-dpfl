@@ -105,6 +105,18 @@ backdoor:
   feature_clean_per_class: 50   # 每类干净样本抽样数（特征质心用）
   forgetting_epochs:     5      # 遗忘曲线记录的本地 epoch 数（仅个性化/微调方法、仅评估轮）
 
+# 后门防御（鲁棒聚合，参照 xtLyu/PFedBA 写在 edge 聚合层）。name=none 时对训练无影响。
+# 经 EdgeServerBase.robust_mean 统一接入所有 PFL 方法的 edge 聚合步。
+defense:
+  name:   "none"   # "none" | "trimmed_mean" | "median" | "multi_krum" | "flame" | "dnc"
+  params:
+    trim_ratio:      0.1     # trimmed_mean：两端各去除比例
+    num_malicious:   0       # multi_krum/dnc：per-edge 恶意数估计（0=按 n_malicious/n_edges 自动估算）
+    noise_scale:     0.001   # flame：噪声标准差相对裁剪范数的比例
+    num_projections: 5       # dnc：随机投影次数
+    subspace_dim:    10000   # dnc：每次投影的子空间维度上界
+    filter_mult:     1.0     # dnc：剔除数 = ceil(filter_mult · num_malicious)
+
 wandb:
   enabled:  true
   entity:   "3445339138-kth-royal-institute-of-technology"

@@ -13,7 +13,6 @@ import numpy as np
 import tensorflow as tf
 
 from .edge_server_base import EdgeServerBase
-from aggregation.fedavg import aggregate
 
 
 class FedAvgEdgeServer(EdgeServerBase):
@@ -25,14 +24,15 @@ class FedAvgEdgeServer(EdgeServerBase):
               f"Hier-FedAvg | Selected {len(selected)}/{len(self.clients)}")
 
         # 广播 edge 模型（同时转发全局参考）
+        ref_w = self.model.get_weights()   # 聚合前 edge 权重（防御参考点）
         self.broadcast_to_clients(selected, global_weights=self._global_weights_ref)
 
         # 收集 client 本地训练结果
         client_updates = self._collect_updates_parallel(
             selected, global_round_idx, mode="fedavg")
 
-        # 样本加权 FedAvg 聚合
-        new_w = aggregate(client_updates)
+        # 样本加权 FedAvg 聚合（有防御时走鲁棒聚合）
+        new_w = self.robust_mean(client_updates, ref_w)
         self.model.set_weights(new_w)
 
         total_n  = sum(n for _, n, *_ in client_updates)

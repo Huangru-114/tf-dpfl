@@ -55,11 +55,14 @@ class HierFedRepEdgeServer(EdgeServerBase):
         client_updates = self._collect_updates_parallel(
             selected, global_round_idx, mode="fedavg")
 
-        # 步骤 3：仅 backbone 索引样本加权聚合，head 索引保持不变
+        # 步骤 3：仅 backbone 索引聚合（有防御走鲁棒聚合），head 索引保持不变。
+        # 防御对完整权重列表运算，再仅取 backbone 索引覆盖（head 索引结果弃用）。
         total_n    = sum(n for _, n, *_ in client_updates)
-        new_w = [w.copy() for w in self.model.get_weights()]
+        edge_w     = self.model.get_weights()
+        robust_full = self.robust_mean(client_updates, edge_w)
+        new_w = [w.copy() for w in edge_w]
         for j in self._base_w_idx:
-            new_w[j] = sum(upd[0][j] * (upd[1] / total_n) for upd in client_updates)
+            new_w[j] = robust_full[j]
         self.model.set_weights(new_w)
 
         avg_loss = sum(l * n / total_n for _, n, l, _ in client_updates)

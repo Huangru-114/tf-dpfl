@@ -20,6 +20,8 @@ import numpy as np
 import tensorflow as tf
 
 from models.model_utils import get_model_bytes
+from aggregation.fedavg import aggregate as fedavg_aggregate
+from defense import create_defense
 
 
 class EdgeServerBase(ABC):
@@ -31,6 +33,9 @@ class EdgeServerBase(ABC):
         self.model     = model
         self.config    = config
         self.n_samples = sum(c.n_samples for c in clients)
+
+        # ── 后门防御（鲁棒聚合）。None=不设防 → robust_mean 回退普通加权平均。──
+        self.defense = create_defense(config)
 
         # ── 辅助状态 ──────────────────────────────────────────────────────
         self._global_weights_ref    = None   # Cloud 广播的全局权重快照
@@ -159,6 +164,30 @@ class EdgeServerBase(ABC):
                 print(f"    [ERROR] Client {client.client_id}: {e}")
         return results
 
+
+    # ══════════════════════════════════════════════════════════════════════
+    # 鲁棒聚合（防御统一入口）
+    # ══════════════════════════════════════════════════════════════════════
+
+    def robust_mean(self, client_updates: list, ref_weights: list = None) -> list:
+        """
+        统一的「加权平均步」替身：有防御时走鲁棒聚合，否则回退普通样本加权 FedAvg。
+
+        各 edge server 把自己原本的加权平均（FedAvg 整体 / pFedMe·Ditto 的 mean /
+        FedRep 的 backbone mean）改调此方法，即可让一套防御覆盖所有 PFL 方法。
+
+        Args:
+            client_updates: [(weights, n_samples, loss, train_time), ...]
+            ref_weights:    聚合前 edge 模型权重（广播点）；None 时取当前 edge 模型权重。
+                            FLAME/DnC 用作更新增量参考；坐标类防御忽略。
+        Returns:
+            List[np.ndarray]：聚合后的完整权重列表（与 aggregate 同形）。
+        """
+        if self.defense is None:
+            return fedavg_aggregate(client_updates)
+        if ref_weights is None:
+            ref_weights = self.model.get_weights()
+        return self.defense.aggregate(client_updates, ref_weights)
 
     # ══════════════════════════════════════════════════════════════════════
     # 评估

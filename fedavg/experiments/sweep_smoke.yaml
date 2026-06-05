@@ -1,7 +1,8 @@
 # experiments/sweep_smoke.yaml  –  迷你冒烟 sweep（验证每组参数能否正确运行）
 #
-# 目的：用最少算力把「framework × distribution × attack」每个组合都跑一遍，
+# 目的：用最少算力把「framework × distribution × attack × defense」每个组合都跑一遍，
 #       只确认不报错、指标能记录，不追求收敛。
+#       注：加上 defense 轴后组合数较大（5×5×7×6=1050），按需起多个 agent 或自行裁剪取值。
 #
 # 省资源手段（全部经 command 段的 --override 注入，不动正式 config.yaml）：
 #   - n_clients=10, n_edges=2, n_rounds=4, edge_rounds=2, warmup=1
@@ -9,7 +10,7 @@
 #   - 特征/遗忘评估抽样砍小；恶意客户端 2 个（跨 2 edge 分散）
 #   - seed 只取 1 个；用最便宜的 T4 GPU + 短 walltime（见 sweep_agent_smoke.sh）
 #
-# 组合数：4 framework × 5 distribution × 3 attack × 1 seed = 60 个迷你 run。
+# 组合数：5 framework × 5 distribution × 7 attack × 6 defense × 1 seed = 1050 个迷你 run。
 
 program: main.py
 method: grid
@@ -23,6 +24,8 @@ parameters:
              "H1_patho_in_dir_out", "H2_dir_in_patho_out"]
   attack_method:
     values: ["badnet", "blended", "dba", "neurotoxin", "cerp", "badpfl", "none"]
+  defense:
+    values: ["none", "trimmed_mean", "median", "multi_krum", "flame", "dnc"]
   seed:
     values: [42]
 

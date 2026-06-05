@@ -40,14 +40,10 @@ class HierDittoEdgeServer(EdgeServerBase):
         client_updates = self._collect_updates_parallel(
             selected, global_round_idx, mode="fedavg")
 
-        # 步骤 3：样本加权聚合 + Ditto 近端靠近 φ*
-        n_layers   = len(client_updates[0][0])
+        # 步骤 3：样本加权聚合（有防御走鲁棒聚合）+ Ditto 近端靠近 φ*
         total_n    = sum(n for _, n, *_ in client_updates)
-        mean_w     = [
-            sum(upd[0][j] * (upd[1] / total_n) for upd in client_updates)
-            for j in range(n_layers)
-        ]
         theta_prev = self.model.get_weights()
+        mean_w     = self.robust_mean(client_updates, theta_prev)
         gref       = self._global_weights_ref  # φ*（global round 内固定）
         new_w = [
             mw - mu_edge * (tp - gr)

@@ -98,6 +98,10 @@ ATTACK_METHOD_MAP = {
 }
 
 
+# ── 防御轴（与 framework/distribution/attack 正交）─────────────────────────────
+DEFENSE_CHOICES = ["none", "trimmed_mean", "median", "multi_krum", "flame", "dnc"]
+
+
 def select_malicious_client_class(strategy: str):
     """
     恶意客户端用的「攻击策略类」（继承 FedAvgClient，与 PFL 方法正交）。
@@ -174,16 +178,27 @@ def apply_experiment_args(config: dict, args) -> dict:
             _set_nested(config, "backdoor.trigger", spec["trigger"])
             _set_nested(config, "backdoor.malicious_strategy", spec["strategy"])
 
+    if args.defense is not None:
+        dfn = args.defense.lower()
+        if dfn not in DEFENSE_CHOICES:
+            raise ValueError(
+                f"Unknown defense: {args.defense!r}. Available: {DEFENSE_CHOICES}")
+        _set_nested(config, "defense.name", dfn)
+
     # run 命名规范（仅当提供了高层维度时覆盖）
     if any(v is not None for v in
-           (args.framework, args.distribution_config, args.attack_method)):
+           (args.framework, args.distribution_config, args.attack_method, args.defense)):
         fw = args.framework or config["training"].get("drift_correction", "fl")
         dist = args.distribution_config or config["federation"].get("partition", "dist")
         atk = args.attack_method or (
             config["backdoor"].get("trigger", "badnet")
             if config.get("backdoor", {}).get("enabled") else "none")
         seed = config.get("seed", 42)
-        _set_nested(config, "wandb.run_name", f"{fw}_{dist}_{atk}_seed{seed}")
+        run_name = f"{fw}_{dist}_{atk}_seed{seed}"
+        dfn = args.defense or config.get("defense", {}).get("name", "none")
+        if str(dfn).lower() not in ("none", "", "off", "disabled"):
+            run_name += f"_def-{dfn}"
+        _set_nested(config, "wandb.run_name", run_name)
         print(f"[Config] run_name = {config['wandb']['run_name']}")
 
     return config
@@ -206,6 +221,7 @@ def load_config(path: str = "config/config.yaml") -> dict:
     parser.add_argument("--framework",           type=str, default=None)
     parser.add_argument("--distribution_config", type=str, default=None)
     parser.add_argument("--attack_method",       type=str, default=None)
+    parser.add_argument("--defense",             type=str, default=None)
     parser.add_argument("--seed",                type=str, default=None)
     args, _ = parser.parse_known_args()
 

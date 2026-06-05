@@ -1,6 +1,6 @@
 # experiments/sweep.yaml  –  WandB sweep（任务3）
 #
-# 维度：framework × distribution_config × attack_method × seed（grid）。
+# 维度：framework × distribution_config × attack_method × defense × seed（grid）。
 # 每个 run 名按规范生成：{framework}_{distribution}_{attack}_seed{seed}
 #
 # 运行：
@@ -42,6 +42,14 @@ parameters:
       - "cerp"
       - "badpfl"
       - "none"
+  defense:
+    values:
+      - "none"
+      - "trimmed_mean"
+      - "median"
+      - "multi_krum"
+      - "flame"
+      - "dnc"
   seed:
     values:
       - 42

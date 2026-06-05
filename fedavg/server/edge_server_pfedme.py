@@ -88,18 +88,10 @@ class PFedMeEdgeServer(EdgeServerBase):
 
         # 步骤 3：edge 模型更新（式 7）
         # mean(Θ_{n,m}) − η2·λ1·(θ_n^{t,i} − W_n^{t,i})
-        n_layers    = len(client_updates[0][0])
-        # mean_Theta  = [
-        #     np.mean([upd[0][j] for upd in client_updates], axis=0)
-        #     for j in range(n_layers)
-        # ]
-        total_n = sum(n for _, n, *_ in client_updates)
-        mean_Theta = [
-            sum(upd[0][j] * (upd[1] / total_n) for upd in client_updates)
-            for j in range(n_layers)
-        ]
-        
+        # mean(Θ_{n,m}) 改走 robust_mean：无防御=样本加权均值（行为不变），
+        # 有防御=对 client 上传 Θ 做鲁棒聚合，再叠加 Moreau 锚点项。
         theta_n_prev = self.model.get_weights()
+        mean_Theta   = self.robust_mean(client_updates, theta_n_prev)
         theta_n_new  = [
             mc - eta2 * lam1 * (tn - wn)
             for mc, tn, wn in zip(mean_Theta, theta_n_prev, self.W_n)
