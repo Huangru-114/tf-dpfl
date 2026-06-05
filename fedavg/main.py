@@ -99,7 +99,8 @@ ATTACK_METHOD_MAP = {
 
 
 # ── 防御轴（与 framework/distribution/attack 正交）─────────────────────────────
-DEFENSE_CHOICES = ["none", "trimmed_mean", "median", "multi_krum", "flame", "dnc"]
+DEFENSE_CHOICES = ["none", "trimmed_mean", "median", "multi_krum", "flame", "dnc",
+                   "simple_tuning"]
 
 
 def select_malicious_client_class(strategy: str):

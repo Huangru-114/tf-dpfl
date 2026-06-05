@@ -28,6 +28,10 @@ _REGISTRY = {
     "dnc":          DnCDefense,
 }
 
+# 训练后、客户端侧的后处理防御（不在聚合层；见 simple_tuning.py）。
+# 这些名字在 create_defense 中返回 None（聚合不变），由 create_post_hoc_defense 单独构建。
+_POST_HOC = {"simple_tuning"}
+
 
 def _estimate_num_malicious(config: dict) -> int:
     """按 backdoor.n_malicious / n_edges 估算 per-edge 恶意数（至少 1）。"""
@@ -46,9 +50,13 @@ def create_defense(config: dict):
     name = str(dcfg.get("name", "none")).lower()
     if name in ("none", "", "off", "disabled"):
         return None
+    if name in _POST_HOC:
+        # 后处理防御不在聚合层生效 → 聚合回退普通加权平均（见 create_post_hoc_defense）。
+        return None
     if name not in _REGISTRY:
         raise ValueError(
-            f"Unknown defense: {name!r}. Available: {['none'] + list(_REGISTRY)}")
+            f"Unknown defense: {name!r}. "
+            f"Available: {['none'] + list(_REGISTRY) + list(_POST_HOC)}")
 
     params = dict(dcfg.get("params", {}) or {})
     # num_malicious 缺省时自动估算（multi_krum / dnc 需要）
@@ -58,3 +66,19 @@ def create_defense(config: dict):
     defense = _REGISTRY[name](params)
     print(f"[Defense] enabled: {name} | params={params}")
     return defense
+
+
+def create_post_hoc_defense(config: dict, num_classes: int, lr_default: float):
+    """
+    构建训练后、客户端侧的后处理防御（目前仅 Simple-Tuning）。
+
+    返回带 .tune(model, clean_dataset) 方法的对象；name 非后处理类时返回 None。
+    在 BackdoorCloudServer 的分层评估处接入：对每个良性 client 的本地模型先 tune 再测 ASR。
+    """
+    from .simple_tuning import SimpleTuningDefense
+
+    dcfg = (config.get("defense") or {}) if isinstance(config, dict) else {}
+    name = str(dcfg.get("name", "none")).lower()
+    if name not in _POST_HOC:
+        return None
+    return SimpleTuningDefense(config, num_classes=num_classes, lr_default=lr_default)

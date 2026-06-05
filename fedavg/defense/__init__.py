@@ -11,6 +11,6 @@ defense/  –  后门防御模块（鲁棒聚合，参照 xtLyu/PFedBA 写在 se
 """
 
 from .base_defense import BaseDefense
-from .factory import create_defense
+from .factory import create_defense, create_post_hoc_defense
 
-__all__ = ["BaseDefense", "create_defense"]
+__all__ = ["BaseDefense", "create_defense", "create_post_hoc_defense"]

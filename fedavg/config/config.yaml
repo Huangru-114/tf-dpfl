@@ -108,7 +108,9 @@ backdoor:
 # 后门防御（鲁棒聚合，参照 xtLyu/PFedBA 写在 edge 聚合层）。name=none 时对训练无影响。
 # 经 EdgeServerBase.robust_mean 统一接入所有 PFL 方法的 edge 聚合步。
 defense:
-  name:   "none"   # "none" | "trimmed_mean" | "median" | "multi_krum" | "flame" | "dnc"
+  # 聚合层防御 trimmed_mean/median/multi_krum/flame/dnc 经 robust_mean 接入；
+  # simple_tuning 是训练后客户端侧后处理防御（重置头+干净微调，评估时对良性本地模型生效）。
+  name:   "none"   # "none" | "trimmed_mean" | "median" | "multi_krum" | "flame" | "dnc" | "simple_tuning"
   params:
     trim_ratio:      0.1     # trimmed_mean：两端各去除比例
     num_malicious:   0       # multi_krum/dnc：per-edge 恶意数估计（0=按 n_malicious/n_edges 自动估算）
@@ -116,6 +118,8 @@ defense:
     num_projections: 5       # dnc：随机投影次数
     subspace_dim:    10000   # dnc：每次投影的子空间维度上界
     filter_mult:     1.0     # dnc：剔除数 = ceil(filter_mult · num_malicious)
+    st_epochs:       10      # simple_tuning：分类头微调 epoch 数
+    st_lr:           0.0     # simple_tuning：头微调学习率（0=回退 training.learning_rate）
 
 wandb:
   enabled:  true

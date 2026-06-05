@@ -96,7 +96,7 @@ def evaluate_backdoor(clients, x_test, y_test, trigger_fn, target_label,
 def evaluate_hierarchical_asr(global_model, edge_servers, clients,
                               x_test, y_test, trigger_fn, target_label,
                               malicious_ids, fallback_test_ds=None,
-                              batch_size=256):
+                              batch_size=256, local_model_fn=None):
     """
     分别评估三层模型的 ASR 与干净精度（ACC）。
 
@@ -110,6 +110,9 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
                         .is_malicious / .assigned_edge / .test_dataset
         x_test,y_test : 已标准化的全量测试集 numpy（ASR 与 global ACC 用）
         malicious_ids : 恶意客户端 id 集合
+        local_model_fn: 可选 callable(client) -> model，对本地模型评估前做变换
+                        （Simple-Tuning 防御：返回重置头+干净微调后的模型）。
+                        None 时直接用 client.model。
 
     Returns:
         dict（见 log_round_metrics 使用的全部字段）
@@ -143,11 +146,13 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
 
     for c in clients:
         cid = int(c.client_id)
-        asr = compute_asr(c.model, x_test, y_test, trigger_fn,
+        # Simple-Tuning 等后处理防御：评估前对本地模型做变换（默认用 c.model 原样）
+        eval_model = local_model_fn(c) if local_model_fn is not None else c.model
+        asr = compute_asr(eval_model, x_test, y_test, trigger_fn,
                           target_label, batch_size)
         ds = c.test_dataset if getattr(c, "test_dataset", None) is not None \
             else fallback_test_ds
-        acc = _acc_on_dataset(c.model, ds) if ds is not None else float("nan")
+        acc = _acc_on_dataset(eval_model, ds) if ds is not None else float("nan")
         local_asrs.append(asr)
         local_accs.append(acc)
 

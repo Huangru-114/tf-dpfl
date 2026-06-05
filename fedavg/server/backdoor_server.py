@@ -16,6 +16,7 @@ from server.server import CloudServer
 from attack.backdoor_eval import (evaluate_hierarchical_asr,
                                    evaluate_forgetting_curve,
                                    evaluate_feature_separation)
+from defense import create_post_hoc_defense
 from utils.logger import FLLogger
 
 
@@ -51,6 +52,13 @@ class BackdoorCloudServer(CloudServer):
         self.forgetting_epochs = int(self.bd_cfg.get(
             "forgetting_epochs", self.config["training"].get("local_epochs", 5)))
         self._feat_data = None       # 懒惰构建并缓存
+
+        # ── 后处理防御（Simple-Tuning）：对每个良性 client 的本地模型评估前做后处理。──
+        # name 非后处理类时为 None；为 None 时分层评估直接用 client.model（行为不变）。
+        self.post_defense = create_post_hoc_defense(
+            self.config,
+            num_classes=int(self.config["data"]["num_classes"]),
+            lr_default=float(self.config["training"].get("learning_rate", 0.02)))
 
     def run_round(self, round_idx: int):
         metrics = super().run_round(round_idx)
@@ -104,11 +112,23 @@ class BackdoorCloudServer(CloudServer):
 
         print(f"\n[Backdoor] ===== Round {round_idx} hierarchical backdoor eval =====")
 
+        # ── Simple-Tuning 防御：良性 client 本地模型评估前做「重置头 + 干净微调」──
+        # （恶意 client 不设防，保持 c.model 原样，仅用于报告 local_asr_malicious）
+        local_model_fn = None
+        if self.post_defense is not None:
+            def local_model_fn(c):
+                if int(c.client_id) in self.malicious_ids:
+                    return c.model
+                return self.post_defense.tune(c.model, getattr(c, "dataset", None))
+            print(f"[Defense] applying Simple-Tuning to benign local models "
+                  f"before ASR eval (round {round_idx})")
+
         # ── 任务2：分层 ASR（global/edge/local 三层 + same/diff edge） ────────
         metrics = evaluate_hierarchical_asr(
             self.global_model, self.edge_servers, self._all_clients,
             xt, yt, self.trigger_fn, self.bd_target,
             self.malicious_ids, fallback_test_ds=self.test_dataset,
+            local_model_fn=local_model_fn,
         )
 
         # ── 任务2：特征空间分离度（global + 抽样 1 个良性 local） ─────────────
