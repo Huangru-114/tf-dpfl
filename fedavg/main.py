@@ -543,7 +543,8 @@ def run_experiment(config_path="config/config.yaml"):
         input_shape=(config["data"]["img_size"],
                      config["data"]["img_size"], 3),
         num_classes=config["data"]["num_classes"],
-        arch=config["model"]["arch"]
+        arch=config["model"]["arch"],
+        rep_dim=int(config["model"].get("rep_dim", 64))
     )
     global_model.summary()
 

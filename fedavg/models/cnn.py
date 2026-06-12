@@ -123,22 +123,29 @@ def build_net_cnn(input_shape=(32, 32, 3), num_classes=10):
     model = tf.keras.Model(inputs=inputs, outputs=outputs, name="net_cnn")
     return model
 
-def build_fedavg_cnn(input_shape=(32, 32, 3), num_classes=10, dim=1024):
+def build_fedavg_cnn(input_shape=(32, 32, 3), num_classes=10, rep_dim=64):
     """
-    FedAvgCNN 的 TensorFlow 复现：
-        Conv2D(32, kernel=5, stride=1, valid) + ReLU + MaxPool2D(2, strides=2)
-        Conv2D(64, kernel=5, stride=1, valid) + ReLU + MaxPool2D(2, strides=2)
+    FedAvgCNN 的 TensorFlow 复现 + FedRep 式低维瓶颈表示层。
+
+    架构：
+        Conv2D(32,5) + ReLU + MaxPool(2)
+        Conv2D(64,5) + ReLU + MaxPool(2)
         Flatten
         Dense(512) + ReLU
-        Dense(num_classes, activation='softmax')
+        Dense(rep_dim) + ReLU         ← 低维共享表示（瓶颈）；rep_dim<=0 时跳过
+        Dense(num_classes) + softmax  ← 分类头（FedRep/Rep 类方法的个性化部分）
+
+    为什么要瓶颈层（rep_dim=64）：
+        rep 类方法（FedRep/Ditto-Rep/pFedMe-Rep）的个性化 head 是线性分类器，
+        参数量≈rep_dim×num_classes。若 head 输入维 d ≥ 每客户端样本数 n，线性系统欠定，
+        head 可记住整个本地训练集 → 过拟合（PM loss 升、acc 降），且客户端越多 n 越小越严重。
+        CIFAR-10、100 client 时 n≈450，而 d=512 → d>n 会过拟合；压到 rep_dim=64 后 d<n，
+        head（64×10+10=650 参数）回到泛化区。rep_dim=0 可关闭瓶颈（消融对照）。
 
     参数：
-        input_shape: 输入图像形状 (H, W, C)，默认 (28, 28, 1) 对应 MNIST
-        num_classes: 分类数量，默认 10
-        dim: Flatten 后的维度，默认 1024（对应 MNIST 28×28×1 输入）
-
-    返回：
-        tf.keras.Model
+        input_shape: 输入图像形状 (H, W, C)
+        num_classes: 分类数量
+        rep_dim:     瓶颈表示维度（head 输入维）；<=0 时不加瓶颈层（head 直接接 512）。
     """
     inputs = tf.keras.Input(shape=input_shape)
 
@@ -153,13 +160,17 @@ def build_fedavg_cnn(input_shape=(32, 32, 3), num_classes=10, dim=1024):
     # 分类器
     x = tf.keras.layers.Flatten()(x)
     x = tf.keras.layers.Dense(512, activation='relu')(x)
+    if rep_dim and rep_dim > 0:
+        # 低维共享表示（瓶颈）—— head 的输入维降到 rep_dim
+        x = tf.keras.layers.Dense(rep_dim, activation='relu', name='representation')(x)
     outputs = tf.keras.layers.Dense(num_classes, activation='softmax')(x)
 
     model = tf.keras.Model(inputs=inputs, outputs=outputs, name="fedavg_cnn")
     return model
 
 
-def build_model(input_shape=(32, 32, 3), num_classes=10, arch="cifar_cnn_3conv"):
+def build_model(input_shape=(32, 32, 3), num_classes=10, arch="cifar_cnn_3conv",
+                rep_dim=64):
     registry = {
         "cifar_cnn_3conv":  build_cifar_cnn_3conv,
         "net_cnn":  build_net_cnn,
@@ -167,6 +178,10 @@ def build_model(input_shape=(32, 32, 3), num_classes=10, arch="cifar_cnn_3conv")
         "fedavg_cnn":  build_fedavg_cnn,
     }
     assert arch in registry, f"Unknown arch: {arch}. Choose from {list(registry)}"
+    if arch == "fedavg_cnn":
+        # 仅 fedavg_cnn 支持低维瓶颈（rep_dim）；其余 arch 保持原样
+        return build_fedavg_cnn(input_shape=input_shape, num_classes=num_classes,
+                                rep_dim=rep_dim)
     return registry[arch](input_shape=input_shape, num_classes=num_classes)
 
 

@@ -64,6 +64,10 @@ training:
 
 model:
   arch: "fedavg_cnn"
+  # FedRep/Rep 类方法的低维共享表示（瓶颈）维度 = 个性化 head 的输入维。
+  # head 参数≈rep_dim×num_classes；须保证 rep_dim < 每客户端样本数 n，否则线性 head 欠定→过拟合。
+  # CIFAR-10 100client（n≈450）下 64 合适（head=650 参数）。0 = 不加瓶颈（head 直接接 512，消融用）。
+  rep_dim: 64
 
 # 后门攻击（KDD 2023 复现）。enabled=false 时对训练/评估无任何影响。
 backdoor:
