@@ -607,11 +607,16 @@ def run_experiment(config_path="config/config.yaml"):
             malicious_ids=malicious_ids,
         )
         # fix-frequency：强制恶意客户端每 Q 轮参与一次。
-        # Neurotoxin 是连续攻击（靠每轮累积把后门藏进低梯度坐标），须每轮在场 → Q_eff=1。
+        # 连续/累积型攻击须每轮在场（Q=1）：Neurotoxin 靠逐轮累积把后门藏进低梯度坐标；
+        # Bad-PFL / CerP 靠反复在本地模型上动态投毒 + generator/可训练触发器逐轮训练。
+        # 稀疏参与（Q=10）下，恶意本地模型每轮被 edge 广播覆盖、那一次上传又被 ~50 个良性
+        # 客户端稀释（权重≈2/50），后门在共享模型里累积不起来。其余（badnet/blended/dba）
+        # 是单步注入，仍用 attack_freq_Q。注：每次 run 只有一种 strategy，互不干扰。
         strategy = str(bd_cfg.get("malicious_strategy", "vanilla")).lower()
-        Q = 1 if strategy == "neurotoxin" else int(bd_cfg.get("attack_freq_Q", 10))
-        if strategy == "neurotoxin":
-            print("[Backdoor] strategy=neurotoxin: continuous participation (Q=1).")
+        CONTINUOUS = ("neurotoxin", "badpfl", "cerp")
+        Q = 1 if strategy in CONTINUOUS else int(bd_cfg.get("attack_freq_Q", 10))
+        if strategy in CONTINUOUS:
+            print(f"[Backdoor] strategy={strategy}: continuous participation (Q=1).")
         for mc in clients:
             if int(mc.client_id) in malicious_ids:
                 install_forced_participation(edge_servers, mc, Q)
