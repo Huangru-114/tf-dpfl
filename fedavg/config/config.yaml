@@ -44,12 +44,16 @@ training:
   beta_pfedme:      1.0
   pfedme_warm_start: false
   # Hier-pFedAvg 相关超参数
-  lambda1_hier:     35.0
-  lambda2_hier:     35.0
+  lambda1_hier:     15.0   # edge 式7/8 近端 λ（对齐 PFLlib pFedMe lamda=15；原 35 过大）
+  lambda2_hier:     15.0   # client 内层/Moreau 近端 λ（对齐 PFLlib；原 35 过大）
   beta_hier:        1.0
-  # Hier-pFedMe 相关超参数
-  #inner_steps_hier, 5会使得PM直接崩溃,这和文献报告完全不同,怀疑是实现细节问题,先改成2试试
-  inner_steps_hier: 1
+  # Hier-pFedMe 相关超参数（对齐 PFLlib：内层 personal_lr ≠ 外层 moreau_lr）
+  # 之前内层与 Moreau 共用 learning_rate(0.02)+λ=35 → 有效系数 lr·λ≈0.70，比 PFLlib
+  # （内层 0.15、外层 0.075）大 5~10 倍 → 锚点塌缩、K>1 发散。修复后 K=5 稳定。
+  personal_lr_pfedme: 0.01   # 内层 θ̃ 个性化优化器 lr（PFLlib personal_learning_rate）
+  moreau_lr_pfedme:   0.005  # 外层 Θ + edge 式7/8 的 Moreau lr（PFLlib learning_rate）
+  mu_pfedme:          0.001  # 内层 L2 正则（PFLlib pFedMeOptimizer mu）
+  inner_steps_hier: 5        # K（修复双 lr 后 5 已稳定，对齐 PFLlib）
   alpha_inner:      0.01
   beta_outer:   0.01    # 外循环边缘更新步长
   label_smoothing: 0.1  # 防 NaN

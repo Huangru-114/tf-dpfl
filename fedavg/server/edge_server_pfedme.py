@@ -56,8 +56,11 @@ class PFedMeEdgeServer(EdgeServerBase):
         4. W_n 更新（式 8）：
                W_n^{t,i+1} = W_n^{t,i} − η1·λ1·(W_n^{t,i} − θ_n^{t,i+1})
         """
-        lam1 = float(self.config["training"].get("lambda1_hier", 35.0))
-        eta2 = float(self.config["training"]["learning_rate"])
+        # edge 式7/8 的 Moreau 步长：用专门的小 moreau_lr（对齐 PFLlib），而非
+        # learning_rate(0.02)。原来 eta·λ1 = 0.02×35 = 0.70 过激 → 边缘锚点 W_n 不稳；
+        # 现 moreau_lr·λ1 = 0.005×15 = 0.075，与 client 层一致。
+        lam1 = float(self.config["training"].get("lambda1_hier", 15.0))
+        eta2 = float(self.config["training"].get("moreau_lr_pfedme", 0.005))
         eta1 = float(self.config["training"].get("eta1_hier", eta2))
 
         selected = self.select_clients(global_round_idx)
