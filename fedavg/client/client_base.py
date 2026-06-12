@@ -43,16 +43,17 @@ class FLClientBase(ABC):
         # ── per-client 测试集（外部通过 set_test_dataset 注入） ────────────
         self.test_dataset = None
 
-        # ── 优化器 ─────────────────────────────────────────────────────────
-        lr    = config["training"]["learning_rate"]
-        decay = config["training"]["lr_decay"]
-        steps = max(1, self.n_samples // config["data"]["batch_size"])
-        self.lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
-            initial_learning_rate=lr,
-            decay_steps=steps * config["training"]["local_epochs"],
-            decay_rate=decay,
-            staircase=True,
-        )
+        # ── 优化器（每轮衰减一次的学习率，对齐 PFLlib 的 scheduler.step()）──────
+        # 旧实现用 ExponentialDecay 按 optimizer 累计 step 衰减，且 iterations 跨轮永不
+        # 归零；FedRep 的 head 优化器每个 global round 走 edge_rounds×plocal×steps 步，
+        # 约每轮触发 ~25 次衰减 → 第 ~20 轮 lr 已≈0、head 被冻死 → 客户端越多越收敛不动。
+        # 改为 per-round 衰减：lr(round) = lr0 · lr_decay^round。
+        # lr_schedule 是一个 tf.Variable，所有优化器（base 及子类 head/base_opt）共享它，
+        # 由 EdgeServerBase 在每个 global round 调 apply_round_lr() 统一更新（幂等）。
+        self.lr0        = float(config["training"]["learning_rate"])
+        self.lr_gamma   = float(config["training"]["lr_decay"])
+        self.lr_schedule = tf.Variable(self.lr0, trainable=False, dtype=tf.float32,
+                                       name=f"lr_c{client_id}")
         self.optimizer = tf.keras.optimizers.SGD(
             learning_rate=self.lr_schedule
         )
@@ -84,6 +85,17 @@ class FLClientBase(ABC):
     # ══════════════════════════════════════════════════════════════════════
     # 测试集管理
     # ══════════════════════════════════════════════════════════════════════
+
+    def apply_round_lr(self, round_idx: int):
+        """
+        按 global round 更新学习率：lr = lr0 · lr_decay^round（每轮一次，对齐 PFLlib）。
+
+        所有优化器都引用同一个 self.lr_schedule（tf.Variable），故只需更新它一次，
+        base 优化器与子类的 head/base 优化器都会读到新值。由 EdgeServerBase 在收集
+        client 更新前调用；同一 global round 内（多个 edge round）多次调用幂等。
+        """
+        r = max(0, int(round_idx))
+        self.lr_schedule.assign(self.lr0 * (self.lr_gamma ** r))
 
     def set_test_dataset(self, test_dataset: tf.data.Dataset):
         """注入 per-client 同分布测试集（partition 后由 main.py 调用）。"""

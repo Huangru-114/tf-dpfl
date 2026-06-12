@@ -117,6 +117,9 @@ class EdgeServerBase(ABC):
         edge_weights = self.model.get_weights()  # 拍快照，所有线程只读
 
         def run_one(client):
+            # 每轮按 global round 更新学习率（per-round 衰减，对齐 PFLlib）
+            if hasattr(client, "apply_round_lr"):
+                client.apply_round_lr(global_round_idx)
             if mode == "fedavg":
                 return client.local_train(global_round_idx)
             return client.compute_meta_gradient(edge_weights, global_round_idx)
@@ -151,6 +154,8 @@ class EdgeServerBase(ABC):
         results      = []
         for client in selected:
             try:
+                if hasattr(client, "apply_round_lr"):
+                    client.apply_round_lr(global_round_idx)
                 if mode == "fedavg":
                     result = client.local_train(global_round_idx)
                 else:
