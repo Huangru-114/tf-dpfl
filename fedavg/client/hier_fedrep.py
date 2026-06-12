@@ -67,9 +67,22 @@ class HierFedRepClient(FLClientBase):
 
         # ── head / backbone 各自的优化器 ─────────────────────────────────
         # 同一 SGD 实例只能服务于构建时那组变量（Keras 3 强约束），故 head 阶段
-        # 与 backbone 阶段必须用独立优化器；二者共享基类的衰减 LR schedule。
-        self._head_opt = tf.keras.optimizers.SGD(learning_rate=self.lr_schedule)
+        # 与 backbone 阶段必须用独立优化器。
+        # 个性化 head 用**单独、更低**的学习率（head_lr_rep）：head 是个性化部分，
+        # 三层结构下每 global round 训 edge_rounds×plocal_epochs 个 epoch、warm-start，
+        # 用 backbone 同样的 lr 会让 head 过拟合本地数据（PM loss 后期回升）。低 head_lr
+        # 减缓 head 记忆、配合瓶颈一起抑制过拟合。backbone 仍用基类 lr_schedule。
+        self._head_lr0    = float(config["training"].get("head_lr_rep", 0.005))
+        self._head_lr_var = tf.Variable(self._head_lr0, trainable=False,
+                                        dtype=tf.float32, name=f"head_lr_c{client_id}")
+        self._head_opt = tf.keras.optimizers.SGD(learning_rate=self._head_lr_var)
         self._base_opt = tf.keras.optimizers.SGD(learning_rate=self.lr_schedule)
+
+    def apply_round_lr(self, round_idx: int):
+        """除基类 lr（backbone）外，个性化 head 的 lr 也按 global round 衰减。"""
+        super().apply_round_lr(round_idx)
+        r = max(0, int(round_idx))
+        self._head_lr_var.assign(self._head_lr0 * (self.lr_gamma ** r))
 
     # ══════════════════════════════════════════════════════════════════════
     # 权重管理（override：只 set backbone，保留私有 head）

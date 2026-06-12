@@ -59,6 +59,11 @@ training:
   label_smoothing: 0.1  # 防 NaN
   # Hier-Rep / Hier-Ditto 相关超参数
   plocal_epochs:    5   # FedRep: head 训练 epoch 数（须 > local_epochs）
+  # rep 类方法（fedrep/ditto_rep/pfedme_rep）的个性化 head 专属低学习率（独立优化器）：
+  # head 每 global round 训 edge_rounds×plocal_epochs 个 epoch、warm-start，用 base lr(0.02)
+  # 会过拟合 → 30 轮后 PM loss 回升。低 head_lr 减缓 head 记忆，配合瓶颈一起抗过拟合。
+  # < base learning_rate；太低 head 会欠拟合、个性化不足。backbone 仍用 learning_rate。
+  head_lr_rep:      0.005
   lambda_ditto:     0.1 # Ditto 个性化近端系数（client backbone / 整模型）
   ditto_pers_epochs: 1  # Hier-Ditto: 个性化模型 v_k 训练 epoch 数
 
