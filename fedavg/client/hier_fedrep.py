@@ -131,8 +131,20 @@ class HierFedRepClient(FLClientBase):
             for x, y in self._shuffled_batches():
                 loss = self._train_backbone_step(x, y)
                 losses.append(float(loss.numpy()))
-        upload_weights = self.model.get_weights()  # backbone=w_k, head=私有 head
-        # self.model 现停在 [w_k, 私有 head] —— 供 PM 评估 ✓
+        upload_weights = self.model.get_weights()  # backbone=w_k（交 edge 聚合）, head=私有
+
+        # ── 个性化模型（供 PM 评估）= [共享表示 φ_e, 私有 head] ──────────────────
+        # FedRep 定义：个性化模型 = 共享表示 + 本地 head。head 是在收到的共享 backbone
+        # φ_e 上训练的（阶段1），故评估必须用 φ_e 与之配对。
+        # 之前用 phase2 漂移后的 w_k 评估 → head/backbone 失配，且 w_k 过拟合本地少数类
+        # → PM loss 随训练单调上升、acc 偏低（客户端越多数据越少、越严重）。
+        # 注意：上传给 edge 聚合的仍是 w_k（upload_weights 已在上面捕获），此处只改 self.model
+        # 的评估状态，不影响聚合。
+        pm_weights = [w.copy() for w in self.edge_weights]   # φ_e backbone（+ edge head 占位）
+        for k, idx in enumerate(self._head_w_idx):
+            pm_weights[idx] = self._head_weights[k]
+        self.model.set_weights(pm_weights)
+        # self.model 现停在 [φ_e 共享表示, 私有 head] —— 一致的个性化模型，供 PM 评估 ✓
 
         avg = float(np.mean(losses)) if losses else 0.0
         print(f"  [Client {self.client_id:>2}] Round {round_idx} | "
