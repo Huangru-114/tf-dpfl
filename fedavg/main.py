@@ -388,6 +388,7 @@ def build_clients(images_np, labels_np, global_model, config,
 
     clients = []
     for i, (ds, indices) in enumerate(zip(client_datasets, client_indices)):
+        clean_ds = ds  # 未投毒本地训练集（Neurotoxin 算 benign 梯度 mask 用）
         is_mal  = bd_enabled and (i in malicious_ids)
         use_cls = ClientCls
         if is_mal:
@@ -404,6 +405,9 @@ def build_clients(images_np, labels_np, global_model, config,
         client = use_cls(client_id=i, dataset=ds, model=client_model,
                          config=config, n_samples=len(indices))
         client.is_malicious = is_mal
+        # Neurotoxin：注入干净数据集（仅用于算 benign 梯度 mask，不参与投毒训练）
+        if is_mal and hasattr(client, "set_clean_dataset"):
+            client.set_clean_dataset(clean_ds)
         if client_test_datasets is not None:
             client.set_test_dataset(client_test_datasets[i])
         # Store training class set for per-edge test dataset construction later.
@@ -602,8 +606,12 @@ def run_experiment(config_path="config/config.yaml"):
             trigger_fn=eval_trigger,
             malicious_ids=malicious_ids,
         )
-        # fix-frequency：强制恶意客户端每 Q 轮参与一次
-        Q = int(bd_cfg.get("attack_freq_Q", 10))
+        # fix-frequency：强制恶意客户端每 Q 轮参与一次。
+        # Neurotoxin 是连续攻击（靠每轮累积把后门藏进低梯度坐标），须每轮在场 → Q_eff=1。
+        strategy = str(bd_cfg.get("malicious_strategy", "vanilla")).lower()
+        Q = 1 if strategy == "neurotoxin" else int(bd_cfg.get("attack_freq_Q", 10))
+        if strategy == "neurotoxin":
+            print("[Backdoor] strategy=neurotoxin: continuous participation (Q=1).")
         for mc in clients:
             if int(mc.client_id) in malicious_ids:
                 install_forced_participation(edge_servers, mc, Q)

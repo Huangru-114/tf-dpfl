@@ -91,8 +91,11 @@ backdoor:
     - [[0,9],[0,10],[0,11],[0,12],[0,13],[0,14]]
     - [[4,0],[4,1],[4,2],[4,3],[4,4],[4,5]]
     - [[4,9],[4,10],[4,11],[4,12],[4,13],[4,14]]
-  # Neurotoxin（malicious_strategy="neurotoxin"）：屏蔽 benign 梯度幅值 top-k% 坐标。
-  neurotoxin_mask_ratio: 0.05
+  # Neurotoxin（malicious_strategy="neurotoxin"）：在干净数据上算真实 benign 梯度，
+  # 屏蔽幅值 top-k% 坐标，恶意更新只投影到剩余低梯度坐标 → 后门持久。连续参与（Q=1，
+  # 由 main.py 自动设定）逐轮累积；不做 model-replacement 放大（ASR 靠累积）。
+  neurotoxin_mask_ratio:   0.05   # 屏蔽的 benign 梯度 top-k% 坐标比例
+  neurotoxin_mask_batches: 0      # 算 benign 梯度用的 clean batch 数（0=全部）
   # CerP（malicious_strategy="cerp"，动态投毒）：可训练触发器 + 模型距离 + peer 余弦正则。
   cerp_alpha:         0.0001   # ‖θ−θ_clean‖₂ 系数
   cerp_beta:          0.0001   # Σ cos(θ,θ_peer) 系数
