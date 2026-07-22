@@ -41,15 +41,11 @@ class HierPFedMeRepEdgeServer(EdgeServerBase):
             avg_loss = sum(l * n / total_n for _, n, l, _ in client_results)
             avg_time = np.mean([t for *_, t in client_results])
 
-            n_layers = len(client_results[0][0])
-            aggregated_backbone = []
-            for j in range(n_layers):
-                w_sum = np.sum([upd[0][j] * upd[1] for upd in client_results], axis=0)
-                aggregated_backbone.append(w_sum / total_n)
-
+            # backbone 索引聚合（有防御走鲁棒聚合）；无防御时与手写样本加权均值一致。
             current_full = self.model.get_weights()
-            for idx, w in zip(self._backbone_indices, aggregated_backbone):
-                current_full[idx] = w
+            robust_full  = self.robust_mean(client_results, current_full)
+            for idx in self._backbone_indices:
+                current_full[idx] = robust_full[idx]
             self.model.set_weights(current_full)
 
             round_losses.append(avg_loss)
