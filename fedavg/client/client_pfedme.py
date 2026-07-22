@@ -170,7 +170,7 @@ class PFedMeClient(FLClientBase):
         avg = float(np.mean(losses)) if losses else 0.0
         print(
             f"  [Client {self.client_id:>2}] Round {round_idx} | "
-            f"Hier-pFedMe(λ2={lam2}, K={inner_steps}) | loss={avg:.4f}"
+            f"Hier-pFedMe(λ2={lam}, K={inner_steps}) | loss={avg:.4f}"
         )
 
         return upload_weights, self.n_samples, avg, time.time() - t0
