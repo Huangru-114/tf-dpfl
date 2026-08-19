@@ -3,3 +3,8 @@ tensorflow-datasets>=4.9.0
 numpy>=1.23.0
 pyyaml>=6.0
 wandb>=0.15.0
+# FLAME 的 HDBSCAN 聚类（sklearn >= 1.3 内置 sklearn.cluster.HDBSCAN，
+# 不需要第三方 hdbscan 包）
+scikit-learn>=1.3.0
+# L1 算法不变量测试（tests/），本地也要装
+pytest>=7.0.0

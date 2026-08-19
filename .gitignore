@@ -1,12 +1,64 @@
+# ══════════════════════════════════════════════════════════════════════════
+# 红线：大产物永不进 git（只在集群）。仓库 > 500 MB / 单文件 > 10 MB 就回来查这里。
+# ══════════════════════════════════════════════════════════════════════════
+
+# ── 源参考库：按需 clone，用完即删，同时只留 1~2 个 ──────────────────────
+reference/
+
+# ── 模型 checkpoint / 权重：只在集群，git 里只放 manifest ────────────────
+*.h5
+*.pt
+*.pth
+*.ckpt
+*.pb
+*.keras
+*.weights
+checkpoints/
+saved_model/
+
+# ── 大张量 / 金标准产物：靠固定种子的脚本重生成，产物不进 git ────────────
+*.npy
+*.npz
+*.tfrecord
+!tests/fixtures/*.npz          # 小的、需版本化的测试夹具单独放行（< 1 MB）
+
+# ── 日志与实验追踪：只保留 tail/grep 后的截断版（手动放进 results/）─────
+*.log
+*.err
+*.out
+logs/
+runs/
+wandb/
+events.out.tfevents.*
+
+# ── 数据集缓存 ──────────────────────────────────────────────────────────
+data/raw/
+tensorflow_datasets/
+*.tar.gz
+*.zip
+
+# ── Python 虚拟环境（绝不进 git：会污染 grep/glob，稀释注意力）─────────
+lib/
+lib64/
+bin/
+include/
+share/
+pyvenv.cfg
+.venv/
+venv/
+env/
+
+# ── Python 常规 ─────────────────────────────────────────────────────────
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
+*.py[cod]
 *.egg-info/
 dist/
 build/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# ── 临时 ────────────────────────────────────────────────────────────────
+scratch/*
+!scratch/.gitkeep
 .env
-.venv
-wandb/
-*.log
+.DS_Store

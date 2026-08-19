@@ -28,6 +28,9 @@ class FlameDefense(BaseDefense):
         super().__init__(config)
         cfg = self.config or {}
         self.noise_scale = float(cfg.get("noise_scale", 0.001))
+        # 最近一次 aggregate 接纳的 client 索引。L1 测试断言它、L2 smoke 用它填
+        # metrics.json 的 admitted_count。纯记录，不参与算法。
+        self.last_admitted = None
 
     def aggregate(self, client_updates: list, ref_weights: list) -> list:
         m = len(client_updates)
@@ -49,6 +52,7 @@ class FlameDefense(BaseDefense):
         admitted = np.where(neighbor_cnt >= (m / 2.0))[0]
         if admitted.size == 0:                        # 退化保护
             admitted = np.arange(m)
+        self.last_admitted = [int(i) for i in admitted]
         print(f"    [Defense:flame] admitted {admitted.size}/{m} updates "
               f"(cos_thresh={thresh:.3f})")
 
