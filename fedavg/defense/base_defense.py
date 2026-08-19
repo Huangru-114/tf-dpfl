@@ -55,6 +55,34 @@ class BaseDefense(ABC):
 
     def __init__(self, config: dict | None = None):
         self.config = config or {}
+        # ── 判决记账 ──────────────────────────────────────────────────────
+        # last_admitted      : 本轮接纳的**位置索引**（子类在 aggregate 里填）
+        # last_admitted_ids  : 对应的 client_id（record_decision 填）
+        # last_rejected_ids  : 被剔除的 client_id
+        # 筛选类防御（flame / multi_krum / dnc）必须填 last_admitted；
+        # 坐标类防御（trimmed_mean / median）不做客户端级筛选，保持 None。
+        self.last_admitted     = None
+        self.last_admitted_ids = None
+        self.last_rejected_ids = None
+
+    def record_decision(self, client_updates: list):
+        """
+        把 last_admitted（位置索引）翻译成 client_id。
+
+        **为什么必须有这一步**：位置索引只在本次调用内有意义，无法回答
+        「防御到底剔掉了谁」——而防御轴的核心指标（检出率 TPR / 误伤率 FPR）
+        只能按 client_id 算。由 EdgeServerBase.robust_mean 在聚合后统一调用。
+        """
+        ids = [getattr(u, "client_id", None) for u in client_updates]
+        if self.last_admitted is None:          # 坐标类防御：无客户端级判决
+            self.last_admitted_ids = None
+            self.last_rejected_ids = None
+            return
+        admitted = set(int(i) for i in self.last_admitted)
+        self.last_admitted_ids = [ids[i] for i in sorted(admitted)
+                                  if 0 <= i < len(ids)]
+        self.last_rejected_ids = [cid for j, cid in enumerate(ids)
+                                  if j not in admitted]
 
     @abstractmethod
     def aggregate(self, client_updates: list, ref_weights: list) -> list:

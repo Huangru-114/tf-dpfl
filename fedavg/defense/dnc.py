@@ -31,11 +31,19 @@ class DnCDefense(BaseDefense):
         self.subspace_dim    = int(cfg.get("subspace_dim", 10000))
         self.filter_mult     = float(cfg.get("filter_mult", 1.0))
 
+    def _ensure_rng(self):
+        """随机投影必须可复现：同一 seed 下每轮抽到的子空间序列固定。"""
+        if getattr(self, "rng", None) is None:
+            self.rng = np.random.default_rng(
+                int((self.config or {}).get("seed", 42)))
+
     def aggregate(self, client_updates: list, ref_weights: list) -> list:
+        self._ensure_rng()
         m = len(client_updates)
         num_remove = int(np.ceil(self.filter_mult * self.num_malicious))
         num_remove = min(num_remove, m - 1)
         if num_remove < 1:
+            self.last_admitted = list(range(m))      # 退化：全部接纳
             return weighted_mean(client_updates)
 
         flats = np.stack([flatten_weights(upd[0]) for upd in client_updates], axis=0)  # (m,d)
@@ -44,7 +52,7 @@ class DnCDefense(BaseDefense):
 
         total_scores = np.zeros(m, dtype=np.float64)
         for _ in range(self.num_projections):
-            idx = (np.random.choice(d, sub_dim, replace=False)
+            idx = (self.rng.choice(d, sub_dim, replace=False)
                    if sub_dim < d else np.arange(d))
             sub = flats[:, idx]
             centered = sub - sub.mean(axis=0, keepdims=True)
@@ -60,6 +68,7 @@ class DnCDefense(BaseDefense):
 
         # 剔除离群分最高的 num_remove 个，保留其余
         keep = np.argsort(total_scores)[: m - num_remove].tolist()
+        self.last_admitted = sorted(int(i) for i in keep)
         print(f"    [Defense:dnc] m={m} remove {num_remove} → keep {len(keep)} clients "
               f"(kept ids by order: {sorted(keep)})")
         return weighted_mean(client_updates, indices=keep)

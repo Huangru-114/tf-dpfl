@@ -121,7 +121,8 @@ def resolve_malicious_ids(bd_cfg: dict, n_clients: int,
 
 
 def build_poisoned_dataset(images_np, labels_np, train_idx, config,
-                           trigger_fn, target_label, poison_ratio):
+                           trigger_fn, target_label, poison_ratio,
+                           rng=None):
     """
     构造投毒后的本地训练 tf.data.Dataset（无增强）。
 
@@ -131,14 +132,19 @@ def build_poisoned_dataset(images_np, labels_np, train_idx, config,
         trigger_fn           : 作用于标准化 numpy batch 的 trigger 函数
         target_label         : 后门目标类别
         poison_ratio         : 本地训练数据中被投毒的比例
+        rng                  : np.random.Generator。哪些样本被投毒必须可复现，
+                               否则同一格重跑的后门数据集都不一样。
+                               None 时按 config["seed"] 现场造一条（仅兜底）。
     """
+    if rng is None:
+        rng = np.random.default_rng(int((config or {}).get("seed", 42)))
     x = np.array(images_np[train_idx], dtype=np.float32, copy=True)
     y = np.array(labels_np[train_idx], copy=True)
     n = len(train_idx)
     n_poison = int(round(n * float(poison_ratio)))
 
     if n_poison > 0:
-        pos = np.random.permutation(n)[:n_poison]
+        pos = rng.permutation(n)[:n_poison]
         x[pos] = trigger_fn(x[pos])
         y[pos] = int(target_label)
 
@@ -152,7 +158,8 @@ def build_poisoned_dataset(images_np, labels_np, train_idx, config,
     return ds
 
 
-def install_forced_participation(edge_servers, malicious_client, Q: int):
+def install_forced_participation(edge_servers, malicious_client, Q: int,
+                                 rng=None):
     """
     fix-frequency 强制参与：包装恶意客户端所在 edge 的 select_clients。
 
@@ -170,27 +177,48 @@ def install_forced_participation(edge_servers, malicious_client, Q: int):
         print("[Backdoor] malicious client not found in any edge; skip forced participation.")
         return
 
-    orig_select = target_edge.select_clients
+    # 同一个 edge 上可能有**多个**恶意客户端。旧实现给每个都套一层包装器，
+    # 后一层用「等量替换 others[-1]」补位时可能把前一层刚放进去的恶意客户端顶掉
+    # （n_malicious / n_edges ≥ 2 时必然发生）。改为：每个 edge 只装一层包装器，
+    # 用一张登记表统一处理该 edge 上所有被强制的客户端。
+    registry = getattr(target_edge, "_forced_participation", None)
+    if registry is None:
+        registry = {}
+        target_edge._forced_participation = registry
+        orig_select = target_edge.select_clients
+        # 强制参与的补位也必须可复现，走 edge 自己的 RNG（或显式传入的）
+        pick_rng = rng if rng is not None else getattr(
+            target_edge, "rng", np.random.default_rng(42))
 
-    def wrapped(round_idx):
-        selected = list(orig_select(round_idx))
-        attack_round = (int(round_idx) % int(Q) == 0)
-        present = any(c is malicious_client for c in selected)
+        def wrapped(round_idx):
+            base     = list(orig_select(round_idx))
+            target_n = len(base)
+            r        = int(round_idx)
 
-        if attack_round and not present:
-            others = [c for c in selected if c is not malicious_client]
-            if others:
-                selected[selected.index(others[-1])] = malicious_client  # 等量替换
-            else:
-                selected.append(malicious_client)
-        elif (not attack_round) and present:
-            selected = [c for c in selected if c is not malicious_client]
-            pool = [c for c in target_edge.clients
-                    if c is not malicious_client and c not in selected]
-            if pool:
-                selected.append(pool[np.random.randint(len(pool))])
-        return selected
+            must_in  = [c for c, q in registry.items() if r % int(q) == 0]
+            must_out = {c for c, q in registry.items() if r % int(q) != 0}
 
-    target_edge.select_clients = wrapped
+            # 1) 踢掉本轮不该在场的恶意客户端
+            selected = [c for c in base if c not in must_out]
+            # 2) 放入本轮必须在场的（去重，互不顶替）
+            for mc in must_in:
+                if mc not in selected:
+                    selected.append(mc)
+            # 3) 规模回到原本的选取数：多了只砍良性，少了只从良性池补
+            benign_in = [c for c in selected if c not in registry]
+            while len(selected) > target_n and benign_in:
+                selected.remove(benign_in.pop())
+            if len(selected) < target_n:
+                pool = [c for c in target_edge.clients
+                        if c not in registry and c not in selected]
+                need = target_n - len(selected)
+                order = pick_rng.permutation(len(pool))[:need]
+                selected.extend(pool[int(i)] for i in order)
+            return selected
+
+        target_edge.select_clients = wrapped
+
+    registry[malicious_client] = int(Q)
     print(f"[Backdoor] forced participation installed on edge {target_edge.edge_id} "
-          f"for client {malicious_client.client_id} (Q={Q}).")
+          f"for client {malicious_client.client_id} (Q={Q}); "
+          f"该 edge 上已登记 {len(registry)} 个恶意客户端。")

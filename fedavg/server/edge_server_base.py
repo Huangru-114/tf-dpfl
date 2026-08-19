@@ -14,13 +14,14 @@ edges/base.py  –  FL 边缘服务器基类
 """
 
 from abc import ABC, abstractmethod
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import tensorflow as tf
 
 from models.model_utils import get_model_bytes
 from aggregation.fedavg import aggregate as fedavg_aggregate
+from aggregation.client_update import as_client_update
 from defense import create_defense
 
 
@@ -37,6 +38,10 @@ class EdgeServerBase(ABC):
         # ── 后门防御（鲁棒聚合）。None=不设防 → robust_mean 回退普通加权平均。──
         self.defense = create_defense(config)
 
+        # ── 独立播种的 RNG：客户端选取必须可复现，否则矩阵里同一格重跑对不上。
+        # 每个 edge 一条独立流（seed, edge_id），互不干扰全局 np.random。
+        self.rng = np.random.default_rng([int(config.get("seed", 42)), int(edge_id)])
+
         # ── 辅助状态 ──────────────────────────────────────────────────────
         self._global_weights_ref    = None   # Cloud 广播的全局权重快照
         self._client_gradient_cache = {}     # warm-up 聚类用的伪梯度缓存
@@ -46,6 +51,9 @@ class EdgeServerBase(ABC):
 
         # ── per-edge 测试集（EM 评估用，由 main.py 调用 set_test_dataset 注入）──
         self.test_dataset = None
+
+        # ── 最近一轮被丢弃（本地训练抛异常）的客户端 id，供指标核对 ──────────
+        self.last_failed_ids = []
 
         print(f"[EdgeServer {edge_id}] "
               f"{len(clients)} clients | {self.n_samples} samples")
@@ -80,9 +88,17 @@ class EdgeServerBase(ABC):
     # ══════════════════════════════════════════════════════════════════════
 
     def select_clients(self, round_idx: int) -> list:
+        """
+        用本 edge 的 seeded RNG 抽取参与客户端。
+
+        用索引抽样（而不是 np.random.choice(self.clients)）：对象数组抽样在 numpy
+        新版本里会告警，且索引抽样让选取结果只依赖 (seed, edge_id, 调用次数)，
+        与客户端对象的内存布局无关 → 可复现。
+        """
         frac     = self.config["federation"]["client_fraction"]
         n_select = max(1, int(len(self.clients) * frac))
-        return np.random.choice(self.clients, n_select, replace=False).tolist()
+        idx      = self.rng.choice(len(self.clients), n_select, replace=False)
+        return [self.clients[int(i)] for i in idx]
 
     def broadcast_to_clients(self, selected: list, global_weights: list = None):
         """
@@ -104,69 +120,79 @@ class EdgeServerBase(ABC):
                                   global_round_idx: int,
                                   mode: str = "fedavg") -> list:
         """
-        并行执行所有选中客户端的本地训练 / 元梯度计算。
+        并行执行所有选中客户端的本地训练。
+
+        两条不变量（防御轴依赖它们，见 aggregation/client_update.py）：
+          1. **顺序确定**：结果严格按 `selected` 的顺序返回，不按完成顺序。
+             旧实现用 as_completed → 每次运行顺序不同，防御报出的「接纳索引」
+             无法复现、也无法映射回客户端。
+          2. **带身份**：每条结果包成 ClientUpdate，携带 client_id。
+
+        失败的客户端不进结果（与旧行为一致），但会记进 self.last_failed_ids。
 
         Args:
-            mode: "fedavg"    → client.local_train，返回 (weights, n, loss, t)
-                  "meta_grad" → client.compute_meta_gradient，NaN 已过滤
+            mode: 仅支持 "fedavg"（client.local_train）。meta_grad 模式随
+                  Hier-PerFedAvg 一起移除——它聚合的是元梯度而非权重，
+                  与防御接口语义不兼容。
         Returns:
-            results: mode=fedavg   → [(weights, n, loss, t), ...]
-                     mode=meta_grad → [(grads, n, loss), ...]
+            [ClientUpdate(weights, n, loss, t, client_id), ...]
         """
-        n_workers    = self.config["federation"].get("n_workers", 4)
-        edge_weights = self.model.get_weights()  # 拍快照，所有线程只读
+        if mode != "fedavg":
+            raise ValueError(
+                f"_collect_updates_parallel 只支持 mode='fedavg'，收到 {mode!r}。"
+                f"meta_grad 模式已随 Hier-PerFedAvg 移除。")
+
+        n_workers = self.config["federation"].get("n_workers", 4)
 
         def run_one(client):
             # 每轮按 global round 更新学习率（per-round 衰减，对齐 PFLlib）
             if hasattr(client, "apply_round_lr"):
                 client.apply_round_lr(global_round_idx)
-            if mode == "fedavg":
-                return client.local_train(global_round_idx)
-            return client.compute_meta_gradient(edge_weights, global_round_idx)
+            return client.local_train(global_round_idx)
 
-        results = []
         with ThreadPoolExecutor(max_workers=n_workers) as executor:
-            futures = {executor.submit(run_one, c): c for c in selected}
-            for future in as_completed(futures):
-                client = futures[future]
+            futures = [executor.submit(run_one, c) for c in selected]   # 提交顺序 = selected 顺序
+            raw = []
+            for client, future in zip(selected, futures):               # 按提交顺序取结果
                 try:
-                    result = future.result()
-                    # if mode == "meta_grad":
-                    #     grads, n, loss = result
-                    #     if any(np.isnan(g).any() or np.isinf(g).any()
-                    #            for g in grads):
-                    #         print(f"    [SKIP] Client {client.client_id}: NaN")
-                    #         continue
-                    results.append(result)
+                    raw.append((client, future.result()))
                 except Exception as e:
                     print(f"    [ERROR] Client {client.client_id}: {e}")
-        return results
+                    raw.append((client, None))
+
+        return self._finalize_updates(raw)
 
     def _collect_updates_serial(self, selected: list,
                                 global_round_idx: int,
                                 mode: str = "fedavg") -> list:
-        """
-        串行执行所有选中客户端的本地训练 / 元梯度计算。
+        """串行版本。不变量与返回值同 _collect_updates_parallel。"""
+        if mode != "fedavg":
+            raise ValueError(
+                f"_collect_updates_serial 只支持 mode='fedavg'，收到 {mode!r}。")
 
-        Args / Returns：同 _collect_updates_parallel。
-        """
-        edge_weights = self.model.get_weights()
-        results      = []
+        raw = []
         for client in selected:
             try:
                 if hasattr(client, "apply_round_lr"):
                     client.apply_round_lr(global_round_idx)
-                if mode == "fedavg":
-                    result = client.local_train(global_round_idx)
-                else:
-                    result = client.compute_meta_gradient(edge_weights, global_round_idx)
-                    grads, n, loss = result
-                    if any(np.isnan(g).any() or np.isinf(g).any() for g in grads):
-                        print(f"    [SKIP] Client {client.client_id}: NaN")
-                        continue
-                results.append(result)
+                raw.append((client, client.local_train(global_round_idx)))
             except Exception as e:
                 print(f"    [ERROR] Client {client.client_id}: {e}")
+                raw.append((client, None))
+        return self._finalize_updates(raw)
+
+    def _finalize_updates(self, raw: list) -> list:
+        """把 [(client, result|None)] 规范成 [ClientUpdate]，并记录失败的客户端。"""
+        results, failed = [], []
+        for client, result in raw:
+            if result is None:
+                failed.append(int(client.client_id))
+                continue
+            results.append(as_client_update(result, client.client_id))
+        self.last_failed_ids = failed
+        if failed:
+            print(f"    [Edge {self.edge_id}] {len(failed)} 个客户端本轮失败并被丢弃: "
+                  f"{failed}")
         return results
 
 
@@ -192,7 +218,10 @@ class EdgeServerBase(ABC):
             return fedavg_aggregate(client_updates)
         if ref_weights is None:
             ref_weights = self.model.get_weights()
-        return self.defense.aggregate(client_updates, ref_weights)
+        agg = self.defense.aggregate(client_updates, ref_weights)
+        # 防御接纳/剔除的判决按 client_id 记账（不是位置索引），供 TPR/FPR 统计
+        self.defense.record_decision(client_updates)
+        return agg
 
     # ══════════════════════════════════════════════════════════════════════
     # 评估

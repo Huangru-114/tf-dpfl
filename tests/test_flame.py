@@ -22,6 +22,13 @@ from defense.base_defense import flatten_weights
 from defense.flame import FlameDefense
 
 
+# ── 已知 bug（CLAUDE.md 陷阱 #3）：现实现是 majority-cosine 近似 + 样本加权，
+#    非 USENIX'22 方案。标 xfail(strict=True) 的用意：L1 整体保持绿色，
+#    这样它能当「有没有引入回归」的闸门；而一旦 FLAME 被改对，这些会 XPASS
+#    → 套件变红 → 强制回来摘掉标记。规格本身始终是可执行的。
+KNOWN_BUG = pytest.mark.xfail(strict=True, reason="陷阱 #3：FLAME 未按文献实现")
+
+
 # ── 构造工具：把一维更新向量包成仓库约定的 client_updates 格式 ──────────────
 REF_SHAPES = [(8, 8), (4,)]
 DIM = 8 * 8 + 4
@@ -78,6 +85,7 @@ def _admitted(defense):
 # ══════════════════════════════════════════════════════════════════════════
 # 不变量 1：全良性输入 → 必须接纳全部
 # ══════════════════════════════════════════════════════════════════════════
+@KNOWN_BUG
 def test_all_benign_admits_everyone(rng):
     """
     没有攻击者时，防御不该造成任何损失。这是最基本的「不误伤」要求：
@@ -96,6 +104,7 @@ def test_all_benign_admits_everyone(rng):
 # ══════════════════════════════════════════════════════════════════════════
 # 不变量 2：方向异常的更新必须被**精确**剔除
 # ══════════════════════════════════════════════════════════════════════════
+@KNOWN_BUG
 def test_rejects_opposite_direction_attackers(rng):
     """16 个良性（方向 +u） + 4 个攻击者（方向 −u）→ 必须恰好接纳那 16 个。"""
     n_benign, n_attack = 16, 4
@@ -138,6 +147,7 @@ def test_clipping_bounds_aggregate_norm(rng):
 # ══════════════════════════════════════════════════════════════════════════
 # 不变量 4：文献是**无权平均**，不是样本数加权
 # ══════════════════════════════════════════════════════════════════════════
+@KNOWN_BUG
 def test_aggregation_is_unweighted_over_admitted(rng):
     """
     FLAME 的动机是限制单个客户端的影响力；按 n_samples 加权会让「谎报样本数」

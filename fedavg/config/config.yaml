@@ -30,7 +30,7 @@ training:
   learning_rate:  0.02
   lr_decay:       0.992
   drift_correction: "hierpfedme"  # 可选 "fedavg"/"hierfedavg", "fedprox", "feddyn", "pfedme", "hierpfedme",
-                                  #      "hier_perfedavg", "hier_ditto", "hier_ditto_rep", "hier_pfedme_rep", "hier_fedrep"
+                                  #      "hier_ditto", "hier_ditto_rep", "hier_pfedme_rep", "hier_fedrep"
   proximal_ref:     "edge"
   # fedprox 相关超参数
   mu:               1.0

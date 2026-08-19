@@ -33,6 +33,13 @@ class FLClientBase(ABC):
         self.model     = model
         self.config    = config
 
+        # ── 独立播种的 RNG（seed, client_id）─────────────────────────────
+        # 客户端侧的一切随机（投毒样本选取、触发器采样…）都走这条流，
+        # 不碰全局 np.random。全局 RNG 的状态取决于此前所有调用的次数和顺序，
+        # 在线程池里更是不确定 → 「固定种子重跑一致」根本不成立。
+        self.rng = np.random.default_rng(
+            [int((config or {}).get("seed", 42)), int(client_id)])
+
 
 
         # ── 样本数 ─────────────────────────────────────────────────────────

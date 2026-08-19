@@ -19,14 +19,12 @@ from client.client_fedavg       import FedAvgClient
 from client.hier_ditto_rep      import HierDittoRepClient
 from client.hier_pfedme_rep     import HierPFedMeRepClient
 from client.hier_ditto          import HierDittoClient
-from client.hier_perfedavg      import HierPerFedAvgClient
 from client.hier_fedrep         import HierFedRepClient
 from server.edge_server_pfedme import PFedMeEdgeServer
 from server.edge_server_fedavg import FedAvgEdgeServer
 from server.hier_ditto_rep      import HierDittoRepEdgeServer
 from server.hier_pfedme_rep     import HierPFedMeRepEdgeServer
 from server.hier_ditto          import HierDittoEdgeServer
-from server.hier_perfedavg      import HierPerFedAvgEdgeServer
 from server.hier_fedrep         import HierFedRepEdgeServer
 from server.server      import CloudServer   # 原来是 FLServer
 from server.backdoor_server import BackdoorCloudServer
@@ -44,7 +42,7 @@ def _select_method_classes(config):
     """
     按 config["training"]["drift_correction"] 选择 client / edge 类。
 
-    新增的 Hier-FedAvg / Hier-Rep / Hier-Ditto / Hier-PerFedAvg 方法走各自的
+    新增的 Hier-FedAvg / Hier-Rep / Hier-Ditto 方法走各自的
     子类，其余方法（pfedme / hierpfedme 等）仍走默认的
     PFedMeClient / PFedMeEdgeServer，行为不变。
     """
@@ -55,7 +53,6 @@ def _select_method_classes(config):
         "hier_ditto_rep":  HierDittoRepClient,
         "hier_pfedme_rep": HierPFedMeRepClient,
         "hier_ditto":      HierDittoClient,
-        "hier_perfedavg":  HierPerFedAvgClient,
         "hier_fedrep":     HierFedRepClient,
     }.get(method, PFedMeClient)
     edge_cls = {
@@ -64,12 +61,12 @@ def _select_method_classes(config):
         "hier_ditto_rep":  HierDittoRepEdgeServer,
         "hier_pfedme_rep": HierPFedMeRepEdgeServer,
         "hier_ditto":      HierDittoEdgeServer,
-        "hier_perfedavg":  HierPerFedAvgEdgeServer,
         "hier_fedrep":     HierFedRepEdgeServer,
     }.get(method, PFedMeEdgeServer)
     return client_cls, edge_cls
 from utils.logger       import FLLogger
 from utils.report       import generate_report
+from config_validate    import validate_config
 
 
 # ── 高层实验维度 → 现有 config 字段的映射（任务3：sweep / CLI 用） ───────────
@@ -244,6 +241,14 @@ def load_config(path: str = "config/config.yaml") -> dict:
         d[keys[-1]] = value
         print(f"[Config] Override: {key_path} = {value}")
 
+    # ── 兼容性校验：挡掉会「静默跑错」的跨轴组合（见 config_validate.py）──
+    # 必须在构建任何模型/客户端之前，否则 24 小时后才发现那一格没有意义。
+    # strict_orthogonality=true 时把「攻击 × 方法不正交」也升级为错误。
+    validate_config(
+        config,
+        strict_orthogonality=bool(
+            (config.get("experiment") or {}).get("strict_orthogonality", False)))
+
     return config
 
 
@@ -396,8 +401,11 @@ def build_clients(images_np, labels_np, global_model, config,
             if not dynamic_poison:
                 # 静态投毒：构造 client 前替换数据集（DBA 用局部触发器，否则用统一触发器）
                 poison_trig = dba_triggers.get(i, bd_trigger)
-                ds = build_poisoned_dataset(images_np, labels_np, indices, config,
-                                            poison_trig, bd_target, bd_poison)
+                # 每个恶意客户端一条独立、可复现的 RNG 流（seed, client_id）
+                ds = build_poisoned_dataset(
+                    images_np, labels_np, indices, config,
+                    poison_trig, bd_target, bd_poison,
+                    rng=np.random.default_rng([int(config.get("seed", 42)), i]))
             print(f"[Backdoor] Client {i} MALICIOUS | strategy={strategy} | "
                   f"trigger={trigger_kind} | target={bd_target} | poison={bd_poison}"
                   f"{' | dynamic-poison (clean kept)' if dynamic_poison else ''}")
@@ -680,13 +688,7 @@ def run_experiment(config_path="config/config.yaml"):
 
     for edge in edge_servers:
         for client in edge.clients:
-            if method == "hier_perfedavg":
-                client.personalize_and_evaluate(
-                    edge.model.get_weights(),
-                    steps=pm_steps,
-                    fallback_dataset=edge.get_test_dataset()
-                )
-            elif do_final_ft:
+            if do_final_ft:
                 # 下发 edge 模型 + 少步本地微调，微调后的模型留在 client.model
                 _finetune_client_model(client, edge.model.get_weights(),
                                        ft_steps, ft_lr)

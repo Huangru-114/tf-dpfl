@@ -36,6 +36,7 @@ class MultiKrumDefense(BaseDefense):
             f = f_feasible
         if m - f - 2 < 1:
             print(f"    [Defense:multi_krum] m={m} too small, fallback to weighted mean")
+            self.last_admitted = list(range(m))      # 退化：全部接纳
             return weighted_mean(client_updates)
 
         flats = np.stack([flatten_weights(upd[0]) for upd in client_updates], axis=0)  # (m, d)
@@ -57,6 +58,7 @@ class MultiKrumDefense(BaseDefense):
         # 选分数最低的 (m - f) 个 client 做加权平均
         n_select = m - f
         selected = np.argsort(scores)[:n_select].tolist()
+        self.last_admitted = sorted(int(i) for i in selected)
         print(f"    [Defense:multi_krum] m={m} f={f} → selected {len(selected)} clients "
               f"(ids by order: {selected})")
         return weighted_mean(client_updates, indices=selected)

@@ -95,9 +95,11 @@ class BadPFLClient(FedAvgClient):
         delta = self._gen_delta(x)
         x_poison = x + xi + delta
         y_poison = tf.fill([n], tf.cast(self.target_label, y.dtype))
+        # 投毒样本的选取走客户端自己的 seeded RNG（self.rng，见 client_base）。
+        # 旧实现用全局 np.random.shuffle → 结果依赖全局 RNG 状态，实验不可复现。
         mask = np.zeros(n, dtype=bool)
         mask[:k] = True
-        np.random.shuffle(mask)
+        self.rng.shuffle(mask)
         m = tf.constant(mask.reshape(-1, 1, 1, 1))
         x_out = tf.where(m, x_poison, x)
         y_out = tf.where(tf.constant(mask), y_poison, y)

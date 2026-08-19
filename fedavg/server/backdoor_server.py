@@ -23,7 +23,7 @@ from utils.logger import FLLogger
 # 个性化 / 微调方法：遗忘曲线对这些方法有意义（client.model 训练后停在个性化模型）
 _PERSONALIZED_METHODS = {
     "hierpfedme", "pfedme", "hier_ditto", "hier_ditto_rep", "hier_pfedme_rep",
-    "hier_perfedavg", "hier_fedrep",
+    "hier_fedrep",
 }
 
 
@@ -107,7 +107,13 @@ class BackdoorCloudServer(CloudServer):
     def _backdoor_eval(self, round_idx: int):
         xt, yt = self.x_test, self.y_test
         if self.bd_asr_max and yt is not None and len(yt) > self.bd_asr_max:
-            idx = np.random.choice(len(yt), self.bd_asr_max, replace=False)
+            # ASR 子采样必须固定：每轮换一批样本会让 ASR 曲线混入采样噪声，
+            # 分不清「后门在增强」还是「这轮抽到的样本更好骗」。
+            if getattr(self, "_asr_subsample_idx", None) is None:
+                self._asr_subsample_idx = np.random.default_rng(
+                    int(self.config.get("seed", 42))
+                ).choice(len(yt), self.bd_asr_max, replace=False)
+            idx = self._asr_subsample_idx
             xt, yt = xt[idx], yt[idx]
 
         print(f"\n[Backdoor] ===== Round {round_idx} hierarchical backdoor eval =====")

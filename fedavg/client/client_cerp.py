@@ -116,7 +116,9 @@ class CerPClient(FedAvgClient):
             return x, y
         x_p = self._apply_trigger(x)
         y_p = tf.fill([n], tf.cast(self.target_label, y.dtype))
-        mask = np.zeros(n, dtype=bool); mask[:k] = True; np.random.shuffle(mask)
+        # 投毒样本选取走客户端自己的 seeded RNG（self.rng，见 client_base），
+        # 不用全局 np.random —— 线程池里全局 RNG 的消耗顺序不确定。
+        mask = np.zeros(n, dtype=bool); mask[:k] = True; self.rng.shuffle(mask)
         m4 = tf.constant(mask.reshape(-1, 1, 1, 1))
         return tf.where(m4, x_p, x), tf.where(tf.constant(mask), y_p, y)
 

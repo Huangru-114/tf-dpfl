@@ -57,6 +57,9 @@ build/
 .pytest_cache/
 .ipynb_checkpoints/
 
+# ── 矩阵 manifest 是 submit_matrix.sh 的生成物（每格的 metrics.json 要进 git）──
+experiments/matrix/manifest.tsv
+
 # ── 临时 ────────────────────────────────────────────────────────────────
 scratch/*
 !scratch/.gitkeep
