@@ -68,21 +68,12 @@ class PFedMeEdgeServer(EdgeServerBase):
               f"Hier-pFedMe | Selected {len(selected)}/{len(self.clients)}")
 
         # 步骤 1：广播 θ_n^{t,i}（edge 模型）给 client，同时传入全局参考
-        edge_w = self.model.get_weights()
-        for client in selected:
-            client.set_weights(global_weights=self._global_weights_ref,
-                               edge_weights=edge_w)
-            # ── 调试：打印 client 测试集分布 ────────────────────────────
-            ds = client.get_test_dataset()
-            if ds is not None:
-                all_labels, total = [], 0
-                for x, y in ds.unbatch().batch(1):
-                    all_labels.append(y.numpy()[0])
-                    total += 1
-                unique, counts = np.unique(all_labels, return_counts=True)
-                print(f"[C{client.client_id}] Test set: "
-                      f"samples={total}, "
-                      f"class_dist={dict(zip(unique, counts))}")
+        # 走 broadcast_to_clients（下行唯一通道），否则主动防御的下行载荷送不到。
+        # 原先这里内联了一段「打印 client 测试集分布」的调试代码：它每个 edge round
+        # 把每个 client 的测试集 unbatch 后逐样本遍历一遍，是纯开销，已删除。
+        self.broadcast_to_clients(selected,
+                                  global_weights=self._global_weights_ref,
+                                  round_idx=global_round_idx)
 
         # 步骤 2：client 本地训练，收集 Θ_{n,m}^{t,i,R}
         client_updates = self._collect_updates_parallel(

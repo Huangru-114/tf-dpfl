@@ -72,6 +72,13 @@ class FLClientBase(ABC):
         self.global_weights: list | None = None
         self.edge_weights:   list | None = None
 
+        # ── 行为组合的挂载点（见 client/compose.py 与下方「客户端钩子协议」）──
+        # is_malicious 由 main.py 在**构造之后**赋值，故这里给 False 兜底，
+        # 让 mixin 里可以直接读 self.is_malicious 而不必到处写 getattr(...)。
+        self.is_malicious = False
+        # 服务器下发的额外载荷（主动防御用），由 set_control 填。
+        self._control: dict = {}
+
     # ══════════════════════════════════════════════════════════════════════
     # 权重管理
     # ══════════════════════════════════════════════════════════════════════
@@ -123,6 +130,75 @@ class FLClientBase(ABC):
 
         子类在此方法内直接实现算法逻辑，不再通过 config 做运行时分发。
         """
+
+    # ══════════════════════════════════════════════════════════════════════
+    # 客户端钩子协议（默认全部无操作 —— 良性、无防御路径数值零变化）
+    # ══════════════════════════════════════════════════════════════════════
+    #
+    # **为什么钩子名是中性的 `on_*` 而不是 `_atk_*`**：攻击轴和防御轴用的是
+    # 同一套钩子。CerP 的 α/β 正则项和未来某个主动防御的近端项都落在
+    # on_extra_loss 上；Neurotoxin 的掩码投影和「客户端侧范数裁剪」这类主动
+    # 防御都落在 on_upload 上。按攻击专用命名会导致加防御时再改一遍全部方法文件。
+    #
+    # 组合方式见 client/compose.py：
+    #     MRO = AttackMixin → DefenseMixin → MethodCls → FLClientBase
+    # 防御 mixin 挂给**所有**客户端（防御方分不出谁是恶意的），攻击 mixin 只挂
+    # 恶意客户端且在外层 —— 恶意客户端有权把防御要求的客户端侧动作做假或跳过。
+    #
+    # 每个 mixin 的实现都必须调 super()（除非它就是要「不守协议」），
+    # 使多个 mixin 能沿 MRO 串起来。
+
+    def set_control(self, control: dict):
+        """
+        接收服务器下发的额外载荷（主动防御用：裁剪上界、挑战样本、参考统计量…）。
+
+        由 EdgeServerBase.broadcast_to_clients 在每次广播时调用 —— 这也是
+        「下行必须走 broadcast_to_clients」的理由（守卫见
+        tests/test_broadcast_coverage.py）。基类只存下来，不解释内容。
+        """
+        self._control = dict(control or {})
+
+    def on_round_start(self, round_idx: int):
+        """本地训练开始前（已收到 edge 权重、尚未训练）。默认无操作。"""
+
+    def on_batch(self, x, y):
+        """
+        每个训练 batch 送进 @tf.function 步骤**之前**的变换点。默认恒等。
+
+        动态投毒（Bad-PFL / CerP）挂在这里：它们要对输入求梯度、要更新触发器
+        变量，必须留在 eager，所以钩子在 Python 循环体里、不在 @tf.function 内。
+        """
+        return x, y
+
+    def on_extra_loss(self):
+        """
+        叠加到「产出 upload 的那个训练步」的 tape 内的额外损失项（标量）。默认 0。
+
+        只挂产出 upload 的那一步（而非每一步）：CerP 的两个正则项是为了让
+        **上传物**躲过鲁棒聚合，加在个性化阶段没有意义。
+        返回 0.0 时 `loss + 0.0` 对 float32 是精确恒等，良性路径数值不变。
+        """
+        return tf.constant(0.0, dtype=tf.float32)
+
+    def on_upload(self, upload: list, round_idx: int):
+        """
+        返回给 edge 之前，对**上传权重列表**的最后一次变换。默认恒等。
+
+        **必须是纯函数**：只返回新列表，不许 self.model.set_weights(...)。
+        六个 PFL 方法里有五个的 upload ≠ self.model（pFedMe 传锚点 Θ、Ditto 传
+        阶段 A 的 w_k、Rep 家族传 backbone+私有 head），写回会污染个性化模型，
+        破坏 PM 评估 / 遗忘曲线 / local ASR 三处指标。
+        守卫见 tests/test_client_hooks.py::test_on_upload_is_pure。
+        """
+        return upload
+
+    def get_aux(self) -> dict:
+        """
+        随权重一起交给服务器的额外载荷（主动防御用：自检结果、签名、探针损失…）。
+
+        由 EdgeServerBase._finalize_updates 收集进 ClientUpdate.aux。默认空。
+        """
+        return {}
 
     # ══════════════════════════════════════════════════════════════════════
     # 评估

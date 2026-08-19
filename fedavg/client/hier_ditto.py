@@ -96,10 +96,13 @@ class HierDittoClient(FLClientBase):
         print(f"  [Client {self.client_id:>2}] Hier-Ditto | "
               f"local={epochs}, pers={pers_epochs}, λ={lam}")
 
+        self.on_round_start(round_idx)
+
         # ── 阶段 A：共享模型 w_k（普通本地 SGD，从 θ_e 起） ───────────────
         self.model.set_weights(self.edge_weights)
         for _ in range(epochs):
             for x, y in self._shuffled_batches():
+                x, y = self.on_batch(x, y)
                 loss = self._plain_step(x, y)
                 losses.append(float(loss.numpy()))
         w_upload = self.model.get_weights()
@@ -109,6 +112,7 @@ class HierDittoClient(FLClientBase):
             self._v_weights if self._v_weights is not None else self.edge_weights)
         for _ in range(pers_epochs):
             for x, y in self._shuffled_batches():
+                x, y = self.on_batch(x, y)
                 self._prox_step(x, y)
         self._v_weights = self.model.get_weights()
         self._personalized_weights = self._v_weights
@@ -117,6 +121,7 @@ class HierDittoClient(FLClientBase):
         avg = float(np.mean(losses)) if losses else 0.0
         print(f"  [Client {self.client_id:>2}] Round {round_idx} | "
               f"Hier-Ditto(λ={lam}) | loss={avg:.4f}")
+        w_upload = self.on_upload(w_upload, round_idx)
         return w_upload, self.n_samples, avg, time.time() - t0
 
     # ── 数据遍历辅助 ───────────────────────────────────────────────────────
@@ -131,10 +136,15 @@ class HierDittoClient(FLClientBase):
 
     @tf.function
     def _plain_step(self, images, labels):
-        """共享模型 w_k 的一步普通 SGD。"""
+        """
+        共享模型 w_k 的一步普通 SGD。
+
+        这是产出 upload 的那一步 → 叠加 on_extra_loss（基类返回 0.0，数值恒等）。
+        """
         with tf.GradientTape() as tape:
             loss = self.loss_fn(labels, self.model(images, training=True))
-        grads = tape.gradient(loss, self.model.trainable_variables)
+            total = loss + self.on_extra_loss()
+        grads = tape.gradient(total, self.model.trainable_variables)
         self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
         return loss
 

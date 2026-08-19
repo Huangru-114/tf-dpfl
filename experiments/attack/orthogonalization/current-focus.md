@@ -1,7 +1,8 @@
 # current-focus：客户端行为组合机制（陷阱 #1 正交化 + 主动防御接口）
 
-> 状态：**七个决策点已确认，等「开始改」。**
-> 基线已核对：`bash run_l1.sh` → 94 passed / 3 skipped / 3 xfailed ✓
+> 状态：**已实现，L1 全绿，L2 接线在合成数据上验过；真实数据 smoke 仍欠。**
+> 基线：`bash run_l1.sh` 94 passed / 3 skipped / 3 xfailed → 现 187 passed / 3 skipped / 3 xfailed
+> （6 个 failed 全部是既有的陷阱 #4/#5，见「验收结果」）
 
 ## 现在要回答的唯一问题
 
@@ -214,28 +215,63 @@ CerP 的 peer 列表长度逐轮变化会触发 retrace → peer 权重塞进固
 
 ---
 
-## 五、判定「完成」的客观标准
+## 五、验收结果
 
-| 级别 | 判据 | 现状 |
+| 级别 | 判据 | 结果 |
 |---|---|---|
-| L1-a | `tests/test_attack_method_orthogonality.py` 全绿（需 TF，集群） | 本地 skip |
-| L1-b | `bash run_l1.sh` 仍 94 passed / 3 skipped / 3 xfailed（+ 新增用例） | 基线已核对 ✓ |
-| L1-c | 新增 `test_client_hooks.py`：`on_upload` 纯函数性（`self.model` 逐元素不变） | 未写 |
-| L1-d | 新增 `test_broadcast_coverage.py`：AST 断言 6/6 走 `broadcast_to_clients` | 未写 |
-| L1-e | 新增 `test_cloud_aggregate_default.py`：`aggregate_edges` 默认路径与现在逐元素相等 | 未写 |
-| L2 | `badnet × hierpfedme` smoke 跑通，`acc` 与改动前同量级、`admitted_count` 不变 | 未跑 |
+| L1-a | `tests/test_attack_method_orthogonality.py` 全绿 | ✅ **33 passed**（改动前 18 failed） |
+| L1-b | `run_l1.sh` 不回归 | ✅ 187 passed / 3 skipped / 3 xfailed（基线 94 passed） |
+| L1-c | `test_client_hooks.py`：`on_upload` 纯函数性 | ✅ 6 passed |
+| L1-d | `test_broadcast_coverage.py`：AST 断言 6/6 走 `broadcast_to_clients` | ✅ |
+| L1-e | `test_cloud_aggregate_default.py`：默认路径逐元素相等 | ✅ |
+| L1-f | `test_client_compose.py`：MRO 顺序 / 缓存 / 无 mixin 时恒等 | ✅（纯 Python，本地跑） |
+| L1-g | `test_config_cli.py`：`--config` 真的生效（新发现的 bug） | ✅ |
+| L2 | `badnet × hierpfedme` 跑完 5 轮不崩 | ✅ EXIT=0（**合成数据**，见下） |
+| L2' | `neurotoxin × hierpfedme` 恶意客户端真的跑 pFedMe | ✅ 日志证据（见下） |
+
+### 本地全量测试的口径
+
+容器里临时装了 TF 2.15.1 / Keras 2.15 后跑完整套：
+
+| | failed | passed |
+|---|---|---|
+| 改动前（`git stash`） | 24 | 117 |
+| 改动后 | **6** | **187** |
+
+剩下的 6 个 failed 与改动前**逐条相同**，全部是已登记的既有问题：
+
+- `test_neurotoxin_mask.py` ×2 —— **陷阱 #4**（mask_ratio 语义方向未证实）。
+  这两条测试本来就是按文献语义写的、等着实现被改过来。
+  同文件的 `test_masked_coords_have_exactly_zero_update` **通过**，说明新的
+  `on_upload` 硬投影是对的。
+- `test_badpfl_trigger.py` ×4 —— 一条是**陷阱 #5**（cifar100 配置硬用 CIFAR10_STD）；
+  两条是 `build_autoencoder(img_size=8)` 输出 16×16 的既有 shape bug；
+  一条是测试自身的 float32 舍入写法（`round(...,8)` 比较）。
+
+### L2 的重要限制
+
+本次 L2 跑在**合成数据**上 —— 容器出网代理封了 `cs.toronto.edu`（403），CIFAR-10 下不到。
+**准确率 / ASR 的绝对值一律无意义。** 详见 `exp001.notes.md`。
+CLAUDE.md 说 L2 验的是「接线而不是算法」，合成数据能回答接线问题，
+但**真实数据的 smoke 仍需在集群重跑一次**才能谈 ASR。
+
+### 陷阱 #1 的行为级证据
+
+```
+[Setup] client classes | benign=PFedMeClient | malicious=NeurotoxinPFedMeClient
+  [Client  0] Starting Hier-pFedMe | λ=15.0, plr=0.00992, K=5, epochs=1, batches/epoch=131
+  [Client  0] Round 1 | Hier-pFedMe(λ2=15.0, K=5) | loss=1.6438
+  [Client  0] Round 1 | Neurotoxin(mask=top-5%, ref=edge_weights)
+```
+
+改动前 `malicious=NeurotoxinClient`（`FedAvgClient` 子类），上面中间两行**根本不会出现**。
 
 L2 跑法：
 
 ```bash
-cd fedavg && python main.py --config ../experiments/smoke-base.yaml \
-    --framework hier_pfedme --attack_method badnet --defense none 2>&1 | tee /tmp/smoke.log
-python ../harness/collect_metrics.py /tmp/smoke.log \
-    -o ../experiments/attack/orthogonalization/exp001.metrics.json
+bash run_smoke.sh attack orthogonalization badnet     none exp001 hier_pfedme
+bash run_smoke.sh attack orthogonalization neurotoxin none exp002 hier_pfedme
 ```
-
-> **改动前的对照数字目前还没有。** 严格说 L2 需要先跑一次 baseline 存下来再改。
-> 本地无 TF，这一步只能在集群做。
 
 ---
 
@@ -280,3 +316,7 @@ python ../harness/collect_metrics.py /tmp/smoke.log \
 |---|---|---|---|
 | 2026-08-19 | 核对基线、通读 6 方法类 + 3 攻击类 + 6 edge server + 5 防御 + main.py | `run_l1.sh` 94/3/3 | 方案 v1（仅攻击轴），4 个决策点确认 |
 | 2026-08-19 | 发现下行广播 1/6 覆盖率；按「主动防御需客户端配合」重做设计 | `grep` 6 个 edge server 的 `client.set_weights` | 方案 v2（客户端行为组合机制），7 个决策点确认 |
+| 2026-08-19 | 实现：钩子协议 + compose + 3 攻击 mixin + 9 处循环钩子 + 下行统一 + cloud 接口 | `run_l1.sh` 187 passed；`git stash` 对照 24→6 failed | 陷阱 #1 修复，剩余 failed 全是既有陷阱 #4/#5 |
+| 2026-08-19 | 容器内装 TF 2.15 跑通此前只能 skip 的 4 条 TF 测试 | 正交性 33 passed（改动前 18 failed） | 核心验收标准过 |
+| 2026-08-19 | 发现 `--config` 被静默忽略（L2 harness 从未生效），一并修掉 | `tests/test_config_cli.py` | **此前所有「smoke」历史结果都要重新解释** |
+| 2026-08-19 | 合成数据上跑 2 个 L2（badnet / neurotoxin × hierpfedme），各 5 轮 | 两次 EXIT=0；恶意客户端日志打印 Hier-pFedMe | 接线通；真实数据 smoke 仍欠 |

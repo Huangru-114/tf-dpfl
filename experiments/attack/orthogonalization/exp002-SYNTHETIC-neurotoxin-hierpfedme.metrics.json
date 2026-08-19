@@ -1,0 +1,111 @@
+{
+  "rounds": [
+    {
+      "round": 1,
+      "global_asr": 0.238,
+      "edge_asr": 0.054,
+      "local_benign_asr": 0.083,
+      "same_edge_asr": 0.111,
+      "diff_edge_asr": 0.066,
+      "local_malicious_asr": 0.783
+    },
+    {
+      "round": 2,
+      "global_asr": 0.245,
+      "edge_asr": 0.061,
+      "local_benign_asr": 0.062,
+      "same_edge_asr": 0.05,
+      "diff_edge_asr": 0.069,
+      "local_malicious_asr": 0.84
+    },
+    {
+      "round": 3,
+      "global_asr": 0.175,
+      "edge_asr": 0.076,
+      "local_benign_asr": 0.064,
+      "same_edge_asr": 0.07,
+      "diff_edge_asr": 0.06,
+      "local_malicious_asr": 0.611
+    },
+    {
+      "round": 4,
+      "global_asr": 0.07,
+      "edge_asr": 0.053,
+      "local_benign_asr": 0.083,
+      "same_edge_asr": 0.109,
+      "diff_edge_asr": 0.067,
+      "local_malicious_asr": 0.618
+    },
+    {
+      "round": 5,
+      "global_asr": 0.037,
+      "edge_asr": 0.053,
+      "local_benign_asr": 0.067,
+      "same_edge_asr": 0.107,
+      "diff_edge_asr": 0.043,
+      "local_malicious_asr": 0.714
+    }
+  ],
+  "final": {
+    "round": 5,
+    "global_asr": 0.037,
+    "edge_asr": 0.053,
+    "local_benign_asr": 0.067,
+    "same_edge_asr": 0.107,
+    "diff_edge_asr": 0.043,
+    "local_malicious_asr": 0.714
+  },
+  "admitted": [],
+  "admitted_count_mean": null,
+  "malicious_selected_rounds": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "n_malicious_participations": 5,
+  "errors": [],
+  "log_tail": [
+    "[ Per-Class Report ]",
+    "              precision    recall  f1-score   support",
+    "",
+    "           0     0.7267    0.9457    0.8219      1510",
+    "           1     0.7180    0.7161    0.7170      1511",
+    "           2     0.9323    0.6121    0.7390      1485",
+    "           3     0.9211    0.7846    0.8474      1518",
+    "           4     0.9962    0.8417    0.9125      1554",
+    "           5     1.0000    0.9938    0.9969      1448",
+    "           6     0.9787    0.8874    0.9308      1501",
+    "           7     0.5418    0.7406    0.6258      1461",
+    "           8     0.7500    0.0078    0.0154      1543",
+    "           9     0.4633    0.9898    0.6311      1465",
+    "",
+    "    accuracy                         0.7491     14996",
+    "   macro avg     0.8028    0.7520    0.7238     14996",
+    "weighted avg     0.8041    0.7491    0.7222     14996",
+    "",
+    "[ F1 Score ]",
+    "  Macro    F1 : 0.7238",
+    "  Weighted F1 : 0.7222",
+    "",
+    "[ AUC (OvR) ]",
+    "  Macro    AUC : 0.9767",
+    "  Weighted AUC : 0.9766",
+    "",
+    "[ Confusion Matrix ] (shape: (10, 10))",
+    "[[1428   27    6    0    0    0    0    0    0   49]",
+    " [ 367 1082   60    0    0    0    0    0    0    2]",
+    " [ 160  209  909    0    0    0    0    0    0  207]",
+    " [  10  189    0 1191    0    0    0    0    0  128]",
+    " [   0    0    0  102 1308    0    0    0    0  144]",
+    " [   0    0    0    0    5 1439    0    0    0    4]",
+    " [   0    0    0    0    0    0 1332   18    0  151]",
+    " [   0    0    0    0    0    0   29 1082    2  348]",
+    " [   0    0    0    0    0    0    0  884   12  647]",
+    " [   0    0    0    0    0    0    0   13    2 1450]]",
+    "============================================================",
+    "  Report saved to report_PM_hier_pfedme_noniid_neurotoxin_seed42.txt",
+    "EXIT=0"
+  ]
+}

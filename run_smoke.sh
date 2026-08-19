@@ -2,10 +2,15 @@
 # run_smoke.sh  —  集群侧 L2：一条命令跑完 + 自动吐出小 metrics.json
 #
 # 用法（仓库根目录）：
-#     bash run_smoke.sh <axis> <method> <attack_method> [defense] [exp_id]
+#     bash run_smoke.sh <axis> <method> <attack_method> [defense] [exp_id] [framework]
 # 例：
-#     bash run_smoke.sh attack neurotoxin neurotoxin none      exp001
-#     bash run_smoke.sh defense flame     badnet     flame     exp001
+#     bash run_smoke.sh attack neurotoxin neurotoxin none  exp001
+#     bash run_smoke.sh defense flame     badnet     flame exp001
+#     # 正交性那一格：攻击轴不变，只换 PFL 方法轴
+#     bash run_smoke.sh attack orthogonalization badnet none exp001 hier_pfedme
+#
+# framework 缺省时用 smoke-base.yaml 里写死的 drift_correction（hierfedavg）。
+# 合法取值见 main.py:FRAMEWORK_MAP（hier_fedavg / hier_pfedme / hier_ditto / …）。
 #
 # 产出：
 #     experiments/<axis>/<method>/<exp_id>.metrics.json   ← 小，回传 git
@@ -20,14 +25,21 @@ METHOD="${2:?缺 method}"
 ATTACK="${3:?缺 attack_method}"
 DEFENSE="${4:-none}"
 EXP_ID="${5:-exp001}"
+FRAMEWORK="${6:-}"
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 OUTDIR="$ROOT/experiments/$AXIS/$METHOD"
-LOG="/tmp/smoke_${AXIS}_${METHOD}_${ATTACK}_${DEFENSE}.log"
+LOG="/tmp/smoke_${AXIS}_${METHOD}_${ATTACK}_${DEFENSE}${FRAMEWORK:+_$FRAMEWORK}.log"
 
 mkdir -p "$OUTDIR"
 
-echo "[smoke] axis=$AXIS method=$METHOD attack=$ATTACK defense=$DEFENSE"
+FW_ARGS=()
+if [ -n "$FRAMEWORK" ]; then
+    FW_ARGS=(--framework "$FRAMEWORK")
+fi
+
+echo "[smoke] axis=$AXIS method=$METHOD attack=$ATTACK defense=$DEFENSE" \
+     "framework=${FRAMEWORK:-<yaml 默认>}"
 echo "[smoke] 大日志 -> $LOG （留集群，不进 git）"
 
 cd "$ROOT/fedavg"
@@ -36,6 +48,7 @@ python main.py \
     --config "$ROOT/experiments/smoke-base.yaml" \
     --attack_method "$ATTACK" \
     --defense "$DEFENSE" \
+    "${FW_ARGS[@]}" \
     2>&1 | tee "$LOG"
 RC=${PIPESTATUS[0]}
 set -e

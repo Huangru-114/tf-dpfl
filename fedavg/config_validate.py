@@ -66,14 +66,36 @@ VALID_DEFENSES       = {"none"} | AGGREGATION_DEFENSES | POST_HOC_DEFENSES
 VALID_STRATEGIES = {"vanilla", "neurotoxin", "cerp", "badpfl"}
 VALID_TRIGGERS   = {"badnet", "blended", "dba"}
 
-# 继承 FedAvgClient、会**替换掉** PFL 方法类的攻击策略（CLAUDE.md 陷阱 #1）。
-# 正交化修好之前，这些策略配非 fedavg 方法时结果不可解释。
-NON_ORTHOGONAL_STRATEGIES = {"neurotoxin", "cerp", "badpfl"}
-FEDAVG_LIKE = {"fedavg", "hierfedavg"}
+# 需要行为 mixin 的攻击策略（vanilla 只换数据集，不需要 mixin）。
+# CLAUDE.md 陷阱 #1 已修复：这些策略现在是 mixin，与 PFL 方法类**组合**而非替换
+# （main.py:resolve_client_classes + client/compose.py），因此配任何方法都可解释。
+# 守卫：tests/test_attack_method_orthogonality.py
+MIXIN_STRATEGIES = {"neurotoxin", "cerp", "badpfl"}
+
+# 防御可作用的层。用户在 defense.layers 里选，缺省 ["edge"]。
+VALID_DEFENSE_LAYERS = {"client", "edge", "cloud", "post_hoc"}
 
 
 def _fail(msg: str):
     raise ConfigError("\n[配置校验失败] " + msg + "\n")
+
+
+# ── 防御层的读取辅助（懒导入：defense 包是纯 numpy，但没必要在模块顶层拉进来）──
+def _configured_layers(dcfg: dict) -> tuple:
+    from defense import configured_layers
+    return configured_layers({"defense": dcfg})
+
+
+def _declared_layers(name: str) -> set:
+    from defense import defense_class
+    cls = defense_class(name)
+    return set(getattr(cls, "layers", ())) if cls is not None else set()
+
+
+def _client_mixin_of(name: str):
+    from defense import defense_class
+    cls = defense_class(name)
+    return getattr(cls, "client_mixin", None) if cls is not None else None
 
 
 def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
@@ -81,15 +103,21 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
     校验 config 的跨轴兼容性。
 
     Args:
-        strict_orthogonality: True 时把「攻击轴 × 方法轴不正交」也当成错误。
-                              默认 False（只告警），因为正交化尚未完成，
-                              置 True 可用于矩阵跑之前拦掉不可解释的格子。
+        strict_orthogonality: **已失效的参数**，保留只为兼容老 config。
+                              陷阱 #1 已修复（攻击是 mixin，与方法类组合而非替换），
+                              不再存在「不正交的格子」，因此这个开关无事可做。
+                              置 True 时会给一条提示，让人去删掉这条配置。
     Returns:
         warnings: 非致命问题的文字列表（同时已打印）。
     Raises:
         ConfigError: 存在会导致「静默跑错」的组合。
     """
     warnings = []
+
+    if strict_orthogonality:
+        warnings.append(
+            "experiment.strict_orthogonality 已失效：陷阱 #1 已修复（攻击策略是 mixin，"
+            "与 PFL 方法类组合而非替换），不再有「不正交的格子」需要拦。可以删掉这条配置。")
 
     method   = str(config.get("training", {}).get("drift_correction", "")).lower()
     dcfg     = config.get("defense", {}) or {}
@@ -120,10 +148,32 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
 
     if defense in AGGREGATION_DEFENSES and not METHOD_SUPPORTS_DEFENSE[method]:
         _fail(f"defense.name = {defense!r} 与 drift_correction = {method!r} 不兼容。\n"
-              f"  该方法的 edge 聚合不经过 EdgeServerBase.robust_mean，防御会**静默失效**"
+              f"  该方法的 edge 聚合不经过 robust_mean，防御会**静默失效**"
               f"（日志仍会打印 [Defense] enabled）。\n"
               f"  要么换方法，要么把该方法的 edge 聚合改走 robust_mean 并更新"
               f" config_validate.METHOD_SUPPORTS_DEFENSE。")
+
+    # 2b. 防御的「声明层」与「配置层」必须对得上 —— 否则又是一种静默失效：
+    #     用户写了 layers: [client] 但该防御根本没有客户端侧实现，
+    #     create_defense 会在那一层返回 None，日志却看不出少了什么。
+    cfg_layers = _configured_layers(dcfg)
+    bad_layers = set(cfg_layers) - VALID_DEFENSE_LAYERS
+    if bad_layers:
+        _fail(f"未知的 defense.layers 取值：{sorted(bad_layers)}\n"
+              f"  合法取值：{sorted(VALID_DEFENSE_LAYERS)}")
+    if defense in AGGREGATION_DEFENSES:
+        declared = _declared_layers(defense)
+        unsupported = set(cfg_layers) - declared
+        if unsupported:
+            _fail(f"defense.name = {defense!r} 配置在 {sorted(unsupported)} 层，"
+                  f"但该防御类只声明支持 {sorted(declared)}。\n"
+                  f"  create_defense 会在那些层返回 None → 防御**静默失效**。\n"
+                  f"  要么改 defense.layers，要么在该防御类的 `layers` 类属性里登记"
+                  f"并把那一层真正接线。")
+        if "client" in cfg_layers and _client_mixin_of(defense) is None:
+            _fail(f"defense.name = {defense!r} 配了 client 层，但该防御类没有给出"
+                  f" `client_mixin`。\n"
+                  f"  主动防御必须提供客户端侧行为 mixin，否则客户端什么也不会做。")
 
     # ── 3. 攻击轴 ────────────────────────────────────────────────────────
     bd_enabled = bool(bd.get("enabled", False))
@@ -137,16 +187,10 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
             _fail(f"未知的 backdoor.trigger = {trigger!r}\n"
                   f"  合法取值：{sorted(VALID_TRIGGERS)}")
 
-        # 陷阱 #1：攻击类替换 PFL 方法类
-        if strategy in NON_ORTHOGONAL_STRATEGIES and method not in FEDAVG_LIKE:
-            msg = (f"backdoor.malicious_strategy = {strategy!r} 与 "
-                   f"drift_correction = {method!r} **尚未正交**。\n"
-                   f"  {strategy} 的客户端类继承 FedAvgClient，且在 main.py 里"
-                   f"**替换**掉方法类 → 恶意客户端跑朴素 FedAvg、良性客户端跑 {method}，\n"
-                   f"  上传语义不一致，这一格的 ASR 数字不可解释（CLAUDE.md 陷阱 #1）。")
-            if strict_orthogonality:
-                _fail(msg)
-            warnings.append(msg)
+        # 陷阱 #1 已修复：攻击策略是 mixin，与方法类组合而非替换
+        # （main.py:resolve_client_classes）。这里不再告警。
+        # 守卫在 tests/test_attack_method_orthogonality.py —— 若组合退化回替换，
+        # 那条测试会失败，而不是靠这里的一句 warning 提醒。
 
         # 数量 / 取值 sanity
         n_clients = int(fed.get("n_clients", 0) or 0)

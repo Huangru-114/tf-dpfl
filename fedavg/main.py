@@ -33,9 +33,10 @@ from attack.backdoor        import (get_malicious_ids, resolve_malicious_ids,
                                     build_poisoned_dataset,
                                     make_dba_local_triggers,
                                     install_forced_participation)
-from client.client_neurotoxin import NeurotoxinClient
-from client.client_cerp        import CerPClient
-from client.client_badpfl      import BadPFLClient
+from client.client_neurotoxin import NeurotoxinMixin
+from client.client_cerp        import CerPMixin
+from client.client_badpfl      import BadPFLMixin
+from client.compose            import compose_client_class
 
 
 def _select_method_classes(config):
@@ -100,17 +101,60 @@ DEFENSE_CHOICES = ["none", "trimmed_mean", "median", "multi_krum", "flame", "dnc
                    "simple_tuning"]
 
 
-def select_malicious_client_class(strategy: str):
+def select_attack_mixin(strategy: str):
     """
-    恶意客户端用的「攻击策略类」（继承 FedAvgClient，与 PFL 方法正交）。
-    返回 None 表示用方法类（vanilla：badnet/blended/dba 走方法类 + 投毒数据，
+    攻击策略对应的**行为 mixin**（不继承任何 Client 类，与 PFL 方法轴正交）。
+
+    返回 None 表示不需要 mixin（vanilla：badnet/blended/dba 走方法类 + 投毒数据，
     保持与既有实验一致的行为）。
     """
     return {
-        "neurotoxin": NeurotoxinClient,
-        "cerp":       CerPClient,
-        "badpfl":     BadPFLClient,
+        "neurotoxin": NeurotoxinMixin,
+        "cerp":       CerPMixin,
+        "badpfl":     BadPFLMixin,
     }.get(str(strategy).lower())
+
+
+def select_defense_client_mixin(config: dict):
+    """
+    主动防御的客户端侧 mixin（需要客户端做额外动作的防御才有）。
+
+    只有当 `defense.layers` 含 "client" 且该防御类声明了 client_mixin 时才返回。
+    现有 5 种聚合层防御都返回 None → 客户端类与改动前逐字节一致。
+    """
+    from defense import configured_layers, defense_class
+
+    if "client" not in configured_layers(config):
+        return None
+    cls = defense_class((config.get("defense") or {}).get("name", "none"))
+    return getattr(cls, "client_mixin", None) if cls is not None else None
+
+
+def resolve_client_classes(config: dict):
+    """
+    客户端类解析的**单一入口**：返回 (benign_cls, malicious_cls)。
+
+    这就是 CLAUDE.md 陷阱 #1 的修复点。旧代码是
+        use_cls = MalCls or ClientCls          # 攻击类**替换**方法类
+    攻击类继承 FedAvgClient，于是 drift_correction=hierpfedme 时良性客户端跑 pFedMe、
+    恶意客户端跑朴素 FedAvg，上传语义不同 —— 足以单独解释 ASR≈0。
+
+    现在改成组合（见 client/compose.py）：
+        benign_cls    = compose(MethodCls, DefenseMixin)
+        malicious_cls = compose(MethodCls, DefenseMixin, AttackMixin)
+    恶意客户端仍然是该 PFL 方法的客户端，只是在钩子上叠加投毒/掩码。
+
+    守卫：tests/test_attack_method_orthogonality.py（直接调本函数，不再手抄逻辑）。
+    """
+    method_cls, _ = _select_method_classes(config)
+    defense_mixin = select_defense_client_mixin(config)
+    strategy      = str((config.get("backdoor") or {}).get(
+        "malicious_strategy", "vanilla")).lower()
+    attack_mixin  = select_attack_mixin(strategy)
+
+    benign_cls    = compose_client_class(method_cls, defense_mixin)
+    malicious_cls = compose_client_class(method_cls, defense_mixin, attack_mixin)
+    return benign_cls, malicious_cls
 
 
 def build_eval_trigger(bd_cfg, static_trigger, clients, config):
@@ -205,14 +249,19 @@ def apply_experiment_args(config: dict, args) -> dict:
 def load_config(path: str = "config/config.yaml") -> dict:
     """
     加载 config.yaml，支持：
+      --config PATH                 用哪个配置文件（**必须在打开文件之前解析**，见下）
       --override key=value          覆盖任意字段（点号表示嵌套，如 federation.alpha=0.1）
       --framework / --distribution_config / --attack_method / --seed
                                     高层实验维度（展开为现有字段 + 生成 run_name）
-    """
-    with open(path, "r") as f:
-        config = yaml.safe_load(f)
 
-    # 解析命令行参数
+    **曾经的 bug（静默跑错，已修）**：旧实现先 `open(path)` 再 parse_known_args()，
+    解析出的 `args.config` 全仓库从未被使用 → `--config` 被**静默忽略**。
+    后果：run_smoke.sh 传 `--config ../experiments/smoke-base.yaml` 完全无效，
+    所谓的「10 client / 5 round / cifar10 的 3 分钟 smoke」实际每次都在跑
+    config/config.yaml（cifar100 / 100 client / 40 round）。整个 L2 验收层失效，
+    且日志里看不出任何异常。守卫：tests/test_config_cli.py
+    """
+    # 解析命令行参数（必须在读文件之前 —— --config 决定读哪个文件）
     parser = argparse.ArgumentParser()
     parser.add_argument("--config",   type=str, default=path)
     parser.add_argument("--override", type=str, action="append", default=[])
@@ -222,6 +271,11 @@ def load_config(path: str = "config/config.yaml") -> dict:
     parser.add_argument("--defense",             type=str, default=None)
     parser.add_argument("--seed",                type=str, default=None)
     args, _ = parser.parse_known_args()
+
+    cfg_path = args.config or path
+    print(f"[Config] loading {cfg_path}")
+    with open(cfg_path, "r") as f:
+        config = yaml.safe_load(f)
 
     # 先应用高层维度（可被后续显式 --override 进一步覆盖）
     config = apply_experiment_args(config, args)
@@ -388,16 +442,17 @@ def build_clients(images_np, labels_np, global_model, config,
         print(f"[Backdoor] strategy={strategy}: forcing serial client collection "
               f"(federation.n_workers=1) to avoid eager/@tf.function 线程冲突。")
 
-    ClientCls, _ = _select_method_classes(config)
-    MalCls       = select_malicious_client_class(strategy)  # None => 用方法类
+    # 类解析走单一入口：攻击/防御都是 mixin，与 PFL 方法类**组合**而非替换。
+    BenignCls, MaliciousCls = resolve_client_classes(config)
+    print(f"[Setup] client classes | benign={BenignCls.__name__} | "
+          f"malicious={MaliciousCls.__name__}")
 
     clients = []
     for i, (ds, indices) in enumerate(zip(client_datasets, client_indices)):
         clean_ds = ds  # 未投毒本地训练集（Neurotoxin 算 benign 梯度 mask 用）
         is_mal  = bd_enabled and (i in malicious_ids)
-        use_cls = ClientCls
+        use_cls = MaliciousCls if is_mal else BenignCls
         if is_mal:
-            use_cls = MalCls or ClientCls
             if not dynamic_poison:
                 # 静态投毒：构造 client 前替换数据集（DBA 用局部触发器，否则用统一触发器）
                 poison_trig = dba_triggers.get(i, bd_trigger)

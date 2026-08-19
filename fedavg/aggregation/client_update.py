@@ -16,15 +16,21 @@ aggregation/client_update.py  –  带身份的客户端上传记录
 class ClientUpdate(tuple):
     """
     行为完全等同 `(weights, n_samples, loss, train_time)` 的 4-元组，
-    额外带 `.client_id`（不参与元组比较 / 解包）。
+    额外带 `.client_id` 和 `.aux`（都不参与元组比较 / 解包）。
+
+    `.aux` 是客户端的上行额外载荷（`FLClientBase.get_aux()` 的返回值），供**主动防御**
+    在聚合时读取：自检结果、探针损失、签名之类。基类 `get_aux` 返回 `{}`，
+    所以现有路径拿到的永远是空 dict，不影响任何聚合。
     """
 
     # 注：tuple 是变长类型，不支持非空 __slots__，所以实例带一个 __dict__。
     # 每轮每客户端一个 dict，开销可忽略。
 
-    def __new__(cls, weights, n_samples, loss, train_time, client_id=None):
+    def __new__(cls, weights, n_samples, loss, train_time, client_id=None,
+                aux=None):
         obj = super().__new__(cls, (weights, n_samples, loss, train_time))
         obj.client_id = None if client_id is None else int(client_id)
+        obj.aux = dict(aux or {})
         return obj
 
     # ── 具名访问（新代码优先用这些）────────────────────────────────────────
@@ -49,17 +55,19 @@ class ClientUpdate(tuple):
                 f"n_samples={self[1]}, loss={self[2]:.4f})")
 
 
-def as_client_update(result, client_id):
+def as_client_update(result, client_id, aux=None):
     """
     把 client.local_train 的返回值规范成 ClientUpdate。
-    已经是 ClientUpdate 时补齐 client_id（不覆盖已有值）。
+    已经是 ClientUpdate 时补齐 client_id / aux（不覆盖已有的非空值）。
     """
     if isinstance(result, ClientUpdate):
         if result.client_id is None:
             result.client_id = int(client_id)
+        if aux and not getattr(result, "aux", None):
+            result.aux = dict(aux)
         return result
     weights, n_samples, loss, train_time = result
-    return ClientUpdate(weights, n_samples, loss, train_time, client_id)
+    return ClientUpdate(weights, n_samples, loss, train_time, client_id, aux)
 
 
 def client_ids(client_updates: list) -> list:

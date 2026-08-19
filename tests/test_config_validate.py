@@ -100,37 +100,37 @@ def test_defense_incompatible_with_method_is_rejected(monkeypatch):
 # ══════════════════════════════════════════════════════════════════════════
 # 3. 攻击轴 sanity + 正交性告警
 # ══════════════════════════════════════════════════════════════════════════
-def test_orthogonality_warns_by_default_and_fails_in_strict_mode():
+@pytest.mark.parametrize("method", ["hierpfedme", "hier_ditto", "hier_fedrep",
+                                    "hier_ditto_rep", "hier_pfedme_rep",
+                                    "hierfedavg"])
+@pytest.mark.parametrize("strategy", ["neurotoxin", "cerp", "badpfl"])
+def test_no_orthogonality_warning_after_mixin_refactor(method, strategy):
     """
-    陷阱 #1：neurotoxin/cerp/badpfl 的客户端类会替换掉 PFL 方法类。
-    默认只告警（正交化还没做完），strict 模式下升级为错误 —— 矩阵跑之前用
-    strict 可以一次性拦掉所有不可解释的格子。
+    陷阱 #1 已修复：攻击策略现在是 **mixin**，与 PFL 方法类组合而非替换
+    （main.py:resolve_client_classes + client/compose.py），所以任何
+    「方法 × 策略」组合都不再是不可解释的格子。
+
+    这条测试原本断言的是**反面**（「默认告警、strict 模式报错」），
+    即它当初编码的是 bug 的存在。修复后必须反过来断言，否则会把回归当成通过。
+
+    真正的结构守卫在 tests/test_attack_method_orthogonality.py（断言恶意客户端类
+    仍是方法类的子类）；这里只保证校验器不再吐已经不成立的警告。
     """
-    c = cfg(**{"training.drift_correction": "hierpfedme",
+    c = cfg(**{"training.drift_correction": method,
                "backdoor.enabled": True,
-               "backdoor.malicious_strategy": "neurotoxin",
+               "backdoor.malicious_strategy": strategy,
                "backdoor.trigger": "badnet",
                "backdoor.target_label": 9,
                "backdoor.poison_ratio": 0.5,
                "backdoor.n_malicious": 2})
 
     warnings = validate_config(c, strict_orthogonality=False)
-    assert any("尚未正交" in w for w in warnings)
+    assert not any("尚未正交" in w for w in warnings)
 
-    with pytest.raises(ConfigError, match="尚未正交"):
-        validate_config(c, strict_orthogonality=True)
-
-
-def test_orthogonality_ok_for_fedavg_like():
-    """FedAvg 系方法下攻击类替换基类是无害的（本来就是 FedAvgClient）。"""
-    c = cfg(**{"training.drift_correction": "hierfedavg",
-               "backdoor.enabled": True,
-               "backdoor.malicious_strategy": "neurotoxin",
-               "backdoor.trigger": "badnet",
-               "backdoor.target_label": 9,
-               "backdoor.poison_ratio": 0.5,
-               "backdoor.n_malicious": 2})
-    assert not any("尚未正交" in w for w in validate_config(c))
+    # strict 模式也不该再拦 —— 该参数已失效，只会提示「可以删掉这条配置」
+    strict_warnings = validate_config(c, strict_orthogonality=True)
+    assert not any("尚未正交" in w for w in strict_warnings)
+    assert any("已失效" in w for w in strict_warnings)
 
 
 @pytest.mark.parametrize("patch,msg", [

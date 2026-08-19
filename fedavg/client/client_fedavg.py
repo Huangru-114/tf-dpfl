@@ -37,22 +37,30 @@ class FedAvgClient(FLClientBase):
         epochs     = int(self.config["training"]["local_epochs"])
         losses, t0 = [], time.time()
 
+        self.on_round_start(round_idx)
+
         for _ in range(epochs):
-            bl = [float(self._train_step(x, y).numpy()) for x, y in self.dataset]
+            bl = []
+            for x, y in self.dataset:
+                x, y = self.on_batch(x, y)
+                bl.append(float(self._train_step(x, y).numpy()))
             if bl:
                 losses.append(np.mean(bl))
 
         avg = float(np.mean(losses)) if losses else 0.0
         print(f"  [Client {self.client_id:>2}] Round {round_idx} | "
               f"Hier-FedAvg | loss={avg:.4f}")
-        return self.model.get_weights(), self.n_samples, avg, time.time() - t0
+        upload = self.on_upload(self.model.get_weights(), round_idx)
+        return upload, self.n_samples, avg, time.time() - t0
 
     @tf.function
     def _train_step(self, images, labels):
+        """产出 upload 的训练步 → 叠加 on_extra_loss（基类返回 0.0，数值恒等）。"""
         with tf.GradientTape() as tape:
             loss = self.loss_fn(labels, self.model(images, training=True))
             loss = tf.cast(loss, tf.float32)
-        grads = tape.gradient(loss, self.model.trainable_variables)
+            total = loss + self.on_extra_loss()
+        grads = tape.gradient(total, self.model.trainable_variables)
         self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
         return loss
 
