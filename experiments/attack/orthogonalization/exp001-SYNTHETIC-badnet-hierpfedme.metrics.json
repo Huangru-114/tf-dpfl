@@ -1,4 +1,16 @@
 {
+  "run": {
+    "config_path": "../experiments/smoke-base.yaml",
+    "run_name": "hier_pfedme_noniid_badnet_seed42",
+    "method": "hierpfedme",
+    "defense": "none",
+    "attack": "vanilla",
+    "n_rounds": 5,
+    "malicious_ids": [
+      0,
+      9
+    ]
+  },
   "rounds": [
     {
       "round": 1,
@@ -55,10 +67,73 @@
     "diff_edge_asr": 0.089,
     "local_malicious_asr": 0.328
   },
+  "acc_rounds": [
+    {
+      "round": 1,
+      "gm_acc": 0.0966,
+      "em_acc": 0.5396,
+      "pm_acc": 0.7377
+    },
+    {
+      "round": 2,
+      "gm_acc": 0.1702,
+      "em_acc": 0.5505,
+      "pm_acc": 0.6996
+    },
+    {
+      "round": 3,
+      "gm_acc": 0.2049,
+      "em_acc": 0.5646,
+      "pm_acc": 0.7474
+    },
+    {
+      "round": 4,
+      "gm_acc": 0.3533,
+      "em_acc": 0.6308,
+      "pm_acc": 0.6718
+    },
+    {
+      "round": 5,
+      "gm_acc": 0.4969,
+      "em_acc": 0.6185,
+      "pm_acc": 0.8135
+    }
+  ],
+  "final_acc": {
+    "round": 5,
+    "gm_acc": 0.4969,
+    "em_acc": 0.6185,
+    "pm_acc": 0.8135,
+    "final_pm_weighted": 0.8136
+  },
   "admitted": [],
   "admitted_count_mean": null,
-  "malicious_selected_rounds": [],
-  "n_malicious_participations": 0,
+  "rejected_ids": [],
+  "malicious_selected_rounds": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "n_malicious_participations": 5,
+  "malicious_participation_by_client": {
+    "0": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "9": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ]
+  },
+  "client_failures": [],
   "errors": [],
   "log_tail": [
     "[ Per-Class Report ]",

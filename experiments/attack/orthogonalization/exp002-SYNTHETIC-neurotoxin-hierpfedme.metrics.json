@@ -1,4 +1,16 @@
 {
+  "run": {
+    "config_path": "../experiments/smoke-base.yaml",
+    "run_name": "hier_pfedme_noniid_neurotoxin_seed42",
+    "method": "hierpfedme",
+    "defense": "none",
+    "attack": "neurotoxin",
+    "n_rounds": 5,
+    "malicious_ids": [
+      0,
+      9
+    ]
+  },
   "rounds": [
     {
       "round": 1,
@@ -55,8 +67,48 @@
     "diff_edge_asr": 0.043,
     "local_malicious_asr": 0.714
   },
+  "acc_rounds": [
+    {
+      "round": 1,
+      "gm_acc": 0.2933,
+      "em_acc": 0.5269,
+      "pm_acc": 0.6869
+    },
+    {
+      "round": 2,
+      "gm_acc": 0.2953,
+      "em_acc": 0.5269,
+      "pm_acc": 0.6679
+    },
+    {
+      "round": 3,
+      "gm_acc": 0.3166,
+      "em_acc": 0.527,
+      "pm_acc": 0.761
+    },
+    {
+      "round": 4,
+      "gm_acc": 0.4735,
+      "em_acc": 0.5614,
+      "pm_acc": 0.7433
+    },
+    {
+      "round": 5,
+      "gm_acc": 0.4941,
+      "em_acc": 0.5578,
+      "pm_acc": 0.7491
+    }
+  ],
+  "final_acc": {
+    "round": 5,
+    "gm_acc": 0.4941,
+    "em_acc": 0.5578,
+    "pm_acc": 0.7491,
+    "final_pm_weighted": 0.7491
+  },
   "admitted": [],
   "admitted_count_mean": null,
+  "rejected_ids": [],
   "malicious_selected_rounds": [
     1,
     2,
@@ -65,6 +117,23 @@
     5
   ],
   "n_malicious_participations": 5,
+  "malicious_participation_by_client": {
+    "0": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "9": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ]
+  },
+  "client_failures": [],
   "errors": [],
   "log_tail": [
     "[ Per-Class Report ]",

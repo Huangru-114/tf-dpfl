@@ -236,6 +236,9 @@ class EdgeServerBase(RobustAggregationMixin, ABC):
         """本层聚合前的模型权重（广播点）= 当前 edge 模型权重。"""
         return self.model.get_weights()
 
+    def _defense_label(self) -> str:
+        return f"edge{self.edge_id}"
+
     # ══════════════════════════════════════════════════════════════════════
     # 评估
     # ══════════════════════════════════════════════════════════════════════

@@ -34,6 +34,36 @@ class RobustAggregationMixin:
         """本层聚合前的模型权重（广播点）。子类必须实现。"""
         raise NotImplementedError
 
+    def _defense_label(self) -> str:
+        """本层在日志里的标识（edge0 / cloud）。子类覆盖。"""
+        return getattr(self, "defense_layer", "?")
+
+    def _log_decision(self, updates: list):
+        """
+        发一条**格式统一**的防御判决行。
+
+        **为什么统一在这里发**：各防御原本各打各的
+        （flame「admitted 7/10」、multi_krum「selected 7 clients」、
+        dnc「keep 7 clients」、trimmed_mean/median 干脆不打），
+        于是回程解析器要么写 5 个脆弱正则、要么只认得 flame ——
+        实际是后者，`admitted_count` 这个 CLAUDE.md 要求的字段
+        **5 个防御里只有 1 个读得出来**，defense 轴 4/5 是瞎的。
+
+        robust_mean 是所有 PFL 方法、两个层都已经收口经过的唯一入口，
+        在这里发一次，新增防御自动被覆盖，解析器只需要一条正则。
+        """
+        name = getattr(self.defense, "name", "?")
+        total = len(updates)
+        ids = getattr(self.defense, "last_admitted_ids", None)
+        if ids is None:
+            # 坐标类防御（trimmed_mean / median）不做客户端级筛选
+            print(f"    [Decision] {self._defense_label()} | {name} | "
+                  f"coordinate-wise | n={total}")
+            return
+        rejected = getattr(self.defense, "last_rejected_ids", None) or []
+        print(f"    [Decision] {self._defense_label()} | {name} | "
+              f"admitted {len(ids)}/{total} | rejected={list(rejected)}")
+
     def robust_mean(self, updates: list, ref_weights: list = None) -> list:
         """
         统一的「加权平均步」替身：有防御时走鲁棒聚合，否则回退普通样本加权 FedAvg。
@@ -52,4 +82,5 @@ class RobustAggregationMixin:
         agg = self.defense.aggregate(updates, ref_weights)
         # 防御接纳/剔除的判决按 client_id 记账（不是位置索引），供 TPR/FPR 统计
         self.defense.record_decision(updates)
+        self._log_decision(updates)
         return agg

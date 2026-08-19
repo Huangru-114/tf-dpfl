@@ -107,6 +107,39 @@ def test_cloud_path_equals_old_aggregate_call():
 # ══════════════════════════════════════════════════════════════════════════
 # 3. 显式打开 cloud 层时通道真的通
 # ══════════════════════════════════════════════════════════════════════════
+@pytest.mark.parametrize("name,coord", [("flame", False), ("multi_krum", False),
+                                        ("dnc", False), ("median", True),
+                                        ("trimmed_mean", True)])
+def test_every_defense_emits_the_uniform_decision_line(capsys, name, coord):
+    """
+    `admitted_count` 是 CLAUDE.md 要求 metrics.json 回传的 4 个字段之一，
+    但各防御原本各打各的日志（flame「admitted 7/10」、multi_krum「selected N clients」、
+    dnc「keep N clients」、trimmed_mean/median 干脆不打）→ 回程解析器
+    **5 个防御里只有 1 个读得出来**，defense 轴 4/5 是瞎的。
+
+    统一判决行由 robust_mean 这个唯一收口处发出，所以每个防御都必须有。
+    对应的解析在 tests/test_collect_metrics.py。
+    """
+    cfg = {"defense": {"name": name, "layers": ["edge"]},
+           "federation": {"n_edges": 1}, "backdoor": {"n_malicious": 1}}
+    rng = np.random.default_rng(11)
+    ups = _updates(rng, n_clients=6)
+    host = _Dummy(cfg, "edge", _ref())
+    assert host.defense is not None
+
+    host.robust_mean(ups)
+    out = capsys.readouterr().out
+
+    assert "[Decision]" in out, f"{name} 没有发出统一判决行 —— 回程读不到 admitted_count"
+    assert f"| {name} |" in out
+    if coord:
+        assert "coordinate-wise" in out, (
+            f"{name} 是坐标类防御，必须显式标注「无客户端级判决」，"
+            f"否则会被记成 admitted=0（= 全部剔除）")
+    else:
+        assert "admitted " in out and "rejected=" in out
+
+
 def test_cloud_layer_can_be_enabled_explicitly():
     """
     留接口要留得真：写了 layers: [edge, cloud] 就必须在 cloud 层拿到防御实例，

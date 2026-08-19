@@ -189,6 +189,9 @@ class CloudServer(RobustAggregationMixin):
         """本层聚合前的模型权重（广播点）= 当前全局模型权重。"""
         return self.global_model.get_weights()
 
+    def _defense_label(self) -> str:
+        return "cloud"
+
     # ══════════════════════════════════════════════════════════════════════
     # 主训练流程
     # ══════════════════════════════════════════════════════════════════════
