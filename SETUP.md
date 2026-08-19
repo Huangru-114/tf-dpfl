@@ -120,6 +120,7 @@ bash run_smoke.sh attack neurotoxin neurotoxin none exp001
 
 `.git` 偏大是因为大文件还留在**历史**里。要真正瘦下来需要
 `git filter-repo` 重写历史（代价：commit hash 全变，集群侧要重新 clone）。
-当前选择是**不重写**，旧状态保留在 tag `archive/pre-hub-refactor`。
+当前选择是**不重写**，refactor 前的完整状态保留在分支
+`claude/repo-refactor-review-xgyi0k`（commit `8ae9b48`）。
 
 **永不进 git**：`*.h5 / *.pt / *.ckpt / 大 npy / *.log / wandb/ / runs/ / venv(lib,bin,pyvenv.cfg)`

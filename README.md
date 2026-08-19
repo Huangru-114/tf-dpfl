@@ -44,5 +44,9 @@ cd fedavg && python main.py --config config/config.yaml
 `*.h5 / *.pt / *.ckpt / 大 npy / *.log / wandb/ / runs/ / venv` **永不进 git**。
 checkpoint 留集群，git 里只放 manifest（见 `results/README.md`）。
 
-refactor 前的完整历史保留在 tag `archive/pre-hub-refactor`
-（含 `fedavg_v2/`、`HierDP-FL/`、sweep 权重与 wandb 记录）。
+refactor 前的完整状态保留在分支 `claude/repo-refactor-review-xgyi0k`（commit `8ae9b48`），
+含 `fedavg_v2/`、`HierDP-FL/`、sweep 权重与 wandb 记录。要取回其中某个文件：
+
+```bash
+git checkout claude/repo-refactor-review-xgyi0k -- <path>
+```
