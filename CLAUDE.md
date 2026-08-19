@@ -6,6 +6,34 @@
 
 ---
 
+## 新会话开场：先做这三件事
+
+1. **`git branch --show-current`** —— 确认在 `claude/repo-hub-refactor`（或我指定的分支）。
+2. **`bash run_l1.sh`** —— 基线必须是 **94 passed / 3 skipped / 3 xfailed**。
+   对不上就先停下来问我，别在坏掉的地基上改东西。
+   （3 skipped 是需要 TF 的测试，本地无 TF；3 xfailed 是 FLAME 的已知 bug。）
+3. **读 `experiments/<axis>/<method>/current-focus.md`** —— 本会话**唯一**要回答的问题
+   和客观判据都在里面。没有这个文件就先和我一起写，不要直接开始改代码。
+
+然后按下面「交互约定」走：先出语义 diff 表，我确认后再动代码。
+
+## 当前地基（已完成，不要重复做）
+
+- **聚合信息流已统一**：所有 PFL 方法的 edge 聚合都经 `EdgeServerBase.robust_mean`，
+  defense 轴对每个方法都生效。守卫：`tests/test_defense_coverage.py`（AST 静态检查）。
+- **上传带身份**：`aggregation/client_update.py` 的 `ClientUpdate` 继承 tuple，
+  旧解包写法全部照旧，额外有 `.client_id`。收集顺序严格按 `selected` 顺序。
+  防御的接纳/剔除经 `BaseDefense.record_decision` 翻译成 `last_admitted_ids`。
+- **随机性已播种**（见陷阱 #2）。
+- **启动时配置校验**：`config_validate.py`。新增 PFL 方法必须登记到
+  `METHOD_SUPPORTS_DEFENSE`，否则拒绝启动。
+- **Hier-PerFedAvg 已移除**（聚合元梯度，与防御接口语义不兼容），
+  `_collect_updates_*` 的 `meta_grad` 模式随之删除。
+- **矩阵提交器**：`matrix.conf` + `submit_matrix.sh` + `experiment_tf.sh`
+  + `harness/collect_matrix.py`。
+
+---
+
 ## 交互约定
 
 - 在我明确说「**开始改**」之前，只做分析、只给方案，不要动代码。
@@ -76,10 +104,10 @@ methods-registry.md   所有候选方法的台账 = 研究看板
    上传语义都不同。这足以单独解释 ASR≈0。修法应是 mixin 组合而非替换基类。
    证据：`tests/test_attack_method_orthogonality.py`
 
-2. **随机性未播种，"固定种子重生成"不成立**
-   `attack/backdoor.py` 的 `np.random.permutation`、`client_badpfl.py` 的
-   `np.random.shuffle` 用的是全局 RNG，没有播种。要先收敛到 seeded RNG，
-   金标准重生成、实验可复现才谈得上。
+2. ~~**随机性未播种**~~ ✅ **已修复**（commit `d2717cd`）
+   训练循环内的随机（`select_clients`、投毒选样、DnC 投影、ASR 子采样）已全部
+   改用独立 seeded RNG：`np.random.default_rng([seed, edge_id/client_id])`。
+   **新写的代码不要再碰全局 `np.random`**（setup 期的分区除外，那里顺序确定）。
 
 3. **FLAME 未按文献实现**
    现实现用 "majority-cosine 近似" 代替 HDBSCAN，阈值取 off-diagonal 余弦相似度
