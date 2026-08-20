@@ -47,17 +47,33 @@ ModuleNotFoundError: No module named 'tensorflow'
 若显示 `mode=local`，说明没检测到容器 → 后面必然一串 ImportError，先查
 `TFDPFL_SIF` 指的路径存不存在。
 
-**万一显示 `mode=apptainer` 但仍报 ModuleNotFoundError 或找不到文件**：
-多半是容器没挂到 `/nobackup`（apptainer 默认只绑 `$HOME` 和 `$PWD`）。
-先手工验一下容器里到底有没有 TF：
+**关于 `FileNotFoundError`（已修，`--bind`）**：
+
+apptainer 默认只把 `$PWD` 和 `$HOME` 挂进容器。本仓库的脚本会跨目录访问：
+
+| 当时 cwd | 要读的路径 | 相对位置 |
+|---|---|---|
+| `$ROOT/fedavg` | `$ROOT/experiments/smoke-base.yaml` | `$PWD` 的**兄弟目录** |
+| `$ROOT` | `$ROOT/../tfdpfl-logs/*.log` | `$PWD` 的**上一级** |
+
+两处在容器里都不存在 → `FileNotFoundError`。**文件其实好好的，是容器看不见。**
+`cluster_env.sh` 现在默认 `--bind <仓库上一级>`，同时覆盖仓库与 `tfdpfl-logs`；
+并在 source 时自检一次，容器里看不到仓库就当场报错退出。
+
+`TFDPFL_BIND=<路径>` 可覆盖绑定根，`TFDPFL_SKIP_ENV_CHECK=1` 可跳过自检。
+
+**若自检报错**，先手工确认容器与绑定：
 
 ```bash
-apptainer exec --nv /nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tensorflow.sif \
-  python3 -c "import tensorflow as tf; print(tf.__version__)"
+cd /nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tf-dpfl/fedavg
+SIF=/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tensorflow.sif
+BIND=/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg
+
+apptainer exec --nv --bind $BIND $SIF python3 -c "import tensorflow as tf; print(tf.__version__)"
+apptainer exec --nv --bind $BIND $SIF ls ../experiments/smoke-base.yaml
 ```
 
-若这条在仓库目录下能跑通，就说明绑定没问题；跑不通再考虑加
-`TFDPFL_PY="apptainer exec --nv --bind /nobackup <sif> python3"`。
+第二条能列出文件，就说明绑定对了。
 
 > 顺带修了一处：`experiment_tf.sh` 原先硬写 `$ROOT/tensorflow.sif`，
 > 与实际容器路径 `/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tensorflow.sif`

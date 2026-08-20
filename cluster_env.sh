@@ -13,9 +13,23 @@
 # 覆盖方式：
 #     TFDPFL_PY="python3"        强制用裸 python（本地开发 / 容器外调试）
 #     TFDPFL_SIF=/path/to.sif    换容器
+#     TFDPFL_BIND=/some/path     换绑定根（默认：仓库的**上一级**目录）
+#     TFDPFL_SKIP_ENV_CHECK=1    跳过启动自检
 # ══════════════════════════════════════════════════════════════════════════
 
 TFDPFL_SIF="${TFDPFL_SIF:-/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tensorflow.sif}"
+
+# 本文件所在目录 = 仓库根
+_TFDPFL_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+
+# ── 绑定根：默认取仓库的**上一级** ────────────────────────────────────────
+# **为什么必须显式 --bind**（踩过的坑）：apptainer 默认只把 `$PWD` 和 `$HOME`
+# 挂进容器。而本仓库的脚本会跨目录访问：
+#     cd $ROOT/fedavg  →  读 $ROOT/experiments/smoke-base.yaml   （$PWD 的兄弟目录）
+#     cd $ROOT         →  读 $ROOT/../tfdpfl-logs/*.log          （$PWD 的上一级）
+# 这两处在容器里都**不存在**，报的是 FileNotFoundError —— 看起来像「文件没了」，
+# 实际文件好好的，只是容器看不见。绑定仓库上一级可同时覆盖仓库本身与 tfdpfl-logs。
+TFDPFL_BIND="${TFDPFL_BIND:-$(cd "$_TFDPFL_ROOT/.." && pwd)}"
 
 if [ -n "${TFDPFL_PY:-}" ]; then
     # 显式覆盖，最高优先级
@@ -28,7 +42,7 @@ elif command -v apptainer >/dev/null 2>&1 && [ -f "$TFDPFL_SIF" ]; then
         module load GPU/buildenv-nvhpc/25.9-cu13.0 2>/dev/null || \
             echo "[env] 警告：module load GPU/buildenv-nvhpc/25.9-cu13.0 失败，GPU 可能不可用" >&2
     fi
-    PY="apptainer exec --nv $TFDPFL_SIF python3"
+    PY="apptainer exec --nv --bind $TFDPFL_BIND $TFDPFL_SIF python3"
     PY_MODE="apptainer"
 else
     # 本地：无 apptainer / 无容器 → 裸 python。
@@ -39,3 +53,16 @@ fi
 
 # 明确打印用的是哪条路径 —— 静默地切换执行环境是最难查的一类问题。
 echo "[env] python = $PY   (mode=$PY_MODE)"
+
+# ── 启动自检：容器能不能看见仓库 ───────────────────────────────────────────
+# 一次容器启动（~1s），换掉一个跑到一半才 FileNotFoundError 的 GPU 作业。
+# 曾经就是漏了 --bind，五个 smoke 全废在这上面。
+if [ "$PY_MODE" = "apptainer" ] && [ -z "${TFDPFL_SKIP_ENV_CHECK:-}" ]; then
+    if ! $PY -c "import sys, os; sys.exit(0 if os.path.isdir(sys.argv[1]) else 1)" \
+            "$_TFDPFL_ROOT" 2>/dev/null; then
+        echo "[env] ✗ 容器里看不到仓库目录 $_TFDPFL_ROOT" >&2
+        echo "[env]   当前绑定根：--bind $TFDPFL_BIND" >&2
+        echo "[env]   apptainer 默认只挂 \$PWD 和 \$HOME；用 TFDPFL_BIND=<能覆盖仓库和日志目录的路径> 覆盖。" >&2
+        return 1 2>/dev/null || exit 1
+    fi
+fi

@@ -44,7 +44,20 @@ $PY main.py --config ...
 否则回退裸 `python3`（本地开发，需要 TF 的测试自动 skip）。
 它会打印 `[env] python = ... (mode=apptainer|local|override)`，
 **每次跑之前扫一眼这行** —— 静默地跑在错误的环境里是最难查的一类问题。
-`TFDPFL_PY` / `TFDPFL_SIF` 可覆盖。
+`TFDPFL_PY` / `TFDPFL_SIF` / `TFDPFL_BIND` 可覆盖。
+
+**⚠️ `--bind` 不能省（踩过的坑）**：apptainer 默认只把 `$PWD` 和 `$HOME` 挂进容器。
+本仓库的脚本会**跨目录**访问：
+
+```
+cd $ROOT/fedavg  →  读 $ROOT/experiments/smoke-base.yaml   （$PWD 的兄弟目录）
+cd $ROOT         →  读 $ROOT/../tfdpfl-logs/*.log          （$PWD 的上一级）
+```
+
+这两处在容器里都不存在，报的是 `FileNotFoundError` —— **看起来像「文件丢了」，
+其实文件好好的，只是容器看不见**。`cluster_env.sh` 默认绑定仓库的**上一级**目录
+（同时覆盖仓库本身与 `tfdpfl-logs`），并在 source 时做一次自检：
+容器里看不到仓库就直接报错退出，而不是等 GPU 作业跑到一半才炸。
 
 | 脚本 | 怎么跑 |
 |---|---|
