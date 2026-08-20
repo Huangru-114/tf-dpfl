@@ -10,6 +10,27 @@ git checkout claude/attack-pfl-orthogonalization-e3c3dd
 
 ---
 
+## ⛔ 第一次提交的 exp101–104 / exp201 全部失败了 —— 需要重跑
+
+五份 metrics.json 的 `errors[]` 都是同一条：
+
+```
+Traceback (most recent call last):
+  File ".../fedavg/main.py", line 3, in <module>
+    import tensorflow as tf
+ModuleNotFoundError: No module named 'tensorflow'
+```
+
+原因：那批作业跑的是 `9899c9d`，当时 `run_smoke.sh` 调的还是**裸 `python`**，
+没进 apptainer 容器。修复在 `94f69c3`（`cluster_env.sh`）。
+
+**重跑前先 `git pull`**，然后确认第一行输出是 `mode=apptainer`（见下一节）。
+
+> 顺带一提：这五份 json 如实报了失败，而不是产出一堆看起来正常的零 ——
+> 这正是 `errors[]` / `client_failures[]` 这两个字段存在的理由。
+
+---
+
 ## 零、运行环境（跑之前必读）
 
 集群上**所有 python 都必须在 apptainer 容器里跑**，裸 `python3` 一个库都找不到；
@@ -25,6 +46,18 @@ git checkout claude/attack-pfl-orthogonalization-e3c3dd
 
 若显示 `mode=local`，说明没检测到容器 → 后面必然一串 ImportError，先查
 `TFDPFL_SIF` 指的路径存不存在。
+
+**万一显示 `mode=apptainer` 但仍报 ModuleNotFoundError 或找不到文件**：
+多半是容器没挂到 `/nobackup`（apptainer 默认只绑 `$HOME` 和 `$PWD`）。
+先手工验一下容器里到底有没有 TF：
+
+```bash
+apptainer exec --nv /nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/torch_fl.sif \
+  python3 -c "import tensorflow as tf; print(tf.__version__)"
+```
+
+若这条在仓库目录下能跑通，就说明绑定没问题；跑不通再考虑加
+`TFDPFL_PY="apptainer exec --nv --bind /nobackup <sif> python3"`。
 
 > 顺带修了一处：`experiment_tf.sh` 原先硬写 `$ROOT/tensorflow.sif`，
 > 与实际容器路径 `/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/torch_fl.sif`

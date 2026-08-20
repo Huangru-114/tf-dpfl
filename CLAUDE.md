@@ -78,7 +78,6 @@ $PY main.py --config ...
    的 shape bug + 一条测试自身的 float32 舍入写法。
    这 6 条修好之前，集群上的门禁请用 `bash run_l1.sh 2>&1 | tail -3` 人工核对数字，
    **多出来的红才是回归**。（3 xfailed 是 FLAME 的已知 bug，陷阱 #3。）
-   （3 skipped 是需要 TF 的测试，本地无 TF；3 xfailed 是 FLAME 的已知 bug。）
 3. **读 `experiments/<axis>/<method>/current-focus.md`** —— 本会话**唯一**要回答的问题
    和客观判据都在里面。没有这个文件就先和我一起写，不要直接开始改代码。
 
