@@ -1,34 +1,183 @@
 {
   "run": {
-    "config_path": null,
-    "run_name": null,
-    "method": null,
-    "defense": null,
-    "attack": null,
-    "n_rounds": null,
-    "malicious_ids": []
+    "config_path": "/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tf-dpfl/experiments/smoke-base.yaml",
+    "run_name": "hier_pfedme_noniid_badnet_seed42",
+    "method": "hierpfedme",
+    "defense": "none",
+    "attack": "vanilla",
+    "n_rounds": 5,
+    "malicious_ids": [
+      0,
+      9
+    ]
   },
-  "rounds": [],
-  "final": null,
-  "acc_rounds": [],
+  "rounds": [
+    {
+      "round": 1,
+      "global_asr": 0.0,
+      "edge_asr": 0.269,
+      "local_benign_asr": 0.075,
+      "same_edge_asr": 0.17,
+      "diff_edge_asr": 0.018,
+      "local_malicious_asr": 0.416
+    },
+    {
+      "round": 2,
+      "global_asr": 0.0,
+      "edge_asr": 0.252,
+      "local_benign_asr": 0.147,
+      "same_edge_asr": 0.371,
+      "diff_edge_asr": 0.012,
+      "local_malicious_asr": 0.621
+    },
+    {
+      "round": 3,
+      "global_asr": 0.0,
+      "edge_asr": 0.231,
+      "local_benign_asr": 0.073,
+      "same_edge_asr": 0.098,
+      "diff_edge_asr": 0.059,
+      "local_malicious_asr": 0.423
+    },
+    {
+      "round": 4,
+      "global_asr": 0.0,
+      "edge_asr": 0.226,
+      "local_benign_asr": 0.061,
+      "same_edge_asr": 0.096,
+      "diff_edge_asr": 0.04,
+      "local_malicious_asr": 0.876
+    },
+    {
+      "round": 5,
+      "global_asr": 0.0,
+      "edge_asr": 0.223,
+      "local_benign_asr": 0.136,
+      "same_edge_asr": 0.28,
+      "diff_edge_asr": 0.05,
+      "local_malicious_asr": 0.762
+    }
+  ],
+  "final": {
+    "round": 5,
+    "global_asr": 0.0,
+    "edge_asr": 0.223,
+    "local_benign_asr": 0.136,
+    "same_edge_asr": 0.28,
+    "diff_edge_asr": 0.05,
+    "local_malicious_asr": 0.762
+  },
+  "acc_rounds": [
+    {
+      "round": 1,
+      "gm_acc": 0.0941,
+      "em_acc": 0.3225,
+      "pm_acc": 0.4198
+    },
+    {
+      "round": 2,
+      "gm_acc": 0.111,
+      "em_acc": 0.3331,
+      "pm_acc": 0.3859
+    },
+    {
+      "round": 3,
+      "gm_acc": 0.133,
+      "em_acc": 0.3424,
+      "pm_acc": 0.4205
+    },
+    {
+      "round": 4,
+      "gm_acc": 0.1599,
+      "em_acc": 0.3472,
+      "pm_acc": 0.393
+    },
+    {
+      "round": 5,
+      "gm_acc": 0.1872,
+      "em_acc": 0.3495,
+      "pm_acc": 0.4101
+    }
+  ],
   "final_acc": {
-    "final_pm_weighted": null
+    "round": 5,
+    "gm_acc": 0.1872,
+    "em_acc": 0.3495,
+    "pm_acc": 0.4101,
+    "final_pm_weighted": 0.41
   },
   "admitted": [],
   "admitted_count_mean": null,
   "rejected_ids": [],
-  "malicious_selected_rounds": [],
-  "n_malicious_participations": 0,
-  "malicious_participation_by_client": {},
+  "malicious_selected_rounds": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "n_malicious_participations": 5,
+  "malicious_participation_by_client": {
+    "0": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "9": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ]
+  },
   "client_failures": [],
   "errors": [
     "Traceback (most recent call last):",
-    "ModuleNotFoundError: No module named 'tensorflow'"
+    "ImportError: cannot import name 'runtime_version' from 'google.protobuf' (/usr/local/lib/python3.10/dist-packages/google/protobuf/__init__.py)"
   ],
   "log_tail": [
-    "Traceback (most recent call last):",
-    "  File \"/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tf-dpfl/fedavg/main.py\", line 3, in <module>",
-    "    import tensorflow as tf",
-    "ModuleNotFoundError: No module named 'tensorflow'"
+    "",
+    "[ Per-Class Report ]",
+    "              precision    recall  f1-score   support",
+    "",
+    "           0     0.5583    0.5594    0.5589      1532",
+    "           1     0.5045    0.5643    0.5327      1478",
+    "           2     0.5060    0.0556    0.1002      1528",
+    "           3     0.3808    0.5812    0.4601      1528",
+    "           4     0.6570    0.2318    0.3427      1471",
+    "           5     0.4842    0.2680    0.3450      1485",
+    "           6     0.4194    0.3153    0.3600      1494",
+    "           7     0.5198    0.3829    0.4410      1507",
+    "           8     0.5047    0.3635    0.4226      1491",
+    "           9     0.2481    0.7800    0.3764      1482",
+    "",
+    "    accuracy                         0.4100     14996",
+    "   macro avg     0.4783    0.4102    0.3940     14996",
+    "weighted avg     0.4782    0.4100    0.3939     14996",
+    "",
+    "[ F1 Score ]",
+    "  Macro    F1 : 0.3940",
+    "  Weighted F1 : 0.3939",
+    "",
+    "[ AUC (OvR) ]",
+    "  Macro    AUC : 0.8546",
+    "  Weighted AUC : 0.8545",
+    "",
+    "[ Confusion Matrix ] (shape: (10, 10))",
+    "[[ 857   52   10   90   14   11   38   63  174  223]",
+    " [ 158  834    3  163   25   18   27   38   92  120]",
+    " [  95   59   85   87   33   28  158   87   31  865]",
+    " [  38   62   12  888   24  212   61   49   66  116]",
+    " [ 143   46   24  123  341   22  184  211    6  371]",
+    " [  21   99   10  430    5  398   63   14   60  385]",
+    " [  30  137   12  244    2   29  471   59   14  496]",
+    " [  83  105   10  147   39   82   67  577   37  360]",
+    " [  63  169    0  109    1   20   10    9  542  568]",
+    " [  47   90    2   51   35    2   44    3   52 1156]]",
+    "============================================================",
+    "  Report saved to report_PM_hier_pfedme_noniid_badnet_seed42.txt"
   ]
 }
