@@ -50,7 +50,10 @@ elif command -v apptainer >/dev/null 2>&1 && [ -f "$TFDPFL_SIF" ]; then
     # 它就是**悬空**的，keras 会抛一句与真实原因无关的
     # `FileExistsError: File exists: ~/.keras/datasets`。
     # 绑定根下有 data/datasets 就直接指过去，不碰软链。
-    if [ -z "${TFDPFL_KERAS_HOME:-}" ] && [ -d "$TFDPFL_BIND/data/datasets" ]; then
+    # 判据用 data/ 而不是 data/datasets/：datasets 子目录可能还没建出来
+    # （$HOME 下的软链常常指向一个尚未创建的目标），建不出来才是真问题。
+    if [ -z "${TFDPFL_KERAS_HOME:-}" ] && [ -d "$TFDPFL_BIND/data" ]; then
+        mkdir -p "$TFDPFL_BIND/data/datasets" 2>/dev/null || true
         export TFDPFL_KERAS_HOME="$TFDPFL_BIND/data"
         # apptainer 默认继承宿主环境变量；APPTAINERENV_ 前缀是显式保证，两条都设，
         # 免得哪天容器换成 --cleanenv 就静默失效。
