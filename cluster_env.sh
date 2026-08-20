@@ -15,7 +15,7 @@
 #     TFDPFL_SIF=/path/to.sif    换容器
 # ══════════════════════════════════════════════════════════════════════════
 
-TFDPFL_SIF="${TFDPFL_SIF:-/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/torch_fl.sif}"
+TFDPFL_SIF="${TFDPFL_SIF:-/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tensorflow.sif}"
 
 if [ -n "${TFDPFL_PY:-}" ]; then
     # 显式覆盖，最高优先级

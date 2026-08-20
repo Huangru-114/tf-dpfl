@@ -41,7 +41,7 @@ ModuleNotFoundError: No module named 'tensorflow'
 **每次跑之前扫一眼第一行输出**：
 
 ```
-[env] python = apptainer exec --nv /nobackup/.../torch_fl.sif python3   (mode=apptainer)
+[env] python = apptainer exec --nv /nobackup/.../tensorflow.sif python3   (mode=apptainer)
 ```
 
 若显示 `mode=local`，说明没检测到容器 → 后面必然一串 ImportError，先查
@@ -52,7 +52,7 @@ ModuleNotFoundError: No module named 'tensorflow'
 先手工验一下容器里到底有没有 TF：
 
 ```bash
-apptainer exec --nv /nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/torch_fl.sif \
+apptainer exec --nv /nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tensorflow.sif \
   python3 -c "import tensorflow as tf; print(tf.__version__)"
 ```
 
@@ -60,7 +60,7 @@ apptainer exec --nv /nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/torch_
 `TFDPFL_PY="apptainer exec --nv --bind /nobackup <sif> python3"`。
 
 > 顺带修了一处：`experiment_tf.sh` 原先硬写 `$ROOT/tensorflow.sif`，
-> 与实际容器路径 `/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/torch_fl.sif`
+> 与实际容器路径 `/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tensorflow.sif`
 > 不一致 —— 矩阵提交器此前很可能根本跑不起来。现在统一走 `cluster_env.sh`。
 
 ---

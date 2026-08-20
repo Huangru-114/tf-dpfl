@@ -11,7 +11,7 @@
 **集群上所有 python 都必须在 apptainer 容器里跑。裸 `python3 xxx.py` 一个库都找不到。**
 
 ```bash
-apptainer exec --nv /nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/torch_fl.sif python3 ...
+apptainer exec --nv /nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tensorflow.sif python3 ...
 ```
 
 **`.sh` 脚本必须是 SLURM 格式、用 `sbatch` 提交**才会真正跑起来。完整模板：
@@ -28,7 +28,7 @@ apptainer exec --nv /nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/torch_
 
 module load GPU/buildenv-nvhpc/25.9-cu13.0
 
-apptainer exec --nv /nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/torch_fl.sif python3 -m 你的模块
+apptainer exec --nv /nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tensorflow.sif python3 -m 你的模块
 ```
 
 **仓库里这件事已经收口到 `cluster_env.sh`**，不要在新脚本里再硬写容器路径：
@@ -71,6 +71,11 @@ $PY main.py --config ...
    |---|---|---|
    | **本地（无 TF）** | `172 passed / 4 skipped / 3 xfailed` → **PASS**（exit 0） | 4 skipped = 4 个需要 TF 的测试模块整体 skip |
    | **集群（有 TF）** | `213 passed / 3 skipped / 3 xfailed / 6 failed` → **FAIL** | 6 条红是**既有**的陷阱 #4/#5，见下 |
+
+   > 若在容器里直接跑裸 `pytest`（不加 `tests/`），会多收 6 条
+   > `fedavg/defense/test_defenses_offline.py` → **219 passed**。
+   > `run_l1.sh` 只跑 `tests/`，所以是 213。两个数都对，别被吓到。
+   > 已实测（2026-08-20，容器内 Python 3.10.12）：`6 failed, 219 passed, 3 skipped, 3 xfailed`。
 
    集群上 `run_l1.sh` 返回 FAIL 是**当前的预期状态**，不是回归：
    `test_neurotoxin_mask` ×2 是陷阱 #4（mask 语义方向未证实，测试按文献语义写、
