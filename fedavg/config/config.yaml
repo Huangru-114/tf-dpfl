@@ -1,29 +1,36 @@
 seed: 42
 data:
-  dataset:        "cifar10"
+  dataset:        "cifar100"
   img_size:       32
   batch_size:     16
   shuffle_buffer: 10000
-  num_classes:    10
+  num_classes:    100
   per_client_test_ratio: 0.25
 
 federation:
-  edge_assignment:  "semantic"  # 可选 "random", "clustered"
+  edge_assignment:  "random"  # 可选 "random", "clustered"
   client_fraction:  1.0
   warmup_rounds:    5
   n_clients:        100
   n_edges:          2
   edge_rounds:      5
   n_rounds:         40
-  partition:        "superclass_pathological"  # 可选 "iid", "pathological", "superclass_pathological"
-  classes_per_client: 2
+  partition:        "superclass_pathological"  # 可选 "iid", "noniid", "pathological", "superclass_pathological", "hierarchical"
+  classes_per_client: 10
   alpha:            0.5
+  # ── 层级两段式划分（partition="hierarchical" 时生效，任务1）──────────────
+  # inter_edge=跨边缘节点分布，intra_edge=边缘节点内部分布。可由 H1–H4 配置展开。
+  # type ∈ {iid, dirichlet, pathological}；pathological 在 inter 层用 classes_per_edge。
+  inter_edge:       {type: "dirichlet", alpha: 0.5}
+  intra_edge:       {type: "pathological", classes_per_client: 2}
+  min_samples:      10            # 每客户端最小样本阈值（两段切分后均衡用）
 
 training:
-  local_epochs:   1
+  local_epochs:   5
   learning_rate:  0.02
   lr_decay:       0.992
-  drift_correction: "hierpfedme"  # 可选 "none", "fedprox", "feddyn", "pfedme", "hierpfedme", "hier_perfedavg"
+  drift_correction: "hierpfedme"  # 可选 "fedavg"/"hierfedavg", "fedprox", "feddyn", "pfedme", "hierpfedme",
+                                  #      "hier_ditto", "hier_ditto_rep", "hier_pfedme_rep", "hier_fedrep"
   proximal_ref:     "edge"
   # fedprox 相关超参数
   mu:               1.0
@@ -37,25 +44,114 @@ training:
   beta_pfedme:      1.0
   pfedme_warm_start: false
   # Hier-pFedAvg 相关超参数
-  lambda1_hier:     35.0
-  lambda2_hier:     35.0
+  lambda1_hier:     15.0   # edge 式7/8 近端 λ（对齐 PFLlib pFedMe lamda=15；原 35 过大）
+  lambda2_hier:     15.0   # client 内层/Moreau 近端 λ（对齐 PFLlib；原 35 过大）
   beta_hier:        1.0
-  # Hier-pFedMe 相关超参数
-  #inner_steps_hier, 5会使得PM直接崩溃,这和文献报告完全不同,怀疑是实现细节问题,先改成2试试
-  inner_steps_hier: 1
+  # Hier-pFedMe 相关超参数（对齐 PFLlib：内层 personal_lr ≠ 外层 moreau_lr）
+  # 之前内层与 Moreau 共用 learning_rate(0.02)+λ=35 → 有效系数 lr·λ≈0.70，比 PFLlib
+  # （内层 0.15、外层 0.075）大 5~10 倍 → 锚点塌缩、K>1 发散。修复后 K=5 稳定。
+  personal_lr_pfedme: 0.01   # 内层 θ̃ 个性化优化器 lr（PFLlib personal_learning_rate）
+  moreau_lr_pfedme:   0.005  # 外层 Θ + edge 式7/8 的 Moreau lr（PFLlib learning_rate）
+  mu_pfedme:          0.001  # 内层 L2 正则（PFLlib pFedMeOptimizer mu）
+  inner_steps_hier: 5        # K（修复双 lr 后 5 已稳定，对齐 PFLlib）
   alpha_inner:      0.01
   beta_outer:   0.01    # 外循环边缘更新步长
   label_smoothing: 0.1  # 防 NaN
+  # Hier-Rep / Hier-Ditto 相关超参数
+  plocal_epochs:    1   # FedRep: head 训练 epoch 数（须 > local_epochs）
+  # rep 类方法（fedrep/ditto_rep/pfedme_rep）的个性化 head 专属低学习率（独立优化器）：
+  # head 每 global round 训 edge_rounds×plocal_epochs 个 epoch、warm-start，用 base lr(0.02)
+  # 会过拟合 → 30 轮后 PM loss 回升。低 head_lr 减缓 head 记忆，配合瓶颈一起抗过拟合。
+  # < base learning_rate；太低 head 会欠拟合、个性化不足。backbone 仍用 learning_rate。
+  head_lr_rep:      0.005
+  lambda_ditto:     0.1 # Ditto 个性化近端系数（client backbone / 整模型）
+  ditto_pers_epochs: 1  # Hier-Ditto: 个性化模型 v_k 训练 epoch 数
 
 model:
   arch: "fedavg_cnn"
+  # FedRep/Rep 类方法的低维共享表示（瓶颈）维度 = 个性化 head 的输入维。
+  # head 参数≈rep_dim×num_classes；须保证 rep_dim < 每客户端样本数 n，否则线性 head 欠定→过拟合。
+  # CIFAR-10 100client（n≈450）下 64 合适（head=650 参数）。0 = 不加瓶颈（head 直接接 512，消融用）。
+  rep_dim: 64
+
+# 后门攻击（KDD 2023 复现）。enabled=false 时对训练/评估无任何影响。
+backdoor:
+  enabled:        false
+  trigger:        "blended"      # 触发器轴："badnet" | "blended" | "dba"（分布式像素）
+  malicious_strategy: "badpfl" # 训练策略轴："vanilla" | "neurotoxin" | "cerp" | "badpfl"
+  target_label:   9             # CIFAR-10 目标类（FEMNIST 用 1）
+  poison_ratio:   0.5           # 恶意客户端本地数据投毒比例
+  malicious_ids:  [15]          # 恶意客户端编号（concentrated 或显式时用；spread 时被解析结果覆盖）
+  malicious_placement: "spread" # "spread"=跨 edge 分散（每 edge≥1）| "concentrated"=用 malicious_ids
+  n_malicious:    4             # spread 时的恶意客户端数量（<=0 时回退 malicious_ids 长度）
+  attack_freq_Q:  10            # fix-frequency：每 Q 轮强制参与一次
+  badnet_size:    3             # BadNet 方块边长
+  badnet_value:   1.0           # 方块像素值（[0,1] 空间，标准化前）
+  blended_alpha:  0.2           # Blended 混合比例 α
+  blended_image:  "attack/triggers/hello_kitty.png"  # 用户提供的图案文件
+  # DBA（trigger="dba"）：各局部触发器坐标（按官方 AI-secure/DBA cifar_params.yaml）。
+  # 恶意客户端按 id 排序循环分到一个局部 pattern 投毒；ASR 评估用合并后的全局触发器。
+  dba_patterns:
+    - [[0,0],[0,1],[0,2],[0,3],[0,4],[0,5]]
+    - [[0,9],[0,10],[0,11],[0,12],[0,13],[0,14]]
+    - [[4,0],[4,1],[4,2],[4,3],[4,4],[4,5]]
+    - [[4,9],[4,10],[4,11],[4,12],[4,13],[4,14]]
+  # Neurotoxin（malicious_strategy="neurotoxin"）：在干净数据上算真实 benign 梯度，
+  # 屏蔽幅值 top-k% 坐标，恶意更新只投影到剩余低梯度坐标 → 后门持久。连续参与（Q=1，
+  # 由 main.py 自动设定）逐轮累积；不做 model-replacement 放大（ASR 靠累积）。
+  neurotoxin_mask_ratio:   0.05   # 屏蔽的 benign 梯度 top-k% 坐标比例
+  neurotoxin_mask_batches: 0      # 算 benign 梯度用的 clean batch 数（0=全部）
+  # CerP（malicious_strategy="cerp"，动态投毒）：可训练触发器 + 模型距离 + peer 余弦正则。
+  cerp_alpha:         0.0001   # ‖θ−θ_clean‖₂ 系数
+  cerp_beta:          0.0001   # Σ cos(θ,θ_peer) 系数
+  cerp_trigger_lr:    0.1      # 触发器梯度下降步长
+  cerp_trigger_phi:   10.0     # 触发器 L2 球半径（标准化空间，可调）
+  cerp_trigger_steps: 1        # 每轮触发器细调步数
+  # Bad-PFL（malicious_strategy="badpfl"，动态投毒）：生成器触发器 + FGSM 破坏性噪声。
+  badpfl_epsilon:     0.01569  # 生成器扰动幅度 ε=4/255（[0,1] 像素空间，内部逐通道换算）
+  badpfl_sigma:       0.01569  # FGSM 噪声幅度 σ=4/255
+  badpfl_gen_steps:   30       # 每轮生成器训练步数
+  badpfl_gen_lr:      0.01     # 生成器 Adam 学习率
+  eval_interval:  5             # 每多少轮算一次分层 ASR（建议 5，重型评估开销大）
+  asr_max_samples: 0            # ASR 测试子采样上限（0=用全部非目标类样本）
+  verbose_clients: true         # 是否逐 client 打印 C-Acc/ASR
+  # ── 分层后门评估扩展（任务2）────────────────────────────────────────────
+  feature_eval:          true   # 是否算特征空间分离度（global + 抽样 local）
+  feature_eval_samples:  200    # 后门样本抽样数（特征分离度用，控制显存）
+  feature_clean_per_class: 50   # 每类干净样本抽样数（特征质心用）
+  forgetting_epochs:     5      # 遗忘曲线记录的本地 epoch 数（仅个性化/微调方法、仅评估轮）
+
+# 后门防御（鲁棒聚合，参照 xtLyu/PFedBA 写在 edge 聚合层）。name=none 时对训练无影响。
+# 经 EdgeServerBase.robust_mean 统一接入所有 PFL 方法的 edge 聚合步。
+defense:
+  # 聚合层防御 trimmed_mean/median/multi_krum/flame/dnc 经 robust_mean 接入；
+  # simple_tuning 是训练后客户端侧后处理防御（重置头+干净微调，评估时对良性本地模型生效）。
+  name:   "none"   # "none" | "trimmed_mean" | "median" | "multi_krum" | "flame" | "dnc" | "simple_tuning"
+  params:
+    trim_ratio:      0.1     # trimmed_mean：两端各去除比例
+    num_malicious:   0       # multi_krum/dnc：per-edge 恶意数估计（0=按 n_malicious/n_edges 自动估算）
+    noise_scale:     0.001   # flame：噪声标准差相对裁剪范数的比例
+    num_projections: 5       # dnc：随机投影次数
+    subspace_dim:    10000   # dnc：每次投影的子空间维度上界
+    filter_mult:     1.0     # dnc：剔除数 = ceil(filter_mult · num_malicious)
+    st_epochs:       10      # simple_tuning：分类头微调 epoch 数
+    st_lr:           0.0     # simple_tuning：头微调学习率（0=回退 training.learning_rate）
 
 wandb:
   enabled:  true
   entity:   "3445339138-kth-royal-institute-of-technology"
   project:  "HierFL-cifar10"
   # run_name: "H4_hierpfedme_c10_localepoch_5_random_dirichet_alpha_0.1"
-  run_name: "final0_hierpfedme_c100_localepoch_1_semantic_superclass_pathological_classesperclient_2_k1"
+  run_name: "final0_hierpfedme_c100_localepoch_5_semantic_superclass_pathological_classesperclient_10_k1"
 
 evaluation:
   eval_interval: 1
+  # 最后微调选项（PM 评估前对下发 edge 模型做少步本地微调；主要用于 Hier-FedAvg）
+  final_finetune:       false  # 置 true 开启「FedAvg + 微调」式 PM 评估
+  final_finetune_steps: 5      # 微调 epoch 数（默认回退 pm_steps）
+  # final_finetune_lr:  0.02   # 微调学习率，默认回退 training.learning_rate
+  # Held-out test-client 评估设定（衡量对新客户端的泛化）
+  test_client_eval:    false  # 置 true 开启：留出一部分 client 不参与训练
+  test_client_ratio:   0.2    # 留出比例
+  test_finetune_steps: 5      # test client 接收 edge 模型后微调的 epoch 数
+  # test_finetune_lr:  0.02   # 微调学习率，默认回退 training.learning_rate

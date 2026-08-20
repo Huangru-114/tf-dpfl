@@ -15,39 +15,199 @@ from data.clustering    import random_assignment, warmup_gradient_assignment, hi
 from models.cnn         import build_model
 from models.model_utils import clone_model
 from client.client_pfedme      import PFedMeClient
+from client.client_fedavg       import FedAvgClient
 from client.hier_ditto_rep      import HierDittoRepClient
 from client.hier_pfedme_rep     import HierPFedMeRepClient
+from client.hier_ditto          import HierDittoClient
+from client.hier_fedrep         import HierFedRepClient
 from server.edge_server_pfedme import PFedMeEdgeServer
+from server.edge_server_fedavg import FedAvgEdgeServer
 from server.hier_ditto_rep      import HierDittoRepEdgeServer
 from server.hier_pfedme_rep     import HierPFedMeRepEdgeServer
+from server.hier_ditto          import HierDittoEdgeServer
+from server.hier_fedrep         import HierFedRepEdgeServer
 from server.server      import CloudServer   # 原来是 FLServer
+from server.backdoor_server import BackdoorCloudServer
+from attack.triggers        import build_trigger
+from attack.backdoor        import (get_malicious_ids, resolve_malicious_ids,
+                                    build_poisoned_dataset,
+                                    make_dba_local_triggers,
+                                    install_forced_participation)
+from client.client_neurotoxin import NeurotoxinClient
+from client.client_cerp        import CerPClient
+from client.client_badpfl      import BadPFLClient
 
 
 def _select_method_classes(config):
     """
     按 config["training"]["drift_correction"] 选择 client / edge 类。
 
-    新增的 Hier-Rep 方法走各自的子类，其余方法（pfedme / hierpfedme 等）
-    仍走默认的 PFedMeClient / PFedMeEdgeServer，行为不变。
+    新增的 Hier-FedAvg / Hier-Rep / Hier-Ditto 方法走各自的
+    子类，其余方法（pfedme / hierpfedme 等）仍走默认的
+    PFedMeClient / PFedMeEdgeServer，行为不变。
     """
     method = config["training"].get("drift_correction", "pfedme")
     client_cls = {
+        "fedavg":          FedAvgClient,
+        "hierfedavg":      FedAvgClient,
         "hier_ditto_rep":  HierDittoRepClient,
         "hier_pfedme_rep": HierPFedMeRepClient,
+        "hier_ditto":      HierDittoClient,
+        "hier_fedrep":     HierFedRepClient,
     }.get(method, PFedMeClient)
     edge_cls = {
+        "fedavg":          FedAvgEdgeServer,
+        "hierfedavg":      FedAvgEdgeServer,
         "hier_ditto_rep":  HierDittoRepEdgeServer,
         "hier_pfedme_rep": HierPFedMeRepEdgeServer,
+        "hier_ditto":      HierDittoEdgeServer,
+        "hier_fedrep":     HierFedRepEdgeServer,
     }.get(method, PFedMeEdgeServer)
     return client_cls, edge_cls
 from utils.logger       import FLLogger
 from utils.report       import generate_report
+from config_validate    import validate_config
+
+
+# ── 高层实验维度 → 现有 config 字段的映射（任务3：sweep / CLI 用） ───────────
+# 本轮仅实现 4 个方法；FedBN / 纯 FedRep 暂缓（见计划文件）。
+FRAMEWORK_MAP = {
+    "hier_fedavg":    {"drift_correction": "hierfedavg", "final_finetune": False},
+    "hier_fedavg_ft": {"drift_correction": "hierfedavg", "final_finetune": True},
+    "hier_pfedme":    {"drift_correction": "hierpfedme", "final_finetune": False},
+    "hier_ditto":     {"drift_correction": "hier_ditto", "final_finetune": False},
+    "hier_fedavg_fedrep": {"drift_correction": "hier_fedrep", "final_finetune": False},
+    # TODO: "hier_fedavg_fedbn"
+}
+
+# ── attack_method 友好别名 → 两个正交轴 (trigger × malicious_strategy) ────────
+# 配置内部始终是两正交轴；CLI/sweep 用单一 attack_method 别名，便于网格扫描。
+ATTACK_METHOD_MAP = {
+    "none":      {"enabled": False, "trigger": "badnet",     "strategy": "vanilla"},
+    "badnet":    {"enabled": True,  "trigger": "badnet",     "strategy": "vanilla"},
+    "blended":   {"enabled": True,  "trigger": "blended",    "strategy": "vanilla"},
+    "dba":       {"enabled": True,  "trigger": "dba",        "strategy": "vanilla"},
+    "neurotoxin":{"enabled": True,  "trigger": "badnet",     "strategy": "neurotoxin"},
+    # Phase 2（动态投毒 + model-dependent 评估，触发器在 local_train 内动态生成，
+    # 故 trigger 字段仅作标签用；投毒不走 build_poisoned_dataset）：
+    "cerp":      {"enabled": True,  "trigger": "badnet",     "strategy": "cerp"},
+    "badpfl":    {"enabled": True,  "trigger": "badnet",     "strategy": "badpfl"},
+}
+
+
+# ── 防御轴（与 framework/distribution/attack 正交）─────────────────────────────
+DEFENSE_CHOICES = ["none", "trimmed_mean", "median", "multi_krum", "flame", "dnc",
+                   "simple_tuning"]
+
+
+def select_malicious_client_class(strategy: str):
+    """
+    恶意客户端用的「攻击策略类」（继承 FedAvgClient，与 PFL 方法正交）。
+    返回 None 表示用方法类（vanilla：badnet/blended/dba 走方法类 + 投毒数据，
+    保持与既有实验一致的行为）。
+    """
+    return {
+        "neurotoxin": NeurotoxinClient,
+        "cerp":       CerPClient,
+        "badpfl":     BadPFLClient,
+    }.get(str(strategy).lower())
+
+
+def build_eval_trigger(bd_cfg, static_trigger, clients, config):
+    """
+    构建评估侧触发器 trigger_fn(model, x, y=None) -> 加触发器的 numpy x。
+
+    - 静态策略（vanilla/neurotoxin：badnet/blended/dba）：忽略 model/y，套用静态触发器。
+    - CerP / Bad-PFL（动态/model-dependent）：用首个对应恶意客户端的触发器/生成器。
+      CerP 用其固定 _trigger 变量；Bad-PFL 用被评估模型自身 + 该客户端 generator。
+    """
+    strategy = str(bd_cfg.get("malicious_strategy", "vanilla")).lower()
+    mal = [c for c in clients if getattr(c, "is_malicious", False)]
+    if strategy in ("cerp", "badpfl") and mal:
+        c0 = mal[0]
+        return lambda model, x, y=None: c0.eval_trigger(model, x, y)
+    return lambda model, x, y=None: static_trigger(x)
+
+
+def _set_nested(config: dict, key_path: str, value):
+    keys = key_path.split(".")
+    d = config
+    for k in keys[:-1]:
+        d = d.setdefault(k, {})
+    d[keys[-1]] = value
+
+
+def apply_experiment_args(config: dict, args) -> dict:
+    """
+    把高层实验维度（framework / distribution_config / attack_method / seed）
+    展开为现有 config 字段，并按规范生成 wandb run 名：
+        {framework}_{distribution}_{attack}_seed{seed}
+    例：hier_fedavg_ft_D4_dir_05_badnet_seed42
+    """
+    from experiments.distributions import resolve_distribution
+
+    if args.seed is not None:
+        config["seed"] = int(args.seed)
+
+    if args.framework is not None:
+        if args.framework not in FRAMEWORK_MAP:
+            raise ValueError(
+                f"Unknown framework: {args.framework!r}. "
+                f"Available: {list(FRAMEWORK_MAP)}")
+        fm = FRAMEWORK_MAP[args.framework]
+        _set_nested(config, "training.drift_correction", fm["drift_correction"])
+        _set_nested(config, "evaluation.final_finetune", fm["final_finetune"])
+
+    if args.distribution_config is not None:
+        dist = resolve_distribution(args.distribution_config)
+        for k, v in dist.items():
+            _set_nested(config, f"federation.{k}", v)
+
+    if args.attack_method is not None:
+        am = args.attack_method.lower()
+        if am not in ATTACK_METHOD_MAP:
+            raise ValueError(
+                f"Unknown attack_method: {args.attack_method!r}. "
+                f"Available: {list(ATTACK_METHOD_MAP)}")
+        spec = ATTACK_METHOD_MAP[am]
+        _set_nested(config, "backdoor.enabled", spec["enabled"])
+        if spec["enabled"]:
+            # 友好别名展开为两个正交轴：trigger × malicious_strategy
+            _set_nested(config, "backdoor.trigger", spec["trigger"])
+            _set_nested(config, "backdoor.malicious_strategy", spec["strategy"])
+
+    if args.defense is not None:
+        dfn = args.defense.lower()
+        if dfn not in DEFENSE_CHOICES:
+            raise ValueError(
+                f"Unknown defense: {args.defense!r}. Available: {DEFENSE_CHOICES}")
+        _set_nested(config, "defense.name", dfn)
+
+    # run 命名规范（仅当提供了高层维度时覆盖）
+    if any(v is not None for v in
+           (args.framework, args.distribution_config, args.attack_method, args.defense)):
+        fw = args.framework or config["training"].get("drift_correction", "fl")
+        dist = args.distribution_config or config["federation"].get("partition", "dist")
+        atk = args.attack_method or (
+            config["backdoor"].get("trigger", "badnet")
+            if config.get("backdoor", {}).get("enabled") else "none")
+        seed = config.get("seed", 42)
+        run_name = f"{fw}_{dist}_{atk}_seed{seed}"
+        dfn = args.defense or config.get("defense", {}).get("name", "none")
+        if str(dfn).lower() not in ("none", "", "off", "disabled"):
+            run_name += f"_def-{dfn}"
+        _set_nested(config, "wandb.run_name", run_name)
+        print(f"[Config] run_name = {config['wandb']['run_name']}")
+
+    return config
 
 
 def load_config(path: str = "config/config.yaml") -> dict:
     """
-    加载 config.yaml，支持命令行 --override key=value 覆盖任意字段。
-    key 用点号表示嵌套，例如 federation.alpha=0.1
+    加载 config.yaml，支持：
+      --override key=value          覆盖任意字段（点号表示嵌套，如 federation.alpha=0.1）
+      --framework / --distribution_config / --attack_method / --seed
+                                    高层实验维度（展开为现有字段 + 生成 run_name）
     """
     with open(path, "r") as f:
         config = yaml.safe_load(f)
@@ -56,9 +216,17 @@ def load_config(path: str = "config/config.yaml") -> dict:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config",   type=str, default=path)
     parser.add_argument("--override", type=str, action="append", default=[])
+    parser.add_argument("--framework",           type=str, default=None)
+    parser.add_argument("--distribution_config", type=str, default=None)
+    parser.add_argument("--attack_method",       type=str, default=None)
+    parser.add_argument("--defense",             type=str, default=None)
+    parser.add_argument("--seed",                type=str, default=None)
     args, _ = parser.parse_known_args()
 
-    # 应用覆盖
+    # 先应用高层维度（可被后续显式 --override 进一步覆盖）
+    config = apply_experiment_args(config, args)
+
+    # 应用 --override
     for override in args.override:
         key_path, value = override.split("=", 1)
         keys = key_path.split(".")
@@ -72,6 +240,14 @@ def load_config(path: str = "config/config.yaml") -> dict:
             pass
         d[keys[-1]] = value
         print(f"[Config] Override: {key_path} = {value}")
+
+    # ── 兼容性校验：挡掉会「静默跑错」的跨轴组合（见 config_validate.py）──
+    # 必须在构建任何模型/客户端之前，否则 24 小时后才发现那一格没有意义。
+    # strict_orthogonality=true 时把「攻击 × 方法不正交」也升级为错误。
+    validate_config(
+        config,
+        strict_orthogonality=bool(
+            (config.get("experiment") or {}).get("strict_orthogonality", False)))
 
     return config
 
@@ -125,6 +301,20 @@ def build_clients(images_np, labels_np, global_model, config,
             classes_per_client=config["federation"].get("classes_per_client", 10)
         )
 
+    elif partition == "hierarchical":
+        # 层级两段式划分（任务1 核心）：先 inter_edge 分到 edge，再 intra_edge 分到 client。
+        # 返回 assignments，走 baked 通道（与 superclass_pathological 同款）。
+        from data.hierarchical_partition import hierarchical_partition
+        n_edges   = config["federation"]["n_edges"]
+        inter_cfg = config["federation"]["inter_edge"]
+        intra_cfg = config["federation"]["intra_edge"]
+        min_samp  = int(config["federation"].get("min_samples", 10))
+        client_datasets, client_indices, assignments = hierarchical_partition(
+            images_np, labels_np, n_clients, n_edges,
+            inter_cfg, intra_cfg, config,
+            min_samples=min_samp, seed=config.get("seed", 42),
+        )
+
     elif partition == "superclass_pathological":
         # 导入聚类模块，构建每个 edge 的细粒度类别集合
         from data.clustering import (
@@ -166,12 +356,66 @@ def build_clients(images_np, labels_np, global_model, config,
         images_np, labels_np, client_indices, config, test_ratio=test_ratio
     )
 
+    # ── 后门攻击：恶意客户端用投毒数据集替换原本地数据集 ───────────────────
+    bd_cfg        = config.get("backdoor", {})
+    bd_enabled    = bool(bd_cfg.get("enabled", False))
+    # 解析恶意客户端（默认跨 edge 分散，需要 assignments；非 baked 分区退化为等距）。
+    # 解析结果写回 bd_cfg["malicious_ids"]，保证 run_experiment 后续调用一致。
+    malicious_ids = resolve_malicious_ids(
+        bd_cfg, n_clients, assignments=assignments, seed=config.get("seed", 42))
+    if bd_enabled:
+        bd_cfg["malicious_ids"] = sorted(int(i) for i in malicious_ids)
+        print(f"[Backdoor] resolved malicious clients "
+              f"(placement={bd_cfg.get('malicious_placement', 'spread')}): "
+              f"{bd_cfg['malicious_ids']}")
+    bd_trigger    = build_trigger(bd_cfg, img_size=config["data"]["img_size"]) if bd_enabled else None
+    bd_target     = int(bd_cfg.get("target_label", 9))
+    bd_poison     = float(bd_cfg.get("poison_ratio", 0.5))
+    strategy      = str(bd_cfg.get("malicious_strategy", "vanilla")).lower()
+    trigger_kind  = bd_cfg.get("trigger", "badnet")
+
+    # DBA：每个恶意客户端分到一个**局部**触发器用于投毒（评估侧用全局触发器）
+    dba_triggers  = (make_dba_local_triggers(bd_cfg, malicious_ids)
+                     if (bd_enabled and trigger_kind == "dba") else {})
+    # 动态投毒策略（Phase 2 CerP/Bad-PFL）：恶意客户端保留 clean 数据，训练时动态投毒
+    dynamic_poison = strategy in ("cerp", "badpfl")
+
+    # 安全防护：CerP/Bad-PFL 的恶意客户端用自定义 eager 训练（可训练触发器 / generator），
+    # 与良性客户端的 @tf.function 路径在线程池里并发会互相污染 TF 图（reshape/形状错乱）。
+    # 故对动态策略强制串行收集（n_workers=1）。Neurotoxin 已复用 @tf.function 路径，无需串行。
+    if bd_enabled and dynamic_poison:
+        config["federation"]["n_workers"] = 1
+        print(f"[Backdoor] strategy={strategy}: forcing serial client collection "
+              f"(federation.n_workers=1) to avoid eager/@tf.function 线程冲突。")
+
     ClientCls, _ = _select_method_classes(config)
+    MalCls       = select_malicious_client_class(strategy)  # None => 用方法类
+
     clients = []
     for i, (ds, indices) in enumerate(zip(client_datasets, client_indices)):
+        clean_ds = ds  # 未投毒本地训练集（Neurotoxin 算 benign 梯度 mask 用）
+        is_mal  = bd_enabled and (i in malicious_ids)
+        use_cls = ClientCls
+        if is_mal:
+            use_cls = MalCls or ClientCls
+            if not dynamic_poison:
+                # 静态投毒：构造 client 前替换数据集（DBA 用局部触发器，否则用统一触发器）
+                poison_trig = dba_triggers.get(i, bd_trigger)
+                # 每个恶意客户端一条独立、可复现的 RNG 流（seed, client_id）
+                ds = build_poisoned_dataset(
+                    images_np, labels_np, indices, config,
+                    poison_trig, bd_target, bd_poison,
+                    rng=np.random.default_rng([int(config.get("seed", 42)), i]))
+            print(f"[Backdoor] Client {i} MALICIOUS | strategy={strategy} | "
+                  f"trigger={trigger_kind} | target={bd_target} | poison={bd_poison}"
+                  f"{' | dynamic-poison (clean kept)' if dynamic_poison else ''}")
         client_model = clone_model(global_model)
-        client = ClientCls(client_id=i, dataset=ds, model=client_model,
-                          config=config, n_samples=len(indices))
+        client = use_cls(client_id=i, dataset=ds, model=client_model,
+                         config=config, n_samples=len(indices))
+        client.is_malicious = is_mal
+        # Neurotoxin：注入干净数据集（仅用于算 benign 梯度 mask，不参与投毒训练）
+        if is_mal and hasattr(client, "set_clean_dataset"):
+            client.set_clean_dataset(clean_ds)
         if client_test_datasets is not None:
             client.set_test_dataset(client_test_datasets[i])
         # Store training class set for per-edge test dataset construction later.
@@ -229,10 +473,36 @@ def build_edge_servers(clients, global_model, config,
     else:
         raise ValueError(f"Unknown edge_assignment: {strategy}")
 
-    # ── Step 2：按分配方案构建 EdgeServer ─────────────────
+    # ── Step 2a：（可选）划分 train / test client ─────────────────
+    # test-client 评估设定：把一定比例的 client 整体留出，不参与任何 FL 训练，
+    # 其数据（含 per-client test 部分）在训练中从不泄露；训练结束后这些 test
+    # client 接收其分配 edge 的模型、做一组微调，再在留出的 test 数据上评估，
+    # 衡量模型对「新客户端」的泛化能力。train client 行为不变。
+    eval_cfg   = config.get("evaluation", {})
+    tc_enabled = bool(eval_cfg.get("test_client_eval", False))
+    tc_ratio   = float(eval_cfg.get("test_client_ratio", 0.2))
+    n_clients  = len(clients)
+    is_test    = np.zeros(n_clients, dtype=bool)
+    if tc_enabled and tc_ratio > 0:
+        n_test = max(1, int(n_clients * tc_ratio))
+        test_idx = np.random.choice(n_clients, n_test, replace=False)
+        is_test[test_idx] = True
+        print(f"[Test-client holdout] {n_test}/{n_clients} clients held out "
+              f"(ratio={tc_ratio}); excluded from FL training.")
+
+    # ── Step 2b：按分配方案构建 EdgeServer（仅 train client 入 edge） ──────
+    test_clients  = []
     client_groups = [[] for _ in range(n_edges)]
     for client_idx, edge_idx in enumerate(assignments):
-        client_groups[edge_idx].append(clients[client_idx])
+        c = clients[client_idx]
+        if is_test[client_idx]:
+            c.is_test_client = True
+            c.assigned_edge  = int(edge_idx)
+            test_clients.append(c)
+        else:
+            c.is_test_client = False
+            c.assigned_edge  = int(edge_idx)
+            client_groups[edge_idx].append(c)
 
     edge_servers = []
     for i, group in enumerate(client_groups):
@@ -258,8 +528,11 @@ def build_edge_servers(clients, global_model, config,
         print(f"  Edge {e.edge_id}: "
               f"{len(e.clients)} clients | "
               f"{e.n_samples} samples")
+    if test_clients:
+        print(f"  [Held-out] {len(test_clients)} test clients "
+              f"(not in any edge training set)")
 
-    return edge_servers
+    return edge_servers, test_clients
 
 def run_experiment(config_path="config/config.yaml"):
     config       = load_config(config_path)
@@ -282,7 +555,8 @@ def run_experiment(config_path="config/config.yaml"):
         input_shape=(config["data"]["img_size"],
                      config["data"]["img_size"], 3),
         num_classes=config["data"]["num_classes"],
-        arch=config["model"]["arch"]
+        arch=config["model"]["arch"],
+        rep_dim=int(config["model"].get("rep_dim", 64))
     )
     global_model.summary()
 
@@ -303,8 +577,9 @@ def run_experiment(config_path="config/config.yaml"):
 
     # 把 clients 分组给 Edge Server
     print("[Setup] Building edge servers...")
-    edge_servers = build_edge_servers(clients, global_model, config,
-                                      precomputed_assignments=baked_assignments)
+    edge_servers, test_clients = build_edge_servers(
+        clients, global_model, config,
+        precomputed_assignments=baked_assignments)
 
     # 为每个 edge 注入与其训练分布匹配的测试集（EM 评估用）。
     # superclass_pathological：使用预定义的超类细粒度类集合。
@@ -319,12 +594,47 @@ def run_experiment(config_path="config/config.yaml"):
 
     g_test_ds = merge_test_datasets(edge_servers, config["data"]["batch_size"])
 
-    cloud = CloudServer(
-        global_model=global_model,
-        edge_servers=edge_servers,
-        test_dataset=g_test_ds,
-        config=config
-    )
+    # ── 后门攻击：用 BackdoorCloudServer + fix-frequency 强制参与 ───────────
+    bd_cfg     = config.get("backdoor", {})
+    bd_enabled = bool(bd_cfg.get("enabled", False))
+    if bd_enabled:
+        malicious_ids = get_malicious_ids(bd_cfg)
+        # 投毒侧静态触发器（badnet/blended，或 DBA 全局触发器）
+        bd_trigger    = build_trigger(bd_cfg, img_size=config["data"]["img_size"])
+        # 评估侧 trigger 统一为 (model, x, y)：静态触发器忽略 model/y。
+        # CerP/Bad-PFL 动态触发器在此处替换为真正依赖 model/y 的评估触发器。
+        eval_trigger  = build_eval_trigger(bd_cfg, bd_trigger, clients, config)
+        cloud = BackdoorCloudServer(
+            global_model=global_model,
+            edge_servers=edge_servers,
+            test_dataset=g_test_ds,
+            config=config,
+            bd_cfg=bd_cfg,
+            x_test=x_test, y_test=y_test,
+            trigger_fn=eval_trigger,
+            malicious_ids=malicious_ids,
+        )
+        # fix-frequency：强制恶意客户端每 Q 轮参与一次。
+        # 连续/累积型攻击须每轮在场（Q=1）：Neurotoxin 靠逐轮累积把后门藏进低梯度坐标；
+        # Bad-PFL / CerP 靠反复在本地模型上动态投毒 + generator/可训练触发器逐轮训练。
+        # 稀疏参与（Q=10）下，恶意本地模型每轮被 edge 广播覆盖、那一次上传又被 ~50 个良性
+        # 客户端稀释（权重≈2/50），后门在共享模型里累积不起来。其余（badnet/blended/dba）
+        # 是单步注入，仍用 attack_freq_Q。注：每次 run 只有一种 strategy，互不干扰。
+        strategy = str(bd_cfg.get("malicious_strategy", "vanilla")).lower()
+        CONTINUOUS = ("neurotoxin", "badpfl", "cerp")
+        Q = 1 if strategy in CONTINUOUS else int(bd_cfg.get("attack_freq_Q", 10))
+        if strategy in CONTINUOUS:
+            print(f"[Backdoor] strategy={strategy}: continuous participation (Q=1).")
+        for mc in clients:
+            if int(mc.client_id) in malicious_ids:
+                install_forced_participation(edge_servers, mc, Q)
+    else:
+        cloud = CloudServer(
+            global_model=global_model,
+            edge_servers=edge_servers,
+            test_dataset=g_test_ds,
+            config=config
+        )
 
     logger = None
     if config.get("wandb", {}).get("enabled", False):
@@ -342,7 +652,15 @@ def run_experiment(config_path="config/config.yaml"):
 
     method   = config["training"].get("drift_correction", "fedavg")
     run_name = config.get("wandb", {}).get("run_name", method)
-    pm_steps = int(config.get("evaluation", {}).get("pm_steps", 1))
+    eval_cfg = config.get("evaluation", {})
+    pm_steps = int(eval_cfg.get("pm_steps", 1))
+
+    # 最后微调选项：PM 评估前对下发的 edge 模型做少步本地微调
+    # （主要用于 Hier-FedAvg 等无个性化模型的方法，得到「FedAvg + 微调」baseline）。
+    do_final_ft = bool(eval_cfg.get("final_finetune", False))
+    ft_steps    = int(eval_cfg.get("final_finetune_steps", pm_steps))
+    ft_lr       = float(eval_cfg.get("final_finetune_lr",
+                                     config["training"]["learning_rate"]))
 
     # GM
     print("\n[Final Report] GM")
@@ -363,33 +681,44 @@ def run_experiment(config_path="config/config.yaml"):
 
     # PM（所有客户端汇总）
     print("\n[Final Report] PM — collecting predictions from all clients...")
+    if do_final_ft:
+        print(f"  [Final fine-tuning] enabled | steps={ft_steps}, lr={ft_lr}")
     all_labels, all_preds, all_probs = [], [], []
+    pm_accs, pm_ns = [], []
 
     for edge in edge_servers:
         for client in edge.clients:
-            if method == "hier_perfedavg":
-                client.personalize_and_evaluate(
-                    edge.model.get_weights(),
-                    steps=pm_steps,
-                    fallback_dataset=edge.get_test_dataset()
-                )
-            if client.test_dataset is not None:
-                ds = client.test_dataset
-                print(f"  [Client {client.client_id:>2}] Using per-client test dataset "
-                      f"({len(ds)} batches)")
-            else:
-                ds = edge.get_test_dataset()
-                print(f"  [Client {client.client_id:>2}] Using edge-level test dataset "
-                      f"({len(ds)} batches)")
+            if do_final_ft:
+                # 下发 edge 模型 + 少步本地微调，微调后的模型留在 client.model
+                _finetune_client_model(client, edge.model.get_weights(),
+                                       ft_steps, ft_lr)
+            ds = client.test_dataset if client.test_dataset is not None \
+                else edge.get_test_dataset()
+            c_correct = c_total = 0
             for x, y in ds:
                 probs = client.model(x, training=False).numpy()
+                preds = np.argmax(probs, axis=1)
+                yn    = y.numpy()
                 all_probs.append(probs)
-                all_preds.append(np.argmax(probs, axis=1))
-                all_labels.append(y.numpy())
+                all_preds.append(preds)
+                all_labels.append(yn)
+                c_correct += int(np.sum(preds == yn))
+                c_total   += int(len(yn))
+            c_acc = c_correct / c_total if c_total else 0.0
+            pm_accs.append(c_acc)
+            pm_ns.append(c_total)
+            tag = "finetuned " if do_final_ft else ""
+            print(f"  [Client {client.client_id:>2}] {tag}C-Acc={c_acc:.4f} (n={c_total})")
 
     all_labels = np.concatenate(all_labels)
     all_preds  = np.concatenate(all_preds)
     all_probs  = np.concatenate(all_probs)
+
+    _tot  = sum(pm_ns)
+    _wacc = sum(a * n / _tot for a, n in zip(pm_accs, pm_ns)) if _tot else 0.0
+    _ftlabel = " (after final fine-tuning)" if do_final_ft else ""
+    print(f"\n[Final PM]{_ftlabel} weighted C-Acc = {_wacc:.4f} "
+          f"over {len(pm_ns)} clients / {_tot} samples")
 
     generate_report(
         model        = None,           # PM 直接传预计算结果
@@ -400,7 +729,97 @@ def run_experiment(config_path="config/config.yaml"):
         save_path    = f"report_PM_{run_name}.txt"
     )
 
+    # Held-out test-client 评估（仅当启用了 test-client 留出设定时）
+    if test_clients:
+        _evaluate_test_clients(test_clients, edge_servers, global_model,
+                               config, test_ds)
+
     return history
+
+def _finetune_client_model(client, src_weights, steps, lr):
+    """
+    把下发模型 src_weights 载入 client.model，在 client 自身训练数据上微调
+    steps 个 epoch（每次用全新 SGD，避免跨 client 状态与优化器变量集冲突）。
+    微调后的模型留在 client.model 供后续评估。
+    """
+    client.model.set_weights(src_weights)
+    opt = tf.keras.optimizers.SGD(learning_rate=lr)
+    for _ in range(int(steps)):
+        for x, y in client.dataset:
+            with tf.GradientTape() as tape:
+                loss = client.loss_fn(y, client.model(x, training=True))
+            grads = tape.gradient(loss, client.model.trainable_variables)
+            opt.apply_gradients(zip(grads, client.model.trainable_variables))
+
+
+def _evaluate_test_clients(test_clients, edge_servers, global_model, config,
+                           fallback_test_ds):
+    """
+    Held-out test-client 评估（衡量对新客户端的泛化）：
+
+      每个 test client 接收其分配 edge 的模型（下发模型），在自身 train 数据上
+      微调 test_finetune_steps 个 epoch，再在训练中从未泄露的 per-client test
+      数据上评估。结果按样本数加权汇总后直接打印到日志（不生成报告文件）。
+
+    train client 不受影响；test client 全程未参与任何 FL 训练。
+    """
+    eval_cfg = config.get("evaluation", {})
+    steps    = int(eval_cfg.get("test_finetune_steps",
+                                eval_cfg.get("pm_steps", 1)))
+    lr       = float(eval_cfg.get("test_finetune_lr",
+                                  config["training"]["learning_rate"]))
+    loss_fn  = tf.keras.losses.SparseCategoricalCrossentropy()
+    edge_by_id = {e.edge_id: e for e in edge_servers}
+
+    print("\n" + "=" * 52)
+    print(f" Held-out Test-Client Evaluation "
+          f"(finetune {steps} epoch(s), lr={lr})")
+    print("=" * 52)
+
+    accs, losses, ns = [], [], []
+    ft_model = clone_model(global_model)
+
+    for tc in test_clients:
+        edge  = edge_by_id.get(getattr(tc, "assigned_edge", None))
+        src_w = edge.model.get_weights() if edge is not None \
+            else global_model.get_weights()
+        ft_model.set_weights(src_w)
+
+        # 微调：在 test client 自身 train 数据上（每个 client 用全新 SGD）
+        opt = tf.keras.optimizers.SGD(learning_rate=lr)
+        for _ in range(steps):
+            for x, y in tc.dataset:
+                with tf.GradientTape() as tape:
+                    loss = loss_fn(y, ft_model(x, training=True))
+                grads = tape.gradient(loss, ft_model.trainable_variables)
+                opt.apply_gradients(zip(grads, ft_model.trainable_variables))
+
+        # 评估：在留出的 per-client test 数据上（从未参与训练）
+        ds = tc.test_dataset if tc.test_dataset is not None else fallback_test_ds
+        tl = tcorr = tn = 0
+        for x, y in ds:
+            p = ft_model(x, training=False).numpy()
+            tl    += loss_fn(y, p).numpy() * x.shape[0]
+            tcorr += np.sum(np.argmax(p, 1) == y.numpy())
+            tn    += x.shape[0]
+        if tn == 0:
+            continue
+        accs.append(tcorr / tn)
+        losses.append(tl / tn)
+        ns.append(tn)
+        print(f"  [TestClient {tc.client_id:>2}] edge={getattr(tc,'assigned_edge','-')} "
+              f"| n={tn} | acc={tcorr/tn:.4f} loss={tl/tn:.4f}")
+
+    if not ns:
+        print("  [Held-out] no test client produced predictions.")
+        return
+
+    total = sum(ns)
+    wacc  = sum(a * n / total for a, n in zip(accs, ns))
+    wloss = sum(l * n / total for l, n in zip(losses, ns))
+    print(f"\n  Held-out test-client: weighted acc={wacc:.4f} | loss={wloss:.4f} "
+          f"over {len(ns)} clients / {total} samples")
+
 
 def _print_summary(history: dict):
     best_idx  = int(np.argmax(history["global_acc"]))

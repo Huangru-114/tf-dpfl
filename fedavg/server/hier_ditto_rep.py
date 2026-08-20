@@ -61,15 +61,18 @@ class HierDittoRepEdgeServer(EdgeServerBase):
         client_updates = self._collect_updates_parallel(
             selected, global_round_idx, mode="fedavg")
 
-        # 步骤 3：仅 backbone 索引样本加权聚合 + Ditto 近端靠近 φ*
+        # 步骤 3：仅 backbone 索引聚合（有防御走鲁棒聚合）+ Ditto 近端靠近 φ*
+        # 与 hier_fedrep 同一套写法：防御对完整权重列表运算，再仅取 backbone
+        # 索引覆盖（head 索引结果弃用）。不要在这里手写加权平均——那会让
+        # defense 轴对本方法静默失效（config 照样打印 [Defense] enabled）。
         total_n    = sum(n for _, n, *_ in client_updates)
         theta_prev = self.model.get_weights()
         gref       = self._global_weights_ref  # φ*（global round 内固定）
 
+        robust_full = self.robust_mean(client_updates, theta_prev)
         new_w = [w.copy() for w in theta_prev]
         for j in self._base_w_idx:
-            mean_bb  = sum(upd[0][j] * (upd[1] / total_n) for upd in client_updates)
-            new_w[j] = mean_bb - mu_edge * (theta_prev[j] - gref[j])
+            new_w[j] = robust_full[j] - mu_edge * (theta_prev[j] - gref[j])
         # head 索引位置保持不变（无意义但无害）
         self.model.set_weights(new_w)
 

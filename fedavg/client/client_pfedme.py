@@ -13,8 +13,8 @@ client/client_pfedme.py  –  Hier-pFedMe 客户端
 
 性能优化（避免热循环瓶颈）：
   1. _local_model 与 self.model 结构相同，直接 set/get_weights 对齐，无需索引。
-  2. _lam2_var / _eta2_var 用 tf.Variable 存超参，@tf.function 通过引用捕获，
-     避免每次传 tf.constant() 触发 retrace。
+  2. _lam_var / _plr_var / _moreau_lr_var / _mu_var 用 tf.Variable 存超参，
+     @tf.function 通过引用捕获，避免每次传 tf.constant() 触发 retrace。
   3. dataset 一次性缓存为 list（_batch_list），每 epoch 原地 shuffle 后顺序遍历。
 """
 
@@ -43,10 +43,21 @@ class PFedMeClient(FLClientBase):
         self._local_model = tf.keras.models.clone_model(model)
         self._local_model.set_weights(model.get_weights())
 
-        # ── 超参 tf.Variable（避免 @tf.function retrace） ─────────────────
-        self._lam2_var: tf.Variable | None = None
-        self._eta2_var: tf.Variable | None = None
-        self._mu_var: tf.Variable | None = None
+        # ── pFedMe 双学习率（对齐 PFLlib：内层 personal_lr ≠ 外层 moreau_lr）──────
+        # 之前内层与 Moreau 都用同一个 learning_rate(0.02) + λ=35 → 有效系数 lr·λ≈0.70，
+        # 比 PFLlib（内层 plr·λ=0.01·15=0.15、外层 lr·λ=0.005·15=0.075）大 5~10 倍，
+        # 导致本地锚点 Θ 每个 batch 就塌缩到 θ̃ 上、K>1 发散。现分离两个 lr 并对齐 PFLlib。
+        tr = config["training"]
+        self._plr0       = float(tr.get("personal_lr_pfedme", 0.01))   # 内层 θ̃ 个性化 lr
+        self._moreau_lr0 = float(tr.get("moreau_lr_pfedme",   0.005))  # 外层 Θ Moreau lr
+        self._plr_var       = tf.Variable(self._plr0,       trainable=False, dtype=tf.float32)
+        self._moreau_lr_var = tf.Variable(self._moreau_lr0, trainable=False, dtype=tf.float32)
+        self._lam_var = tf.Variable(float(tr.get("lambda2_hier", 15.0)),
+                                    trainable=False, dtype=tf.float32)
+        self._mu_var  = tf.Variable(float(tr.get("mu_pfedme", 0.001)),
+                                    trainable=False, dtype=tf.float32)
+        # 内层个性化优化器：用 personal_lr，独立于 base self.optimizer
+        self._inner_opt = tf.keras.optimizers.SGD(learning_rate=self._plr_var)
 
         # ── dataset 缓存为 list，每 epoch shuffle 后遍历 ─────────────────
         # 等价于 PFLlib 的 DataLoader(shuffle=True, drop_last=True)。
@@ -72,6 +83,13 @@ class PFedMeClient(FLClientBase):
             self._local_model.set_weights(global_weights)  # Θ 从 global 权重重置
             print(f"  [Client {self.client_id:>2}] Received global weights." )
 
+    def apply_round_lr(self, round_idx: int):
+        """pFedMe：personal_lr（内层）与 moreau_lr（外层）都按 global round 衰减，对齐 PFLlib。"""
+        super().apply_round_lr(round_idx)
+        r = max(0, int(round_idx))
+        self._plr_var.assign(self._plr0 * (self.lr_gamma ** r))
+        self._moreau_lr_var.assign(self._moreau_lr0 * (self.lr_gamma ** r))
+
     # ══════════════════════════════════════════════════════════════════════
     # 训练
     # ══════════════════════════════════════════════════════════════════════
@@ -93,37 +111,19 @@ class PFedMeClient(FLClientBase):
             avg_loss       : 所有 batch 的平均 task loss
             elapsed        : 训练耗时（秒）
         """
-        lam2        = float(self.config["training"].get("lambda2_hier", 35.0))
-        eta2        = float(self.config["training"]["learning_rate"])
+        lam         = float(self.config["training"].get("lambda2_hier", 15.0))
         epochs      = int(self.config["training"]["local_epochs"])
-        inner_steps = int(self.config["training"].get("inner_steps_hier", 1))
-        # mu = float(self.config["training"].get("mu", 0.001))
-        
-        # # edge 模型优先，fallback 到 global
-        # ref_weights = self.edge_weights if self.edge_weights is not None \
-        #               else self.global_weights
-
-        # # Algorithm Line 8: Θ^0 = θ_n，每次 edge round 从 edge 权重重置
-        # self._local_model.set_weights(ref_weights)
-
-        # # Algorithm Line 6: θ̃^0 = θ_n
-        # self.model.set_weights(ref_weights)
-
-        # 超参 tf.Variable 初始化或更新
-        if self._lam2_var is None:
-            self._lam2_var = tf.Variable(lam2, trainable=False, dtype=tf.float32)
-            self._eta2_var = tf.Variable(eta2, trainable=False, dtype=tf.float32)
-            # self._mu_var = tf.Variable(mu, trainable=False, dtype=tf.float32)
-        else:
-            self._lam2_var.assign(lam2)
-            self._eta2_var.assign(eta2)
-            # self._mu_var.assign(mu)
+        inner_steps = int(self.config["training"].get("inner_steps_hier", 5))
+        # personal_lr / moreau_lr / μ 已在 __init__ 设好，并由 apply_round_lr 按轮衰减；
+        # λ 每轮重读（允许 config 中途调整）。
+        self._lam_var.assign(lam)
         losses, t0 = [], time.time()
 
         print(
             f"  [Client {self.client_id:>2}] Starting Hier-pFedMe | "
-            f"λ2={lam2}, η2={eta2}, inner_steps={inner_steps}, "
-            f"epochs={epochs}, batches/epoch={len(self._batch_list)}"
+            f"λ={lam}, plr={float(self._plr_var.numpy()):.4g}, "
+            f"moreau_lr={float(self._moreau_lr_var.numpy()):.4g}, μ={float(self._mu_var.numpy()):.4g}, "
+            f"K={inner_steps}, epochs={epochs}, batches/epoch={len(self._batch_list)}"
         )
         # self.evaluate_on(fallback_dataset=self.test_dataset)  # 训练前快照（调试用）
 
@@ -170,7 +170,7 @@ class PFedMeClient(FLClientBase):
         avg = float(np.mean(losses)) if losses else 0.0
         print(
             f"  [Client {self.client_id:>2}] Round {round_idx} | "
-            f"Hier-pFedMe(λ2={lam2}, K={inner_steps}) | loss={avg:.4f}"
+            f"Hier-pFedMe(λ2={lam}, K={inner_steps}) | loss={avg:.4f}"
         )
 
         return upload_weights, self.n_samples, avg, time.time() - t0
@@ -182,9 +182,10 @@ class PFedMeClient(FLClientBase):
     @tf.function
     def _inner_step(self, images, labels):
         """
-        θ̃ 的一步梯度更新，以 Θ 为近端锚点。
+        θ̃ 的一步梯度更新（内层个性化优化器，用 personal_lr），以 Θ 为近端锚点。
 
-        目标：F(θ̃; D) + (λ2/2) · ‖θ̃ − Θ‖²
+        目标：F(θ̃; D) + (λ/2)·‖θ̃ − Θ‖² + (μ/2)·‖θ̃‖²
+        梯度：∇F + λ·(θ̃ − Θ) + μ·θ̃   （对齐 PFLlib pFedMeOptimizer）
         """
         with tf.GradientTape() as tape:
             loss = self.loss_fn(labels, self.model(images, training=True))
@@ -193,24 +194,25 @@ class PFedMeClient(FLClientBase):
                 for v, t in zip(self.model.trainable_variables,
                                 self._local_model.trainable_variables)
             ])
-            # l2 = tf.add_n([
-            # tf.reduce_sum(tf.square(v))
-            # for v in self.model.trainable_variables
-            # ])
-            total_loss = loss + (self._lam2_var / 2.0) * prox 
-            # total_loss = loss + (self._lam2_var / 2.0) * prox + (self._mu_var / 2.0) * l2
+            l2 = tf.add_n([
+                tf.reduce_sum(tf.square(v))
+                for v in self.model.trainable_variables
+            ])
+            total_loss = (loss
+                          + (self._lam_var / 2.0) * prox
+                          + (self._mu_var / 2.0) * l2)
 
         grads = tape.gradient(total_loss, self.model.trainable_variables)
-        self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
+        self._inner_opt.apply_gradients(zip(grads, self.model.trainable_variables))
         return total_loss
 
     @tf.function
     def _moreau_step(self):
         """
-        Moreau 包络梯度步，更新本地锚点 Θ。
+        Moreau 包络梯度步，更新本地锚点 Θ（用 moreau_lr，外层小步长）。
 
-        Θ ← Θ − η2 · λ2 · (Θ − θ̃)
+        Θ ← Θ − moreau_lr · λ · (Θ − θ̃)   （对齐 PFLlib：localweight − lamda·lr·(··)）
         """
         for t, v in zip(self._local_model.trainable_variables,
                         self.model.trainable_variables):
-            t.assign(t - self._eta2_var * self._lam2_var * (t - v))
+            t.assign(t - self._moreau_lr_var * self._lam_var * (t - v))

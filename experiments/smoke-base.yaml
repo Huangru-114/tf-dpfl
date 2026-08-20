@@ -1,0 +1,129 @@
+# experiments/smoke-base.yaml  —  L2 端到端 smoke 的最小配置（目标 ≈ 3 分钟）
+#
+# 用途：验证「接线」而不是「算法」。L1（tests/）保证算法对，这里保证攻击真的
+# 被挂进联邦循环、恶意客户端真的被选中、ASR 真的动起来。
+#
+# 跑法（集群，cwd=fedavg）：
+#   python main.py --config ../experiments/smoke-base.yaml \
+#          --attack_method neurotoxin --defense none 2>&1 | tee /tmp/smoke.log
+#   python ../harness/collect_metrics.py /tmp/smoke.log \
+#          -o ../experiments/attack/neurotoxin/exp001.metrics.json
+#
+# 只有 metrics.json 回传 git，日志留集群。
+
+seed: 42
+
+data:
+  dataset:        "cifar10"
+  img_size:       32
+  batch_size:     32
+  shuffle_buffer: 2000
+  num_classes:    10
+  per_client_test_ratio: 0.25
+
+federation:
+  edge_assignment:  "random"
+  client_fraction:  1.0
+  warmup_rounds:    0
+  n_clients:        10          # ← smoke：10 个客户端
+  n_edges:          2
+  edge_rounds:      2
+  n_rounds:         5           # ← smoke：5 轮
+  partition:        "noniid"
+  classes_per_client: 10
+  alpha:            0.5
+  inter_edge:       {type: "dirichlet", alpha: 0.5}
+  intra_edge:       {type: "pathological", classes_per_client: 2}
+  min_samples:      10
+
+training:
+  local_epochs:   1             # ← smoke：1 个 epoch
+  learning_rate:  0.02
+  lr_decay:       0.992
+  drift_correction: "hierfedavg"   # smoke 默认走最简单的方法；测正交性时改这里
+  proximal_ref:     "edge"
+  mu:               1.0
+  mu_edge:          0.1
+  mu_global:        0.01
+  alpha_feddyn:     0.1
+  alpha_feddyn_global: 0.02
+  lambda_pfedme:    35.0
+  beta_pfedme:      1.0
+  pfedme_warm_start: false
+  lambda1_hier:     15.0
+  lambda2_hier:     15.0
+  beta_hier:        1.0
+  personal_lr_pfedme: 0.01
+  moreau_lr_pfedme:   0.005
+  mu_pfedme:          0.001
+  inner_steps_hier: 5
+  alpha_inner:      0.01
+  beta_outer:   0.01
+  label_smoothing: 0.1
+  plocal_epochs:    1
+  head_lr_rep:      0.005
+  lambda_ditto:     0.1
+  ditto_pers_epochs: 1
+
+model:
+  arch: "fedavg_cnn"
+  rep_dim: 64
+
+backdoor:
+  enabled:        true
+  trigger:        "badnet"
+  malicious_strategy: "vanilla"   # 由 --attack_method 覆盖
+  target_label:   9
+  poison_ratio:   0.5
+  malicious_ids:  [3]
+  malicious_placement: "spread"
+  n_malicious:    2               # 10 个客户端里 2 个恶意
+  attack_freq_Q:  1
+  badnet_size:    3
+  badnet_value:   1.0
+  blended_alpha:  0.2
+  blended_image:  "attack/triggers/hello_kitty.png"
+  dba_patterns:
+    - [[0,0],[0,1],[0,2],[0,3],[0,4],[0,5]]
+    - [[0,9],[0,10],[0,11],[0,12],[0,13],[0,14]]
+  neurotoxin_mask_ratio:   0.05
+  neurotoxin_mask_batches: 0
+  cerp_alpha:         0.0001
+  cerp_beta:          0.0001
+  cerp_trigger_lr:    0.1
+  cerp_trigger_phi:   10.0
+  cerp_trigger_steps: 1
+  badpfl_epsilon:     0.01569
+  badpfl_sigma:       0.01569
+  badpfl_gen_steps:   30
+  badpfl_gen_lr:      0.01
+  eval_interval:  1               # ← smoke：每轮都评，5 个数据点看趋势
+  asr_max_samples: 2000           # ← smoke：ASR 子采样，省时间
+  verbose_clients: false
+  feature_eval:          false    # ← smoke：关掉重型评估
+  feature_eval_samples:  200
+  feature_clean_per_class: 50
+  forgetting_epochs:     0
+
+defense:
+  name:   "none"                  # 由 --defense 覆盖
+  params:
+    trim_ratio:      0.1
+    num_malicious:   0
+    noise_scale:     0.001
+    num_projections: 5
+    subspace_dim:    10000
+    filter_mult:     1.0
+    st_epochs:       10
+    st_lr:           0.0
+
+wandb:
+  enabled:  false                 # ← smoke：不写 wandb，避免产生大目录
+
+evaluation:
+  eval_interval: 1
+  final_finetune:       false
+  final_finetune_steps: 5
+  test_client_eval:    false
+  test_client_ratio:   0.2
+  test_finetune_steps: 5

@@ -56,8 +56,11 @@ class PFedMeEdgeServer(EdgeServerBase):
         4. W_n 更新（式 8）：
                W_n^{t,i+1} = W_n^{t,i} − η1·λ1·(W_n^{t,i} − θ_n^{t,i+1})
         """
-        lam1 = float(self.config["training"].get("lambda1_hier", 35.0))
-        eta2 = float(self.config["training"]["learning_rate"])
+        # edge 式7/8 的 Moreau 步长：用专门的小 moreau_lr（对齐 PFLlib），而非
+        # learning_rate(0.02)。原来 eta·λ1 = 0.02×35 = 0.70 过激 → 边缘锚点 W_n 不稳；
+        # 现 moreau_lr·λ1 = 0.005×15 = 0.075，与 client 层一致。
+        lam1 = float(self.config["training"].get("lambda1_hier", 15.0))
+        eta2 = float(self.config["training"].get("moreau_lr_pfedme", 0.005))
         eta1 = float(self.config["training"].get("eta1_hier", eta2))
 
         selected = self.select_clients(global_round_idx)
@@ -88,18 +91,10 @@ class PFedMeEdgeServer(EdgeServerBase):
 
         # 步骤 3：edge 模型更新（式 7）
         # mean(Θ_{n,m}) − η2·λ1·(θ_n^{t,i} − W_n^{t,i})
-        n_layers    = len(client_updates[0][0])
-        # mean_Theta  = [
-        #     np.mean([upd[0][j] for upd in client_updates], axis=0)
-        #     for j in range(n_layers)
-        # ]
-        total_n = sum(n for _, n, *_ in client_updates)
-        mean_Theta = [
-            sum(upd[0][j] * (upd[1] / total_n) for upd in client_updates)
-            for j in range(n_layers)
-        ]
-        
+        # mean(Θ_{n,m}) 改走 robust_mean：无防御=样本加权均值（行为不变），
+        # 有防御=对 client 上传 Θ 做鲁棒聚合，再叠加 Moreau 锚点项。
         theta_n_prev = self.model.get_weights()
+        mean_Theta   = self.robust_mean(client_updates, theta_n_prev)
         theta_n_new  = [
             mc - eta2 * lam1 * (tn - wn)
             for mc, tn, wn in zip(mean_Theta, theta_n_prev, self.W_n)

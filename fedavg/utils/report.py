@@ -29,6 +29,11 @@ def generate_report(model=None, test_dataset=None,
     n_classes = all_probs.shape[1]
     if class_names is None:
         class_names = [str(i) for i in range(n_classes)]
+    # 显式给出全部类别标签：非-IID 下某个 edge/client 的测试集可能只含部分类别，
+    # 若不指定 labels，sklearn 会按实际出现的类别数推断，与长度为 n_classes 的
+    # target_names 不匹配而报错（ValueError: Number of classes ... does not match
+    # size of target_names）。缺席类别的 support 记为 0。
+    labels_full = list(range(n_classes))
 
     lines = []
     lines.append("\n" + "=" * 60)
@@ -39,8 +44,10 @@ def generate_report(model=None, test_dataset=None,
     lines.append("\n[ Per-Class Report ]")
     lines.append(classification_report(
         all_labels, all_preds,
+        labels=labels_full,
         target_names=class_names,
-        digits=4
+        digits=4,
+        zero_division=0
     ))
 
     # ── 2. Macro / Weighted F1 ───────────────────────────────────
@@ -59,11 +66,11 @@ def generate_report(model=None, test_dataset=None,
         else:
             auc_macro = roc_auc_score(
                 all_labels, all_probs,
-                multi_class='ovr', average='macro'
+                multi_class='ovr', average='macro', labels=labels_full
             )
             auc_weighted = roc_auc_score(
                 all_labels, all_probs,
-                multi_class='ovr', average='weighted'
+                multi_class='ovr', average='weighted', labels=labels_full
             )
             lines.append(f"\n[ AUC (OvR) ]")
             lines.append(f"  Macro    AUC : {auc_macro:.4f}")
@@ -72,7 +79,7 @@ def generate_report(model=None, test_dataset=None,
         lines.append(f"\n[ AUC ] 计算失败: {e}")
 
     # ── 4. 混淆矩阵 ─────────────────────────────────────────────
-    cm = confusion_matrix(all_labels, all_preds)
+    cm = confusion_matrix(all_labels, all_preds, labels=labels_full)
     lines.append(f"\n[ Confusion Matrix ] (shape: {cm.shape})")
     # 类别多时只打印对角线统计，不然太宽
     if n_classes <= 20:

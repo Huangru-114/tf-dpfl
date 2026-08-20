@@ -56,6 +56,10 @@ RUN_NAME="fedavg-noniid-alpha0.5-$(date +%m%d-%H%M)"
 python -u main.py \
     --config config/config.yaml \
     --override wandb.enabled=true
+    # 开启「最后微调」PM 评估（会打印每个 client 的 finetuned C-Acc + 加权汇总）：
+    #   --override evaluation.final_finetune=true --override evaluation.final_finetune_steps=5
+    # 开启 test/train client 留出评估（训练结束后对留出 client 下发→微调→在留出 test 上评估）：
+    #   --override evaluation.test_client_eval=true --override evaluation.test_client_ratio=0.2 --override evaluation.test_finetune_steps=5
 # python centralized/train.py
 # python wideres_sweep.py --sweep
 echo "========================================"
