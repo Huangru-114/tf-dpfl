@@ -57,7 +57,14 @@ $PY main.py --config ...
 
 ## 新会话开场：先做这三件事
 
-1. **`git branch --show-current`** —— 确认在 `claude/repo-hub-refactor`（或我指定的分支）。
+1. **确认基线并开分支**
+   ```bash
+   git fetch origin && git log --oneline origin/main -1   # 看 trunk 在哪
+   git checkout -b claude/<axis>-<method>-<短随机> origin/main
+   ```
+   **永远从 `origin/main` 分出去**，不要从别的 `claude/*` 分支分，也不要在别人的
+   分支上接着写。除非我明确说「叠在 X 分支上」（那种情况下 X 一定是还没合进 main
+   的直接前置，比如正交化之于 Neurotoxin/Bad-PFL）。
 2. **`bash run_l1.sh`** —— 基线分两种环境，对不上就先停下来问我，别在坏掉的地基上改东西。
 
    | 环境 | 预期 | 说明 |
@@ -71,10 +78,21 @@ $PY main.py --config ...
    的 shape bug + 一条测试自身的 float32 舍入写法。
    这 6 条修好之前，集群上的门禁请用 `bash run_l1.sh 2>&1 | tail -3` 人工核对数字，
    **多出来的红才是回归**。（3 xfailed 是 FLAME 的已知 bug，陷阱 #3。）
+   （3 skipped 是需要 TF 的测试，本地无 TF；3 xfailed 是 FLAME 的已知 bug。）
 3. **读 `experiments/<axis>/<method>/current-focus.md`** —— 本会话**唯一**要回答的问题
    和客观判据都在里面。没有这个文件就先和我一起写，不要直接开始改代码。
 
 然后按下面「交互约定」走：先出语义 diff 表，我确认后再动代码。
+
+### 分支纪律
+
+- **trunk = `origin/main`**，集群只 pull main。
+- **一条分支 = 一个会话 = 一个方法/模块**。分支不要活过一个会话。
+- 会话结束、L1 绿了 → 合回 main。**不要让长链堆积**：分支一旦落后 trunk 很多，
+  下一个会话就得先判断「我该从哪儿分出去」，判断错一次就是一次重复劳动。
+- 并行两个方法时，先合一条，第二条合之前 `git merge origin/main` 把第一条的
+  文档改动（CLAUDE.md / methods-registry.md）吃进来 —— 代码文件通常不冲突，
+  冲突几乎只发生在这几个文档上。
 
 ## 当前地基（已完成，不要重复做）
 
