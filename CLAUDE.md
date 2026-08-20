@@ -9,9 +9,19 @@
 ## 新会话开场：先做这三件事
 
 1. **`git branch --show-current`** —— 确认在 `claude/repo-hub-refactor`（或我指定的分支）。
-2. **`bash run_l1.sh`** —— 基线必须是 **94 passed / 3 skipped / 3 xfailed**。
-   对不上就先停下来问我，别在坏掉的地基上改东西。
-   （3 skipped 是需要 TF 的测试，本地无 TF；3 xfailed 是 FLAME 的已知 bug。）
+2. **`bash run_l1.sh`** —— 基线分两种环境，对不上就先停下来问我，别在坏掉的地基上改东西。
+
+   | 环境 | 预期 | 说明 |
+   |---|---|---|
+   | **本地（无 TF）** | `172 passed / 4 skipped / 3 xfailed` → **PASS**（exit 0） | 4 skipped = 4 个需要 TF 的测试模块整体 skip |
+   | **集群（有 TF）** | `213 passed / 3 skipped / 3 xfailed / 6 failed` → **FAIL** | 6 条红是**既有**的陷阱 #4/#5，见下 |
+
+   集群上 `run_l1.sh` 返回 FAIL 是**当前的预期状态**，不是回归：
+   `test_neurotoxin_mask` ×2 是陷阱 #4（mask 语义方向未证实，测试按文献语义写、
+   等实现被改过来）；`test_badpfl_trigger` ×4 是陷阱 #5 + `build_autoencoder(img_size=8)`
+   的 shape bug + 一条测试自身的 float32 舍入写法。
+   这 6 条修好之前，集群上的门禁请用 `bash run_l1.sh 2>&1 | tail -3` 人工核对数字，
+   **多出来的红才是回归**。（3 xfailed 是 FLAME 的已知 bug，陷阱 #3。）
 3. **读 `experiments/<axis>/<method>/current-focus.md`** —— 本会话**唯一**要回答的问题
    和客观判据都在里面。没有这个文件就先和我一起写，不要直接开始改代码。
 
