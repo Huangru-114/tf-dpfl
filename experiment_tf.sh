@@ -77,9 +77,11 @@ echo " metrics  : $METRICS  (回传 git)"
 echo "════════════════════════════════════════════════════════════"
 
 # ── 环境 ─────────────────────────────────────────────────────────────────
-module load GPU/buildenv-nvhpc/25.9-cu13.0
-
-RUN="apptainer exec --nv $ROOT/tensorflow.sif python3"
+# python 必须在 apptainer 容器里跑；容器路径与 module load 统一在 cluster_env.sh。
+# （此前这里硬写 $ROOT/tensorflow.sif —— 与实际容器路径不一致。）
+# shellcheck source=cluster_env.sh
+source "$ROOT/cluster_env.sh"
+RUN="$PY"
 
 # ── 组装 override 参数 ────────────────────────────────────────────────────
 OVERRIDE_ARGS=(--override "training.drift_correction=$METHOD")

@@ -1,7 +1,7 @@
 # current-focus：客户端行为组合机制（陷阱 #1 正交化 + 主动防御接口）
 
 > 状态：**已实现，L1 全绿，L2 接线在合成数据上验过；真实数据 smoke 仍欠。**
-> 基线：`bash run_l1.sh` 94 passed / 3 skipped / 3 xfailed → 现 187 passed / 3 skipped / 3 xfailed
+> 基线：`bash run_l1.sh` 94 passed → 现 **213 passed** / 3 skipped / 3 xfailed（有 TF 环境）
 > （6 个 failed 全部是既有的陷阱 #4/#5，见「验收结果」）
 
 ## 现在要回答的唯一问题
@@ -220,7 +220,7 @@ CerP 的 peer 列表长度逐轮变化会触发 retrace → peer 权重塞进固
 | 级别 | 判据 | 结果 |
 |---|---|---|
 | L1-a | `tests/test_attack_method_orthogonality.py` 全绿 | ✅ **33 passed**（改动前 18 failed） |
-| L1-b | `run_l1.sh` 不回归 | ✅ 187 passed / 3 skipped / 3 xfailed（基线 94 passed） |
+| L1-b | `run_l1.sh` 不回归 | ✅ 213 passed / 3 skipped / 3 xfailed（基线 94 passed） |
 | L1-c | `test_client_hooks.py`：`on_upload` 纯函数性 | ✅ 6 passed |
 | L1-d | `test_broadcast_coverage.py`：AST 断言 6/6 走 `broadcast_to_clients` | ✅ |
 | L1-e | `test_cloud_aggregate_default.py`：默认路径逐元素相等 | ✅ |
@@ -269,8 +269,8 @@ CLAUDE.md 说 L2 验的是「接线而不是算法」，合成数据能回答接
 L2 跑法：
 
 ```bash
-bash run_smoke.sh attack orthogonalization badnet     none exp001 hier_pfedme
-bash run_smoke.sh attack orthogonalization neurotoxin none exp002 hier_pfedme
+sbatch run_smoke.sh attack orthogonalization badnet     none exp001 hier_pfedme
+sbatch run_smoke.sh attack orthogonalization neurotoxin none exp002 hier_pfedme
 ```
 
 ---

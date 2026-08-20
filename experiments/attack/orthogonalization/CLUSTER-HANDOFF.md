@@ -10,7 +10,29 @@ git checkout claude/attack-pfl-orthogonalization-e3c3dd
 
 ---
 
-## 零、跑之前先知道三件事
+## 零、运行环境（跑之前必读）
+
+集群上**所有 python 都必须在 apptainer 容器里跑**，裸 `python3` 一个库都找不到；
+`.sh` 要用 `sbatch` 提交。仓库里这件事已收口到 `cluster_env.sh`，
+`run_l1.sh` / `run_smoke.sh` / `experiment_tf.sh` 都已改为经它解析出 `$PY`，
+所以下面的命令直接可用。
+
+**每次跑之前扫一眼第一行输出**：
+
+```
+[env] python = apptainer exec --nv /nobackup/.../torch_fl.sif python3   (mode=apptainer)
+```
+
+若显示 `mode=local`，说明没检测到容器 → 后面必然一串 ImportError，先查
+`TFDPFL_SIF` 指的路径存不存在。
+
+> 顺带修了一处：`experiment_tf.sh` 原先硬写 `$ROOT/tensorflow.sif`，
+> 与实际容器路径 `/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/torch_fl.sif`
+> 不一致 —— 矩阵提交器此前很可能根本跑不起来。现在统一走 `cluster_env.sh`。
+
+---
+
+## 零点五、跑之前先知道三件事
 
 **1. `run_l1.sh` 在集群上会返回 FAIL，这是预期的。**
 6 条红全部是**既有的**陷阱 #4 / #5，不是本次改动引入的。
@@ -56,11 +78,17 @@ bash run_l1.sh
 四格，每格约 3 分钟。**这是 `--config` 修好之后第一次真正的 smoke。**
 
 ```bash
-bash run_smoke.sh attack orthogonalization badnet     none exp101 hier_fedavg
-bash run_smoke.sh attack orthogonalization badnet     none exp102 hier_pfedme
-bash run_smoke.sh attack orthogonalization neurotoxin none exp103 hier_fedavg
-bash run_smoke.sh attack orthogonalization neurotoxin none exp104 hier_pfedme
+sbatch run_smoke.sh attack orthogonalization badnet     none exp101 hier_fedavg
+sbatch run_smoke.sh attack orthogonalization badnet     none exp102 hier_pfedme
+sbatch run_smoke.sh attack orthogonalization neurotoxin none exp103 hier_fedavg
+sbatch run_smoke.sh attack orthogonalization neurotoxin none exp104 hier_pfedme
+
+squeue -u "$USER"        # 看排队/运行状态
 ```
+
+四个作业互相独立，可以同时提交。`run_smoke.sh` 自带 SLURM 头
+（`-c 4 --gpus 1 --mem=24G -t 04:00:00 -A naiss2026-4-650-gpu -p gpu`），
+`sbatch` 会把位置参数原样传进去。
 
 | exp | 攻击 | 方法 | 这一格在回答什么 |
 |---|---|---|---|
@@ -73,7 +101,9 @@ bash run_smoke.sh attack orthogonalization neurotoxin none exp104 hier_pfedme
 
 1. **exp104 的恶意客户端必须真的跑 pFedMe。** 在日志里 grep：
    ```bash
-   grep -E "client classes|\[Client  0\] Round 1" /tmp/smoke_attack_orthogonalization_neurotoxin_none_hier_pfedme.log | head -4
+   LOGDIR="${TFDPFL_LOGDIR:-$(cd .. && pwd)/tfdpfl-logs}"
+   grep -E "client classes|\[Client  0\] Round 1" \
+        "$LOGDIR/smoke_attack_orthogonalization_neurotoxin_none_hier_pfedme.log" | head -4
    ```
    必须看到：
    ```
@@ -97,7 +127,7 @@ bash run_smoke.sh attack orthogonalization neurotoxin none exp104 hier_pfedme
 ## 三、Step 2：防御轴一格（验新的统一判决行）
 
 ```bash
-bash run_smoke.sh defense flame badnet flame exp201 hier_pfedme
+sbatch run_smoke.sh defense flame badnet flame exp201 hier_pfedme
 ```
 
 判据：`metrics.json` 里
@@ -109,7 +139,7 @@ bash run_smoke.sh defense flame badnet flame exp201 hier_pfedme
 
 ```bash
 for d in flame multi_krum dnc median trimmed_mean; do
-  bash run_smoke.sh defense $d badnet $d exp2_$d hier_pfedme
+  sbatch run_smoke.sh defense $d badnet $d exp2_$d hier_pfedme
 done
 ```
 `median` / `trimmed_mean` 是坐标类防御，预期 `admitted` 为 `null` + 日志里是
@@ -133,12 +163,20 @@ git push -u origin claude/attack-pfl-orthogonalization-e3c3dd
 **次选（不想推 git）**：贴这几样，够我判读：
 
 1. `bash run_l1.sh` 的最后一行 summary
-2. 每格 `run_smoke.sh` 结尾的 `[collect]` 那几行（它已经把关键数打出来了）
+2. 每格的 `slurm-<jobid>.out` 里结尾那几行 `[collect]`（它已经把关键数打出来了）
 3. Step 1 判据 1 的那三行 grep 输出
 4. 任何 traceback 的**首行 + 最后 10 行**
 
 **绝对不要回传**：完整日志、`report_*.txt`、checkpoint、大 npy。
-（`report_*.txt` 我已加进 `.gitignore`。）
+（`report_*.txt` 和 `slurm-*.out` 我已加进 `.gitignore`。）
+
+### 产物都在哪
+
+| 东西 | 路径 |
+|---|---|
+| 小 metrics.json（**回传这个**） | `experiments/<axis>/<method>/<exp_id>.metrics.json` |
+| 大日志（留集群） | `${TFDPFL_LOGDIR:-<仓库同级>/tfdpfl-logs}/smoke_*.log` |
+| sbatch 的 stdout | 提交目录下的 `slurm-<jobid>.out` |
 
 ---
 

@@ -12,7 +12,7 @@ TensorFlow 实现的分层（client → edge → cloud）个性化联邦学习�
 bash run_l1.sh
 
 # L2：端到端 smoke（集群，约 3 分钟）→ 产出小 metrics.json
-bash run_smoke.sh attack neurotoxin neurotoxin none exp001
+sbatch run_smoke.sh attack neurotoxin neurotoxin none exp001
 
 # 完整实验（集群）
 cd fedavg && python main.py --config config/config.yaml

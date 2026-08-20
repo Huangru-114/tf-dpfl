@@ -6,6 +6,55 @@
 
 ---
 
+## ⚠️ 集群运行环境（先看这段，否则一切都跑不起来）
+
+**集群上所有 python 都必须在 apptainer 容器里跑。裸 `python3 xxx.py` 一个库都找不到。**
+
+```bash
+apptainer exec --nv /nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/torch_fl.sif python3 ...
+```
+
+**`.sh` 脚本必须是 SLURM 格式、用 `sbatch` 提交**才会真正跑起来。完整模板：
+
+```bash
+#!/bin/bash
+#SBATCH -n 1
+#SBATCH -c 4
+#SBATCH --gpus 1
+#SBATCH -t 24:00:00
+#SBATCH -A naiss2026-4-650-gpu
+#SBATCH -p gpu
+#SBATCH --mem=24G
+
+module load GPU/buildenv-nvhpc/25.9-cu13.0
+
+apptainer exec --nv /nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/torch_fl.sif python3 -m 你的模块
+```
+
+**仓库里这件事已经收口到 `cluster_env.sh`**，不要在新脚本里再硬写容器路径：
+
+```bash
+ROOT="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "$0")" && pwd)}"
+source "$ROOT/cluster_env.sh"     # 解析出 $PY
+$PY -m pytest tests/
+$PY main.py --config ...
+```
+
+`cluster_env.sh` 的行为：检测到 apptainer + 容器存在 → `module load` 并走容器；
+否则回退裸 `python3`（本地开发，需要 TF 的测试自动 skip）。
+它会打印 `[env] python = ... (mode=apptainer|local|override)`，
+**每次跑之前扫一眼这行** —— 静默地跑在错误的环境里是最难查的一类问题。
+`TFDPFL_PY` / `TFDPFL_SIF` 可覆盖。
+
+| 脚本 | 怎么跑 |
+|---|---|
+| `run_l1.sh` | `bash run_l1.sh`（秒级，登录节点可以跑；集群上会自动进容器） |
+| `run_smoke.sh` | **`sbatch run_smoke.sh <axis> <method> <attack> [defense] [exp_id] [framework]`**（要 GPU、几分钟，别在登录节点用 bash 跑） |
+| `submit_matrix.sh` | `bash submit_matrix.sh`（它自己 sbatch 一个 job array） |
+| `experiment_tf.sh` | 不要直接跑，由 `submit_matrix.sh` 提交 |
+
+---
+
 ## 新会话开场：先做这三件事
 
 1. **`git branch --show-current`** —— 确认在 `claude/repo-hub-refactor`（或我指定的分支）。
