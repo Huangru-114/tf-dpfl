@@ -59,6 +59,33 @@ cd $ROOT         →  读 $ROOT/../tfdpfl-logs/*.log          （$PWD 的上一�
 （同时覆盖仓库本身与 `tfdpfl-logs`），并在 source 时做一次自检：
 容器里看不到仓库就直接报错退出，而不是等 GPU 作业跑到一半才炸。
 
+**同一个坑的第二种长相**：`~/.keras/datasets` 往往是指向共享盘的**符号链接**。
+容器里看不到链接目标时它就是**悬空**的，`os.path.isdir()` 为 False，
+keras 的 `os.makedirs(..., exist_ok=True)` 去 mkdir 撞上链接本身，抛出
+
+```
+FileExistsError: [Errno 17] File exists: '/home/<user>/.keras/datasets'
+```
+
+这句话和真实原因毫无关系（既不是「已存在」也不是权限）。
+`cluster_env.sh` 现在检测到 `<绑定根>/data/datasets` 就导出 `TFDPFL_KERAS_HOME`，
+绕开软链；`data/dataset.py:resolve_keras_home` 另外会在悬空时**提前拦截**并打印
+链接指向哪里、该设什么。
+> 注意 `CIFAR_MIMER_PATH = /mimer/NOBACKUP/Datasets/CIFAR` 是 **Chalmers Mimer**
+> 的路径，在别的集群上不存在，会静默走到 `~/.keras` 那条 fallback 上。
+
+### 容器里的已知噪音（不是故障）
+
+```
+ERROR:absl:cannot import name 'runtime_version' from 'google.protobuf'
+```
+
+`google.protobuf.runtime_version` 是 protobuf ≥ 5.27 才有的模块，容器里是 4.x，
+某个用新 protoc 生成的 stub 去 import 它失败后被 absl 记了一条 ERROR 就继续了。
+**`ERROR:absl:` 是日志级别，不是异常，不会让进程退出。**
+证据：同一个容器跑 `pytest` 时 TF 完全正常（219 passed）。
+run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不要盯着这一行。
+
 | 脚本 | 怎么跑 |
 |---|---|
 | `run_l1.sh` | `bash run_l1.sh`（秒级，登录节点可以跑；集群上会自动进容器） |

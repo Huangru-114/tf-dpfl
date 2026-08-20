@@ -44,6 +44,19 @@ elif command -v apptainer >/dev/null 2>&1 && [ -f "$TFDPFL_SIF" ]; then
     fi
     PY="apptainer exec --nv --bind $TFDPFL_BIND $TFDPFL_SIF python3"
     PY_MODE="apptainer"
+
+    # ── keras 数据缓存：绕开 $HOME 下的软链 ─────────────────────────────
+    # `~/.keras/datasets` 常是指向共享盘的符号链接。容器里若看不到链接目标，
+    # 它就是**悬空**的，keras 会抛一句与真实原因无关的
+    # `FileExistsError: File exists: ~/.keras/datasets`。
+    # 绑定根下有 data/datasets 就直接指过去，不碰软链。
+    if [ -z "${TFDPFL_KERAS_HOME:-}" ] && [ -d "$TFDPFL_BIND/data/datasets" ]; then
+        export TFDPFL_KERAS_HOME="$TFDPFL_BIND/data"
+        # apptainer 默认继承宿主环境变量；APPTAINERENV_ 前缀是显式保证，两条都设，
+        # 免得哪天容器换成 --cleanenv 就静默失效。
+        export APPTAINERENV_TFDPFL_KERAS_HOME="$TFDPFL_KERAS_HOME"
+        echo "[env] TFDPFL_KERAS_HOME = $TFDPFL_KERAS_HOME"
+    fi
 else
     # 本地：无 apptainer / 无容器 → 裸 python。
     # 本地没有 TF，需要 TF 的测试会自动 skip（见 tests/conftest.py）。
