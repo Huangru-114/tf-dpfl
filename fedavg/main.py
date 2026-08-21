@@ -14,6 +14,7 @@ from data.partition     import (extract_numpy, iid_partition, noniid_partition,
 from data.clustering    import random_assignment, warmup_gradient_assignment, histogram_assignment, semantic_assignment
 from models.cnn         import build_model
 from models.model_utils import clone_model
+from models.autoencoder import build_autoencoder   # P4：共享生成器
 from client.client_pfedme      import PFedMeClient
 from client.client_fedavg       import FedAvgClient
 from client.hier_ditto_rep      import HierDittoRepClient
@@ -442,6 +443,18 @@ def build_clients(images_np, labels_np, global_model, config,
         print(f"[Backdoor] strategy={strategy}: forcing serial client collection "
               f"(federation.n_workers=1) to avoid eager/@tf.function 线程冲突。")
 
+    # P4（对齐官方 fba.py:27）：adversary 持有**单一共享** generator+optimizer，所有恶意端
+    # download-optimize-return 累积到同一对象。默认关（每端独立），
+    # config.backdoor.badpfl_shared_generator=true 时启用。n_workers=1 串行故无线程安全问题。
+    shared_gen = shared_opt = None
+    if bd_enabled and strategy == "badpfl" and bd_cfg.get("badpfl_shared_generator", False):
+        _img = int(config["data"]["img_size"])
+        shared_gen = build_autoencoder(img_size=_img, channels=3)
+        shared_opt = tf.keras.optimizers.Adam(
+            learning_rate=float(bd_cfg.get("badpfl_gen_lr", 0.01)))
+        print("[Backdoor] P4: single SHARED generator across all malicious clients "
+              "(adversary-held; download-optimize-return).")
+
     # 类解析走单一入口：攻击/防御都是 mixin，与 PFL 方法类**组合**而非替换。
     BenignCls, MaliciousCls = resolve_client_classes(config)
     print(f"[Setup] client classes | benign={BenignCls.__name__} | "
@@ -468,6 +481,9 @@ def build_clients(images_np, labels_np, global_model, config,
         client = use_cls(client_id=i, dataset=ds, model=client_model,
                          config=config, n_samples=len(indices))
         client.is_malicious = is_mal
+        # P4：把同一个共享 generator+optimizer 注入每个恶意端（未启用时 shared_gen=None）
+        if is_mal and shared_gen is not None and hasattr(client, "set_shared_generator"):
+            client.set_shared_generator(shared_gen, shared_opt)
         # Neurotoxin：注入干净数据集（仅用于算 benign 梯度 mask，不参与投毒训练）
         if is_mal and hasattr(client, "set_clean_dataset"):
             client.set_clean_dataset(clean_ds)

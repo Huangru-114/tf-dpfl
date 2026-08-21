@@ -59,7 +59,21 @@ class BadPFLMixin:
         self._atk_generator = None
         self._atk_gen_opt   = None
 
-    # ── 生成器懒构建 ──────────────────────────────────────────────────────
+    # ── P4：共享生成器注入（对齐官方 fba.py：adversary 持有单一 generator）────
+    def set_shared_generator(self, generator, optimizer):
+        """
+        所有恶意端共享同一 generator + optimizer（官方 fba.py:27 用 closure 让全部
+        poison client 引用同一个 trigger_gen）。语义 = adversary 持有生成模型，恶意端
+        每轮 download-optimize-return：被选中时在这个共享对象上训 30 步、更新持久累积。
+
+        由 main.py 在 build_clients 时对每个恶意端注入**同一对象**。因 badpfl 强制
+        n_workers=1 串行收集，共享可变对象无线程安全问题。默认不调用（每端独立），
+        只有 config.backdoor.badpfl_shared_generator=true 时 main.py 才注入。
+        """
+        self._atk_generator = generator
+        self._atk_gen_opt   = optimizer
+
+    # ── 生成器懒构建（未注入共享时才自建，per-client 回退）──────────────────
     def _atk_ensure_generator(self):
         if self._atk_generator is None:
             img = int(self.config["data"]["img_size"])

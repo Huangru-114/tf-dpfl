@@ -1,0 +1,148 @@
+# experiments/attack/bad-pfl/full_p4.yaml
+#   P4 对照 run —— 与 full.yaml 逐字相同，**只多一行** badpfl_shared_generator=true。
+#   目的：隔离「共享生成器 vs 每端独立」这一个变量，与 exp002(full.yaml) 对照，
+#   回答「共享生成器是否是 Bad-PFL 迁移性的决定因素」。
+#   跑法：
+#     sbatch run_full.sh attack bad-pfl badpfl none exp003 hier_fedavg_fedrep \
+#            experiments/attack/bad-pfl/full_p4.yaml
+#
+# 以下为 full.yaml 原注释 ↓
+# experiments/attack/bad-pfl/full.yaml
+#   L2 全长 run —— 判定 Bad-PFL × hier_fedrep 的「后门植入 + 迁移性」是否成立。
+#
+# 与 smoke-base.yaml 的差异（**只动训练规模，其余沿用，保证与 exp001 可比**）：
+#   federation.n_clients   10 → 20        （10% 恶意，比 smoke 更现实）
+#   federation.edge_rounds  2 → 5         （沿用正式 config.yaml 的 edge/global 比例）
+#   federation.n_rounds     5 → 80        （有效轮 = 80 × 5 = 400，达后门植入所需规模）
+#   backdoor.eval_interval  1 → 5         （80 轮全评太贵；每 5 轮一个点，够看累积曲线）
+#   backdoor.asr_max_samples 2000 保持     （限 ASR 评估开销）
+#   training.drift_correction 直接写 hier_fedrep（自描述；run 脚本仍传 --framework 兜底）
+#
+# 判据（写死，跑完由 metrics.json 客观判读）：
+#   接线：client_failures=[]、恶意端每轮参与、run 段自证
+#   L2-一级：final.local_malicious_asr（应随轮次升高、稳定 >0.9）
+#   L2-二级：final.local_benign_asr + same/diff_edge 曲线（这才是迁移性判决）
+#
+# 跑法（集群，仓库根目录）：
+#   sbatch run_full.sh attack bad-pfl badpfl none exp002 hier_fedavg_fedrep \
+#          experiments/attack/bad-pfl/full.yaml
+#
+# 预计运行时长 ≈ 2~3 小时（20 client 串行，badpfl 强制 n_workers=1）。
+
+seed: 42
+
+data:
+  dataset:        "cifar10"
+  img_size:       32
+  batch_size:     32
+  shuffle_buffer: 2000
+  num_classes:    10
+  per_client_test_ratio: 0.25
+
+federation:
+  edge_assignment:  "random"
+  client_fraction:  1.0
+  warmup_rounds:    0
+  n_clients:        20          # ← 全长：20 客户端（10% 恶意）
+  n_edges:          2
+  edge_rounds:      5           # ← 全长：每 global round 5 个 edge round
+  n_rounds:         80          # ← 全长：80 × 5 = 400 有效轮
+  partition:        "noniid"
+  classes_per_client: 10
+  alpha:            0.5
+  inter_edge:       {type: "dirichlet", alpha: 0.5}
+  intra_edge:       {type: "pathological", classes_per_client: 2}
+  min_samples:      10
+
+training:
+  local_epochs:   1
+  learning_rate:  0.02
+  lr_decay:       0.992
+  drift_correction: "hier_fedrep"  # 自描述；run 脚本另传 --framework hier_fedavg_fedrep
+  proximal_ref:     "edge"
+  mu:               1.0
+  mu_edge:          0.1
+  mu_global:        0.01
+  alpha_feddyn:     0.1
+  alpha_feddyn_global: 0.02
+  lambda_pfedme:    35.0
+  beta_pfedme:      1.0
+  pfedme_warm_start: false
+  lambda1_hier:     15.0
+  lambda2_hier:     15.0
+  beta_hier:        1.0
+  personal_lr_pfedme: 0.01
+  moreau_lr_pfedme:   0.005
+  mu_pfedme:          0.001
+  inner_steps_hier: 5
+  alpha_inner:      0.01
+  beta_outer:   0.01
+  label_smoothing: 0.1
+  plocal_epochs:    1          # 与 exp001 一致（隔离「训练长度」这一个变量）
+  head_lr_rep:      0.005
+  lambda_ditto:     0.1
+  ditto_pers_epochs: 1
+
+model:
+  arch: "fedavg_cnn"
+  rep_dim: 64
+
+backdoor:
+  enabled:        true
+  trigger:        "badnet"
+  malicious_strategy: "vanilla"   # 由 --attack_method badpfl 覆盖
+  target_label:   9
+  poison_ratio:   0.5
+  malicious_ids:  [3]             # spread 下被忽略，n_malicious 说了算
+  malicious_placement: "spread"
+  n_malicious:    2               # 20 个客户端里 2 个恶意（10%）
+  attack_freq_Q:  1
+  badnet_size:    3
+  badnet_value:   1.0
+  blended_alpha:  0.2
+  blended_image:  "attack/triggers/hello_kitty.png"
+  dba_patterns:
+    - [[0,0],[0,1],[0,2],[0,3],[0,4],[0,5]]
+    - [[0,9],[0,10],[0,11],[0,12],[0,13],[0,14]]
+  neurotoxin_mask_ratio:   0.05
+  neurotoxin_mask_batches: 0
+  cerp_alpha:         0.0001
+  cerp_beta:          0.0001
+  cerp_trigger_lr:    0.1
+  cerp_trigger_phi:   10.0
+  cerp_trigger_steps: 1
+  badpfl_epsilon:     0.01569
+  badpfl_sigma:       0.01569
+  badpfl_gen_steps:   30
+  badpfl_gen_lr:      0.01
+  badpfl_shared_generator: true   # P4：adversary 持有单一共享生成器（对齐官方 fba.py）
+  eval_interval:  5               # ← 全长：每 5 轮评一次分层 ASR（看累积曲线）
+  asr_max_samples: 2000           # ← ASR 子采样，限评估开销
+  verbose_clients: false
+  feature_eval:          false
+  feature_eval_samples:  200
+  feature_clean_per_class: 50
+  forgetting_epochs:     0
+
+defense:
+  name:   "none"                  # 由 --defense 覆盖
+  params:
+    trim_ratio:      0.1
+    num_malicious:   0
+    noise_scale:     0.001
+    num_projections: 5
+    subspace_dim:    10000
+    filter_mult:     1.0
+    st_epochs:       10
+    st_lr:           0.0
+
+wandb:
+  enabled:  false
+
+evaluation:
+  eval_interval: 5
+  final_finetune:       false
+  final_finetune_steps: 5
+  test_client_eval:    false
+  test_client_ratio:   0.2
+  test_finetune_steps: 5

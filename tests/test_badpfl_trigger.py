@@ -170,3 +170,35 @@ def test_poison_selection_is_reproducible(rng):
     assert np.array_equal(y1.numpy(), y2.numpy()), (
         "同 (seed, client_id) 的两个客户端在不同全局 np.random 状态下投毒选择不一致 "
         "—— 说明仍依赖全局 RNG，实验不可复现；应走 np.random.default_rng([seed, client_id])")
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 不变量 5：P4 共享生成器（对齐官方 fba.py：adversary 持有单一 generator）
+# ══════════════════════════════════════════════════════════════════════════
+def test_shared_generator_injection(rng):
+    """
+    未注入 → 每端 lazy build 各自的 generator（默认，per-client）。
+    注入同一对象后 → 两端引用**同一** generator+optimizer，且 _atk_ensure_generator
+    不再重建（P4 语义：adversary 持有单一共享生成器，恶意端 download-optimize-return）。
+    """
+    from models.autoencoder import build_autoencoder
+
+    # 默认（未注入）：各自独立
+    c1, _, _ = _client(rng)
+    c2, _, _ = _client(rng)
+    c1._atk_ensure_generator()
+    c2._atk_ensure_generator()
+    assert c1._atk_generator is not c2._atk_generator, "未注入时不应共享生成器"
+
+    # 注入共享对象：同一 generator + 同一 optimizer，ensure 不重建
+    shared = build_autoencoder(img_size=IMG, channels=3)
+    opt = tf.keras.optimizers.Adam(learning_rate=0.01)
+    d1, _, _ = _client(rng)
+    d2, _, _ = _client(rng)
+    d1.set_shared_generator(shared, opt)
+    d2.set_shared_generator(shared, opt)
+    d1._atk_ensure_generator()
+    d2._atk_ensure_generator()
+    assert d1._atk_generator is shared and d2._atk_generator is shared, (
+        "注入后两端未引用同一共享 generator —— P4 语义未生效")
+    assert d1._atk_gen_opt is d2._atk_gen_opt is opt, "注入后两端未共享同一 optimizer"
