@@ -29,7 +29,9 @@ from client.compose import compose_client_class    # noqa: E402
 BadPFLFedAvgClient = compose_client_class(FedAvgClient, None, BadPFLMixin)
 
 
-IMG, CH, NCLS = 8, 3, 10
+# img_size 必须是 16 的倍数：4 层 AE 的 bottleneck = img_size/16，非整数则 decoder
+# 输出形状与输入不符（官方 torch 版在 8×8 同样会崩）。16 是最小合法值，本地仍秒级。
+IMG, CH, NCLS = 16, 3, 10
 EPS = SIGMA = 4.0 / 255.0
 TARGET = 9
 POISON_RATIO = 0.5
@@ -72,11 +74,17 @@ def test_fgsm_noise_respects_sigma_budget(rng):
     c, x, y = _client(rng)
     xi = c._atk_fgsm_noise(c.model, x, y).numpy()
 
+    # sign() 只产生 ±1 或 0 → |ξ| 每个元素要么 0、要么恰好 sigma_norm[ch]。
+    # 用浮点容差比较，而非 round(8) 后的精确集合：sigma_norm 是 float32，
+    # np.round(float32,8) 与 round(float(float32),8) 在第 8 位可能不一致（float32↔float64
+    # 提升差异），那会让本断言假红 —— 这是测试写法问题，与预算是否被遵守无关。
     for ch in range(CH):
-        vals = np.unique(np.abs(xi[..., ch]).round(8))
-        allowed = {0.0, round(float(c._atk_sigma_norm[ch]), 8)}
-        assert set(vals.tolist()) <= allowed, (
-            f"通道 {ch} 的 |ξ| 取值 {vals[:5]}，超出预算 σ_norm={c._atk_sigma_norm[ch]:.5f}")
+        av = np.abs(xi[..., ch])
+        budget = float(c._atk_sigma_norm[ch])
+        ok = np.isclose(av, 0.0, atol=1e-6) | np.isclose(av, budget, atol=1e-6)
+        assert ok.all(), (
+            f"通道 {ch} 的 |ξ| 有超出预算的取值 {np.unique(av[~ok])[:5]}，"
+            f"σ_norm={budget:.5f}")
 
 
 def test_generator_delta_respects_eps_budget(rng):

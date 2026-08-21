@@ -18,8 +18,8 @@ client/client_badpfl.py  –  Bad-PFL（ICLR 2025）攻击 mixin
 与官方的实现差异（已适配本仓库）
 ──────────────────────────────
   - 本仓库工作在 CIFAR 标准化空间；官方 ε=σ=4/255 在 [0,1] 像素空间。
-    逐通道换算：eps_norm = sigma_norm = (4/255) / CIFAR10_STD。
-    > CIFAR10_STD 被硬用在 dataset=cifar100 的配置上（CLAUDE.md 陷阱 #5，本会话不处理）。
+    逐通道换算：eps_norm = sigma_norm = (4/255) / STD，STD 按 data.dataset 选取
+    （cifar10→CIFAR10_STD，cifar100→CIFAR100_STD），与数据管线实际归一化常数一致。
   - pgd_attack(num_iter=1) = FGSM：ξ = sigma_norm·sign(∇_x CE(model(x), y_true))。
 
 决策 B（全阶段投毒）：`on_batch` 挂在每个方法的**每个**训练循环体上，所以 Ditto 的
@@ -31,7 +31,7 @@ import numpy as np
 import tensorflow as tf
 
 from models.autoencoder import build_autoencoder
-from attack.triggers import CIFAR10_STD
+from data.dataset import CIFAR10_STD, CIFAR100_STD
 
 
 class BadPFLMixin:
@@ -46,7 +46,12 @@ class BadPFLMixin:
 
         eps   = float(bd.get("badpfl_epsilon", 4.0 / 255.0))
         sigma = float(bd.get("badpfl_sigma",   4.0 / 255.0))
-        std   = np.asarray(CIFAR10_STD, np.float32)            # (C,)
+        # 归一化常数必须跟随数据管线实际使用的 STD（data/dataset.py:load_cifar*）：
+        # 官方预算 4/255 定义在 [0,1] 空间，本仓库喂给模型的是标准化图，需 ÷STD 换算。
+        # 硬编码 CIFAR10_STD 会让 dataset=cifar100 的 ε/σ 预算偏离约 8%（陷阱 #5）。
+        _ds   = (config or {}).get("data", {}).get("dataset", "cifar10")
+        std   = np.asarray(CIFAR100_STD if _ds == "cifar100" else CIFAR10_STD,
+                           np.float32)                          # (C,)
         self._atk_eps_norm   = (eps   / std).astype(np.float32)
         self._atk_sigma_norm = (sigma / std).astype(np.float32)
 
