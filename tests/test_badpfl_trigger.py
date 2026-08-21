@@ -148,26 +148,25 @@ def test_poison_batch_count_and_labels(rng):
 # ══════════════════════════════════════════════════════════════════════════
 def test_poison_selection_is_reproducible(rng):
     """
-    `on_batch`（原 `_poison_batch`）用全局 np.random.shuffle 选投毒样本 → 同一 seed 下不可复现，
-    「固定种子两端跑出一致结果」不成立。投毒选择必须走客户端自己的 seeded RNG。
+    投毒样本的选择必须走客户端自己的 seeded RNG（client_base:
+    `np.random.default_rng([seed, client_id])`），不依赖全局 np.random 状态。
+
+    复现性 = 「两次独立运行、同 (seed, client_id) → 结果一致」。用两个**全新**
+    客户端各调一次 on_batch 来模拟两次运行；self.rng 是有状态的，同一客户端连调
+    两次本就不该相等（那是正常的随机推进，不是不可复现）。同时把全局 np.random
+    置成不同状态，验证结果与全局 RNG 无关。只比较标签 y（投毒选取由 mask 决定；
+    像素 x 还受未播种的 generator 权重影响，与本不变量无关）。
     """
     n = 8
-    c, x, y = _client(rng, n=n)
-    c._atk_ensure_generator()
-
-    np.random.seed(0)
-    _, y1 = c.on_batch(x, y)
-    np.random.seed(0)
-    _, y2 = c.on_batch(x, y)
-    assert np.array_equal(y1.numpy(), y2.numpy()), "重置全局 seed 后仍不可复现"
-
-    # 真正的要求：不依赖全局 RNG 状态
-    c2, _, _ = _client(rng, n=n)
+    c1, x, y = _client(rng, n=n)
+    c1._atk_ensure_generator()
+    c2, _, _ = _client(rng, n=n)               # 同 client_id=0、同 seed → self.rng 同序列
     c2._atk_ensure_generator()
-    np.random.seed(12345)                      # 故意打乱全局状态
-    _, y3 = c2.on_batch(x, y)
+
+    np.random.seed(0)                          # 两次“运行”故意处于不同的全局状态
+    _, y1 = c1.on_batch(x, y)
     np.random.seed(999)
-    _, y4 = c2.on_batch(x, y)
-    assert np.array_equal(y3.numpy(), y4.numpy()), (
-        "投毒样本的选择随全局 np.random 状态变化 —— 实验不可复现，"
-        "应改用客户端自己的 np.random.default_rng(seed + client_id)")
+    _, y2 = c2.on_batch(x, y)
+    assert np.array_equal(y1.numpy(), y2.numpy()), (
+        "同 (seed, client_id) 的两个客户端在不同全局 np.random 状态下投毒选择不一致 "
+        "—— 说明仍依赖全局 RNG，实验不可复现；应走 np.random.default_rng([seed, client_id])")
