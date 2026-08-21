@@ -15,13 +15,14 @@
 
 | 级别 | 判据 | 含义 | 现状 |
 |---|---|---|---|
-| L1 | `pytest tests/test_badpfl_trigger.py -v` → 5 passed（需 TF，集群跑） | 扰动预算 / 投毒比例 / 归一化 / 可复现 | 本地 skip |
-| **L2-一级** | `final.local_malicious_asr > 0.9` | **攻击本身学会了** | 未跑 |
-| L2-二级 | `final.local_benign_asr` | 迁移性是否成立 | 未跑 |
+| L1 | `pytest tests/test_badpfl_trigger.py -v` → 5 passed（需 TF，集群跑） | 扰动预算 / 投毒比例 / 归一化 / 可复现 | ✅ 集群 5 passed（commit `e34da4b`，2026-08-21） |
+| **L2-一级** | `final.local_malicious_asr > 0.9` | **攻击本身学会了** | 待跑（fedrep） |
+| L2-二级 | `final.local_benign_asr` | 迁移性是否成立 | 待跑（fedrep） |
 
-L2 跑法：
+L2 跑法（本会话定：PFL 方法轴用 **fedrep**，故第 6 参数传 framework 键 `hier_fedavg_fedrep`）：
 ```bash
-sbatch run_smoke.sh attack bad-pfl badpfl none exp001
+# framework 键是 hier_fedavg_fedrep（→ drift_correction=hier_fedrep），不是 hier_fedrep
+sbatch run_smoke.sh attack bad-pfl badpfl none exp001 hier_fedavg_fedrep
 ```
 
 ### 关于「修好了」的定义 —— 开工前必须先认这一条
@@ -64,3 +65,4 @@ sbatch run_smoke.sh attack bad-pfl badpfl none exp001
 | 日期 | 做了什么 | 证据 | 结论 |
 |---|---|---|---|
 | 2026-08-19 | 写 5 条 L1 不变量；确认 cifar100 归一化常数不一致 | `data/dataset.py:121` 用 CIFAR100_STD，`client_badpfl.py:24` 导入 CIFAR10_STD | 归一化偏差属实但幅度小（~8%），**不足以解释 ASR≈0**；主嫌疑是迁移性 + 接线 |
+| 2026-08-21 | 阶段0/1：clone 官方（`fmy266/Bad-PFL`@`ad845a5`）对拍；修 L1 三处（P1 生成器 img_size 断言+测试 IMG 8→16；P2 ε/σ 按 dataset 选 STD；P3 FGSM 断言改 np.isclose）+ 修复复现性测试方法论 | 集群 L1：`test_badpfl_trigger.py` 5 passed（总数 6→2 failed，剩 2 条为陷阱#4 Neurotoxin）；commits `f76ff71`/`e34da4b` | L1 全绿。**新发现**：官方用**单个共享生成器**跨全恶意端 co-train（`fba.py:27` closure），本仓库每端独立→ 迁移性(L2-二级)关键差异，记为 P4 缓做。官方数据空间是 [0,1]（仅 ToTensor），本仓库标准化→ `ε/STD` 换算方向正确 |
