@@ -16,8 +16,8 @@
 | 级别 | 判据 | 含义 | 现状 |
 |---|---|---|---|
 | L1 | `pytest tests/test_badpfl_trigger.py -v` → 5 passed（需 TF，集群跑） | 扰动预算 / 投毒比例 / 归一化 / 可复现 | ✅ 集群 5 passed（commit `e34da4b`，2026-08-21） |
-| **L2-一级** | `final.local_malicious_asr > 0.9` | **攻击本身学会了** | 待跑（fedrep） |
-| L2-二级 | `final.local_benign_asr` | 迁移性是否成立 | 待跑（fedrep） |
+| **L2-一级** | `final.local_malicious_asr > 0.9` | **攻击本身学会了** | smoke(exp001) 0.889 → 机制成立✅；接线全通 |
+| L2-二级 | `final.local_benign_asr` | 迁移性是否成立 | **待全长 run**：smoke 仅 10 有效轮不足以判；需 round×edge_round≈300~500 |
 
 L2 跑法（本会话定：PFL 方法轴用 **fedrep**，故第 6 参数传 framework 键 `hier_fedavg_fedrep`）：
 ```bash
