@@ -19,7 +19,14 @@ import pytest
 
 tf = pytest.importorskip("tensorflow", reason="L1 需要 TF；本地无 TF 时在集群跑")
 
-from client.client_badpfl import BadPFLClient      # noqa: E402
+from client.client_badpfl import BadPFLMixin       # noqa: E402
+from client.client_fedavg import FedAvgClient      # noqa: E402
+from client.compose import compose_client_class    # noqa: E402
+
+
+# Bad-PFL 现在是 mixin（CLAUDE.md 陷阱 #1 已修复），与方法类组合而非替换。
+# 触发器/投毒逻辑与具体 PFL 方法无关，这里用 FedAvgClient 作为方法类。
+BadPFLFedAvgClient = compose_client_class(FedAvgClient, None, BadPFLMixin)
 
 
 IMG, CH, NCLS = 8, 3, 10
@@ -51,8 +58,8 @@ def _client(rng, dataset="cifar10", n=8):
     x = rng.normal(size=(n, IMG, IMG, CH)).astype(np.float32)
     y = np.arange(n, dtype=np.int64) % NCLS
     ds = tf.data.Dataset.from_tensor_slices((x, y)).batch(n)
-    c = BadPFLClient(client_id=0, dataset=ds, model=_model(),
-                     config=_config(dataset), n_samples=n)
+    c = BadPFLFedAvgClient(client_id=0, dataset=ds, model=_model(),
+                           config=_config(dataset), n_samples=n)
     c.is_malicious = True
     return c, x, y
 
@@ -63,25 +70,25 @@ def _client(rng, dataset="cifar10", n=8):
 def test_fgsm_noise_respects_sigma_budget(rng):
     """ξ = σ·sign(g) → |ξ| 必须逐通道恰好等于 sigma_norm（sign 只取 ±1）。"""
     c, x, y = _client(rng)
-    xi = c._fgsm_noise(c.model, x, y).numpy()
+    xi = c._atk_fgsm_noise(c.model, x, y).numpy()
 
     for ch in range(CH):
         vals = np.unique(np.abs(xi[..., ch]).round(8))
-        allowed = {0.0, round(float(c.sigma_norm[ch]), 8)}
+        allowed = {0.0, round(float(c._atk_sigma_norm[ch]), 8)}
         assert set(vals.tolist()) <= allowed, (
-            f"通道 {ch} 的 |ξ| 取值 {vals[:5]}，超出预算 σ_norm={c.sigma_norm[ch]:.5f}")
+            f"通道 {ch} 的 |ξ| 取值 {vals[:5]}，超出预算 σ_norm={c._atk_sigma_norm[ch]:.5f}")
 
 
 def test_generator_delta_respects_eps_budget(rng):
     """δ = G(x)·ε_norm，G 输出须有界（tanh）→ |δ| ≤ eps_norm 逐通道成立。"""
     c, x, _ = _client(rng)
-    c._ensure_generator()
-    delta = c._gen_delta(tf.convert_to_tensor(x)).numpy()
+    c._atk_ensure_generator()
+    delta = c._atk_gen_delta(tf.convert_to_tensor(x)).numpy()
 
     for ch in range(CH):
         m = float(np.abs(delta[..., ch]).max())
-        assert m <= float(c.eps_norm[ch]) + 1e-6, (
-            f"通道 {ch} 的 |δ| 最大 {m:.5f} > ε_norm={c.eps_norm[ch]:.5f} —— "
+        assert m <= float(c._atk_eps_norm[ch]) + 1e-6, (
+            f"通道 {ch} 的 |δ| 最大 {m:.5f} > ε_norm={c._atk_eps_norm[ch]:.5f} —— "
             f"生成器输出无界（输出层缺 tanh？），扰动预算失控、隐蔽性不成立")
 
 
@@ -100,7 +107,7 @@ def test_eps_conversion_uses_dataset_matching_std(rng):
     expected = (EPS / np.asarray(CIFAR100_STD, np.float32))
 
     np.testing.assert_allclose(
-        c.eps_norm, expected, rtol=1e-6,
+        c._atk_eps_norm, expected, rtol=1e-6,
         err_msg="dataset=cifar100 时仍用 CIFAR10_STD 换算 ε —— 扰动预算与数据管线不一致")
 
 
@@ -111,9 +118,9 @@ def test_poison_batch_count_and_labels(rng):
     """恰好 round(n·ratio) 个样本被改成 target_label，其余逐位不动。"""
     n = 8
     c, x, y = _client(rng, n=n)
-    c._ensure_generator()
+    c._atk_ensure_generator()
 
-    xp, yp = c._poison_batch(x, y)
+    xp, yp = c.on_batch(x, y)
     xp, yp = xp.numpy(), yp.numpy()
 
     changed = np.flatnonzero(yp != y)
@@ -133,26 +140,26 @@ def test_poison_batch_count_and_labels(rng):
 # ══════════════════════════════════════════════════════════════════════════
 def test_poison_selection_is_reproducible(rng):
     """
-    `_poison_batch` 用全局 np.random.shuffle 选投毒样本 → 同一 seed 下不可复现，
+    `on_batch`（原 `_poison_batch`）用全局 np.random.shuffle 选投毒样本 → 同一 seed 下不可复现，
     「固定种子两端跑出一致结果」不成立。投毒选择必须走客户端自己的 seeded RNG。
     """
     n = 8
     c, x, y = _client(rng, n=n)
-    c._ensure_generator()
+    c._atk_ensure_generator()
 
     np.random.seed(0)
-    _, y1 = c._poison_batch(x, y)
+    _, y1 = c.on_batch(x, y)
     np.random.seed(0)
-    _, y2 = c._poison_batch(x, y)
+    _, y2 = c.on_batch(x, y)
     assert np.array_equal(y1.numpy(), y2.numpy()), "重置全局 seed 后仍不可复现"
 
     # 真正的要求：不依赖全局 RNG 状态
     c2, _, _ = _client(rng, n=n)
-    c2._ensure_generator()
+    c2._atk_ensure_generator()
     np.random.seed(12345)                      # 故意打乱全局状态
-    _, y3 = c2._poison_batch(x, y)
+    _, y3 = c2.on_batch(x, y)
     np.random.seed(999)
-    _, y4 = c2._poison_batch(x, y)
+    _, y4 = c2.on_batch(x, y)
     assert np.array_equal(y3.numpy(), y4.numpy()), (
         "投毒样本的选择随全局 np.random 状态变化 —— 实验不可复现，"
         "应改用客户端自己的 np.random.default_rng(seed + client_id)")

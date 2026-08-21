@@ -153,15 +153,19 @@ class HierPFedMeRepClient(FLClientBase):
 
         # set_weights 已把 model 设为 [φ_e, 私有 head]，Θ_bb 重置为 φ_e
 
+        self.on_round_start(round_idx)
+
         # ── 阶段 1：head 训练（冻 backbone） ──────────────────────────────
         for _ in range(plocal):
             for x, y in self._shuffled_batches():
+                x, y = self.on_batch(x, y)
                 self._train_head_step(x, y)
         self._head_weights = [v.numpy() for v in self._head_tvars]
 
         # ── 阶段 2：pFedMe on backbone（冻 head） ─────────────────────────
         for _ in range(local):
             for x, y in self._shuffled_batches():
+                x, y = self.on_batch(x, y)
                 for _ in range(inner_steps):
                     loss = self._inner_step(x, y)
                 self._moreau_step()
@@ -176,6 +180,7 @@ class HierPFedMeRepClient(FLClientBase):
         avg = float(np.mean(losses)) if losses else 0.0
         print(f"  [Client {self.client_id:>2}] Round {round_idx} | "
               f"Hier-pFedMe-Rep(λ2={lam2}, K={inner_steps}) | loss={avg:.4f}")
+        upload_weights = self.on_upload(upload_weights, round_idx)
         return upload_weights, self.n_samples, avg, time.time() - t0
 
     # ── 数据遍历辅助 ───────────────────────────────────────────────────────
@@ -203,6 +208,9 @@ class HierPFedMeRepClient(FLClientBase):
         θ̃_bb 的一步内层更新，以 Θ_bb 为近端锚点（冻 head）。
 
         目标：F(θ̃) + (λ2/2)·‖θ̃_bb − Θ_bb‖²，梯度只对 backbone 变量。
+
+        这是产出 upload 的那一步（锚点 Θ_bb 由 _moreau_step 跟随 θ̃_bb）→ 叠加
+        on_extra_loss（基类返回 0.0，数值恒等）。
         """
         with tf.GradientTape() as tape:
             loss = self.loss_fn(labels, self.model(images, training=True))
@@ -210,7 +218,7 @@ class HierPFedMeRepClient(FLClientBase):
                 tf.reduce_sum(tf.square(v - t))
                 for v, t in zip(self._base_tvars, self._base_anchor_tvars)
             ])
-            total = loss + (self._lam2_var / 2.0) * prox
+            total = loss + (self._lam2_var / 2.0) * prox + self.on_extra_loss()
         grads = tape.gradient(total, self._base_tvars)
         self._base_opt.apply_gradients(zip(grads, self._base_tvars))
         return loss

@@ -133,15 +133,19 @@ class HierFedRepClient(FLClientBase):
 
         # set_weights 已把 model 设为 [φ_e backbone, 私有 head]
 
+        self.on_round_start(round_idx)
+
         # ── 阶段 1：head 训练（冻 backbone） ──────────────────────────────
         for _ in range(plocal):
             for x, y in self._shuffled_batches():
+                x, y = self.on_batch(x, y)
                 self._train_head_step(x, y)
         self._head_weights = [v.numpy() for v in self._head_tvars]
 
         # ── 阶段 2：上传 backbone w_k 训练（冻 head，普通 CE） ─────────────
         for _ in range(local):
             for x, y in self._shuffled_batches():
+                x, y = self.on_batch(x, y)
                 loss = self._train_backbone_step(x, y)
                 losses.append(float(loss.numpy()))
         upload_weights = self.model.get_weights()  # backbone=w_k（交 edge 聚合）, head=私有
@@ -162,6 +166,7 @@ class HierFedRepClient(FLClientBase):
         avg = float(np.mean(losses)) if losses else 0.0
         print(f"  [Client {self.client_id:>2}] Round {round_idx} | "
               f"Hier-FedRep | loss={avg:.4f}")
+        upload_weights = self.on_upload(upload_weights, round_idx)
         return upload_weights, self.n_samples, avg, time.time() - t0
 
     # ── 数据遍历辅助 ───────────────────────────────────────────────────────
@@ -186,9 +191,14 @@ class HierFedRepClient(FLClientBase):
 
     @tf.function
     def _train_backbone_step(self, images, labels):
-        """训上传 backbone w_k（冻 head）：普通 CE，梯度只对 backbone 变量。"""
+        """
+        训上传 backbone w_k（冻 head）：普通 CE，梯度只对 backbone 变量。
+
+        这是产出 upload 的那一步 → 叠加 on_extra_loss（基类返回 0.0，数值恒等）。
+        """
         with tf.GradientTape() as tape:
             loss = self.loss_fn(labels, self.model(images, training=True))
-        grads = tape.gradient(loss, self._base_tvars)
+            total = loss + self.on_extra_loss()
+        grads = tape.gradient(total, self._base_tvars)
         self._base_opt.apply_gradients(zip(grads, self._base_tvars))
         return loss

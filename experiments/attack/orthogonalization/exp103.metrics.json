@@ -1,0 +1,183 @@
+{
+  "run": {
+    "config_path": "/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tf-dpfl/experiments/smoke-base.yaml",
+    "run_name": "hier_fedavg_noniid_neurotoxin_seed42",
+    "method": "hierfedavg",
+    "defense": "none",
+    "attack": "neurotoxin",
+    "n_rounds": 5,
+    "malicious_ids": [
+      0,
+      9
+    ]
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "global_asr": 0.095,
+      "edge_asr": 0.297,
+      "local_benign_asr": 0.159,
+      "same_edge_asr": 0.354,
+      "diff_edge_asr": 0.042,
+      "local_malicious_asr": 0.986
+    },
+    {
+      "round": 2,
+      "global_asr": 0.074,
+      "edge_asr": 0.293,
+      "local_benign_asr": 0.129,
+      "same_edge_asr": 0.238,
+      "diff_edge_asr": 0.064,
+      "local_malicious_asr": 0.99
+    },
+    {
+      "round": 3,
+      "global_asr": 0.121,
+      "edge_asr": 0.264,
+      "local_benign_asr": 0.135,
+      "same_edge_asr": 0.22,
+      "diff_edge_asr": 0.083,
+      "local_malicious_asr": 0.988
+    },
+    {
+      "round": 4,
+      "global_asr": 0.211,
+      "edge_asr": 0.325,
+      "local_benign_asr": 0.133,
+      "same_edge_asr": 0.246,
+      "diff_edge_asr": 0.065,
+      "local_malicious_asr": 0.983
+    },
+    {
+      "round": 5,
+      "global_asr": 0.364,
+      "edge_asr": 0.414,
+      "local_benign_asr": 0.215,
+      "same_edge_asr": 0.414,
+      "diff_edge_asr": 0.096,
+      "local_malicious_asr": 0.984
+    }
+  ],
+  "final": {
+    "round": 5,
+    "global_asr": 0.364,
+    "edge_asr": 0.414,
+    "local_benign_asr": 0.215,
+    "same_edge_asr": 0.414,
+    "diff_edge_asr": 0.096,
+    "local_malicious_asr": 0.984
+  },
+  "acc_rounds": [
+    {
+      "round": 1,
+      "gm_acc": 0.3375,
+      "em_acc": 0.3703,
+      "pm_acc": 0.4947
+    },
+    {
+      "round": 2,
+      "gm_acc": 0.3991,
+      "em_acc": 0.4469,
+      "pm_acc": 0.528
+    },
+    {
+      "round": 3,
+      "gm_acc": 0.4577,
+      "em_acc": 0.4873,
+      "pm_acc": 0.5537
+    },
+    {
+      "round": 4,
+      "gm_acc": 0.4823,
+      "em_acc": 0.4987,
+      "pm_acc": 0.5652
+    },
+    {
+      "round": 5,
+      "gm_acc": 0.5027,
+      "em_acc": 0.5284,
+      "pm_acc": 0.5467
+    }
+  ],
+  "final_acc": {
+    "round": 5,
+    "gm_acc": 0.5027,
+    "em_acc": 0.5284,
+    "pm_acc": 0.5467,
+    "final_pm_weighted": 0.5467
+  },
+  "admitted": [],
+  "admitted_count_mean": null,
+  "rejected_ids": [],
+  "malicious_selected_rounds": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "n_malicious_participations": 5,
+  "malicious_participation_by_client": {
+    "0": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "9": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ]
+  },
+  "client_failures": [],
+  "errors": [
+    "Traceback (most recent call last):",
+    "ImportError: cannot import name 'runtime_version' from 'google.protobuf' (/usr/local/lib/python3.10/dist-packages/google/protobuf/__init__.py)"
+  ],
+  "log_tail": [
+    "",
+    "[ Per-Class Report ]",
+    "              precision    recall  f1-score   support",
+    "",
+    "           0     0.7080    0.5111    0.5936      1532",
+    "           1     0.4572    0.6583    0.5397      1478",
+    "           2     0.4508    0.5641    0.5012      1528",
+    "           3     0.5315    0.4640    0.4955      1528",
+    "           4     0.4820    0.6186    0.5418      1471",
+    "           5     0.5903    0.3677    0.4531      1485",
+    "           6     0.5872    0.6037    0.5954      1494",
+    "           7     0.7050    0.3948    0.5062      1507",
+    "           8     0.6215    0.6828    0.6507      1491",
+    "           9     0.5341    0.6073    0.5684      1482",
+    "",
+    "    accuracy                         0.5467     14996",
+    "   macro avg     0.5668    0.5472    0.5445     14996",
+    "weighted avg     0.5671    0.5467    0.5444     14996",
+    "",
+    "[ F1 Score ]",
+    "  Macro    F1 : 0.5445",
+    "  Weighted F1 : 0.5444",
+    "",
+    "[ AUC (OvR) ]",
+    "  Macro    AUC : 0.9132",
+    "  Weighted AUC : 0.9131",
+    "",
+    "[ Confusion Matrix ] (shape: (10, 10))",
+    "[[ 783  265   54   26  122    4   11   13  222   32]",
+    " [  25  973    4   13   52   11   89   43  125  143]",
+    " [  85   61  862   31  197   34  123   29   24   82]",
+    " [  41  135   60  709   90  217  105   27   68   76]",
+    " [  61   58  232   41  910   12   69   35   17   36]",
+    " [   9   97  256  320   39  546  108   36   19   55]",
+    " [  23   65  205   77  101   19  902   23    2   77]",
+    " [  27   61  101   83  333   59   61  595   39  148]",
+    " [  40  108   71   24    4   16   41   33 1018  136]",
+    " [  12  305   67   10   40    7   27   10  104  900]]",
+    "============================================================",
+    "  Report saved to report_PM_hier_fedavg_noniid_neurotoxin_seed42.txt"
+  ]
+}

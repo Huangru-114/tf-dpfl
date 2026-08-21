@@ -20,10 +20,16 @@ import pytest
 
 tf = pytest.importorskip("tensorflow", reason="L1 需要 TF；本地无 TF 时在集群跑")
 
-from client.client_neurotoxin import NeurotoxinClient      # noqa: E402
+from client.client_neurotoxin import NeurotoxinMixin      # noqa: E402
+from client.client_fedavg import FedAvgClient             # noqa: E402
+from client.compose import compose_client_class           # noqa: E402
 
 
 KEEP_RATIO = 0.05          # 文献语义：保留 |g| 最小的 5% 坐标
+
+# Neurotoxin 现在是 mixin（CLAUDE.md 陷阱 #1 已修复），与方法类组合而非替换。
+# 这里用 FedAvgClient 作为方法类 —— 掩码逻辑与具体 PFL 方法无关。
+NeurotoxinFedAvgClient = compose_client_class(FedAvgClient, None, NeurotoxinMixin)
 
 
 # ── 最小可跑装置：3 个坐标的线性模型 + 受控梯度 ────────────────────────────
@@ -47,17 +53,22 @@ def _make_client(rng, n_features=100):
     x = rng.normal(size=(8, n_features)).astype(np.float32)
     y = np.array([0, 1] * 4, dtype=np.int64)
     ds = tf.data.Dataset.from_tensor_slices((x, y)).batch(4)
-    c = NeurotoxinClient(client_id=0, dataset=ds, model=_tiny_model(n_features),
-                         config=_tiny_config(), n_samples=8)
+    c = NeurotoxinFedAvgClient(client_id=0, dataset=ds,
+                               model=_tiny_model(n_features),
+                               config=_tiny_config(), n_samples=8)
     c.is_malicious = True
     c.set_clean_dataset(ds)
+    # 掩码投影的基准是 self.edge_weights（聚合端看到的 delta = upload − edge_weights），
+    # 真实循环里由 EdgeServerBase.broadcast_to_clients 填入，这里显式模拟一次广播。
+    w0 = [w.copy() for w in c.model.get_weights()]
+    c.set_weights(global_weights=w0, edge_weights=w0)
     return c
 
 
 def _fixed_grads(client, grad_values):
-    """把 _benign_grads 换成返回一组已知梯度 → mask 完全可解析地算出。"""
+    """把 _atk_benign_grads 换成返回一组已知梯度 → mask 完全可解析地算出。"""
     tensors = [tf.constant(g) for g in grad_values]
-    client._benign_grads = lambda images, labels: tensors
+    client._atk_benign_grads = lambda images, labels: tensors
     return tensors
 
 
@@ -74,7 +85,7 @@ def test_mask_keeps_smallest_benign_gradient_coords(rng):
     g = rng.normal(size=(n_feat, 2)).astype(np.float32)   # Dense kernel 形状
     _fixed_grads(c, [g])
 
-    mask = c._compute_mask()
+    mask = c._atk_compute_mask()
     assert mask is not None, "mask 为 None —— 掩码根本没生效"
 
     flat_mask = np.concatenate([m.reshape(-1) for m in mask])
@@ -103,7 +114,7 @@ def test_masked_coords_have_exactly_zero_update(rng):
     _fixed_grads(c, [g])
 
     w_before = [w.copy() for w in c.model.get_weights()]
-    mask = c._compute_mask()
+    mask = c._atk_compute_mask()
     upload, _, _, _ = c.local_train(round_idx=0)
 
     for wb, wa, m in zip(w_before, upload, mask):
@@ -125,7 +136,7 @@ def test_threshold_is_per_layer(rng):
     c = _make_client(rng, n_feat)
     g_small = (rng.normal(size=(n_feat, 2)) * 1e-3).astype(np.float32)
     _fixed_grads(c, [g_small])
-    mask_small_only = c._compute_mask()
+    mask_small_only = c._atk_compute_mask()
 
     # 每层内部都应保留约 KEEP_RATIO 比例，与该层的绝对尺度无关
     for m in mask_small_only:

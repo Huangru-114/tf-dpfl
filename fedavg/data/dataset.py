@@ -1,6 +1,16 @@
 import tensorflow as tf
-import tensorflow_datasets as tfds
 import numpy as np
+
+# **不要在模块顶层 import tensorflow_datasets**：它只被 GTSRB 的两个 loader 用到，
+# CIFAR 路径完全不需要；而它的导入链
+#   tfds → tensorflow_metadata → google.protobuf.runtime_version
+# 在 protobuf < 5.27 的容器里会抛
+#   ImportError: cannot import name 'runtime_version' from 'google.protobuf'
+# 这条被 absl 记成 ERROR 后流程仍会继续（非致命），但它会出现在每一次 run 的日志
+# 最前面，极易被当成故障主因去排查。改成用到时再导入，CIFAR 的 run 就完全看不到它。
+def _tfds():
+    import tensorflow_datasets as tfds
+    return tfds
 
 def preprocess(sample, img_size: int = 32):
     """
@@ -64,7 +74,76 @@ CIFAR10_MEAN = np.array([0.4914, 0.4822, 0.4465], dtype=np.float32)
 CIFAR10_STD  = np.array([0.2470, 0.2435, 0.2616], dtype=np.float32)
 
 # Mimer 上 CIFAR 数据集的共享路径（CIFAR-10 和 CIFAR-100 均在此）
+# **注意这是 Chalmers Mimer 的路径**，别的集群上不存在，会走下面的 fallback。
 CIFAR_MIMER_PATH = "/mimer/NOBACKUP/Datasets/CIFAR"
+
+
+def resolve_keras_home(tag: str = "CIFAR") -> str | None:
+    """
+    决定 keras 数据缓存根目录（`KERAS_HOME`），并在**容器里看不见目标**时给出人话报错。
+
+    优先级：
+      1. `TFDPFL_KERAS_HOME` —— 显式覆盖，集群上由 cluster_env.sh 自动导出
+      2. 已经设好的 `KERAS_HOME`
+      3. `CIFAR_MIMER_PATH`（Chalmers Mimer 专用，别处不存在）
+      4. 都没有 → 返回 None，走 keras 默认的 `~/.keras`
+
+    **为什么需要第 4 步的额外检查（踩过的坑）**：
+    `~/.keras/datasets` 常常是指向共享盘的**符号链接**。在 apptainer 容器里，
+    若链接目标所在的盘没有被 `--bind` 进来，这个链接就是**悬空**的 ——
+    `os.path.isdir()` 为 False，于是 keras 的 `os.makedirs(datadir, exist_ok=True)`
+    去 mkdir，撞上已存在的链接本身，抛出
+
+        FileExistsError: [Errno 17] File exists: '/home/<user>/.keras/datasets'
+
+    这句话完全看不出真实原因（既不是「已存在」的问题，也不是权限问题），
+    所以这里提前拦截并把链接指向哪里、该 bind 什么都打出来。
+    """
+    import os
+
+    for src, path in (("TFDPFL_KERAS_HOME", os.environ.get("TFDPFL_KERAS_HOME")),
+                      ("KERAS_HOME",        os.environ.get("KERAS_HOME")),
+                      ("CIFAR_MIMER_PATH",  CIFAR_MIMER_PATH)):
+        if path and os.path.isdir(path):
+            os.environ["KERAS_HOME"] = path
+            print(f"[Data] {tag}: KERAS_HOME = {path}  (来源: {src})")
+            return path
+
+    # 走 keras 默认的 ~/.keras —— 检查 datasets 是不是悬空符号链接
+    default_dir = os.path.join(os.path.expanduser("~"), ".keras", "datasets")
+    if os.path.islink(default_dir) and not os.path.isdir(default_dir):
+        target = os.readlink(default_dir)
+
+        # 先尝试**自愈**：软链本身就表达了「数据缓存放这儿」的意图，
+        # 常见情形只是那个目录还没被建出来（不是不可见）。能建就建。
+        try:
+            os.makedirs(target, exist_ok=True)
+        except OSError as e:
+            create_err = f"{type(e).__name__}: {e}"
+        else:
+            create_err = None
+            if os.path.isdir(default_dir):        # 软链现在活了
+                print(f"[Data] {tag}: 软链目标不存在，已创建 {target}")
+                return None
+
+        raise RuntimeError(
+            f"\n[Data] {tag}: `{default_dir}` 是**悬空的符号链接**，且无法自动修复。\n"
+            f"  它指向：{target}\n"
+            + (f"  尝试创建该目录失败：{create_err}\n" if create_err else
+               f"  已创建该目录，但软链仍然不可用 —— 说明目标在当前环境里**看不见**。\n")
+            + f"  在 apptainer 容器里，这通常是因为该盘没有被 --bind 进来\n"
+            f"  （容器默认只挂 $PWD 和 $HOME）。\n"
+            f"  不处理的话 keras 会抛一句与真实原因无关的\n"
+            f"  `FileExistsError: [Errno 17] File exists: {default_dir}`。\n"
+            f"  三种修法（任选其一）：\n"
+            f"    1) 手工建目录：mkdir -p {target}\n"
+            f"    2) 让容器能看到目标盘：TFDPFL_BIND=<覆盖 {target} 的路径>\n"
+            f"    3) 绕开 $HOME 的软链，直接指定缓存根：\n"
+            f"       TFDPFL_KERAS_HOME={os.path.dirname(target)}\n"
+            f"       （keras 会在其下找 datasets/，正好是 {target}）\n")
+
+    print(f"[Data] {tag}: 用 keras 默认缓存 {default_dir}")
+    return None
 
 
 def load_cifar10(config: dict):
@@ -72,11 +151,7 @@ def load_cifar10(config: dict):
     batch_size  = config["data"]["batch_size"]
     shuffle_buf = config["data"]["shuffle_buffer"]
 
-    if os.path.isdir(CIFAR_MIMER_PATH):
-        os.environ.setdefault("KERAS_HOME", CIFAR_MIMER_PATH)
-        print(f"[Data] CIFAR-10 from Mimer: {CIFAR_MIMER_PATH}")
-    else:
-        print("[Data] CIFAR-10: Mimer path not found, using default Keras cache")
+    resolve_keras_home("CIFAR-10")
 
     (x_train, y_train), (x_test, y_test) = tf.keras.datasets.cifar10.load_data()
 
@@ -132,11 +207,7 @@ def load_cifar100(config: dict):
     batch_size  = config["data"]["batch_size"]
     shuffle_buf = config["data"]["shuffle_buffer"]
 
-    if os.path.isdir(CIFAR_MIMER_PATH):
-        os.environ.setdefault("KERAS_HOME", CIFAR_MIMER_PATH)
-        print(f"[Data] CIFAR-100 from Mimer: {CIFAR_MIMER_PATH}")
-    else:
-        print("[Data] CIFAR-100: Mimer path not found, using default Keras cache")
+    resolve_keras_home("CIFAR-100")
 
     (x_train, y_train), (x_test, y_test) = \
         tf.keras.datasets.cifar100.load_data(label_mode="fine")
@@ -314,7 +385,7 @@ def load_imagenet(config: dict):
     shuffle_buf = config["data"]["shuffle_buffer"]
     data_dir    = config["data"]["data_dir"]
 
-    raw = tfds.load("gtsrb", as_supervised=False, data_dir=data_dir)
+    raw = _tfds().load("gtsrb", as_supervised=False, data_dir=data_dir)
     train_raw = raw["train"]
     test_raw  = raw["test"]
 
@@ -343,7 +414,7 @@ def load_imagenet(config: dict):
 
 def get_dataset_info():
     """返回 GTSRB 的基本统计信息。"""
-    _, info = tfds.load("gtsrb", with_info=True)
+    _, info = _tfds().load("gtsrb", with_info=True)
     return {
         "num_classes": info.features["label"].num_classes,  # 43
         "num_train":   info.splits["train"].num_examples,   # 39270

@@ -65,3 +65,12 @@ scratch/*
 !scratch/.gitkeep
 .env
 .DS_Store
+
+# ── run 产物：generate_report 在 cwd（= fedavg/）里吐的分类报告 ─────────────
+# 每跑一次 main.py 就生成 GM/EM/PM 三类共 3+2×n_edges 个 txt，属于「大产物留集群」那一类。
+fedavg/report_*.txt
+report_*.txt
+
+# ── SLURM 作业输出（sbatch 默认写到提交目录）────────────────────────────────
+slurm-*.out
+slurm-*.err

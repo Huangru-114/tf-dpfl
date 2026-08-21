@@ -17,26 +17,39 @@ FedAvg。它上传的东西语义与所有人都不同，既进不了正确的�
 或等价手段 —— 使恶意客户端仍然跑该 PFL 方法的 local_train，只是在其上叠加投毒/掩码。
 
 需要 TF，本地自动 skip，在集群上跑。
+
+夹具说明
+────────
+`_resolve` 原本是「复刻 main.py:386-395 的类选择逻辑」的**手抄副本**，会随 main.py
+漂移。现在改成直接调 `main.resolve_client_classes` —— 测的从副本变成真货。
+两条 assert 一个字未改。
+
+`hier_perfedavg` 已从 PFL_METHODS 删除：该方法已移除（config_validate.REMOVED_METHODS
+会拒绝启动），`_select_method_classes` 对它返回默认的 PFedMeClient，
+这一格测的其实是 pfedme —— 是**假绿**，留着只会误导。
 """
 
 import pytest
 
 pytest.importorskip("tensorflow", reason="L1 需要 TF；本地无 TF 时在集群跑")
 
-from main import _select_method_classes, select_malicious_client_class   # noqa: E402
+from main import _select_method_classes, resolve_client_classes   # noqa: E402
 
 
 PFL_METHODS = ["hierfedavg", "hierpfedme", "hier_ditto", "hier_ditto_rep",
-               "hier_pfedme_rep", "hier_perfedavg", "hier_fedrep"]
+               "hier_pfedme_rep", "hier_fedrep"]
 ATTACK_STRATEGIES = ["neurotoxin", "cerp", "badpfl"]
 
 
 def _resolve(method: str, strategy: str):
-    """复刻 main.py:386-395 的类选择逻辑。"""
-    config = {"training": {"drift_correction": method}}
+    """直接走 main.py 的真实类解析入口（不再手抄）。"""
+    config = {
+        "training": {"drift_correction": method},
+        "backdoor": {"malicious_strategy": strategy},
+    }
     method_cls, _ = _select_method_classes(config)
-    mal_cls = select_malicious_client_class(strategy)
-    return method_cls, (mal_cls or method_cls)
+    _benign, malicious_cls = resolve_client_classes(config)
+    return method_cls, malicious_cls
 
 
 @pytest.mark.parametrize("method", PFL_METHODS)

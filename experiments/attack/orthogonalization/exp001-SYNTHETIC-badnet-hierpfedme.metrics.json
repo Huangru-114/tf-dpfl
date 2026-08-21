@@ -1,0 +1,180 @@
+{
+  "run": {
+    "config_path": "../experiments/smoke-base.yaml",
+    "run_name": "hier_pfedme_noniid_badnet_seed42",
+    "method": "hierpfedme",
+    "defense": "none",
+    "attack": "vanilla",
+    "n_rounds": 5,
+    "malicious_ids": [
+      0,
+      9
+    ]
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "global_asr": 0.0,
+      "edge_asr": 0.076,
+      "local_benign_asr": 0.083,
+      "same_edge_asr": 0.106,
+      "diff_edge_asr": 0.069,
+      "local_malicious_asr": 0.571
+    },
+    {
+      "round": 2,
+      "global_asr": 0.0,
+      "edge_asr": 0.104,
+      "local_benign_asr": 0.093,
+      "same_edge_asr": 0.106,
+      "diff_edge_asr": 0.085,
+      "local_malicious_asr": 1.0
+    },
+    {
+      "round": 3,
+      "global_asr": 0.0,
+      "edge_asr": 0.066,
+      "local_benign_asr": 0.066,
+      "same_edge_asr": 0.07,
+      "diff_edge_asr": 0.063,
+      "local_malicious_asr": 1.0
+    },
+    {
+      "round": 4,
+      "global_asr": 0.0,
+      "edge_asr": 0.087,
+      "local_benign_asr": 0.062,
+      "same_edge_asr": 0.096,
+      "diff_edge_asr": 0.042,
+      "local_malicious_asr": 1.0
+    },
+    {
+      "round": 5,
+      "global_asr": 0.0,
+      "edge_asr": 0.103,
+      "local_benign_asr": 0.096,
+      "same_edge_asr": 0.107,
+      "diff_edge_asr": 0.089,
+      "local_malicious_asr": 0.328
+    }
+  ],
+  "final": {
+    "round": 5,
+    "global_asr": 0.0,
+    "edge_asr": 0.103,
+    "local_benign_asr": 0.096,
+    "same_edge_asr": 0.107,
+    "diff_edge_asr": 0.089,
+    "local_malicious_asr": 0.328
+  },
+  "acc_rounds": [
+    {
+      "round": 1,
+      "gm_acc": 0.0966,
+      "em_acc": 0.5396,
+      "pm_acc": 0.7377
+    },
+    {
+      "round": 2,
+      "gm_acc": 0.1702,
+      "em_acc": 0.5505,
+      "pm_acc": 0.6996
+    },
+    {
+      "round": 3,
+      "gm_acc": 0.2049,
+      "em_acc": 0.5646,
+      "pm_acc": 0.7474
+    },
+    {
+      "round": 4,
+      "gm_acc": 0.3533,
+      "em_acc": 0.6308,
+      "pm_acc": 0.6718
+    },
+    {
+      "round": 5,
+      "gm_acc": 0.4969,
+      "em_acc": 0.6185,
+      "pm_acc": 0.8135
+    }
+  ],
+  "final_acc": {
+    "round": 5,
+    "gm_acc": 0.4969,
+    "em_acc": 0.6185,
+    "pm_acc": 0.8135,
+    "final_pm_weighted": 0.8136
+  },
+  "admitted": [],
+  "admitted_count_mean": null,
+  "rejected_ids": [],
+  "malicious_selected_rounds": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "n_malicious_participations": 5,
+  "malicious_participation_by_client": {
+    "0": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "9": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ]
+  },
+  "client_failures": [],
+  "errors": [],
+  "log_tail": [
+    "[ Per-Class Report ]",
+    "              precision    recall  f1-score   support",
+    "",
+    "           0     0.8968    0.9781    0.9357      1510",
+    "           1     0.8565    0.9087    0.8818      1511",
+    "           2     0.7816    0.7158    0.7473      1485",
+    "           3     0.8987    0.7833    0.8370      1518",
+    "           4     0.9902    0.9730    0.9815      1554",
+    "           5     1.0000    0.9938    0.9969      1448",
+    "           6     0.9776    0.8414    0.9044      1501",
+    "           7     0.8963    0.3669    0.5206      1461",
+    "           8     0.6329    0.5755    0.6029      1543",
+    "           9     0.5207    0.9966    0.6840      1465",
+    "",
+    "    accuracy                         0.8136     14996",
+    "   macro avg     0.8451    0.8133    0.8092     14996",
+    "weighted avg     0.8453    0.8136    0.8099     14996",
+    "",
+    "[ F1 Score ]",
+    "  Macro    F1 : 0.8092",
+    "  Weighted F1 : 0.8099",
+    "",
+    "[ AUC (OvR) ]",
+    "  Macro    AUC : 0.9864",
+    "  Weighted AUC : 0.9863",
+    "",
+    "[ Confusion Matrix ] (shape: (10, 10))",
+    "[[1477   20    6    7    0    0    0    0    0    0]",
+    " [  69 1373   59   10    0    0    0    0    0    0]",
+    " [ 101  210 1063  111    0    0    0    0    0    0]",
+    " [   0    0  232 1189   10    0    0    0    0   87]",
+    " [   0    0    0    6 1512    0    0    0    0   36]",
+    " [   0    0    0    0    5 1439    0    0    0    4]",
+    " [   0    0    0    0    0    0 1263   41    0  197]",
+    " [   0    0    0    0    0    0   29  536  510  386]",
+    " [   0    0    0    0    0    0    0   21  888  634]",
+    " [   0    0    0    0    0    0    0    0    5 1460]]",
+    "============================================================",
+    "  Report saved to report_PM_hier_pfedme_noniid_badnet_seed42.txt",
+    "EXIT=0"
+  ]
+}

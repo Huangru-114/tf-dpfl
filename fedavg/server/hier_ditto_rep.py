@@ -51,11 +51,10 @@ class HierDittoRepEdgeServer(EdgeServerBase):
         print(f"  [Edge {self.edge_id}] G{global_round_idx} | E{edge_round_idx} | "
               f"{self._method_label} | Selected {len(selected)}/{len(self.clients)}")
 
-        # 步骤 1：广播 edge 完整权重 + 全局参考给 client
-        edge_w = self.model.get_weights()
-        for client in selected:
-            client.set_weights(global_weights=self._global_weights_ref,
-                               edge_weights=edge_w)
+        # 步骤 1：广播 edge 完整权重 + 全局参考（走下行唯一通道 broadcast_to_clients）
+        self.broadcast_to_clients(selected,
+                                  global_weights=self._global_weights_ref,
+                                  round_idx=global_round_idx)
 
         # 步骤 2：收集 client 上传（完整列表，backbone=w_k）
         client_updates = self._collect_updates_parallel(

@@ -20,9 +20,10 @@ from models.model_utils   import get_model_bytes
 from aggregation.fedavg   import aggregate
 from aggregation.feddyn   import feddyn_aggregate,   init_h
 from aggregation.scaffold import scaffold_aggregate, init_cv
+from .robust_aggregation  import RobustAggregationMixin
 
 
-class CloudServer:
+class CloudServer(RobustAggregationMixin):
     def __init__(self, global_model: tf.keras.Model,
                  edge_servers: list,
                  test_dataset: tf.data.Dataset,
@@ -32,6 +33,12 @@ class CloudServer:
         self.test_dataset = test_dataset
         self.config       = config
         self.loss_fn      = tf.keras.losses.SparseCategoricalCrossentropy()
+
+        # ── cloud 层防御（接口，默认关）─────────────────────────────────
+        # defense.layers 缺省为 ["edge"] → 这里拿到 None → robust_mean 回退
+        # aggregation.fedavg.aggregate，与改动前的 _aggregate_global 逐元素相同。
+        # 守卫：tests/test_cloud_aggregate_default.py
+        self._init_defense(config, layer="cloud")
 
         self.model_bytes      = get_model_bytes(global_model)
         self.total_comm_bytes = 0
@@ -104,6 +111,12 @@ class CloudServer:
         其他方法
         ─────────
         样本加权 FedAvg（标准）。
+
+        **当前实际行为**：下面三个分支全部被注释掉，函数体只剩最后一行
+        `return self.aggregate_edges(...)` —— 也就是说不管 drift_correction 是什么，
+        cloud 层永远是朴素样本加权 FedAvg。config 里的 `beta_hier`（Hier-pFedMe 式 9
+        的 β）、`alpha_feddyn_global` 都是**死配置，读都没读**。
+        本会话只把聚合入口收敛到 aggregate_edges（留接口），不改这个行为。
         """
         method = self.config["training"].get("drift_correction", "fedavg")
 
@@ -148,7 +161,36 @@ class CloudServer:
 
         # else:
             # fedavg / fedprox / pfedme / perfedavg / scaffold(无cloud级) → FedAvg
-        return aggregate(edge_updates)
+        return self.aggregate_edges(edge_updates, prev_global_weights)
+
+    # ══════════════════════════════════════════════════════════════════════
+    # cloud 层聚合入口（防御轴的 cloud 侧接口）
+    # ══════════════════════════════════════════════════════════════════════
+
+    def aggregate_edges(self, edge_updates: list,
+                        prev_global_weights: list) -> list:
+        """
+        把各 edge 上传的模型聚合成新的全局模型。
+
+        `defense.layers` 不含 "cloud" 时（默认），`self.defense is None`，
+        `robust_mean` 回退 `aggregation.fedavg.aggregate` —— 与改动前的
+        `return aggregate(edge_updates)` **逐元素相同**。
+        配了 `layers: [edge, cloud]` 就会在这里也跑一遍鲁棒聚合，
+        参考点是广播前的全局模型快照 prev_global_weights。
+
+        注意：edge 上传物不带 client_id（它们是 edge 级的 4-元组），
+        所以 cloud 层的防御拿不到客户端身份，`record_decision` 会把
+        last_admitted_ids 记成 edge 的位置索引。真要在 cloud 层做客户端级
+        TPR/FPR 统计，需要 edge 往上透传身份 —— 本会话不做。
+        """
+        return self.robust_mean(edge_updates, prev_global_weights)
+
+    def _default_ref_weights(self) -> list:
+        """本层聚合前的模型权重（广播点）= 当前全局模型权重。"""
+        return self.global_model.get_weights()
+
+    def _defense_label(self) -> str:
+        return "cloud"
 
     # ══════════════════════════════════════════════════════════════════════
     # 主训练流程

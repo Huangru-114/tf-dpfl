@@ -69,7 +69,7 @@ bash run_l1.sh          # 或 pytest tests/ -v
 ### L2 — 端到端 smoke（集群，约 3 分钟）
 
 ```bash
-bash run_smoke.sh attack neurotoxin neurotoxin none exp001
+sbatch run_smoke.sh attack neurotoxin neurotoxin none exp001
 ```
 
 10 client / 5 round 的最小配置，大日志留 `/tmp`，只产出一个 KB 级
@@ -90,7 +90,7 @@ bash run_smoke.sh attack neurotoxin neurotoxin none exp001
    代码证实/证伪，不靠印象。**
 4. **先计划后代码**：确认 diff 表后再动 `fedavg/`，同时补 `tests/` 里的不变量。
 5. **本地 L1** → 绿了才 push。
-6. **集群 L2**：`git pull && bash run_smoke.sh ...` → 回传那一个 metrics.json。
+6. **集群 L2**：`git pull && sbatch run_smoke.sh ...` → 回传那一个 metrics.json。
 7. **收敛或调试**：过了就 commit + 更新台账状态；不过就回到语义 diff 表，找**第一格**
    对不上的地方，问题从「整个方法」缩小到「一个步骤」。
 8. **清场**：`rm -rf reference/<method>-src`，换下一个。

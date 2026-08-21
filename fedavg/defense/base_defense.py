@@ -53,6 +53,27 @@ class BaseDefense(ABC):
 
     name = "base"
 
+    # ── 本防御**能**作用在哪几层（类属性，单一事实来源）────────────────────
+    # ⊆ {"client", "edge", "cloud", "post_hoc"}
+    #   client   需要客户端配合（主动防御）：必须同时给出 client_mixin
+    #   edge     edge 层鲁棒聚合（现有 5 种都是这一类）
+    #   cloud    cloud 层鲁棒聚合
+    #   post_hoc 训练后处理（Simple-Tuning）
+    #
+    # 用户在 config 里用 `defense.layers` 选**实际启用**哪几层；
+    # config_validate 校验 `config.layers ⊆ cls.layers`，声明与接线对不上就拒绝启动
+    # —— 与 METHOD_SUPPORTS_DEFENSE 同一套「启动前挡住静默跑错」的思路。
+    #
+    # 默认 {"edge", "cloud"}：本基类下的 5 种防御都只依赖
+    # 「一批 (weights, n_samples, …) + 一个参考权重」这个接口，与这批更新来自
+    # client 还是来自 edge 无关，所以两层都能跑。默认**启用**的层仍由 config 决定
+    # （defense.layers 缺省 ["edge"]），本属性只说明「能不能」，不说明「要不要」。
+    layers = frozenset({"edge", "cloud"})
+
+    # 声明了 "client" 的防御必须给一个客户端行为 mixin（见 client/compose.py）。
+    # 它会被组合到**所有**客户端（防御方分不出谁是恶意的），且在攻击 mixin 内层。
+    client_mixin = None
+
     def __init__(self, config: dict | None = None):
         self.config = config or {}
         # ── 判决记账 ──────────────────────────────────────────────────────
@@ -83,6 +104,16 @@ class BaseDefense(ABC):
                                   if 0 <= i < len(ids)]
         self.last_rejected_ids = [cid for j, cid in enumerate(ids)
                                   if j not in admitted]
+
+    def make_control(self, server, round_idx: int) -> dict:
+        """
+        本轮下发给客户端的额外载荷（主动防御用：裁剪上界、挑战样本、参考统计量…）。
+
+        由 `EdgeServerBase.broadcast_to_clients` 每次广播时调用，最终进到
+        `FLClientBase.set_control`。默认空 dict —— 现有 5 种聚合层防御都不需要
+        客户端配合，返回 {} 时下行路径与改动前逐元素相同。
+        """
+        return {}
 
     @abstractmethod
     def aggregate(self, client_updates: list, ref_weights: list) -> list:

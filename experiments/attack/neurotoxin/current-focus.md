@@ -21,7 +21,7 @@
 
 L2 跑法：
 ```bash
-bash run_smoke.sh attack neurotoxin neurotoxin none exp001
+sbatch run_smoke.sh attack neurotoxin neurotoxin none exp001
 ```
 
 > **注意 L2-b 是「趋势」不是「阈值」**。Neurotoxin 的卖点是**持久性**不是绝对 ASR，

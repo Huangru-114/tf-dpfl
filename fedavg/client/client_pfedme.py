@@ -127,6 +127,8 @@ class PFedMeClient(FLClientBase):
         )
         # self.evaluate_on(fallback_dataset=self.test_dataset)  # 训练前快照（调试用）
 
+        self.on_round_start(round_idx)
+
         # ── 主训练循环（与 PFLlib 结构一致） ──────────────────────────────
         for _ in range(epochs):
 
@@ -141,6 +143,7 @@ class PFedMeClient(FLClientBase):
             ]
 
             for x, y in epoch_batches:
+                x, y = self.on_batch(x, y)
                 # K 步内层优化（更新 θ̃）
                 for _ in range(inner_steps):
                     loss = self._inner_step(x, y)
@@ -173,6 +176,7 @@ class PFedMeClient(FLClientBase):
             f"Hier-pFedMe(λ2={lam}, K={inner_steps}) | loss={avg:.4f}"
         )
 
+        upload_weights = self.on_upload(upload_weights, round_idx)
         return upload_weights, self.n_samples, avg, time.time() - t0
 
     # ══════════════════════════════════════════════════════════════════════
@@ -186,6 +190,9 @@ class PFedMeClient(FLClientBase):
 
         目标：F(θ̃; D) + (λ/2)·‖θ̃ − Θ‖² + (μ/2)·‖θ̃‖²
         梯度：∇F + λ·(θ̃ − Θ) + μ·θ̃   （对齐 PFLlib pFedMeOptimizer）
+
+        这是产出 upload 的那一步（锚点 Θ 由 _moreau_step 跟随 θ̃）→ 叠加
+        on_extra_loss（基类返回 0.0，数值恒等）。
         """
         with tf.GradientTape() as tape:
             loss = self.loss_fn(labels, self.model(images, training=True))
@@ -200,7 +207,8 @@ class PFedMeClient(FLClientBase):
             ])
             total_loss = (loss
                           + (self._lam_var / 2.0) * prox
-                          + (self._mu_var / 2.0) * l2)
+                          + (self._mu_var / 2.0) * l2
+                          + self.on_extra_loss())
 
         grads = tape.gradient(total_loss, self.model.trainable_variables)
         self._inner_opt.apply_gradients(zip(grads, self.model.trainable_variables))

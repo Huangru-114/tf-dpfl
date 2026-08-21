@@ -25,7 +25,9 @@ class FedAvgEdgeServer(EdgeServerBase):
 
         # 广播 edge 模型（同时转发全局参考）
         ref_w = self.model.get_weights()   # 聚合前 edge 权重（防御参考点）
-        self.broadcast_to_clients(selected, global_weights=self._global_weights_ref)
+        self.broadcast_to_clients(selected,
+                                  global_weights=self._global_weights_ref,
+                                  round_idx=global_round_idx)
 
         # 收集 client 本地训练结果
         client_updates = self._collect_updates_parallel(

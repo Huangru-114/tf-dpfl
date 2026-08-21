@@ -21,7 +21,7 @@
 
 L2 跑法：
 ```bash
-bash run_smoke.sh attack bad-pfl badpfl none exp001
+sbatch run_smoke.sh attack bad-pfl badpfl none exp001
 ```
 
 ### 关于「修好了」的定义 —— 开工前必须先认这一条

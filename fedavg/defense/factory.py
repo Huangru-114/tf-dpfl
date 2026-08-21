@@ -44,8 +44,37 @@ def _estimate_num_malicious(config: dict) -> int:
     return max(1, math.ceil(n_mal / n_edges))
 
 
-def create_defense(config: dict):
-    """根据 config 构建防御实例；name=none 返回 None。"""
+DEFAULT_LAYERS = ("edge",)
+
+
+def configured_layers(config: dict) -> tuple:
+    """
+    用户在 config 里选的启用层。缺省 ("edge",) —— 与改动前行为完全一致。
+
+        defense:
+          name:   flame
+          layers: [edge]          # 默认；未来可 [edge, cloud]
+    """
+    dcfg = (config.get("defense") or {}) if isinstance(config, dict) else {}
+    raw = dcfg.get("layers") or DEFAULT_LAYERS
+    if isinstance(raw, str):
+        raw = [raw]
+    return tuple(str(x).lower() for x in raw)
+
+
+def defense_class(name: str):
+    """按名字取防御类（不实例化）；未知名字返回 None。用于 config_validate 读 layers。"""
+    return _REGISTRY.get(str(name).lower())
+
+
+def create_defense(config: dict, layer: str = "edge"):
+    """
+    根据 config 构建**指定层**的防御实例；该层未启用时返回 None。
+
+    `layer` 是调用方所在的层（EdgeServerBase 传 "edge"，CloudServer 传 "cloud"）。
+    返回 None 时 `RobustAggregationMixin.robust_mean` 回退普通加权平均，
+    与改动前逐元素相同。
+    """
     dcfg = (config.get("defense") or {}) if isinstance(config, dict) else {}
     name = str(dcfg.get("name", "none")).lower()
     if name in ("none", "", "off", "disabled"):
@@ -58,13 +87,22 @@ def create_defense(config: dict):
             f"Unknown defense: {name!r}. "
             f"Available: {['none'] + list(_REGISTRY) + list(_POST_HOC)}")
 
+    cls = _REGISTRY[name]
+    # 用户没在这一层启用 → 本层不设防
+    if layer not in configured_layers(config):
+        return None
+    # 用户启用了、但该防御声明自己不支持这一层 → config_validate 已经会挡住，
+    # 这里再兜一次底，避免在半配好的 config 上静默生效。
+    if layer not in cls.layers:
+        return None
+
     params = dict(dcfg.get("params", {}) or {})
     # num_malicious 缺省时自动估算（multi_krum / dnc 需要）
     if "num_malicious" not in params:
         params["num_malicious"] = _estimate_num_malicious(config)
 
-    defense = _REGISTRY[name](params)
-    print(f"[Defense] enabled: {name} | params={params}")
+    defense = cls(params)
+    print(f"[Defense] enabled: {name} @ {layer} | params={params}")
     return defense
 
 
