@@ -169,6 +169,55 @@ def build_fedavg_cnn(input_shape=(32, 32, 3), num_classes=10, rep_dim=64):
     return model
 
 
+def _resnet_basic_block(x, filters, stride, name):
+    """CIFAR-ResNet BasicBlock（BN 版，对齐 Bad-PFL 论文 ResNet10 原味）。"""
+    L = tf.keras.layers
+    shortcut = x
+    in_ch = x.shape[-1]
+    if stride != 1 or in_ch != filters:
+        shortcut = L.Conv2D(filters, 1, strides=stride, padding="same",
+                            use_bias=False, name=f"{name}_sc_conv")(x)
+        shortcut = L.BatchNormalization(name=f"{name}_sc_bn")(shortcut)
+
+    y = L.Conv2D(filters, 3, strides=stride, padding="same",
+                 use_bias=False, name=f"{name}_conv1")(x)
+    y = L.BatchNormalization(name=f"{name}_bn1")(y)
+    y = L.ReLU(name=f"{name}_relu1")(y)
+    y = L.Conv2D(filters, 3, strides=1, padding="same",
+                 use_bias=False, name=f"{name}_conv2")(y)
+    y = L.BatchNormalization(name=f"{name}_bn2")(y)
+    y = L.Add(name=f"{name}_add")([y, shortcut])
+    return L.ReLU(name=f"{name}_out")(y)
+
+
+def build_resnet10(input_shape=(32, 32, 3), num_classes=10):
+    """
+    CIFAR 风格 ResNet-10（BasicBlock [1,1,1,1] + BN），对齐 Bad-PFL 论文默认骨干。
+
+    stem Conv(64,3×3) → 4 stage 各 1 个 BasicBlock（64/128/256/512，后三个 stride2）
+    → GlobalAveragePooling → Dense(num_classes, softmax)。
+    末层 softmax 配 from_logits=False（与全仓库一致，见 CLAUDE.md 陷阱 #6）。
+
+    fedrep 兼容：以单个 Dense(num_classes) 收尾 → get_base_head_indices 从末尾扫描
+    即可切出 head；BN 的 gamma/beta 与 moving_mean/variance 归入 backbone。
+    通道为 64/128/256/512，无 size==num_classes 的参数，扫描不会误判。
+
+    归一化用 BatchNorm（用户指定，对齐论文；非 GroupNorm）。
+    """
+    L = tf.keras.layers
+    inp = tf.keras.Input(shape=input_shape)
+    x = L.Conv2D(64, 3, strides=1, padding="same", use_bias=False, name="stem_conv")(inp)
+    x = L.BatchNormalization(name="stem_bn")(x)
+    x = L.ReLU(name="stem_relu")(x)
+
+    for i, (f, s) in enumerate([(64, 1), (128, 2), (256, 2), (512, 2)]):
+        x = _resnet_basic_block(x, f, s, name=f"stage{i+1}")
+
+    x = L.GlobalAveragePooling2D(name="gap")(x)
+    out = L.Dense(num_classes, activation="softmax", name="head")(x)
+    return tf.keras.Model(inp, out, name="resnet10")
+
+
 def build_model(input_shape=(32, 32, 3), num_classes=10, arch="cifar_cnn_3conv",
                 rep_dim=64):
     registry = {
@@ -176,6 +225,7 @@ def build_model(input_shape=(32, 32, 3), num_classes=10, arch="cifar_cnn_3conv",
         "net_cnn":  build_net_cnn,
         "gtsrb_cnn":  build_gtsrb_cnn,
         "fedavg_cnn":  build_fedavg_cnn,
+        "resnet10":  build_resnet10,
     }
     assert arch in registry, f"Unknown arch: {arch}. Choose from {list(registry)}"
     if arch == "fedavg_cnn":
