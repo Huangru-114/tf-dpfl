@@ -1,0 +1,180 @@
+{
+  "run": {
+    "config_path": "/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tf-dpfl/experiments/smoke-base.yaml",
+    "run_name": "hier_fedavg_fedrep_noniid_badpfl_seed42",
+    "method": "hier_fedrep",
+    "defense": "none",
+    "attack": "badpfl",
+    "n_rounds": 5,
+    "malicious_ids": [
+      0,
+      9
+    ]
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "global_asr": 0.001,
+      "edge_asr": 0.014,
+      "local_benign_asr": 0.194,
+      "same_edge_asr": 0.476,
+      "diff_edge_asr": 0.026,
+      "local_malicious_asr": 0.98
+    },
+    {
+      "round": 2,
+      "global_asr": 0.001,
+      "edge_asr": 0.016,
+      "local_benign_asr": 0.2,
+      "same_edge_asr": 0.384,
+      "diff_edge_asr": 0.089,
+      "local_malicious_asr": 0.881
+    },
+    {
+      "round": 3,
+      "global_asr": 0.002,
+      "edge_asr": 0.003,
+      "local_benign_asr": 0.184,
+      "same_edge_asr": 0.342,
+      "diff_edge_asr": 0.089,
+      "local_malicious_asr": 0.858
+    },
+    {
+      "round": 4,
+      "global_asr": 0.002,
+      "edge_asr": 0.008,
+      "local_benign_asr": 0.199,
+      "same_edge_asr": 0.37,
+      "diff_edge_asr": 0.096,
+      "local_malicious_asr": 0.882
+    },
+    {
+      "round": 5,
+      "global_asr": 0.007,
+      "edge_asr": 0.008,
+      "local_benign_asr": 0.191,
+      "same_edge_asr": 0.354,
+      "diff_edge_asr": 0.092,
+      "local_malicious_asr": 0.889
+    }
+  ],
+  "final": {
+    "round": 5,
+    "global_asr": 0.007,
+    "edge_asr": 0.008,
+    "local_benign_asr": 0.191,
+    "same_edge_asr": 0.354,
+    "diff_edge_asr": 0.092,
+    "local_malicious_asr": 0.889
+  },
+  "acc_rounds": [
+    {
+      "round": 1,
+      "gm_acc": 0.2997,
+      "em_acc": 0.3368,
+      "pm_acc": 0.4153
+    },
+    {
+      "round": 2,
+      "gm_acc": 0.3465,
+      "em_acc": 0.3662,
+      "pm_acc": 0.5169
+    },
+    {
+      "round": 3,
+      "gm_acc": 0.3699,
+      "em_acc": 0.3788,
+      "pm_acc": 0.5738
+    },
+    {
+      "round": 4,
+      "gm_acc": 0.3765,
+      "em_acc": 0.3804,
+      "pm_acc": 0.6118
+    },
+    {
+      "round": 5,
+      "gm_acc": 0.3762,
+      "em_acc": 0.3755,
+      "pm_acc": 0.6362
+    }
+  ],
+  "final_acc": {
+    "round": 5,
+    "gm_acc": 0.3762,
+    "em_acc": 0.3755,
+    "pm_acc": 0.6362,
+    "final_pm_weighted": 0.6362
+  },
+  "admitted": [],
+  "admitted_count_mean": null,
+  "rejected_ids": [],
+  "malicious_selected_rounds": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "n_malicious_participations": 5,
+  "malicious_participation_by_client": {
+    "0": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "9": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ]
+  },
+  "client_failures": [],
+  "errors": [],
+  "log_tail": [
+    "",
+    "[ Per-Class Report ]",
+    "              precision    recall  f1-score   support",
+    "",
+    "           0     0.6825    0.6945    0.6885      1532",
+    "           1     0.7515    0.7510    0.7513      1478",
+    "           2     0.5857    0.5052    0.5425      1528",
+    "           3     0.5549    0.5360    0.5453      1528",
+    "           4     0.6382    0.5588    0.5959      1471",
+    "           5     0.5587    0.5387    0.5485      1485",
+    "           6     0.6584    0.6580    0.6582      1494",
+    "           7     0.7002    0.6184    0.6568      1507",
+    "           8     0.7135    0.7150    0.7142      1491",
+    "           9     0.5508    0.7908    0.6493      1482",
+    "",
+    "    accuracy                         0.6362     14996",
+    "   macro avg     0.6394    0.6366    0.6350     14996",
+    "weighted avg     0.6393    0.6362    0.6347     14996",
+    "",
+    "[ F1 Score ]",
+    "  Macro    F1 : 0.6350",
+    "  Weighted F1 : 0.6347",
+    "",
+    "[ AUC (OvR) ]",
+    "  Macro    AUC : 0.9403",
+    "  Weighted AUC : 0.9402",
+    "",
+    "[ Confusion Matrix ] (shape: (10, 10))",
+    "[[1064   57   56   25   29    9   24   33  154   81]",
+    " [  85 1110    1   12   13   12   17   21   84  123]",
+    " [  82   15  772   52  136   71  153   67   26  154]",
+    " [  42   29   54  819   49  329   75   60   34   37]",
+    " [  86   16  145   50  822   55   71  132    9   85]",
+    " [  10   29  109  296   27  800   84   36   15   79]",
+    " [  22   30  101  115   76   45  983   33    5   84]",
+    " [  35   26   37   69  107   88   32  932   22  159]",
+    " [ 104   83   22   24    1   12   13   12 1066  154]",
+    " [  29   82   21   14   28   11   41    5   79 1172]]",
+    "============================================================",
+    "  Report saved to report_PM_hier_fedavg_fedrep_noniid_badpfl_seed42.txt"
+  ]
+}
