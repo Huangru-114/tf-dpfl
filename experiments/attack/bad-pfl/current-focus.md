@@ -66,3 +66,38 @@ sbatch run_smoke.sh attack bad-pfl badpfl none exp001 hier_fedavg_fedrep
 |---|---|---|---|
 | 2026-08-19 | 写 5 条 L1 不变量；确认 cifar100 归一化常数不一致 | `data/dataset.py:121` 用 CIFAR100_STD，`client_badpfl.py:24` 导入 CIFAR10_STD | 归一化偏差属实但幅度小（~8%），**不足以解释 ASR≈0**；主嫌疑是迁移性 + 接线 |
 | 2026-08-21 | 阶段0/1：clone 官方（`fmy266/Bad-PFL`@`ad845a5`）对拍；修 L1 三处（P1 生成器 img_size 断言+测试 IMG 8→16；P2 ε/σ 按 dataset 选 STD；P3 FGSM 断言改 np.isclose）+ 修复复现性测试方法论 | 集群 L1：`test_badpfl_trigger.py` 5 passed（总数 6→2 failed，剩 2 条为陷阱#4 Neurotoxin）；commits `f76ff71`/`e34da4b` | L1 全绿。**新发现**：官方用**单个共享生成器**跨全恶意端 co-train（`fba.py:27` closure），本仓库每端独立→ 迁移性(L2-二级)关键差异，记为 P4 缓做。官方数据空间是 [0,1]（仅 ToTensor），本仓库标准化→ `ε/STD` 换算方向正确 |
+
+---
+
+# 交接（2026-08-22，本会话结束，供新会话接手）
+
+## 当前定论（按证据，已纠正此前误判）
+
+- **BN 不是问题**（此前误判，已撤回）。无攻击基线 `fedrep+resnet10(BN)`：PM 0.517→0.720(r5→r35)仍升 → 干净时健康。
+- **exp004（badpfl, resnet10, 100client/10mal, lr?）**：GM_ASR=0.988、malicious=0.953，但 **PM acc 崩到 0.41**、benign ASR 卡 0.49。论文同 FedRep 是 **ACC 80.29 / ASR 97.95**。
+- 结论：**攻击不隐蔽、过度投毒把主任务打崩**（不是 BN、不是迁移性壁垒）。
+
+## 两个待解问题
+
+### 问题1：让 badpfl+fedrep+resnet 同时拿到正常 acc 和高 asr（对齐论文 80/98）
+主嫌疑 = **过度参与/过度投毒**：
+- `client_fraction=1.0` → 每轮**全部**恶意端参与，再 ×edge_rounds=5；论文每轮从 100 选 10 → 平均~1 恶意端/轮。实际投毒强度 ≈ 论文 10×。
+- `poison_ratio=0.5`（论文 0.2）。
+- **下一步（设定对齐，非调攻击超参）**：把 `client_fraction` 降到论文的部分参与（每轮选 ~10%），`poison_ratio`→0.2，看 acc 是否回到 ~0.72 且 asr 仍高。这是最高优先级实验。
+
+### 问题2：badpfl 并行提速
+- 现象：`badpfl_allow_parallel=true` + P4 共享 generator → 多线程并发读写**同一** generator → `conv2d_transpose` shape 崩 / `input depth ...` 报错。
+- 官方 `reference/Bad-PFL/fl_process.py` **也是顺序遍历客户端**，快是靠 PyTorch+扁平结构，**不是客户端并行** → 线程并行不是论文提速来源。
+- 方向：要么（a）串行但降单客户端开销（eager FGSM/retrace）；（b）generator 训练串行、其余并行；（c）每线程独立 generator（与 P4 共享冲突，需权衡）。**当前 `badpfl_allow_parallel=true` 不安全，默认应保持串行。**
+
+## ⚠️ 配置漂移（必须先修）
+仓库 `full_p4_resnet.yaml` = 20client/2mal/lr0.02；但 exp004 实际跑的是 100client/10mal（`malicious_ids` 0..99）。**用户改了集群 config 但没 push。** 新会话第一步：让用户 push 真实 config，或据 exp004.metrics.json 的 run 段重建，否则不可复现（陷阱#7）。
+
+## 关键代码位置
+- P4 共享 generator：`client/client_badpfl.py:set_shared_generator`；`main.py:449-486`（创建+注入，`badpfl_allow_parallel` 开关也在此附近 ~441）。
+- resnet10（BN）：`models/cnn.py:build_resnet10`；fedrep 切分 `get_base_head_indices` 通用（已验证兼容）。
+- 并行/串行：`server/edge_server_base.py:_collect_updates_parallel`（ThreadPoolExecutor, n_workers）。
+- 参考实现（gitignore，可能需重新 clone）：`reference/Bad-PFL`@`ad845a5`（`fba.py`/`fl_process.py`/`main.py` argparse 默认值 = 论文设定）。
+
+## 分支
+`claude/bad-pfl-attack-roadmap-7dt5ng`。新会话按 CLAUDE.md：从此分支继续或按需从 main 重开。**推送铁律：commit → git pull --rebase → push，永不 force。**
