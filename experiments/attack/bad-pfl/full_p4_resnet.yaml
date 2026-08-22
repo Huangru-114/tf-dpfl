@@ -52,6 +52,8 @@ federation:
   edge_assignment:  "random"
   client_fraction:  1.0
   warmup_rounds:    0
+  badpfl_allow_parallel: true   # 并行收集（提速）；⚠️ eager/@tf.function 并发有污染风险，异常回退串行
+  n_workers:        4           # 并行线程数（sbatch -c 4）
   n_clients:        20          # ← 全长：20 客户端（10% 恶意）
   n_edges:          2
   edge_rounds:      5           # ← 全长：每 global round 5 个 edge round

@@ -436,12 +436,21 @@ def build_clients(images_np, labels_np, global_model, config,
     dynamic_poison = strategy in ("cerp", "badpfl")
 
     # 安全防护：CerP/Bad-PFL 的恶意客户端用自定义 eager 训练（可训练触发器 / generator），
-    # 与良性客户端的 @tf.function 路径在线程池里并发会互相污染 TF 图（reshape/形状错乱）。
-    # 故对动态策略强制串行收集（n_workers=1）。Neurotoxin 已复用 @tf.function 路径，无需串行。
+    # 与良性客户端的 @tf.function 路径在线程池里并发**可能**互相污染 TF 图（reshape/形状错乱）。
+    # 默认对动态策略强制串行收集（n_workers=1）保安全；但串行在大模型（ResNet）+ 多客户端下
+    # 太慢，故提供 opt-in：federation.badpfl_allow_parallel=true 时改走并行（用 config 的 n_workers）。
+    # Neurotoxin 已复用 @tf.function 路径，无需串行。
     if bd_enabled and dynamic_poison:
-        config["federation"]["n_workers"] = 1
-        print(f"[Backdoor] strategy={strategy}: forcing serial client collection "
-              f"(federation.n_workers=1) to avoid eager/@tf.function 线程冲突。")
+        if bool(config["federation"].get("badpfl_allow_parallel", False)):
+            nw = int(config["federation"].get("n_workers", 4))
+            print(f"[Backdoor] strategy={strategy}: badpfl_allow_parallel=true → 并行收集 "
+                  f"(federation.n_workers={nw})。⚠️ eager FGSM/生成器 与良性 @tf.function 并发有"
+                  f"已知污染风险；若 ASR/acc 与串行对不上，去掉该开关回退串行核对。")
+        else:
+            config["federation"]["n_workers"] = 1
+            print(f"[Backdoor] strategy={strategy}: forcing serial client collection "
+                  f"(federation.n_workers=1) to avoid eager/@tf.function 线程冲突。"
+                  f"（设 federation.badpfl_allow_parallel=true 可并行提速，注意上述风险）")
 
     # P4（对齐官方 fba.py:27）：adversary 持有**单一共享** generator+optimizer，所有恶意端
     # download-optimize-return 累积到同一对象。默认关（每端独立），
