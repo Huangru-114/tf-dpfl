@@ -230,4 +230,17 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
     print(f"[配置校验] 通过 | method={method} | defense={defense} | "
           f"attack={'off' if not bd_enabled else bd.get('malicious_strategy', 'vanilla')} | "
           f"{len(warnings)} 个警告")
+
+    # ── 6. 设定自描述（收口陷阱 #7 的同类）──────────────────────────────────
+    #   metrics.json 的 run 块此前只记录 method/defense/attack/n_rounds/malicious_ids，
+    #   **恰恰不含 client_fraction / poison_ratio / n_clients / n_edges / arch** —— 而这几个
+    #   正是「设定是否对齐论文」的判据。历史 exp006 因此无法证实自己跑的 fraction，
+    #   participation 反证它实为全参与（见 experiments/attack/bad-pfl/current-focus.md）。
+    #   在此打一条**可解析**的自描述行，collect_metrics.py 解析进 run 块，从此每个 run 自证。
+    print(f"[设定] client_fraction={float(fed.get('client_fraction', 1.0))} | "
+          f"poison_ratio={float(bd.get('poison_ratio', 0.0)) if bd_enabled else 0.0} | "
+          f"n_clients={int(fed.get('n_clients', 0) or 0)} | "
+          f"n_edges={int(fed.get('n_edges', 0) or 0)} | "
+          f"n_malicious={int(bd.get('n_malicious', 0) or 0) if bd_enabled else 0} | "
+          f"arch={config.get('model', {}).get('arch', '?')}")
     return warnings

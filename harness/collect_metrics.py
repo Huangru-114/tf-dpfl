@@ -79,6 +79,11 @@ RE_CFG_PATH = re.compile(r"\[Config\] loading (\S+)")
 RE_RUN_NAME = re.compile(r"\[Config\] run_name = (\S+)")
 RE_VALIDATE = re.compile(
     r"\[配置校验\] 通过 \| method=(\S+) \| defense=(\S+) \| attack=(\S+)")
+# 设定自描述行（config_validate.py 打印）—— 收口陷阱 #7 的同类：
+# client_fraction / poison_ratio 此前不进 run 块，"改成论文值" 无法从 artifact 证实。
+RE_SETTINGS = re.compile(
+    r"\[设定\] client_fraction=([\d.]+) \| poison_ratio=([\d.]+) \| "
+    r"n_clients=(\d+) \| n_edges=(\d+) \| n_malicious=(\d+) \| arch=(\S+)")
 
 # ── 失败 / 错误 ─────────────────────────────────────────────────────────────
 RE_CLIENT_FAIL = re.compile(r"\[ERROR\] Client (\d+): (.*)")
@@ -94,6 +99,7 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
     cfg = RE_CFG_PATH.search(log_text)
     name = RE_RUN_NAME.search(log_text)
     val = RE_VALIDATE.search(log_text)
+    setg = RE_SETTINGS.search(log_text)
 
     mal_ids = []
     m = RE_MAL_RESOLVED.search(log_text)
@@ -114,6 +120,13 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
         "attack":        val.group(3) if val else None,
         "n_rounds":      max(round_hdrs) if round_hdrs else None,
         "malicious_ids": mal_ids,
+        # 设定自描述：跑的到底是不是论文对齐的 fraction/poison —— 从此可从 artifact 核对
+        "client_fraction": float(setg.group(1)) if setg else None,
+        "poison_ratio":    float(setg.group(2)) if setg else None,
+        "n_clients":       int(setg.group(3)) if setg else None,
+        "n_edges":         int(setg.group(4)) if setg else None,
+        "n_malicious":     int(setg.group(5)) if setg else None,
+        "arch":            setg.group(6) if setg else None,
     }
 
 
@@ -261,6 +274,9 @@ def main():
     print(f"[collect] {out}  ({out.stat().st_size / 1024:.1f} KB)")
     print(f"[collect] run: config={run['config_path']} method={run['method']} "
           f"attack={run['attack']} defense={run['defense']} n_rounds={run['n_rounds']}")
+    print(f"[collect] 设定: client_fraction={run['client_fraction']} "
+          f"poison_ratio={run['poison_ratio']} n_clients={run['n_clients']} "
+          f"n_edges={run['n_edges']} n_malicious={run['n_malicious']} arch={run['arch']}")
     if f:
         print(f"[collect] final round {f['round']}: GM_ASR={f['global_asr']:.3f} "
               f"local_benign={f['local_benign_asr']:.3f} "
@@ -276,6 +292,17 @@ def main():
     if run["malicious_ids"]:
         flag = "" if (n_rounds and n_part == n_rounds) else "  ← 与 n_rounds 不符，请核对 Q"
         print(f"[collect] malicious {run['malicious_ids']} 参与 {n_part}/{n_rounds} 轮{flag}")
+        # 陷阱守卫：frac<1 却每个恶意端每轮都参与 = 有效全参与（exp006 的失败模式）。
+        # 「全参与」和「部分参与」的投毒强度差 ~1/frac 倍，会被误读成「对齐论文也没用」。
+        frac = run["client_fraction"]
+        by_client = metrics["malicious_participation_by_client"]
+        if frac is not None and frac < 1.0 and n_rounds and by_client:
+            full = [cid for cid, rs in by_client.items() if len(rs) >= n_rounds]
+            if full:
+                print(f"[collect] ⚠ client_fraction={frac} 却有 {len(full)} 个恶意端"
+                      f"参与了全部 {n_rounds} 轮：{full} —— 有效 fraction≈1.0，"
+                      f"与配置不符，投毒强度约为标称的 1/{frac:g} 倍。"
+                      f"这正是陷阱 #7 的同类：请核对实际生效的 config。", file=sys.stderr)
     if metrics["client_failures"]:
         print(f"[collect] ⚠ {len(metrics['client_failures'])} 条客户端失败/丢弃记录，"
               f"见 json.client_failures", file=sys.stderr)

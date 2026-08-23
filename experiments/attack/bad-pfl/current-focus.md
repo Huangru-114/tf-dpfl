@@ -101,3 +101,38 @@ sbatch run_smoke.sh attack bad-pfl badpfl none exp001 hier_fedavg_fedrep
 
 ## 分支
 `claude/bad-pfl-attack-roadmap-7dt5ng`。新会话按 CLAUDE.md：从此分支继续或按需从 main 重开。**推送铁律：commit → git pull --rebase → push，永不 force。**
+
+---
+
+# 交接（2026-08-23，本会话结束，供新会话接手）
+
+## 本会话定论：问题1「对齐 fraction/poison 也没用」**前提不成立**
+
+exp006（本应是 frac=0.1 / poison=0.2 的 paper-aligned run）**实际没跑在 frac=0.1 上**。
+数值反证：`malicious_participation_by_client` 显示 10 个恶意端 × 全部 80 轮参与，而 frac=0.1
+下单恶意端每轮命中率仅 ≈0.41（100client/2edge/5edge_round），全部 80 轮的概率 ≈10⁻³¹ → 不可能。
+只可能是**有效全参与（fraction≈1.0）**，投毒强度约标称 10×，与 exp004 同类 →
+pm_acc 崩到 0.42、benign ASR 卡 0.44 都由此解释。**完整证据链见 `exp006.notes.md`。**
+
+根因是陷阱 #7 的同类：`metrics.json` 的 `run` 块此前不记录 client_fraction / poison_ratio，
+「改成论文值」无法从 artifact 证实。
+
+## 本会话已落地（代码，L1 全绿 174 passed）
+
+- `config_validate.py`：打 `[设定] client_fraction=… | poison_ratio=… | n_clients=… |
+  n_edges=… | n_malicious=… | arch=…` 自描述行。
+- `harness/collect_metrics.py`：解析进 `run` 块；并对「frac<1 却恶意端全轮参与」打红警告
+  （exp006 失败模式，从此不静默）。
+- `tests/test_collect_metrics.py`：+2 条 L1。
+
+## 下一步（最高优先级，turnkey）
+
+**可验证重跑 exp007**：集群 `git pull --rebase`，跑仓库内 `full_p4_resnet.yaml`
+（已是 frac=0.1，别用集群本地改过的），命令见 `exp006.notes.md`。
+**验收前置**：新 metrics 的 `run.client_fraction==0.1` 且 participation ≈40% 轮次，否则重来。
+过前置后再判 pm_acc / benign ASR。
+
+## 未解澄清（非 bug，记录以免重复踩）
+
+- diff_edge=0.0 是布点假象（2 edge + 恶意 spread → 无 diff_edge 样本），跨 edge 迁移性
+  在当前 config 下**未被测到**。想测需 >2 edge 或留干净 edge。

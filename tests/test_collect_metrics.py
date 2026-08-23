@@ -21,15 +21,22 @@ from collect_metrics import collect          # noqa: E402
 
 # ── 夹具：一段结构与真实 run 完全一致的最小日志 ──────────────────────────────
 def _log(strategy="vanilla", attack_lines=False, n_rounds=3,
-         malicious=(0, 9), defense="none", with_pm=True):
+         malicious=(0, 9), defense="none", with_pm=True,
+         settings=True, client_fraction=0.1, poison_ratio=0.2,
+         n_clients=10, n_edges=2, arch="fedavg_cnn"):
     L = [
         "[Config] loading ../experiments/smoke-base.yaml",
         "[Config] run_name = hier_pfedme_noniid_badnet_seed42",
         f"[配置校验] 通过 | method=hierpfedme | defense={defense} | "
         f"attack={strategy} | 0 个警告",
-        f"[Backdoor] resolved malicious clients (placement=spread): "
-        f"{list(malicious)}",
     ]
+    if settings:
+        L.append(
+            f"[设定] client_fraction={client_fraction} | poison_ratio={poison_ratio} | "
+            f"n_clients={n_clients} | n_edges={n_edges} | "
+            f"n_malicious={len(malicious)} | arch={arch}")
+    L.append(f"[Backdoor] resolved malicious clients (placement=spread): "
+             f"{list(malicious)}")
     for c in malicious:
         L.append(f"[Backdoor] Client {c} MALICIOUS | strategy={strategy} | "
                  f"trigger=badnet | target=9 | poison=0.5")
@@ -77,6 +84,36 @@ def test_run_info_is_self_describing():
     assert run["attack"] == "vanilla"
     assert run["n_rounds"] == 3
     assert run["malicious_ids"] == [0, 9]
+
+
+def test_settings_are_self_describing():
+    """
+    收口陷阱 #7 的同类：client_fraction / poison_ratio 此前**不进** run 块，
+    「改成论文值」无法从 artifact 证实（exp006 即栽在这里：participation 反证
+    实为全参与，而 metrics.json 里根本看不到 fraction）。现在必须能读出来。
+    """
+    m = collect(_log(client_fraction=0.1, poison_ratio=0.2, n_clients=100,
+                     n_edges=2, arch="resnet10", malicious=tuple(range(10))))
+    run = m["run"]
+    assert run["client_fraction"] == pytest.approx(0.1)
+    assert run["poison_ratio"] == pytest.approx(0.2)
+    assert run["n_clients"] == 100
+    assert run["n_edges"] == 2
+    assert run["n_malicious"] == 10
+    assert run["arch"] == "resnet10"
+
+
+def test_settings_absent_in_legacy_log_is_none_not_zero():
+    """
+    老日志没有 [设定] 行时，这几个字段必须是 None（未知）而不是 0/默认值 ——
+    0.0 的 fraction 会被误读成「跑了论文设定」，正是要防的误判。
+    """
+    m = collect(_log(settings=False))
+    run = m["run"]
+    assert run["client_fraction"] is None
+    assert run["poison_ratio"] is None
+    assert run["n_clients"] is None
+    assert run["arch"] is None
 
 
 def test_malicious_ids_fallback_to_declaration_lines():
