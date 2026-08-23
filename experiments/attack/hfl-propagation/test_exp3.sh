@@ -21,8 +21,8 @@ cd "$ROOT"
 # shellcheck source=cluster_env.sh
 source "$ROOT/cluster_env.sh"
 
-CONFIGS="2edge_collocated 2edge_distributed 4edge_collocated 4edge_distributed 4edge_mixed \
-         10edge_collocated 10edge_distributed 10edge_mixed"
+# 默认扫描本目录所有 *.yaml（含 3A/3B 的 8 个 + 3C 的 6 个）；CONFIGS= 可缩小范围
+CONFIGS="${CONFIGS:-$(cd "$HERE" && ls *.yaml 2>/dev/null | sed 's/\.yaml$//' | tr '\n' ' ')}"
 
 fail() { echo -e "\n[test_exp3] ❌ $1"; exit 1; }
 
@@ -34,7 +34,7 @@ $PY -m pytest -q \
     tests/test_collect_metrics.py || fail "L1 未通过"
 
 # ── 2. config_validate ────────────────────────────────────────────────────
-echo -e "\n== [2/3] config_validate 8 个拓扑 config =="
+echo -e "\n== [2/3] config_validate 全部拓扑 config =="
 ( cd "$ROOT/fedavg" && $PY - "$ROOT" $CONFIGS <<'PY'
 import sys, yaml, io, contextlib
 sys.path.insert(0, ".")

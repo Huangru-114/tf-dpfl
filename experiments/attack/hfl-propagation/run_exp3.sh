@@ -26,10 +26,10 @@ JOB="$REL/exp3_cell.sbatch"
 OUTDIR="$ROOT/$REL/results"
 mkdir -p "$OUTDIR"
 
-# 可被环境变量覆盖；去掉 2edge_distributed 若你信任 exp007 已覆盖它
-CONFIGS="${CONFIGS:-2edge_collocated 2edge_distributed \
-                    4edge_collocated 4edge_distributed 4edge_mixed \
-                    10edge_collocated 10edge_distributed 10edge_mixed}"
+# 默认扫描本目录所有 *.yaml（3A/3B 8 个 + 3C 6 个）。用 CONFIGS= 缩小范围，例如：
+#   3A/3B：CONFIGS="2edge_collocated 4edge_collocated 4edge_distributed 4edge_mixed 10edge_*"
+#   3C：   CONFIGS="3c_R1 3c_R2 3c_R4 3c_R5 3c_R10 3c_R20"
+CONFIGS="${CONFIGS:-$(cd "$ROOT/$REL" && ls *.yaml 2>/dev/null | sed 's/\.yaml$//' | tr '\n' ' ')}"
 SEEDS="${SEEDS:-42 43 44}"
 
 DRY=0; FORCE=0; STATUS=0
