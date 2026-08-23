@@ -1,12 +1,23 @@
 {
   "run": {
-    "config_path": "/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tf-dpfl/experiments/attack/hfl-propagation/3c_R20.yaml",
+    "config_path": "/cephyr/users/ziangg/Alvis/tf-dpfl/experiments/attack/hfl-propagation/3c_R20.yaml",
     "run_name": "hier_fedavg_fedrep_noniid_badpfl_seed42",
     "method": "hier_fedrep",
     "defense": "none",
     "attack": "badpfl",
-    "n_rounds": null,
-    "malicious_ids": [],
+    "n_rounds": 20,
+    "malicious_ids": [
+      5,
+      20,
+      25,
+      39,
+      49,
+      61,
+      68,
+      84,
+      87,
+      98
+    ],
     "client_fraction": 0.1,
     "poison_ratio": 0.2,
     "n_clients": 100,
@@ -15,68 +26,594 @@
     "forced_participation": false,
     "arch": "resnet10"
   },
-  "rounds": [],
-  "final": null,
-  "per_edge_rounds": {},
-  "per_edge_final": [],
-  "drift_rounds": [],
-  "drift_final": null,
-  "acc_rounds": [],
+  "rounds": [
+    {
+      "round": 5,
+      "global_asr": 0.737,
+      "edge_asr": 0.692,
+      "local_benign_asr": 0.48,
+      "same_edge_asr": 0.48,
+      "diff_edge_asr": 0.0,
+      "local_malicious_asr": 0.829
+    },
+    {
+      "round": 10,
+      "global_asr": 0.905,
+      "edge_asr": 0.839,
+      "local_benign_asr": 0.696,
+      "same_edge_asr": 0.696,
+      "diff_edge_asr": 0.0,
+      "local_malicious_asr": 0.945
+    },
+    {
+      "round": 15,
+      "global_asr": 0.953,
+      "edge_asr": 0.949,
+      "local_benign_asr": 0.781,
+      "same_edge_asr": 0.781,
+      "diff_edge_asr": 0.0,
+      "local_malicious_asr": 0.968
+    },
+    {
+      "round": 20,
+      "global_asr": 0.971,
+      "edge_asr": 0.971,
+      "local_benign_asr": 0.828,
+      "same_edge_asr": 0.828,
+      "diff_edge_asr": 0.0,
+      "local_malicious_asr": 0.975
+    }
+  ],
+  "final": {
+    "round": 20,
+    "global_asr": 0.971,
+    "edge_asr": 0.971,
+    "local_benign_asr": 0.828,
+    "same_edge_asr": 0.828,
+    "diff_edge_asr": 0.0,
+    "local_malicious_asr": 0.975
+  },
+  "per_edge_rounds": {
+    "5": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.753,
+        "client_benign": 0.438,
+        "client_malicious": 0.857,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.631,
+        "client_benign": 0.523,
+        "client_malicious": 0.8,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      }
+    ],
+    "10": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.711,
+        "client_benign": 0.621,
+        "client_malicious": 0.946,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.967,
+        "client_benign": 0.771,
+        "client_malicious": 0.945,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      }
+    ],
+    "15": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.947,
+        "client_benign": 0.755,
+        "client_malicious": 0.969,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.951,
+        "client_benign": 0.807,
+        "client_malicious": 0.966,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      }
+    ],
+    "20": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.966,
+        "client_benign": 0.798,
+        "client_malicious": 0.976,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.975,
+        "client_benign": 0.859,
+        "client_malicious": 0.975,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      }
+    ]
+  },
+  "per_edge_final": [
+    {
+      "edge_id": 0,
+      "edge_asr": 0.966,
+      "client_benign": 0.798,
+      "client_malicious": 0.976,
+      "n_benign": 45,
+      "n_malicious": 5,
+      "has_malicious": true
+    },
+    {
+      "edge_id": 1,
+      "edge_asr": 0.975,
+      "client_benign": 0.859,
+      "client_malicious": 0.975,
+      "n_benign": 45,
+      "n_malicious": 5,
+      "has_malicious": true
+    }
+  ],
+  "drift_rounds": [
+    {
+      "round": 5,
+      "param_abs": 6.0954,
+      "param_rel": 0.0729,
+      "repr_mean": 0.0305,
+      "repr_median": 0.0297,
+      "n_edges": 2
+    },
+    {
+      "round": 10,
+      "param_abs": 3.6076,
+      "param_rel": 0.0424,
+      "repr_mean": 0.0261,
+      "repr_median": 0.0251,
+      "n_edges": 2
+    },
+    {
+      "round": 15,
+      "param_abs": 1.4375,
+      "param_rel": 0.0169,
+      "repr_mean": 0.0059,
+      "repr_median": 0.0055,
+      "n_edges": 2
+    },
+    {
+      "round": 20,
+      "param_abs": 1.0881,
+      "param_rel": 0.0128,
+      "repr_mean": 0.0051,
+      "repr_median": 0.0047,
+      "n_edges": 2
+    }
+  ],
+  "drift_final": {
+    "round": 20,
+    "param_abs": 1.0881,
+    "param_rel": 0.0128,
+    "repr_mean": 0.0051,
+    "repr_median": 0.0047,
+    "n_edges": 2
+  },
+  "acc_rounds": [
+    {
+      "round": 1,
+      "gm_acc": 0.3561,
+      "em_acc": 0.4693,
+      "pm_acc": null
+    },
+    {
+      "round": 2,
+      "gm_acc": 0.5441,
+      "em_acc": 0.5075,
+      "pm_acc": null
+    },
+    {
+      "round": 3,
+      "gm_acc": 0.6042,
+      "em_acc": 0.5885,
+      "pm_acc": null
+    },
+    {
+      "round": 4,
+      "gm_acc": 0.6239,
+      "em_acc": 0.5903,
+      "pm_acc": null
+    },
+    {
+      "round": 5,
+      "gm_acc": 0.6515,
+      "em_acc": 0.6242,
+      "pm_acc": 0.7138
+    },
+    {
+      "round": 6,
+      "gm_acc": 0.6606,
+      "em_acc": 0.6382,
+      "pm_acc": null
+    },
+    {
+      "round": 7,
+      "gm_acc": 0.6572,
+      "em_acc": 0.6286,
+      "pm_acc": null
+    },
+    {
+      "round": 8,
+      "gm_acc": 0.6693,
+      "em_acc": 0.6427,
+      "pm_acc": null
+    },
+    {
+      "round": 9,
+      "gm_acc": 0.6695,
+      "em_acc": 0.6404,
+      "pm_acc": null
+    },
+    {
+      "round": 10,
+      "gm_acc": 0.6648,
+      "em_acc": 0.6394,
+      "pm_acc": 0.745
+    },
+    {
+      "round": 11,
+      "gm_acc": 0.6669,
+      "em_acc": 0.6472,
+      "pm_acc": null
+    },
+    {
+      "round": 12,
+      "gm_acc": 0.6705,
+      "em_acc": 0.6549,
+      "pm_acc": null
+    },
+    {
+      "round": 13,
+      "gm_acc": 0.6707,
+      "em_acc": 0.654,
+      "pm_acc": null
+    },
+    {
+      "round": 14,
+      "gm_acc": 0.6721,
+      "em_acc": 0.6634,
+      "pm_acc": null
+    },
+    {
+      "round": 15,
+      "gm_acc": 0.6707,
+      "em_acc": 0.6637,
+      "pm_acc": 0.7532
+    },
+    {
+      "round": 16,
+      "gm_acc": 0.6678,
+      "em_acc": 0.6608,
+      "pm_acc": null
+    },
+    {
+      "round": 17,
+      "gm_acc": 0.6659,
+      "em_acc": 0.6624,
+      "pm_acc": null
+    },
+    {
+      "round": 18,
+      "gm_acc": 0.6624,
+      "em_acc": 0.6604,
+      "pm_acc": null
+    },
+    {
+      "round": 19,
+      "gm_acc": 0.6674,
+      "em_acc": 0.6626,
+      "pm_acc": null
+    },
+    {
+      "round": 20,
+      "gm_acc": 0.6619,
+      "em_acc": 0.6592,
+      "pm_acc": 0.7508
+    }
+  ],
   "final_acc": {
-    "final_pm_weighted": null
+    "round": 20,
+    "gm_acc": 0.6619,
+    "em_acc": 0.6592,
+    "pm_acc": 0.7508,
+    "final_pm_weighted": 0.7508
   },
   "admitted": [],
   "admitted_count_mean": null,
   "rejected_ids": [],
-  "malicious_selected_rounds": [],
-  "n_malicious_participations": 0,
-  "malicious_participation_by_client": {},
+  "malicious_selected_rounds": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20
+  ],
+  "n_malicious_participations": 20,
+  "malicious_participation_by_client": {
+    "5": [
+      1,
+      2,
+      3,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20
+    ],
+    "20": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      7,
+      8,
+      9,
+      10,
+      12,
+      13,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20
+    ],
+    "25": [
+      1,
+      3,
+      4,
+      6,
+      7,
+      8,
+      9,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      19,
+      20
+    ],
+    "39": [
+      1,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20
+    ],
+    "49": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      18,
+      19,
+      20
+    ],
+    "61": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      16,
+      17,
+      18,
+      19,
+      20
+    ],
+    "68": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      8,
+      9,
+      10,
+      11,
+      13,
+      14,
+      15,
+      16,
+      18,
+      19,
+      20
+    ],
+    "84": [
+      3,
+      4,
+      5,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      16,
+      17,
+      18,
+      19,
+      20
+    ],
+    "87": [
+      1,
+      2,
+      3,
+      4,
+      6,
+      7,
+      9,
+      10,
+      11,
+      12,
+      13,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20
+    ],
+    "98": [
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      11,
+      13,
+      15,
+      16,
+      18,
+      19,
+      20
+    ]
+  },
   "client_failures": [],
   "errors": [
-    "Traceback (most recent call last):",
-    "tensorflow.python.framework.errors_impl.InternalError: cudaSetDevice() on GPU:0 failed. Status: CUDA-capable device(s) is/are busy or unavailable"
+    "AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'",
+    "AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'",
+    "AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'",
+    "AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'",
+    "AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'"
   ],
   "log_tail": [
-    "[设定] client_fraction=0.1 | poison_ratio=0.2 | n_clients=100 | n_edges=2 | n_malicious=10 | forced_participation=False | arch=resnet10",
-    "[Setup] Random seed: 42",
-    "[Setup] Loading dataset...",
-    "[Data] CIFAR-10: KERAS_HOME = /nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/data  (来源: TFDPFL_KERAS_HOME)",
-    "Traceback (most recent call last):",
-    "  File \"/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tf-dpfl/fedavg/main.py\", line 939, in <module>",
-    "    run_experiment()",
-    "  File \"/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tf-dpfl/fedavg/main.py\", line 637, in run_experiment",
-    "    train_ds, test_ds, x_train, y_train, x_test, y_test = load_cifar10(config)",
-    "  File \"/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tf-dpfl/fedavg/data/dataset.py\", line 173, in load_cifar10",
-    "    tf.data.Dataset.from_tensor_slices((x_train, y_train))",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/data/ops/dataset_ops.py\", line 825, in from_tensor_slices",
-    "    return from_tensor_slices_op._from_tensor_slices(tensors, name)",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/data/ops/from_tensor_slices_op.py\", line 25, in _from_tensor_slices",
-    "    return _TensorSliceDataset(tensors, name=name)",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/data/ops/from_tensor_slices_op.py\", line 33, in __init__",
-    "    element = structure.normalize_element(element)",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/data/util/structure.py\", line 134, in normalize_element",
-    "    ops.convert_to_tensor(t, name=\"component_%d\" % i, dtype=dtype))",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/profiler/trace.py\", line 183, in wrapped",
-    "    return func(*args, **kwargs)",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/framework/ops.py\", line 696, in convert_to_tensor",
-    "    return tensor_conversion_registry.convert(",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/framework/tensor_conversion_registry.py\", line 234, in convert",
-    "    ret = conversion_func(value, dtype=dtype, name=name, as_ref=as_ref)",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/framework/constant_op.py\", line 335, in _constant_tensor_conversion_function",
-    "    return constant(v, dtype=dtype, name=name)",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/ops/weak_tensor_ops.py\", line 142, in wrapper",
-    "    return op(*args, **kwargs)",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/framework/constant_op.py\", line 271, in constant",
-    "    return _constant_impl(value, dtype, shape, name, verify_shape=False,",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/framework/constant_op.py\", line 284, in _constant_impl",
-    "    return _constant_eager_impl(ctx, value, dtype, shape, verify_shape)",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/framework/constant_op.py\", line 296, in _constant_eager_impl",
-    "    t = convert_to_eager_tensor(value, ctx, dtype)",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/framework/constant_op.py\", line 102, in convert_to_eager_tensor",
-    "    ctx.ensure_initialized()",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/eager/context.py\", line 603, in ensure_initialized",
-    "    context_handle = pywrap_tfe.TFE_NewContext(opts)",
-    "tensorflow.python.framework.errors_impl.InternalError: cudaSetDevice() on GPU:0 failed. Status: CUDA-capable device(s) is/are busy or unavailable"
+    "",
+    "[ Per-Class Report ]",
+    "              precision    recall  f1-score   support",
+    "",
+    "           0     0.7617    0.7969    0.7789      1492",
+    "           1     0.8224    0.8481    0.8350      1501",
+    "           2     0.7031    0.6540    0.6777      1477",
+    "           3     0.6256    0.6019    0.6135      1477",
+    "           4     0.7178    0.6891    0.7032      1547",
+    "           5     0.7093    0.6669    0.6874      1489",
+    "           6     0.7612    0.7994    0.7798      1451",
+    "           7     0.7834    0.7680    0.7756      1526",
+    "           8     0.8192    0.8717    0.8446      1450",
+    "           9     0.7834    0.8126    0.7977      1553",
+    "",
+    "    accuracy                         0.7508     14963",
+    "   macro avg     0.7487    0.7509    0.7494     14963",
+    "weighted avg     0.7488    0.7508    0.7494     14963",
+    "",
+    "[ F1 Score ]",
+    "  Macro    F1 : 0.7494",
+    "  Weighted F1 : 0.7494",
+    "",
+    "[ AUC (OvR) ]",
+    "  Macro    AUC : 0.9680",
+    "  Weighted AUC : 0.9680",
+    "",
+    "[ Confusion Matrix ] (shape: (10, 10))",
+    "[[1189   38   58   23   22    9   11   12   86   44]",
+    " [  27 1273    9   16    4   11   12    2   28  119]",
+    " [  89   25  966   85   96   69   63   38   31   15]",
+    " [  39   18   84  889   81  139  111   42   36   38]",
+    " [  40    9   73   70 1066   70   76   99   24   20]",
+    " [  26   11   65  175   63  993   41   80    6   29]",
+    " [  16    7   50   71   46   45 1160   18   16   22]",
+    " [  33   18   50   52   81   47   21 1172   12   40]",
+    " [  64   32   10   20   12    6   13    7 1264   22]",
+    " [  38  117    9   20   14   11   16   26   40 1262]]",
+    "============================================================",
+    "  Report saved to report_PM_hier_fedavg_fedrep_noniid_badpfl_seed42.txt"
   ],
-  "exit_code": 1
+  "exit_code": 0
 }

@@ -1,12 +1,23 @@
 {
   "run": {
-    "config_path": "/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tf-dpfl/experiments/attack/hfl-propagation/3c_R10.yaml",
+    "config_path": "/cephyr/users/ziangg/Alvis/tf-dpfl/experiments/attack/hfl-propagation/3c_R10.yaml",
     "run_name": "hier_fedavg_fedrep_noniid_badpfl_seed42",
     "method": "hier_fedrep",
     "defense": "none",
     "attack": "badpfl",
-    "n_rounds": null,
-    "malicious_ids": [],
+    "n_rounds": 40,
+    "malicious_ids": [
+      5,
+      20,
+      25,
+      39,
+      49,
+      61,
+      68,
+      84,
+      87,
+      98
+    ],
     "client_fraction": 0.1,
     "poison_ratio": 0.2,
     "n_clients": 100,
@@ -15,68 +26,973 @@
     "forced_participation": false,
     "arch": "resnet10"
   },
-  "rounds": [],
-  "final": null,
-  "per_edge_rounds": {},
-  "per_edge_final": [],
-  "drift_rounds": [],
-  "drift_final": null,
-  "acc_rounds": [],
+  "rounds": [
+    {
+      "round": 5,
+      "global_asr": 0.33,
+      "edge_asr": 0.33,
+      "local_benign_asr": 0.253,
+      "same_edge_asr": 0.253,
+      "diff_edge_asr": 0.0,
+      "local_malicious_asr": 0.533
+    },
+    {
+      "round": 10,
+      "global_asr": 0.629,
+      "edge_asr": 0.61,
+      "local_benign_asr": 0.503,
+      "same_edge_asr": 0.503,
+      "diff_edge_asr": 0.0,
+      "local_malicious_asr": 0.854
+    },
+    {
+      "round": 15,
+      "global_asr": 0.737,
+      "edge_asr": 0.706,
+      "local_benign_asr": 0.582,
+      "same_edge_asr": 0.582,
+      "diff_edge_asr": 0.0,
+      "local_malicious_asr": 0.88
+    },
+    {
+      "round": 20,
+      "global_asr": 0.818,
+      "edge_asr": 0.765,
+      "local_benign_asr": 0.672,
+      "same_edge_asr": 0.672,
+      "diff_edge_asr": 0.0,
+      "local_malicious_asr": 0.938
+    },
+    {
+      "round": 25,
+      "global_asr": 0.89,
+      "edge_asr": 0.884,
+      "local_benign_asr": 0.765,
+      "same_edge_asr": 0.765,
+      "diff_edge_asr": 0.0,
+      "local_malicious_asr": 0.96
+    },
+    {
+      "round": 30,
+      "global_asr": 0.922,
+      "edge_asr": 0.921,
+      "local_benign_asr": 0.796,
+      "same_edge_asr": 0.796,
+      "diff_edge_asr": 0.0,
+      "local_malicious_asr": 0.972
+    },
+    {
+      "round": 35,
+      "global_asr": 0.914,
+      "edge_asr": 0.914,
+      "local_benign_asr": 0.8,
+      "same_edge_asr": 0.8,
+      "diff_edge_asr": 0.0,
+      "local_malicious_asr": 0.972
+    },
+    {
+      "round": 40,
+      "global_asr": 0.931,
+      "edge_asr": 0.931,
+      "local_benign_asr": 0.811,
+      "same_edge_asr": 0.811,
+      "diff_edge_asr": 0.0,
+      "local_malicious_asr": 0.969
+    }
+  ],
+  "final": {
+    "round": 40,
+    "global_asr": 0.931,
+    "edge_asr": 0.931,
+    "local_benign_asr": 0.811,
+    "same_edge_asr": 0.811,
+    "diff_edge_asr": 0.0,
+    "local_malicious_asr": 0.969
+  },
+  "per_edge_rounds": {
+    "5": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.187,
+        "client_benign": 0.229,
+        "client_malicious": 0.503,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.473,
+        "client_benign": 0.278,
+        "client_malicious": 0.562,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      }
+    ],
+    "10": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.577,
+        "client_benign": 0.448,
+        "client_malicious": 0.888,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.642,
+        "client_benign": 0.558,
+        "client_malicious": 0.82,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      }
+    ],
+    "15": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.76,
+        "client_benign": 0.596,
+        "client_malicious": 0.898,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.653,
+        "client_benign": 0.569,
+        "client_malicious": 0.861,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      }
+    ],
+    "20": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.612,
+        "client_benign": 0.63,
+        "client_malicious": 0.952,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.918,
+        "client_benign": 0.713,
+        "client_malicious": 0.925,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      }
+    ],
+    "25": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.859,
+        "client_benign": 0.747,
+        "client_malicious": 0.966,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.909,
+        "client_benign": 0.782,
+        "client_malicious": 0.954,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      }
+    ],
+    "30": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.914,
+        "client_benign": 0.775,
+        "client_malicious": 0.97,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.928,
+        "client_benign": 0.817,
+        "client_malicious": 0.974,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      }
+    ],
+    "35": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.916,
+        "client_benign": 0.792,
+        "client_malicious": 0.979,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.912,
+        "client_benign": 0.809,
+        "client_malicious": 0.965,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      }
+    ],
+    "40": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.926,
+        "client_benign": 0.799,
+        "client_malicious": 0.976,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.936,
+        "client_benign": 0.823,
+        "client_malicious": 0.962,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      }
+    ]
+  },
+  "per_edge_final": [
+    {
+      "edge_id": 0,
+      "edge_asr": 0.926,
+      "client_benign": 0.799,
+      "client_malicious": 0.976,
+      "n_benign": 45,
+      "n_malicious": 5,
+      "has_malicious": true
+    },
+    {
+      "edge_id": 1,
+      "edge_asr": 0.936,
+      "client_benign": 0.823,
+      "client_malicious": 0.962,
+      "n_benign": 45,
+      "n_malicious": 5,
+      "has_malicious": true
+    }
+  ],
+  "drift_rounds": [
+    {
+      "round": 5,
+      "param_abs": 4.7624,
+      "param_rel": 0.0571,
+      "repr_mean": 0.0305,
+      "repr_median": 0.0295,
+      "n_edges": 2
+    },
+    {
+      "round": 10,
+      "param_abs": 3.8797,
+      "param_rel": 0.0462,
+      "repr_mean": 0.0212,
+      "repr_median": 0.0207,
+      "n_edges": 2
+    },
+    {
+      "round": 15,
+      "param_abs": 3.3656,
+      "param_rel": 0.0397,
+      "repr_mean": 0.0253,
+      "repr_median": 0.0244,
+      "n_edges": 2
+    },
+    {
+      "round": 20,
+      "param_abs": 2.2722,
+      "param_rel": 0.0267,
+      "repr_mean": 0.0171,
+      "repr_median": 0.0163,
+      "n_edges": 2
+    },
+    {
+      "round": 25,
+      "param_abs": 1.1188,
+      "param_rel": 0.0132,
+      "repr_mean": 0.0052,
+      "repr_median": 0.0048,
+      "n_edges": 2
+    },
+    {
+      "round": 30,
+      "param_abs": 0.6694,
+      "param_rel": 0.0079,
+      "repr_mean": 0.0033,
+      "repr_median": 0.0031,
+      "n_edges": 2
+    },
+    {
+      "round": 35,
+      "param_abs": 0.5026,
+      "param_rel": 0.0059,
+      "repr_mean": 0.0015,
+      "repr_median": 0.0014,
+      "n_edges": 2
+    },
+    {
+      "round": 40,
+      "param_abs": 0.4735,
+      "param_rel": 0.0056,
+      "repr_mean": 0.0014,
+      "repr_median": 0.0014,
+      "n_edges": 2
+    }
+  ],
+  "drift_final": {
+    "round": 40,
+    "param_abs": 0.4735,
+    "param_rel": 0.0056,
+    "repr_mean": 0.0014,
+    "repr_median": 0.0014,
+    "n_edges": 2
+  },
+  "acc_rounds": [
+    {
+      "round": 1,
+      "gm_acc": 0.3509,
+      "em_acc": 0.413,
+      "pm_acc": null
+    },
+    {
+      "round": 2,
+      "gm_acc": 0.4655,
+      "em_acc": 0.4446,
+      "pm_acc": null
+    },
+    {
+      "round": 3,
+      "gm_acc": 0.5132,
+      "em_acc": 0.5057,
+      "pm_acc": null
+    },
+    {
+      "round": 4,
+      "gm_acc": 0.5264,
+      "em_acc": 0.5067,
+      "pm_acc": null
+    },
+    {
+      "round": 5,
+      "gm_acc": 0.574,
+      "em_acc": 0.5445,
+      "pm_acc": 0.6677
+    },
+    {
+      "round": 6,
+      "gm_acc": 0.5983,
+      "em_acc": 0.5579,
+      "pm_acc": null
+    },
+    {
+      "round": 7,
+      "gm_acc": 0.6338,
+      "em_acc": 0.5687,
+      "pm_acc": null
+    },
+    {
+      "round": 8,
+      "gm_acc": 0.6072,
+      "em_acc": 0.5805,
+      "pm_acc": null
+    },
+    {
+      "round": 9,
+      "gm_acc": 0.6415,
+      "em_acc": 0.6206,
+      "pm_acc": null
+    },
+    {
+      "round": 10,
+      "gm_acc": 0.6275,
+      "em_acc": 0.6124,
+      "pm_acc": 0.7231
+    },
+    {
+      "round": 11,
+      "gm_acc": 0.6353,
+      "em_acc": 0.6128,
+      "pm_acc": null
+    },
+    {
+      "round": 12,
+      "gm_acc": 0.6337,
+      "em_acc": 0.6096,
+      "pm_acc": null
+    },
+    {
+      "round": 13,
+      "gm_acc": 0.6255,
+      "em_acc": 0.6011,
+      "pm_acc": null
+    },
+    {
+      "round": 14,
+      "gm_acc": 0.649,
+      "em_acc": 0.6239,
+      "pm_acc": null
+    },
+    {
+      "round": 15,
+      "gm_acc": 0.626,
+      "em_acc": 0.6018,
+      "pm_acc": 0.7434
+    },
+    {
+      "round": 16,
+      "gm_acc": 0.6534,
+      "em_acc": 0.6326,
+      "pm_acc": null
+    },
+    {
+      "round": 17,
+      "gm_acc": 0.6484,
+      "em_acc": 0.6386,
+      "pm_acc": null
+    },
+    {
+      "round": 18,
+      "gm_acc": 0.6481,
+      "em_acc": 0.6154,
+      "pm_acc": null
+    },
+    {
+      "round": 19,
+      "gm_acc": 0.6602,
+      "em_acc": 0.6534,
+      "pm_acc": null
+    },
+    {
+      "round": 20,
+      "gm_acc": 0.6508,
+      "em_acc": 0.6347,
+      "pm_acc": 0.7527
+    },
+    {
+      "round": 21,
+      "gm_acc": 0.6518,
+      "em_acc": 0.6311,
+      "pm_acc": null
+    },
+    {
+      "round": 22,
+      "gm_acc": 0.6691,
+      "em_acc": 0.6588,
+      "pm_acc": null
+    },
+    {
+      "round": 23,
+      "gm_acc": 0.6634,
+      "em_acc": 0.6569,
+      "pm_acc": null
+    },
+    {
+      "round": 24,
+      "gm_acc": 0.6594,
+      "em_acc": 0.6527,
+      "pm_acc": null
+    },
+    {
+      "round": 25,
+      "gm_acc": 0.6624,
+      "em_acc": 0.6573,
+      "pm_acc": 0.7583
+    },
+    {
+      "round": 26,
+      "gm_acc": 0.66,
+      "em_acc": 0.6522,
+      "pm_acc": null
+    },
+    {
+      "round": 27,
+      "gm_acc": 0.6642,
+      "em_acc": 0.6597,
+      "pm_acc": null
+    },
+    {
+      "round": 28,
+      "gm_acc": 0.6654,
+      "em_acc": 0.6617,
+      "pm_acc": null
+    },
+    {
+      "round": 29,
+      "gm_acc": 0.6681,
+      "em_acc": 0.6629,
+      "pm_acc": null
+    },
+    {
+      "round": 30,
+      "gm_acc": 0.6645,
+      "em_acc": 0.6608,
+      "pm_acc": 0.7585
+    },
+    {
+      "round": 31,
+      "gm_acc": 0.6642,
+      "em_acc": 0.6636,
+      "pm_acc": null
+    },
+    {
+      "round": 32,
+      "gm_acc": 0.6612,
+      "em_acc": 0.6581,
+      "pm_acc": null
+    },
+    {
+      "round": 33,
+      "gm_acc": 0.6668,
+      "em_acc": 0.663,
+      "pm_acc": null
+    },
+    {
+      "round": 34,
+      "gm_acc": 0.6643,
+      "em_acc": 0.661,
+      "pm_acc": null
+    },
+    {
+      "round": 35,
+      "gm_acc": 0.663,
+      "em_acc": 0.6612,
+      "pm_acc": 0.7604
+    },
+    {
+      "round": 36,
+      "gm_acc": 0.6656,
+      "em_acc": 0.6624,
+      "pm_acc": null
+    },
+    {
+      "round": 37,
+      "gm_acc": 0.6605,
+      "em_acc": 0.6586,
+      "pm_acc": null
+    },
+    {
+      "round": 38,
+      "gm_acc": 0.6644,
+      "em_acc": 0.6618,
+      "pm_acc": null
+    },
+    {
+      "round": 39,
+      "gm_acc": 0.665,
+      "em_acc": 0.6637,
+      "pm_acc": null
+    },
+    {
+      "round": 40,
+      "gm_acc": 0.6644,
+      "em_acc": 0.6616,
+      "pm_acc": 0.7577
+    }
+  ],
   "final_acc": {
-    "final_pm_weighted": null
+    "round": 40,
+    "gm_acc": 0.6644,
+    "em_acc": 0.6616,
+    "pm_acc": 0.7577,
+    "final_pm_weighted": 0.7577
   },
   "admitted": [],
   "admitted_count_mean": null,
   "rejected_ids": [],
-  "malicious_selected_rounds": [],
-  "n_malicious_participations": 0,
-  "malicious_participation_by_client": {},
+  "malicious_selected_rounds": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40
+  ],
+  "n_malicious_participations": 40,
+  "malicious_participation_by_client": {
+    "5": [
+      2,
+      4,
+      5,
+      6,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      21,
+      22,
+      24,
+      25,
+      26,
+      28,
+      30,
+      31,
+      32,
+      33,
+      34,
+      36,
+      37,
+      38,
+      39,
+      40
+    ],
+    "20": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      13,
+      15,
+      17,
+      19,
+      20,
+      24,
+      25,
+      26,
+      29,
+      30,
+      31,
+      33,
+      34,
+      35,
+      37,
+      38,
+      39,
+      40
+    ],
+    "25": [
+      1,
+      6,
+      7,
+      8,
+      11,
+      12,
+      13,
+      15,
+      16,
+      17,
+      18,
+      21,
+      22,
+      23,
+      26,
+      27,
+      29,
+      30,
+      31,
+      32,
+      34,
+      37,
+      38,
+      39
+    ],
+    "39": [
+      1,
+      2,
+      6,
+      8,
+      9,
+      10,
+      12,
+      13,
+      14,
+      16,
+      17,
+      18,
+      21,
+      22,
+      23,
+      24,
+      26,
+      27,
+      28,
+      30,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      40
+    ],
+    "49": [
+      1,
+      4,
+      5,
+      6,
+      7,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      18,
+      19,
+      20,
+      21,
+      23,
+      25,
+      26,
+      27,
+      29,
+      30,
+      31,
+      35,
+      36,
+      37,
+      38,
+      40
+    ],
+    "61": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      9,
+      10,
+      11,
+      12,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      23,
+      24,
+      25,
+      26,
+      27,
+      31,
+      33,
+      34,
+      35,
+      36,
+      38,
+      39
+    ],
+    "68": [
+      1,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      15,
+      16,
+      18,
+      20,
+      21,
+      22,
+      25,
+      26,
+      27,
+      28,
+      30,
+      31,
+      32,
+      36,
+      38,
+      40
+    ],
+    "84": [
+      5,
+      7,
+      9,
+      10,
+      13,
+      14,
+      16,
+      17,
+      20,
+      21,
+      23,
+      31,
+      33,
+      34,
+      36,
+      37,
+      39,
+      40
+    ],
+    "87": [
+      1,
+      3,
+      6,
+      8,
+      11,
+      12,
+      13,
+      14,
+      17,
+      19,
+      21,
+      23,
+      25,
+      26,
+      29,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      38,
+      39
+    ],
+    "98": [
+      3,
+      4,
+      5,
+      7,
+      8,
+      9,
+      10,
+      12,
+      13,
+      14,
+      16,
+      18,
+      21,
+      22,
+      25,
+      26,
+      29,
+      30,
+      31,
+      32,
+      36,
+      37,
+      38,
+      40
+    ]
+  },
   "client_failures": [],
   "errors": [
-    "Traceback (most recent call last):",
-    "tensorflow.python.framework.errors_impl.InternalError: cudaSetDevice() on GPU:0 failed. Status: CUDA-capable device(s) is/are busy or unavailable"
+    "AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'",
+    "AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'",
+    "AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'",
+    "AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'",
+    "AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'"
   ],
   "log_tail": [
-    "[设定] client_fraction=0.1 | poison_ratio=0.2 | n_clients=100 | n_edges=2 | n_malicious=10 | forced_participation=False | arch=resnet10",
-    "[Setup] Random seed: 42",
-    "[Setup] Loading dataset...",
-    "[Data] CIFAR-10: KERAS_HOME = /nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/data  (来源: TFDPFL_KERAS_HOME)",
-    "Traceback (most recent call last):",
-    "  File \"/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tf-dpfl/fedavg/main.py\", line 939, in <module>",
-    "    run_experiment()",
-    "  File \"/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tf-dpfl/fedavg/main.py\", line 637, in run_experiment",
-    "    train_ds, test_ds, x_train, y_train, x_test, y_test = load_cifar10(config)",
-    "  File \"/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tf-dpfl/fedavg/data/dataset.py\", line 173, in load_cifar10",
-    "    tf.data.Dataset.from_tensor_slices((x_train, y_train))",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/data/ops/dataset_ops.py\", line 825, in from_tensor_slices",
-    "    return from_tensor_slices_op._from_tensor_slices(tensors, name)",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/data/ops/from_tensor_slices_op.py\", line 25, in _from_tensor_slices",
-    "    return _TensorSliceDataset(tensors, name=name)",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/data/ops/from_tensor_slices_op.py\", line 33, in __init__",
-    "    element = structure.normalize_element(element)",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/data/util/structure.py\", line 134, in normalize_element",
-    "    ops.convert_to_tensor(t, name=\"component_%d\" % i, dtype=dtype))",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/profiler/trace.py\", line 183, in wrapped",
-    "    return func(*args, **kwargs)",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/framework/ops.py\", line 696, in convert_to_tensor",
-    "    return tensor_conversion_registry.convert(",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/framework/tensor_conversion_registry.py\", line 234, in convert",
-    "    ret = conversion_func(value, dtype=dtype, name=name, as_ref=as_ref)",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/framework/constant_op.py\", line 335, in _constant_tensor_conversion_function",
-    "    return constant(v, dtype=dtype, name=name)",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/ops/weak_tensor_ops.py\", line 142, in wrapper",
-    "    return op(*args, **kwargs)",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/framework/constant_op.py\", line 271, in constant",
-    "    return _constant_impl(value, dtype, shape, name, verify_shape=False,",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/framework/constant_op.py\", line 284, in _constant_impl",
-    "    return _constant_eager_impl(ctx, value, dtype, shape, verify_shape)",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/framework/constant_op.py\", line 296, in _constant_eager_impl",
-    "    t = convert_to_eager_tensor(value, ctx, dtype)",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/framework/constant_op.py\", line 102, in convert_to_eager_tensor",
-    "    ctx.ensure_initialized()",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/eager/context.py\", line 603, in ensure_initialized",
-    "    context_handle = pywrap_tfe.TFE_NewContext(opts)",
-    "tensorflow.python.framework.errors_impl.InternalError: cudaSetDevice() on GPU:0 failed. Status: CUDA-capable device(s) is/are busy or unavailable"
+    "",
+    "[ Per-Class Report ]",
+    "              precision    recall  f1-score   support",
+    "",
+    "           0     0.7759    0.7936    0.7846      1492",
+    "           1     0.8034    0.8574    0.8295      1501",
+    "           2     0.6986    0.6513    0.6741      1477",
+    "           3     0.6364    0.6317    0.6340      1477",
+    "           4     0.7440    0.7007    0.7217      1547",
+    "           5     0.7134    0.6736    0.6929      1489",
+    "           6     0.7516    0.8194    0.7840      1451",
+    "           7     0.7848    0.7647    0.7746      1526",
+    "           8     0.8619    0.8607    0.8613      1450",
+    "           9     0.7947    0.8249    0.8095      1553",
+    "",
+    "    accuracy                         0.7577     14963",
+    "   macro avg     0.7565    0.7578    0.7566     14963",
+    "weighted avg     0.7566    0.7577    0.7567     14963",
+    "",
+    "[ F1 Score ]",
+    "  Macro    F1 : 0.7566",
+    "  Weighted F1 : 0.7567",
+    "",
+    "[ AUC (OvR) ]",
+    "  Macro    AUC : 0.9690",
+    "  Weighted AUC : 0.9690",
+    "",
+    "[ Confusion Matrix ] (shape: (10, 10))",
+    "[[1184   38   62   22   32   10   10   21   70   43]",
+    " [  29 1287   12   10    2    9   11    5   25  111]",
+    " [  78   29  962   94   89   66   69   45   20   25]",
+    " [  28   25   83  933   71  129  111   42   24   31]",
+    " [  34   16   75   65 1084   72   83   83   14   21]",
+    " [  24   13   53  170   54 1003   61   83    6   22]",
+    " [  15   10   58   73   32   41 1189   14    8   11]",
+    " [  38   18   50   53   77   57   22 1167    5   39]",
+    " [  61   42   12   31    8    6    9    5 1248   28]",
+    " [  35  124   10   15    8   13   17   22   28 1281]]",
+    "============================================================",
+    "  Report saved to report_PM_hier_fedavg_fedrep_noniid_badpfl_seed42.txt"
   ],
-  "exit_code": 1
+  "exit_code": 0
 }
