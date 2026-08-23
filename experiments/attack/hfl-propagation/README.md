@@ -27,7 +27,26 @@ flat（无层级，R_edge=1）已完成，是 3C 的极端点，不在本批。
 block 分配下 edge 成员是连续 id 段（100/2 → E0=0–49；100/4 → E0=0–24；100/10 → E0=0–9），
 恶意端由 seed 在各 edge 内确定性抽取。
 
-## 怎么跑
+## 怎么跑（脚本）
+
+**先 preflight（无 GPU，登录节点/容器内秒~分钟级）**：
+```bash
+bash experiments/attack/hfl-propagation/test_exp3.sh
+```
+L1（placement/forced_participation/collect_metrics）+ 8 config 校验 + 布点 dry-check
+（真跑 block+resolve，断言每 edge 恶意数==malicious_per_edge）。绿了再烧 GPU。
+
+**批量提交（每格一个独立 GPU job，断点续跑）**：
+```bash
+bash experiments/attack/hfl-propagation/run_exp3.sh --dry-run   # 先看清单
+SEEDS="42" bash experiments/attack/hfl-propagation/run_exp3.sh  # 先 1 seed 探路
+bash experiments/attack/hfl-propagation/run_exp3.sh            # 全量（8×3=24 job）
+bash experiments/attack/hfl-propagation/run_exp3.sh --status   # 看进度
+```
+产物：`experiments/attack/hfl-propagation/results/<cell>_seed<seed>.metrics.json`。
+每格独立日志（带 exp_id）——不会像直接并发 `run_full.sh` 那样互相覆盖日志。
+
+## 怎么跑（手动，单格）
 
 每格一条 sbatch（第 5 参 = exp_id，回传 metrics.json 的落点名；第 7 参 = config）：
 ```bash
