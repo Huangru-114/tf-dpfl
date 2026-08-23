@@ -106,33 +106,43 @@ sbatch run_smoke.sh attack bad-pfl badpfl none exp001 hier_fedavg_fedrep
 
 # 交接（2026-08-23，本会话结束，供新会话接手）
 
-## 本会话定论：问题1「对齐 fraction/poison 也没用」**前提不成立**
+## 本会话定论：问题1 的真根因 = 恶意端强制选入 × 名额饿死良性端（据 r47/r79 原始日志）
 
-exp006（本应是 frac=0.1 / poison=0.2 的 paper-aligned run）**实际没跑在 frac=0.1 上**。
-数值反证：`malicious_participation_by_client` 显示 10 个恶意端 × 全部 80 轮参与，而 frac=0.1
-下单恶意端每轮命中率仅 ≈0.41（100client/2edge/5edge_round），全部 80 轮的概率 ≈10⁻³¹ → 不可能。
-只可能是**有效全参与（fraction≈1.0）**，投毒强度约标称 10×，与 exp004 同类 →
-pm_acc 崩到 0.42、benign ASR 卡 0.44 都由此解释。**完整证据链见 `exp006.notes.md`。**
+> **先纠一处误判**：我一度据「10 恶意端 × 全部 80 轮参与」在 frac=0.1 下的概率反推
+> 「exp006 没跑在 0.1 上」——**错的**，被原始日志证伪。恶意端每轮全参与是因为集群的
+> `select_clients` **强制把恶意端固定选入每一轮**，不是 fraction≈1.0。
 
-根因是陷阱 #7 的同类：`metrics.json` 的 `run` 块此前不记录 client_fraction / poison_ratio，
-「改成论文值」无法从 artifact 证实。
+原始日志（`full_p4_resnet` 的 r47/r79）显示的选择行为，每轮恒定：
+- **Edge 0**："Selected 7/50"，恒为 `{0,11,33,55,66,88,99}` = 该 edge 全部 7 个恶意端，
+  **0 个良性端**。
+- **Edge 1**："Selected 5/50"，恒含 `{22,44,77}`（全部 3 恶意）+ 2 个轮换良性。
+
+推断语义：`n_select = max(int(frac·n_edge), n_mal_in_edge)`，恶意端全强制选入，剩余给随机良性。
+frac=0.1 → 名额 int(0.1·50)=5；edge0 的 7 恶意端 ≥ 5 → **吃满名额，良性端一个都进不来**。
+
+**pm_acc 崩溃机制（FedRep）**：edge0 的 ~43 个良性端从未被选中 → FedRep 私有 head 永远停在
+初始化 → 个性化输出退化为近常数类（log_tail 混淆矩阵**塌向类 3** 即此）→ pm_acc 卡 0.41。
+edge0 的共享 backbone 100% 由攻击者更新。**降 frac 反而更糟**（名额更小→更多良性被饿死），
+所以「对齐论文 fraction 也没用」——但根因是**选择逻辑×拓扑**，不是投毒强度本身。
+
+## ⚠️ 代码漂移（阻断复现，最高优先级先解决）
+
+仓库 `server/edge_server_base.py:90-101` 的 `select_clients` **没有任何 force-malicious 逻辑**
+（纯随机 `rng.choice`），两个 edge 都会返回 5 个随机端。全仓库仅此一个 select_clients，
+无 override / monkeypatch（已 grep 确认）→ **集群跑的选择代码没 push，仓库无法复现 exp006**。
 
 ## 本会话已落地（代码，L1 全绿 174 passed）
 
-- `config_validate.py`：打 `[设定] client_fraction=… | poison_ratio=… | n_clients=… |
-  n_edges=… | n_malicious=… | arch=…` 自描述行。
-- `harness/collect_metrics.py`：解析进 `run` 块；并对「frac<1 却恶意端全轮参与」打红警告
-  （exp006 失败模式，从此不静默）。
-- `tests/test_collect_metrics.py`：+2 条 L1。
+- `config_validate.py`：打 `[设定] client_fraction/poison_ratio/n_clients/n_edges/n_malicious/arch`
+  自描述行；`harness/collect_metrics.py` 解析进 `run` 块；`tests/test_collect_metrics.py` +2 L1。
+- （删掉了那条基于「均匀抽样」错误假设的 frac<1 警告。）
 
-## 下一步（最高优先级，turnkey）
+## 下一步（需用户拍板）
 
-**可验证重跑 exp007**：集群 `git pull --rebase`，跑仓库内 `full_p4_resnet.yaml`
-（已是 frac=0.1，别用集群本地改过的），命令见 `exp006.notes.md`。
-**验收前置**：新 metrics 的 `run.client_fraction==0.1` 且 participation ≈40% 轮次，否则重来。
-过前置后再判 pm_acc / benign ASR。
+1. **先把集群实际 `select_clients`（含 force-malicious）push 进仓库** —— 否则一切不可复现。
+2. 决定 force-malicious 是否有意；若有意，**必须保证 edge 内名额留得下良性端**
+   （如 `n_select = n_mal_in_edge + max(1, int(frac·n_benign))`），修掉「恶意密集 edge 饿死良性」。
+3. 修完再重跑判 pm_acc / benign ASR —— 那才是问题1 的真正实验。
 
-## 未解澄清（非 bug，记录以免重复踩）
-
-- diff_edge=0.0 是布点假象（2 edge + 恶意 spread → 无 diff_edge 样本），跨 edge 迁移性
-  在当前 config 下**未被测到**。想测需 >2 edge 或留干净 edge。
+## 次要澄清（非 bug）
+- diff_edge=0.0 是布点假象（2 edge 都含恶意 → 无 diff_edge 样本），跨 edge 迁移性**未被测到**。

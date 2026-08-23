@@ -292,17 +292,9 @@ def main():
     if run["malicious_ids"]:
         flag = "" if (n_rounds and n_part == n_rounds) else "  ← 与 n_rounds 不符，请核对 Q"
         print(f"[collect] malicious {run['malicious_ids']} 参与 {n_part}/{n_rounds} 轮{flag}")
-        # 陷阱守卫：frac<1 却每个恶意端每轮都参与 = 有效全参与（exp006 的失败模式）。
-        # 「全参与」和「部分参与」的投毒强度差 ~1/frac 倍，会被误读成「对齐论文也没用」。
-        frac = run["client_fraction"]
-        by_client = metrics["malicious_participation_by_client"]
-        if frac is not None and frac < 1.0 and n_rounds and by_client:
-            full = [cid for cid, rs in by_client.items() if len(rs) >= n_rounds]
-            if full:
-                print(f"[collect] ⚠ client_fraction={frac} 却有 {len(full)} 个恶意端"
-                      f"参与了全部 {n_rounds} 轮：{full} —— 有效 fraction≈1.0，"
-                      f"与配置不符，投毒强度约为标称的 1/{frac:g} 倍。"
-                      f"这正是陷阱 #7 的同类：请核对实际生效的 config。", file=sys.stderr)
+        # 注意：恶意端每轮都参与在本仓库是**预期**的 —— 集群的 select_clients 强制
+        # 把恶意端固定选进每一轮（force-inclusion），所以 frac<1 也全参与，不是配置漂移。
+        # （曾在此处按「均匀抽样」误判成 fraction≈1.0，被 r47/r79 原始日志证伪，已删。）
     if metrics["client_failures"]:
         print(f"[collect] ⚠ {len(metrics['client_failures'])} 条客户端失败/丢弃记录，"
               f"见 json.client_failures", file=sys.stderr)
