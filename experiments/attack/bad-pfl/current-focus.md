@@ -117,32 +117,30 @@ sbatch run_smoke.sh attack bad-pfl badpfl none exp001 hier_fedavg_fedrep
   **0 个良性端**。
 - **Edge 1**："Selected 5/50"，恒含 `{22,44,77}`（全部 3 恶意）+ 2 个轮换良性。
 
-推断语义：`n_select = max(int(frac·n_edge), n_mal_in_edge)`，恶意端全强制选入，剩余给随机良性。
-frac=0.1 → 名额 int(0.1·50)=5；edge0 的 7 恶意端 ≥ 5 → **吃满名额，良性端一个都进不来**。
+机制来源（**完全在仓库内**，非代码漂移——此前一度误判「没 push」已纠正）：
+`attack/backdoor.py:install_forced_participation` 运行时给恶意端所在 edge 的 `select_clients`
+打包装器（`main.py:697` 调用）。badpfl∈CONTINUOUS→Q=1→恒真→恶意端每轮强制在场；包装器补位
+只砍良性不砍恶意 → edge0 的 7 恶意端≥名额5 → 选中集恒为 7 恶意端、0 良性（"Selected 7/50"）。
 
-**pm_acc 崩溃机制（FedRep）**：edge0 的 ~43 个良性端从未被选中 → FedRep 私有 head 永远停在
-初始化 → 个性化输出退化为近常数类（log_tail 混淆矩阵**塌向类 3** 即此）→ pm_acc 卡 0.41。
-edge0 的共享 backbone 100% 由攻击者更新。**降 frac 反而更糟**（名额更小→更多良性被饿死），
-所以「对齐论文 fraction 也没用」——但根因是**选择逻辑×拓扑**，不是投毒强度本身。
+**pm_acc 崩溃机制（FedRep）**：edge0 的 ~43 个良性端从未被选中 → 私有 head 永停在初始化 →
+个性化输出退化为近常数类（混淆矩阵**塌向类 3**）→ pm_acc 卡 0.41。**降 frac 反而更饿死良性端。**
 
-## ⚠️ 代码漂移（阻断复现，最高优先级先解决）
+## 本会话已落地（修复 + 收口，L1 174 passed / 6 skipped）
 
-仓库 `server/edge_server_base.py:90-101` 的 `select_clients` **没有任何 force-malicious 逻辑**
-（纯随机 `rng.choice`），两个 edge 都会返回 5 个随机端。全仓库仅此一个 select_clients，
-无 override / monkeypatch（已 grep 确认）→ **集群跑的选择代码没 push，仓库无法复现 exp006**。
+用户确认：强制参与**非有意默认**，当前实验所有客户端应同概率被抽取（但保留 force 接口给
+投毒时间模式实验）。改动：
+- `main.py:697-716`：强制参与由新键 `backdoor.forced_participation`（默认 false）门控。
+  false=不装包装器=同概率抽样；true=保留原 Q 机制。
+- `config_validate.py` `[设定]` 行 + `harness/collect_metrics.py` run 块 加 `forced_participation`。
+- `tests/test_forced_participation.py`（wrapper 语义 + 饿死失败模式 + 关闭时同概率，importorskip TF）；
+  configs 显式 `forced_participation: false`。
 
-## 本会话已落地（代码，L1 全绿 174 passed）
+## 下一步（turnkey，可复现）
 
-- `config_validate.py`：打 `[设定] client_fraction/poison_ratio/n_clients/n_edges/n_malicious/arch`
-  自描述行；`harness/collect_metrics.py` 解析进 `run` 块；`tests/test_collect_metrics.py` +2 L1。
-- （删掉了那条基于「均匀抽样」错误假设的 frac<1 警告。）
-
-## 下一步（需用户拍板）
-
-1. **先把集群实际 `select_clients`（含 force-malicious）push 进仓库** —— 否则一切不可复现。
-2. 决定 force-malicious 是否有意；若有意，**必须保证 edge 内名额留得下良性端**
-   （如 `n_select = n_mal_in_edge + max(1, int(frac·n_benign))`），修掉「恶意密集 edge 饿死良性」。
-3. 修完再重跑判 pm_acc / benign ASR —— 那才是问题1 的真正实验。
+集群 `git pull --rebase`，重跑 `full_p4_resnet.yaml`（现 false）。**验收前置**：
+`run.forced_participation==false`、edge0 "Selected N/50" 含良性端、participation≈40% 而非 80/80。
+过前置再读 pm_acc（应回升）/ benign ASR。**同概率下 badpfl 每轮平均仅 ~1 恶意端在场，后门可能
+累积不起来——那是诚实结论，不要再用 forced_participation 去调它。**
 
 ## 次要澄清（非 bug）
 - diff_edge=0.0 是布点假象（2 edge 都含恶意 → 无 diff_edge 样本），跨 edge 迁移性**未被测到**。

@@ -694,20 +694,26 @@ def run_experiment(config_path="config/config.yaml"):
             trigger_fn=eval_trigger,
             malicious_ids=malicious_ids,
         )
-        # fix-frequency：强制恶意客户端每 Q 轮参与一次。
-        # 连续/累积型攻击须每轮在场（Q=1）：Neurotoxin 靠逐轮累积把后门藏进低梯度坐标；
-        # Bad-PFL / CerP 靠反复在本地模型上动态投毒 + generator/可训练触发器逐轮训练。
-        # 稀疏参与（Q=10）下，恶意本地模型每轮被 edge 广播覆盖、那一次上传又被 ~50 个良性
-        # 客户端稀释（权重≈2/50），后门在共享模型里累积不起来。其余（badnet/blended/dba）
-        # 是单步注入，仍用 attack_freq_Q。注：每次 run 只有一种 strategy，互不干扰。
+        # fix-frequency 强制参与（**默认关闭**）：把恶意客户端每 Q 轮强制选进它所在 edge。
+        # ⚠️ 这是「投毒时间模式」实验用的接口，**不是默认行为**。开着它会破坏「所有客户端
+        #    同概率被抽取」的前提，并在恶意端密集的 edge 上**饿死良性端**：
+        #    install_forced_participation 的补位循环只砍良性、绝不砍恶意，所以当某 edge 的
+        #    恶意端数 ≥ 该 edge 的抽样名额 int(frac·n_edge) 时，该 edge **一个良性端都进不来**
+        #    → FedRep 下这些良性端的私有 head 永不训练 → pm_acc 崩（exp006 即栽于此）。
+        # 需要连续/累积型攻击每轮在场做投毒时间实验时，显式置 backdoor.forced_participation=true
+        # （strategy∈{neurotoxin,badpfl,cerp} 时用 Q=1，其余用 attack_freq_Q）。
         strategy = str(bd_cfg.get("malicious_strategy", "vanilla")).lower()
-        CONTINUOUS = ("neurotoxin", "badpfl", "cerp")
-        Q = 1 if strategy in CONTINUOUS else int(bd_cfg.get("attack_freq_Q", 10))
-        if strategy in CONTINUOUS:
-            print(f"[Backdoor] strategy={strategy}: continuous participation (Q=1).")
-        for mc in clients:
-            if int(mc.client_id) in malicious_ids:
-                install_forced_participation(edge_servers, mc, Q)
+        if bool(bd_cfg.get("forced_participation", False)):
+            CONTINUOUS = ("neurotoxin", "badpfl", "cerp")
+            Q = 1 if strategy in CONTINUOUS else int(bd_cfg.get("attack_freq_Q", 10))
+            print(f"[Backdoor] forced_participation=true | strategy={strategy} | Q={Q} "
+                  f"—— 恶意端被强制选入（⚠️ 非同概率抽样；投毒时间模式实验专用）。")
+            for mc in clients:
+                if int(mc.client_id) in malicious_ids:
+                    install_forced_participation(edge_servers, mc, Q)
+        else:
+            print("[Backdoor] forced_participation=false | 恶意端与良性端**同概率**被抽取"
+                  "（无强制参与）。")
     else:
         cloud = CloudServer(
             global_model=global_model,

@@ -107,7 +107,9 @@ backdoor:
   malicious_ids:  [3]             # spread 下被忽略，n_malicious 说了算
   malicious_placement: "spread"
   n_malicious:    10               # 20 个客户端里 2 个恶意（10%）
-  attack_freq_Q:  1
+  forced_participation: false   # 默认关闭：所有客户端同概率被抽取（当前实验的正确设定）。
+                                # exp006 的 pm_acc 崩溃即因此前隐式强制参与 + 恶意密集 edge 饿死良性端。
+  attack_freq_Q:  1             # 仅 forced_participation=true 时生效
   badnet_size:    3
   badnet_value:   1.0
   blended_alpha:  0.2

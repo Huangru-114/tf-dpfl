@@ -84,7 +84,10 @@ backdoor:
   malicious_ids:  [15]          # 恶意客户端编号（concentrated 或显式时用；spread 时被解析结果覆盖）
   malicious_placement: "spread" # "spread"=跨 edge 分散（每 edge≥1）| "concentrated"=用 malicious_ids
   n_malicious:    4             # spread 时的恶意客户端数量（<=0 时回退 malicious_ids 长度）
-  attack_freq_Q:  10            # fix-frequency：每 Q 轮强制参与一次
+  forced_participation: false   # 默认关闭：恶意端与良性端同概率被抽取。
+                                # 置 true 才启用下面的 fix-frequency 强制参与（投毒时间模式实验专用）。
+                                # ⚠️ 开启且某 edge 恶意端数 ≥ 抽样名额时会饿死该 edge 的良性端（见 exp006）。
+  attack_freq_Q:  10            # fix-frequency：每 Q 轮强制参与一次（仅 forced_participation=true 时生效）
   badnet_size:    3             # BadNet 方块边长
   badnet_value:   1.0           # 方块像素值（[0,1] 空间，标准化前）
   blended_alpha:  0.2           # Blended 混合比例 α
