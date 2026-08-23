@@ -135,12 +135,16 @@ sbatch run_smoke.sh attack bad-pfl badpfl none exp001 hier_fedavg_fedrep
 - `tests/test_forced_participation.py`（wrapper 语义 + 饿死失败模式 + 关闭时同概率，importorskip TF）；
   configs 显式 `forced_participation: false`。
 
-## 下一步（turnkey，可复现）
+## ✅ 已验证（exp007，forced_participation=false，单变量 vs exp006）
 
-集群 `git pull --rebase`，重跑 `full_p4_resnet.yaml`（现 false）。**验收前置**：
-`run.forced_participation==false`、edge0 "Selected N/50" 含良性端、participation≈40% 而非 80/80。
-过前置再读 pm_acc（应回升）/ benign ASR。**同概率下 badpfl 每轮平均仅 ~1 恶意端在场，后门可能
-累积不起来——那是诚实结论，不要再用 forced_participation 去调它。**
+集群重跑确认修复有效，**问题1 & 2 同时解决 + 大幅提速**（r50 中间值，已决定性）：
+- pm_acc 0.4156 → **0.7521**（主任务恢复，干净基线 0.72）
+- local_benign ASR 0.440 → **0.771**（迁移性起来，进入论文 80/98 邻域）
+- time/round → **36.8s**（恶意端不再被强制每轮训练，昂贵 badpfl 路径调用骤降）
+
+详见 `exp007.notes.md`。等 r80 取终值归档。**注意** benign 0.771 实为 same_edge——
+diff_edge=0 是「2 edge 都含恶意」的布点假象，跨 edge 迁移性未被测到；如需单独判据，
+另开「留干净 edge」布点实验。
 
 ## 次要澄清（非 bug）
 - diff_edge=0.0 是布点假象（2 edge 都含恶意 → 无 diff_edge 样本），跨 edge 迁移性**未被测到**。
