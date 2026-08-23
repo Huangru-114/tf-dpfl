@@ -25,8 +25,8 @@ federation:
   n_workers:        4           # 并行线程数（sbatch -c 4）
   n_clients:        100         # 100 client / 10 恶意（全局 10%），跨所有拓扑格恒定
   n_edges:          2
-  edge_rounds:      1           # 3C 自变量：每 global round 的 edge round 数
-  n_rounds:         400          # = 400 / edge_rounds（有效 local budget 恒定）
+  edge_rounds:      40           # 3C 自变量：每 global round 的 edge round 数
+  n_rounds:         10          # = 400 / edge_rounds（有效 local budget 恒定）
   partition:        "noniid"
   classes_per_client: 10
   alpha:            0.5
