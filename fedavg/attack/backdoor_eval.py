@@ -10,6 +10,8 @@ attack/backdoor_eval.py  –  后门评估（C-Acc 本地 / ASR 全局）
 import numpy as np
 import tensorflow as tf
 
+from attack.drift_metrics import param_drift, repr_shift
+
 
 def _acc_on_dataset(model, ds):
     tc = tn = 0
@@ -259,6 +261,52 @@ def _build_feature_extractor(model):
     """构建提取分类头之前一层（penultimate）特征的子模型。"""
     # 函数式模型最后一层是分类 Dense(softmax)，其输入张量即 penultimate 特征。
     return tf.keras.Model(model.inputs, model.layers[-1].input)
+
+
+def evaluate_drift(edge_servers, global_model, anchor_weights, base_idx,
+                   x_probe, batch_size=256):
+    """
+    Experiment 3C：每个 edge 相对「本轮起点全局」anchor 的 **参数漂移 + 表示漂移**。
+
+      参数漂移（只在 backbone 索引 base_idx 上）：abs=‖Δ‖₂、rel=‖Δ‖/‖anchor‖₂
+      表示漂移：固定干净探针 x_probe 上，penultimate 特征的 (1−cos)，对样本取 mean 与 median
+
+    anchor 的特征：临时把 global_model 的权重设为 anchor 抽一次，再还原（单线程 eval 阶段安全）。
+    对 edge 取均值上报，同时保留 per-edge。
+
+    Returns: dict（见 backdoor_server._backdoor_eval 的使用）。
+    """
+    # anchor 侧特征：mutate-extract-restore（避免额外建一个模型）
+    cur = global_model.get_weights()
+    global_model.set_weights(anchor_weights)
+    E_anchor = _extract_features(_build_feature_extractor(global_model), x_probe, batch_size)
+    global_model.set_weights(cur)
+
+    per_edge = []
+    for edge in edge_servers:
+        ew = edge.model.get_weights()
+        p_abs, p_rel = param_drift(ew, anchor_weights, base_idx)
+        E_e = _extract_features(_build_feature_extractor(edge.model), x_probe, batch_size)
+        r_mean, r_med = repr_shift(E_e, E_anchor)
+        per_edge.append({
+            "edge_id":      int(edge.edge_id),
+            "param_abs":    p_abs,
+            "param_rel":    p_rel,
+            "repr_mean":    r_mean,
+            "repr_median":  r_med,
+        })
+
+    def _m(key):
+        xs = [d[key] for d in per_edge if not np.isnan(d[key])]
+        return float(np.mean(xs)) if xs else float("nan")
+
+    return {
+        "param_abs":    _m("param_abs"),
+        "param_rel":    _m("param_rel"),
+        "repr_mean":    _m("repr_mean"),
+        "repr_median":  _m("repr_median"),
+        "per_edge":     per_edge,
+    }
 
 
 def _extract_features(feat_model, x, batch_size=256):

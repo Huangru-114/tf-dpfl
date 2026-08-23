@@ -24,7 +24,7 @@ def _log(strategy="vanilla", attack_lines=False, n_rounds=3,
          malicious=(0, 9), defense="none", with_pm=True,
          settings=True, client_fraction=0.1, poison_ratio=0.2,
          n_clients=10, n_edges=2, arch="fedavg_cnn", forced_participation=False,
-         per_edge=False):
+         per_edge=False, drift=False):
     L = [
         "[Config] loading ../experiments/smoke-base.yaml",
         "[Config] run_name = hier_pfedme_noniid_badnet_seed42",
@@ -72,6 +72,9 @@ def _log(strategy="vanilla", attack_lines=False, n_rounds=3,
             L.append(f"[Backdoor] Round {r} | edge1 | edge_asr=0.1{r}0 | "
                      f"client_benign=0.0{r}0 | client_malicious=0.000 | "
                      f"n_benign=4 | n_malicious=0 | has_malicious=False")
+        if drift:
+            L.append(f"[Drift] Round {r} | param_abs={r}.5000 | param_rel=0.{r}00 | "
+                     f"repr_mean=0.0{r}0 | repr_median=0.0{r}5 | n_edges=2")
     L.append("[Final PM] weighted C-Acc = 0.8136 over 10 clients / 14996 samples")
     return "\n".join(L)
 
@@ -152,6 +155,26 @@ def test_per_edge_absent_is_empty_not_crash():
     m = collect(_log(n_rounds=2, per_edge=False))
     assert m["per_edge_rounds"] == {}
     assert m["per_edge_final"] == []
+
+
+def test_drift_is_collected():
+    """Exp 3C：[Drift] 行解析成 drift_rounds + drift_final（含 abs/rel + mean/median）。"""
+    m = collect(_log(n_rounds=3, drift=True))
+    assert [d["round"] for d in m["drift_rounds"]] == [1, 2, 3]
+    d3 = m["drift_final"]
+    assert d3["round"] == 3
+    assert d3["param_abs"] == pytest.approx(3.5)
+    assert d3["param_rel"] == pytest.approx(0.300)
+    assert d3["repr_mean"] == pytest.approx(0.030)
+    assert d3["repr_median"] == pytest.approx(0.035)
+    assert d3["n_edges"] == 2
+
+
+def test_drift_absent_is_empty_not_crash():
+    """drift_eval=false（无 [Drift] 行）时 drift_rounds=[]、drift_final=None，不报错。"""
+    m = collect(_log(n_rounds=2, drift=False))
+    assert m["drift_rounds"] == []
+    assert m["drift_final"] is None
 
 
 def test_malicious_ids_fallback_to_declaration_lines():
