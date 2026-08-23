@@ -55,9 +55,9 @@ federation:
   badpfl_allow_parallel: false   # 并行收集（提速）；⚠️ eager/@tf.function 并发有污染风险，异常回退串行
   n_workers:        4           # 并行线程数（sbatch -c 4）
   n_clients:        100          # ← 全长：20 客户端（10% 恶意）
-  n_edges:          2
-  edge_rounds:      5           # ← 全长：每 global round 5 个 edge round
-  n_rounds:         80          # ← 全长：80 × 5 = 400 有效轮
+  n_edges:          1
+  edge_rounds:      1           # ← 全长：每 global round 5 个 edge round
+  n_rounds:         400          # ← 全长：80 × 5 = 400 有效轮
   partition:        "noniid"
   classes_per_client: 10
   alpha:            0.5
