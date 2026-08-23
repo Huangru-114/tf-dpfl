@@ -414,6 +414,15 @@ def build_clients(images_np, labels_np, global_model, config,
     # ── 后门攻击：恶意客户端用投毒数据集替换原本地数据集 ───────────────────
     bd_cfg        = config.get("backdoor", {})
     bd_enabled    = bool(bd_cfg.get("enabled", False))
+    # by_edge 布点（Experiment 3）需要在解析恶意端**之前**就有确定的 client→edge 归属。
+    # 非 baked 分区（如 noniid）此处 assignments 仍是 None，而 edge_assignment=block 是确定性的
+    # → 提前算出来，同一份既喂给恶意端解析、又作为 baked 传给 build_edge_servers，保证
+    # 「布点依据的 edge 归属」与「实际建 edge 的归属」完全一致（否则 by_edge 会拿到 None 报错，
+    # 或与真实 edge 归属不符）。
+    if assignments is None and \
+            str(config["federation"].get("edge_assignment", "random")).lower() == "block":
+        n_edges = int(config["federation"]["n_edges"])
+        assignments = block_assignment(list(range(int(n_clients))), n_edges)
     # 解析恶意客户端（默认跨 edge 分散，需要 assignments；非 baked 分区退化为等距）。
     # 解析结果写回 bd_cfg["malicious_ids"]，保证 run_experiment 后续调用一致。
     malicious_ids = resolve_malicious_ids(
