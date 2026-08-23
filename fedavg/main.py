@@ -11,7 +11,7 @@ from data.partition     import (extract_numpy, iid_partition, noniid_partition,
                                 superclass_edge_partition,
                                 make_per_edge_test_datasets,
                                 merge_test_datasets)
-from data.clustering    import random_assignment, warmup_gradient_assignment, histogram_assignment, semantic_assignment
+from data.clustering    import random_assignment, warmup_gradient_assignment, histogram_assignment, semantic_assignment, block_assignment
 from models.cnn         import build_model
 from models.model_utils import clone_model
 from models.autoencoder import build_autoencoder   # P4：共享生成器
@@ -534,6 +534,10 @@ def build_edge_servers(clients, global_model, config,
 
     elif strategy == "random":
         assignments = random_assignment(clients, n_edges)
+
+    elif strategy == "block":
+        # 确定性连续分块，供 Experiment 3 精确布点（by_edge）用
+        assignments = block_assignment(clients, n_edges)
 
     elif strategy == "gradient":
         assignments = warmup_gradient_assignment(

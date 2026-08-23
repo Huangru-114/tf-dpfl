@@ -23,7 +23,8 @@ from collect_metrics import collect          # noqa: E402
 def _log(strategy="vanilla", attack_lines=False, n_rounds=3,
          malicious=(0, 9), defense="none", with_pm=True,
          settings=True, client_fraction=0.1, poison_ratio=0.2,
-         n_clients=10, n_edges=2, arch="fedavg_cnn", forced_participation=False):
+         n_clients=10, n_edges=2, arch="fedavg_cnn", forced_participation=False,
+         per_edge=False):
     L = [
         "[Config] loading ../experiments/smoke-base.yaml",
         "[Config] run_name = hier_pfedme_noniid_badnet_seed42",
@@ -63,6 +64,14 @@ def _log(strategy="vanilla", attack_lines=False, n_rounds=3,
         L.append(f"[Backdoor] Round {r} | GM_ASR=0.0{r}0 | EM_ASR=0.1{r}0 | "
                  f"local_benign=0.2{r}0 (same_edge=0.3{r}0, diff_edge=0.4{r}0) | "
                  f"local_malicious=0.9{r}0")
+        if per_edge:
+            # edge0 含恶意、edge1 不含（collocated 拓扑），逐 edge 面板
+            L.append(f"[Backdoor] Round {r} | edge0 | edge_asr=0.8{r}0 | "
+                     f"client_benign=0.7{r}0 | client_malicious=0.9{r}0 | "
+                     f"n_benign=4 | n_malicious=2 | has_malicious=True")
+            L.append(f"[Backdoor] Round {r} | edge1 | edge_asr=0.1{r}0 | "
+                     f"client_benign=0.0{r}0 | client_malicious=0.000 | "
+                     f"n_benign=4 | n_malicious=0 | has_malicious=False")
     L.append("[Final PM] weighted C-Acc = 0.8136 over 10 clients / 14996 samples")
     return "\n".join(L)
 
@@ -118,6 +127,31 @@ def test_settings_absent_in_legacy_log_is_none_not_zero():
     assert run["n_clients"] is None
     assert run["forced_participation"] is None
     assert run["arch"] is None
+
+
+def test_per_edge_panel_is_collected():
+    """
+    Experiment 3：逐 edge 面板必须解析成 {round: [per-edge...]}，聚合均值会抹平
+    amplification/dilution/cancellation。edge_id 升序，末轮快照单列。
+    """
+    m = collect(_log(n_rounds=3, per_edge=True))
+    per = m["per_edge_rounds"]
+    assert set(per.keys()) == {1, 2, 3}
+    r3 = per[3]
+    assert [e["edge_id"] for e in r3] == [0, 1], "edge 必须按 id 升序"
+    e0, e1 = r3
+    assert e0["edge_asr"] == pytest.approx(0.830)
+    assert e0["client_benign"] == pytest.approx(0.730)
+    assert e0["n_malicious"] == 2 and e0["has_malicious"] is True
+    assert e1["has_malicious"] is False and e1["client_malicious"] == pytest.approx(0.0)
+    assert m["per_edge_final"] == r3, "per_edge_final 必须是末轮快照"
+
+
+def test_per_edge_absent_is_empty_not_crash():
+    """老日志没有逐 edge 行时，per_edge_rounds 为空、per_edge_final 为 []，不报错。"""
+    m = collect(_log(n_rounds=2, per_edge=False))
+    assert m["per_edge_rounds"] == {}
+    assert m["per_edge_final"] == []
 
 
 def test_malicious_ids_fallback_to_declaration_lines():

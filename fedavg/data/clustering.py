@@ -180,6 +180,25 @@ def random_assignment(clients, n_edges):
     return assignments.tolist()
 
 
+def block_assignment(clients, n_edges):
+    """
+    确定性连续分块：client i → edge ``i // ceil(n/n_edges)``（等价于 np.array_split 的连续块）。
+
+    与 random_assignment 不同，**不洗牌**：client id 0..k-1 落 edge0、k..2k-1 落 edge1……
+    这样恶意端布点（Experiment 3A/3B 的 collocated / distributed / mixed）可以由显式 id 精确
+    控制——配合 backdoor.malicious_placement=by_edge 使用。client_id 必须 == 在 clients 列表里
+    的位置（本仓库一贯如此，assign_malicious_across_edges 也这么假设）。
+    """
+    n           = len(clients)
+    assignments = np.zeros(n, dtype=int)
+    for edge_id, split in enumerate(np.array_split(np.arange(n), n_edges)):
+        for idx in split:
+            assignments[idx] = edge_id
+    print(f"[Assignment] Block (deterministic contiguous) | {n_edges} edges")
+    _print_assignment(assignments, n_edges)
+    return assignments.tolist()
+
+
 def semantic_assignment(clients, n_edges, config):
     """
     基于语义相似性的 edge 分组（论文 Hier-pFedMe 的分组方式）。

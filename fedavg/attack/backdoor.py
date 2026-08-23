@@ -94,13 +94,55 @@ def assign_malicious_across_edges(n_clients, n_malicious, assignments=None,
     return set(int(i) for i in chosen)
 
 
+def assign_malicious_by_edge(assignments, per_edge, seed=42) -> set:
+    """
+    确定性「按 edge 布点」：per_edge[e] 指定 edge e 内的恶意端个数，从该 edge 的客户端里
+    seeded 随机取。用于 Experiment 3A/3B 精确控制攻击拓扑：
+
+      collocated  E0 全污染：per_edge = [4, 0, 0, 0]
+      distributed 每 edge 1 个：per_edge = [1, 1, 1, 1]
+      mixed 部分高部分低：       per_edge = [3, 1, 0, 0]
+
+    Args:
+        assignments : list[int]，assignments[cid] = 该 client 归属的 edge（cid == 位置索引）。
+                      配 edge_assignment=block 时，edge 成员是连续 id 段，布点完全可预期。
+        per_edge    : list[int]，按 edge id 索引的恶意端个数。长度须 == edge 数。
+    Returns:
+        set[int] 恶意客户端 id
+    """
+    if assignments is None:
+        raise ValueError("malicious_placement=by_edge 需要 assignments（edge_assignment 不能是"
+                         " precomputed 之外的空值）；建议配 edge_assignment=block。")
+    rng = np.random.default_rng(seed)
+    edges = {}
+    for cid, e in enumerate(assignments):
+        edges.setdefault(int(e), []).append(int(cid))
+    n_edges = len(edges)
+    if len(per_edge) != n_edges:
+        raise ValueError(f"malicious_per_edge 长度 {len(per_edge)} != edge 数 {n_edges}")
+
+    chosen = []
+    for e in sorted(edges.keys()):
+        k = int(per_edge[e])
+        members = edges[e]
+        if k > len(members):
+            raise ValueError(f"edge {e} 只有 {len(members)} 个客户端，放不下 {k} 个恶意端")
+        if k > 0:
+            pick = rng.permutation(len(members))[:k]
+            chosen.extend(members[int(i)] for i in pick)
+    return set(int(i) for i in chosen)
+
+
 def resolve_malicious_ids(bd_cfg: dict, n_clients: int,
                           assignments=None, seed=42) -> set:
     """
-    统一解析恶意客户端 id，支持两种放置策略（默认 spread）：
+    统一解析恶意客户端 id，支持三种放置策略（默认 spread）：
 
-      malicious_placement == "spread"       跨 edge 分散（assign_malicious_across_edges）
+      malicious_placement == "spread"       跨 edge 轮转分散（assign_malicious_across_edges）
       malicious_placement == "concentrated" 直接用显式 malicious_ids（集中攻击实验）
+      malicious_placement == "by_edge"      按 edge 精确布点（assign_malicious_by_edge），
+                                            读 bd_cfg["malicious_per_edge"]（按 edge id 索引的
+                                            个数列表）。Experiment 3A/3B 专用；配 edge_assignment=block。
 
     恶意数量优先取 bd_cfg["n_malicious"]，否则回退显式 malicious_ids 的长度。
     建议在 build_clients 解析一次后写回 bd_cfg["malicious_ids"]，保证后续调用一致。
@@ -111,6 +153,13 @@ def resolve_malicious_ids(bd_cfg: dict, n_clients: int,
     placement = str(bd_cfg.get("malicious_placement", "spread")).lower()
     explicit = bd_cfg.get("malicious_ids", None)
     n_mal = int(bd_cfg.get("n_malicious", 0))
+
+    if placement == "by_edge":
+        per_edge = bd_cfg.get("malicious_per_edge", None)
+        if not per_edge:
+            raise ValueError("malicious_placement=by_edge 需要 backdoor.malicious_per_edge "
+                             "（按 edge id 索引的恶意端个数列表，如 [4,0,0,0]）")
+        return assign_malicious_by_edge(assignments, per_edge, seed)
 
     if placement == "concentrated" or (n_mal <= 0 and explicit is not None):
         return set(int(i) for i in (explicit if explicit else [15]))
@@ -186,35 +235,21 @@ def install_forced_participation(edge_servers, malicious_client, Q: int,
         registry = {}
         target_edge._forced_participation = registry
         orig_select = target_edge.select_clients
-        # 强制参与的补位也必须可复现，走 edge 自己的 RNG（或显式传入的）
-        pick_rng = rng if rng is not None else getattr(
-            target_edge, "rng", np.random.default_rng(42))
 
         def wrapped(round_idx):
-            base     = list(orig_select(round_idx))
-            target_n = len(base)
-            r        = int(round_idx)
+            base = list(orig_select(round_idx))
+            r    = int(round_idx)
 
-            must_in  = [c for c, q in registry.items() if r % int(q) == 0]
-            must_out = {c for c, q in registry.items() if r % int(q) != 0}
+            must_in = [c for c, q in registry.items() if r % int(q) == 0]
 
-            # 1) 踢掉本轮不该在场的恶意客户端
-            selected = [c for c in base if c not in must_out]
-            # 2) 放入本轮必须在场的（去重，互不顶替）
-            for mc in must_in:
-                if mc not in selected:
-                    selected.append(mc)
-            # 3) 规模回到原本的选取数：多了只砍良性，少了只从良性池补
-            benign_in = [c for c in selected if c not in registry]
-            while len(selected) > target_n and benign_in:
-                selected.remove(benign_in.pop())
-            if len(selected) < target_n:
-                pool = [c for c in target_edge.clients
-                        if c not in registry and c not in selected]
-                need = target_n - len(selected)
-                order = pick_rng.permutation(len(pool))[:need]
-                selected.extend(pool[int(i)] for i in order)
-            return selected
+            # 良性名额 = base 里本来抽中的良性数，**原样保留**（关键：绝不为了塞恶意端
+            # 而砍良性）。做法：丢掉 base 里的恶意端，只按 Q 调度重新放入 must_in 的恶意端。
+            #
+            # 旧实现把规模硬压回 len(base)、且只砍良性 → 当某 edge 恶意端数 ≥ 抽样名额时，
+            # 良性被砍光、该 edge 只训恶意端（exp006 的 pm_acc 崩溃根因）。现在恶意密集 edge
+            # 会训「base 良性 + 全部 must_in 恶意」（规模略大），良性不再被饿死。
+            benign_base = [c for c in base if c not in registry]
+            return benign_base + list(must_in)
 
         target_edge.select_clients = wrapped
 

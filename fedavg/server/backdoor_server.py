@@ -178,6 +178,16 @@ class BackdoorCloudServer(CloudServer):
               f"diff_edge={metrics['local_asr_diff_edge']:.3f}) | "
               f"local_malicious={metrics['local_asr_malicious_mean']:.3f}\n")
 
+        # 逐 edge 面板（Experiment 3：per-edge 传播路径。聚合均值会抹平 amplification/
+        # dilution/cross-edge cancellation，所以每个 edge 单独打一条可解析行）。
+        for pe in metrics.get("per_edge", []):
+            print(f"[Backdoor] Round {round_idx} | edge{pe['edge_id']} | "
+                  f"edge_asr={pe['edge_asr']:.3f} | "
+                  f"client_benign={pe['client_benign']:.3f} | "
+                  f"client_malicious={pe['client_malicious']:.3f} | "
+                  f"n_benign={pe['n_benign']} | n_malicious={pe['n_malicious']} | "
+                  f"has_malicious={pe['has_malicious']}")
+
         # ── 任务3：wandb 记录全部分层指标 ─────────────────────────────────
         FLLogger.log_round_metrics(round_idx, metrics)
         # 兼容旧看板字段

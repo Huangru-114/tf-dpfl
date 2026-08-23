@@ -9,8 +9,8 @@ Q=1 时恶意端每轮被强制选入，而补位循环**只砍良性、绝不�
 
 这里锁住两件事：
   1. 关闭时（不安装包装器）—— 恶意端与良性端同概率被抽取，恶意端**不是**每轮都在。
-  2. 打开时 —— 包装器的强制/换出/补位语义精确成立，且**恶意密集 edge 会饿死良性端**
-     （把 exp006 的失败模式钉成显式断言，改坏了会红）。
+  2. 打开时 —— 包装器的强制/换出语义精确成立，且**恶意密集 edge 不再饿死良性端**
+     （base 抽中的良性全部保留；exp006 崩溃根因的修复守卫，改回旧逻辑会红）。
 
 包装器逻辑是纯 numpy，但 attack.backdoor 在模块级 import tensorflow，故整体 importorskip。
 """
@@ -95,24 +95,35 @@ def test_q2_participation_follows_schedule():
 
 
 # ══════════════════════════════════════════════════════════════════════════
-# 4. 打开 + 恶意密集 edge —— 良性端被饿死（exp006 的失败模式，显式钉住）
+# 4. 打开 + 恶意密集 edge —— 良性端**不再被饿死**（exp006 崩溃根因的修复守卫）
 # ══════════════════════════════════════════════════════════════════════════
-def test_dense_edge_starves_benign_when_forced():
+def test_dense_edge_keeps_benign_when_forced():
     """
-    edge 有 7 个恶意端、抽样名额 int(50·0.1)=5。强制参与只砍良性、不砍恶意 →
-    该 edge 每轮选中集 = 全部 7 个恶意端、**0 个良性端**。这是 exp006 里 edge0 的真实行为，
-    也正是「默认必须关闭」的原因。
+    edge 有 7 个恶意端、base 抽样名额 int(50·0.1)=5。修复后：强制参与只保证恶意端在场，
+    **base 抽中的良性端一个不砍**（selected = base良性 + must_in恶意）。所以恶意密集 edge
+    每轮 = base 的全部良性 + 7 恶意端，良性不再被饿死（对照 exp006 的 0 良性）。
+
+    用一个同种子的未包装 twin edge 复算 base，逐轮精确断言「base 的良性全部保留」。
     """
-    clients = [_Client(i) for i in range(50)]
-    mal_ids = [0, 11, 22, 33, 44, 55, 66]        # 7 个恶意端
-    edge = _Edge(0, clients, frac=0.1, seed=4)   # 名额 = 5 < 7
+    mal_ids = [0, 7, 14, 21, 28, 35, 42]         # 7 个恶意端（均 < 50，落在本 edge 内）
+    clients_f = [_Client(i) for i in range(50)]
+    clients_r = [_Client(i) for i in range(50)]
+    edge_f = _Edge(0, clients_f, frac=0.1, seed=4)   # 被强制
+    edge_r = _Edge(0, clients_r, frac=0.1, seed=4)   # 同种子参照，不装包装器
     for mid in mal_ids:
-        install_forced_participation([edge], clients[mid], Q=1)
+        install_forced_participation([edge_f], clients_f[mid], Q=1)
+
+    mal_set = set(mal_ids)
+    saw_benign = False
     for r in range(1, 11):
-        sel = _ids(edge.select_clients(r))
-        assert sel == sorted(mal_ids), (
-            f"第 {r} 轮选中 {sel}，期望恰为 7 个恶意端、0 良性 —— "
-            f"恶意密集 edge 的良性饿死没有复现，说明补位逻辑变了")
+        forced = set(_ids(edge_f.select_clients(r)))
+        base   = set(_ids(edge_r.select_clients(r)))     # 同 RNG 序列 → 同 base
+        base_benign = base - mal_set
+        assert mal_set <= forced, f"第 {r} 轮恶意端未全部在场：{sorted(forced)}"
+        assert base_benign <= forced, (
+            f"第 {r} 轮 base 的良性 {sorted(base_benign)} 被砍掉了 —— 良性饿死回归")
+        saw_benign = saw_benign or bool(base_benign)
+    assert saw_benign, "10 轮里 base 从未抽到良性端，测试无区分力（应几乎必然抽到）"
 
 
 def test_multiple_malicious_do_not_evict_each_other():

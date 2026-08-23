@@ -207,6 +207,27 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
         if trigger == "dba" and not bd.get("dba_patterns"):
             _fail("backdoor.trigger='dba' 需要非空的 backdoor.dba_patterns")
 
+        # by_edge 布点（Experiment 3）：早筛 malicious_per_edge 的长度/容量，别等训练中途才炸。
+        placement = str(bd.get("malicious_placement", "spread")).lower()
+        if placement == "by_edge":
+            per_edge = bd.get("malicious_per_edge", None)
+            n_edges  = int(fed.get("n_edges", 0) or 0)
+            if not per_edge:
+                _fail("malicious_placement=by_edge 需要 backdoor.malicious_per_edge"
+                      "（按 edge id 索引的恶意端个数列表，如 [4,0,0,0]）")
+            elif len(per_edge) != n_edges:
+                _fail(f"backdoor.malicious_per_edge 长度 {len(per_edge)} != "
+                      f"federation.n_edges {n_edges}")
+            elif any(int(k) < 0 for k in per_edge):
+                _fail(f"backdoor.malicious_per_edge 含负数：{per_edge}")
+            elif sum(int(k) for k in per_edge) > n_clients:
+                _fail(f"backdoor.malicious_per_edge 求和 {sum(int(k) for k in per_edge)} "
+                      f"> n_clients {n_clients}")
+            elif str(fed.get("edge_assignment", "random")).lower() != "block":
+                warnings.append(
+                    "malicious_placement=by_edge 建议配 edge_assignment=block（确定性连续分块），"
+                    "否则 edge 成员是随机的，布点虽仍精确但不可从 id 直观预期。")
+
     elif defense != "none":
         warnings.append(
             f"backdoor.enabled=false 但 defense.name={defense!r}。"

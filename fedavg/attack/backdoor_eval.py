@@ -126,12 +126,13 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
     global_acc = _acc_on_numpy(global_model, x_test, y_test, batch_size)
 
     # ── 边缘模型 ──────────────────────────────────────────────────────────
-    edge_asr_per_node, edge_accs = [], []
+    edge_ids, edge_asr_per_node, edge_accs = [], [], []
     malicious_edges = set()
     for edge in edge_servers:
         e_asr = compute_asr(edge.model, x_test, y_test, trigger_fn,
                             target_label, batch_size)
         e_acc = _acc_on_numpy(edge.model, x_test, y_test, batch_size)
+        edge_ids.append(int(edge.edge_id))
         edge_asr_per_node.append(e_asr)
         edge_accs.append(e_acc)
     # 找出恶意客户端所在的 edge（用于 same/diff edge 划分）
@@ -143,6 +144,10 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
     local_asrs, local_accs = [], []
     benign_asrs, malicious_asrs = [], []
     same_edge_asrs, diff_edge_asrs = [], []
+    # 逐 edge 分组（Experiment 3：判 amplification / dilution / cross-edge cancellation
+    # 都是逐 edge 的比较，聚合均值会把它们全抹平）
+    benign_by_edge = {eid: [] for eid in edge_ids}
+    malicious_by_edge = {eid: [] for eid in edge_ids}
 
     for c in clients:
         cid = int(c.client_id)
@@ -156,11 +161,13 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
         local_asrs.append(asr)
         local_accs.append(acc)
 
+        edge_id = int(getattr(c, "assigned_edge", -1))
         if cid in malicious_ids:
             malicious_asrs.append(asr)
+            malicious_by_edge.setdefault(edge_id, []).append(asr)
         else:
             benign_asrs.append(asr)
-            edge_id = int(getattr(c, "assigned_edge", -1))
+            benign_by_edge.setdefault(edge_id, []).append(asr)
             if edge_id in malicious_edges:
                 same_edge_asrs.append(asr)
             else:
@@ -172,12 +179,29 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
     def _std(xs):
         return float(np.std(xs)) if len(xs) else 0.0
 
+    # 逐 edge 面板：edge 模型 ASR / 该 edge 内良性、恶意个性化 ASR 均值 / 计数 / 是否含恶意
+    per_edge = []
+    edge_asr_by_id = dict(zip(edge_ids, edge_asr_per_node))
+    edge_acc_by_id = dict(zip(edge_ids, edge_accs))
+    for eid in edge_ids:
+        per_edge.append({
+            "edge_id":         eid,
+            "edge_asr":        edge_asr_by_id[eid],
+            "edge_acc":        edge_acc_by_id[eid],
+            "client_benign":   _mean(benign_by_edge.get(eid, [])),
+            "client_malicious": _mean(malicious_by_edge.get(eid, [])),
+            "n_benign":        len(benign_by_edge.get(eid, [])),
+            "n_malicious":     len(malicious_by_edge.get(eid, [])),
+            "has_malicious":   eid in malicious_edges,
+        })
+
     return {
         "global_asr":             global_asr,
         "global_acc":             global_acc,
         "edge_asr_mean":          _mean(edge_asr_per_node),
         "edge_asr_std":           _std(edge_asr_per_node),
         "edge_asr_per_node":      edge_asr_per_node,
+        "edge_ids":               edge_ids,
         "edge_acc_mean":          _mean(edge_accs),
         "local_asr_mean":         _mean(local_asrs),
         "local_asr_std":          _std(local_asrs),
@@ -186,6 +210,7 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
         "local_asr_same_edge":    _mean(same_edge_asrs),
         "local_asr_diff_edge":    _mean(diff_edge_asrs),
         "local_acc_mean":         float(np.nanmean(local_accs)) if local_accs else 0.0,
+        "per_edge":               per_edge,
     }
 
 

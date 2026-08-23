@@ -74,6 +74,12 @@ RE_MAL_DECLARED = re.compile(r"\[Backdoor\] Client (\d+) MALICIOUS")
 #   "  [Client  0] Round 1 | Hier-pFedMe(λ2=15.0, K=5) | loss=1.6438"
 RE_CLIENT_ROUND = re.compile(r"\[Client\s*(\d+)\]\s+Round\s+(\d+)\s*\|")
 
+# 逐 edge 面板（Experiment 3：per-edge 传播路径）
+RE_PER_EDGE = re.compile(
+    r"\[Backdoor\] Round (\d+) \| edge(\d+) \| edge_asr=([\d.]+) \| "
+    r"client_benign=([\d.]+) \| client_malicious=([\d.]+) \| "
+    r"n_benign=(\d+) \| n_malicious=(\d+) \| has_malicious=(True|False)")
+
 # ── 自描述 ──────────────────────────────────────────────────────────────────
 RE_CFG_PATH = re.compile(r"\[Config\] loading (\S+)")
 RE_RUN_NAME = re.compile(r"\[Config\] run_name = (\S+)")
@@ -206,6 +212,26 @@ def _collect_participation(log_text: str, malicious_ids: list) -> tuple:
     return all_rounds, {str(k): sorted(v) for k, v in by_client.items()}
 
 
+def _collect_per_edge(log_text: str) -> dict:
+    """
+    逐 edge 面板：{round: [ {edge_id, edge_asr, client_benign, client_malicious,
+    n_benign, n_malicious, has_malicious} ]}，按 edge_id 升序。
+    """
+    by_round = {}
+    for m in RE_PER_EDGE.finditer(log_text):
+        rnd = int(m.group(1))
+        by_round.setdefault(rnd, []).append({
+            "edge_id":          int(m.group(2)),
+            "edge_asr":         float(m.group(3)),
+            "client_benign":    float(m.group(4)),
+            "client_malicious": float(m.group(5)),
+            "n_benign":         int(m.group(6)),
+            "n_malicious":      int(m.group(7)),
+            "has_malicious":    m.group(8) == "True",
+        })
+    return {r: sorted(v, key=lambda d: d["edge_id"]) for r, v in by_round.items()}
+
+
 def collect(log_text: str) -> dict:
     lines = log_text.splitlines()
 
@@ -238,10 +264,17 @@ def collect(log_text: str) -> dict:
 
     errors = [ln.strip() for ln in lines if RE_ERR.match(ln.strip())][:5]
 
+    per_edge_rounds = _collect_per_edge(log_text)
+    per_edge_final = (per_edge_rounds[max(per_edge_rounds)]
+                      if per_edge_rounds else [])
+
     return {
         "run": run,
         "rounds": rounds,
         "final": rounds[-1] if rounds else None,
+        # 逐 edge 传播路径（Experiment 3）：{round: [per-edge...]} + 末轮快照
+        "per_edge_rounds": per_edge_rounds,
+        "per_edge_final": per_edge_final,
         "acc_rounds": acc_rounds,
         "final_acc": final_acc,
         "admitted": admitted,
