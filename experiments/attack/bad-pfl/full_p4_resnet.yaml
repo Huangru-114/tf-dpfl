@@ -50,11 +50,11 @@ data:
 
 federation:
   edge_assignment:  "random"
-  client_fraction:  1.0
+  client_fraction:  0.1
   warmup_rounds:    0
-  badpfl_allow_parallel: true   # 并行收集（提速）；⚠️ eager/@tf.function 并发有污染风险，异常回退串行
+  badpfl_allow_parallel: false   # 并行收集（提速）；⚠️ eager/@tf.function 并发有污染风险，异常回退串行
   n_workers:        4           # 并行线程数（sbatch -c 4）
-  n_clients:        20          # ← 全长：20 客户端（10% 恶意）
+  n_clients:        100          # ← 全长：20 客户端（10% 恶意）
   n_edges:          2
   edge_rounds:      5           # ← 全长：每 global round 5 个 edge round
   n_rounds:         80          # ← 全长：80 × 5 = 400 有效轮
@@ -67,7 +67,7 @@ federation:
 
 training:
   local_epochs:   1
-  learning_rate:  0.02
+  learning_rate:  0.1
   lr_decay:       0.992
   drift_correction: "hier_fedrep"  # 自描述；run 脚本另传 --framework hier_fedavg_fedrep
   proximal_ref:     "edge"
@@ -103,10 +103,10 @@ backdoor:
   trigger:        "badnet"
   malicious_strategy: "vanilla"   # 由 --attack_method badpfl 覆盖
   target_label:   9
-  poison_ratio:   0.5
+  poison_ratio:   0.2
   malicious_ids:  [3]             # spread 下被忽略，n_malicious 说了算
   malicious_placement: "spread"
-  n_malicious:    2               # 20 个客户端里 2 个恶意（10%）
+  n_malicious:    10               # 20 个客户端里 2 个恶意（10%）
   attack_freq_Q:  1
   badnet_size:    3
   badnet_value:   1.0
