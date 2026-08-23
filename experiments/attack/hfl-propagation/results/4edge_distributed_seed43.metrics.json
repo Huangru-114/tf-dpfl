@@ -1,0 +1,1734 @@
+{
+  "run": {
+    "config_path": "/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tf-dpfl/experiments/attack/hfl-propagation/4edge_distributed.yaml",
+    "run_name": "hier_fedavg_fedrep_noniid_badpfl_seed43",
+    "method": "hier_fedrep",
+    "defense": "none",
+    "attack": "badpfl",
+    "n_rounds": 80,
+    "malicious_ids": [
+      1,
+      5,
+      13,
+      26,
+      30,
+      40,
+      53,
+      73,
+      94,
+      99
+    ],
+    "client_fraction": 0.1,
+    "poison_ratio": 0.2,
+    "n_clients": 100,
+    "n_edges": 4,
+    "n_malicious": 10,
+    "forced_participation": false,
+    "arch": "resnet10"
+  },
+  "rounds": [
+    {
+      "round": 5,
+      "global_asr": 0.183,
+      "edge_asr": 0.227,
+      "local_benign_asr": 0.139,
+      "same_edge_asr": 0.139,
+      "diff_edge_asr": 0.0,
+      "local_malicious_asr": 0.299
+    },
+    {
+      "round": 10,
+      "global_asr": 0.265,
+      "edge_asr": 0.275,
+      "local_benign_asr": 0.21,
+      "same_edge_asr": 0.21,
+      "diff_edge_asr": 0.0,
+      "local_malicious_asr": 0.556
+    },
+    {
+      "round": 15,
+      "global_asr": 0.552,
+      "edge_asr": 0.495,
+      "local_benign_asr": 0.366,
+      "same_edge_asr": 0.366,
+      "diff_edge_asr": 0.0,
+      "local_malicious_asr": 0.718
+    },
+    {
+      "round": 20,
+      "global_asr": 0.853,
+      "edge_asr": 0.829,
+      "local_benign_asr": 0.443,
+      "same_edge_asr": 0.443,
+      "diff_edge_asr": 0.0,
+      "local_malicious_asr": 0.732
+    },
+    {
+      "round": 25,
+      "global_asr": 0.732,
+      "edge_asr": 0.65,
+      "local_benign_asr": 0.562,
+      "same_edge_asr": 0.562,
+      "diff_edge_asr": 0.0,
+      "local_malicious_asr": 0.883
+    },
+    {
+      "round": 30,
+      "global_asr": 0.79,
+      "edge_asr": 0.772,
+      "local_benign_asr": 0.519,
+      "same_edge_asr": 0.519,
+      "diff_edge_asr": 0.0,
+      "local_malicious_asr": 0.852
+    },
+    {
+      "round": 35,
+      "global_asr": 0.583,
+      "edge_asr": 0.527,
+      "local_benign_asr": 0.524,
+      "same_edge_asr": 0.524,
+      "diff_edge_asr": 0.0,
+      "local_malicious_asr": 0.874
+    },
+    {
+      "round": 40,
+      "global_asr": 0.855,
+      "edge_asr": 0.761,
+      "local_benign_asr": 0.601,
+      "same_edge_asr": 0.601,
+      "diff_edge_asr": 0.0,
+      "local_malicious_asr": 0.854
+    },
+    {
+      "round": 45,
+      "global_asr": 0.847,
+      "edge_asr": 0.798,
+      "local_benign_asr": 0.607,
+      "same_edge_asr": 0.607,
+      "diff_edge_asr": 0.0,
+      "local_malicious_asr": 0.925
+    },
+    {
+      "round": 50,
+      "global_asr": 0.768,
+      "edge_asr": 0.717,
+      "local_benign_asr": 0.619,
+      "same_edge_asr": 0.619,
+      "diff_edge_asr": 0.0,
+      "local_malicious_asr": 0.923
+    },
+    {
+      "round": 55,
+      "global_asr": 0.871,
+      "edge_asr": 0.838,
+      "local_benign_asr": 0.609,
+      "same_edge_asr": 0.609,
+      "diff_edge_asr": 0.0,
+      "local_malicious_asr": 0.937
+    },
+    {
+      "round": 60,
+      "global_asr": 0.893,
+      "edge_asr": 0.876,
+      "local_benign_asr": 0.649,
+      "same_edge_asr": 0.649,
+      "diff_edge_asr": 0.0,
+      "local_malicious_asr": 0.957
+    },
+    {
+      "round": 65,
+      "global_asr": 0.883,
+      "edge_asr": 0.865,
+      "local_benign_asr": 0.672,
+      "same_edge_asr": 0.672,
+      "diff_edge_asr": 0.0,
+      "local_malicious_asr": 0.962
+    },
+    {
+      "round": 70,
+      "global_asr": 0.888,
+      "edge_asr": 0.876,
+      "local_benign_asr": 0.709,
+      "same_edge_asr": 0.709,
+      "diff_edge_asr": 0.0,
+      "local_malicious_asr": 0.974
+    },
+    {
+      "round": 75,
+      "global_asr": 0.897,
+      "edge_asr": 0.892,
+      "local_benign_asr": 0.698,
+      "same_edge_asr": 0.698,
+      "diff_edge_asr": 0.0,
+      "local_malicious_asr": 0.969
+    },
+    {
+      "round": 80,
+      "global_asr": 0.887,
+      "edge_asr": 0.881,
+      "local_benign_asr": 0.716,
+      "same_edge_asr": 0.716,
+      "diff_edge_asr": 0.0,
+      "local_malicious_asr": 0.971
+    }
+  ],
+  "final": {
+    "round": 80,
+    "global_asr": 0.887,
+    "edge_asr": 0.881,
+    "local_benign_asr": 0.716,
+    "same_edge_asr": 0.716,
+    "diff_edge_asr": 0.0,
+    "local_malicious_asr": 0.971
+  },
+  "per_edge_rounds": {
+    "5": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.261,
+        "client_benign": 0.159,
+        "client_malicious": 0.396,
+        "n_benign": 22,
+        "n_malicious": 3,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.275,
+        "client_benign": 0.19,
+        "client_malicious": 0.253,
+        "n_benign": 22,
+        "n_malicious": 3,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 2,
+        "edge_asr": 0.08,
+        "client_benign": 0.069,
+        "client_malicious": 0.387,
+        "n_benign": 23,
+        "n_malicious": 2,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 3,
+        "edge_asr": 0.291,
+        "client_benign": 0.141,
+        "client_malicious": 0.136,
+        "n_benign": 23,
+        "n_malicious": 2,
+        "has_malicious": true
+      }
+    ],
+    "10": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.34,
+        "client_benign": 0.176,
+        "client_malicious": 0.481,
+        "n_benign": 22,
+        "n_malicious": 3,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.305,
+        "client_benign": 0.267,
+        "client_malicious": 0.591,
+        "n_benign": 22,
+        "n_malicious": 3,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 2,
+        "edge_asr": 0.287,
+        "client_benign": 0.14,
+        "client_malicious": 0.55,
+        "n_benign": 23,
+        "n_malicious": 2,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 3,
+        "edge_asr": 0.167,
+        "client_benign": 0.258,
+        "client_malicious": 0.621,
+        "n_benign": 23,
+        "n_malicious": 2,
+        "has_malicious": true
+      }
+    ],
+    "15": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.242,
+        "client_benign": 0.304,
+        "client_malicious": 0.588,
+        "n_benign": 22,
+        "n_malicious": 3,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.722,
+        "client_benign": 0.42,
+        "client_malicious": 0.857,
+        "n_benign": 22,
+        "n_malicious": 3,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 2,
+        "edge_asr": 0.271,
+        "client_benign": 0.316,
+        "client_malicious": 0.695,
+        "n_benign": 23,
+        "n_malicious": 2,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 3,
+        "edge_asr": 0.746,
+        "client_benign": 0.423,
+        "client_malicious": 0.724,
+        "n_benign": 23,
+        "n_malicious": 2,
+        "has_malicious": true
+      }
+    ],
+    "20": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.857,
+        "client_benign": 0.459,
+        "client_malicious": 0.743,
+        "n_benign": 22,
+        "n_malicious": 3,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.871,
+        "client_benign": 0.469,
+        "client_malicious": 0.789,
+        "n_benign": 22,
+        "n_malicious": 3,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 2,
+        "edge_asr": 0.784,
+        "client_benign": 0.359,
+        "client_malicious": 0.703,
+        "n_benign": 23,
+        "n_malicious": 2,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 3,
+        "edge_asr": 0.804,
+        "client_benign": 0.488,
+        "client_malicious": 0.657,
+        "n_benign": 23,
+        "n_malicious": 2,
+        "has_malicious": true
+      }
+    ],
+    "25": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.633,
+        "client_benign": 0.527,
+        "client_malicious": 0.86,
+        "n_benign": 22,
+        "n_malicious": 3,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.602,
+        "client_benign": 0.625,
+        "client_malicious": 0.909,
+        "n_benign": 22,
+        "n_malicious": 3,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 2,
+        "edge_asr": 0.631,
+        "client_benign": 0.485,
+        "client_malicious": 0.846,
+        "n_benign": 23,
+        "n_malicious": 2,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 3,
+        "edge_asr": 0.733,
+        "client_benign": 0.61,
+        "client_malicious": 0.915,
+        "n_benign": 23,
+        "n_malicious": 2,
+        "has_malicious": true
+      }
+    ],
+    "30": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.693,
+        "client_benign": 0.431,
+        "client_malicious": 0.73,
+        "n_benign": 22,
+        "n_malicious": 3,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.818,
+        "client_benign": 0.574,
+        "client_malicious": 0.928,
+        "n_benign": 22,
+        "n_malicious": 3,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 2,
+        "edge_asr": 0.849,
+        "client_benign": 0.481,
+        "client_malicious": 0.875,
+        "n_benign": 23,
+        "n_malicious": 2,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 3,
+        "edge_asr": 0.73,
+        "client_benign": 0.591,
+        "client_malicious": 0.898,
+        "n_benign": 23,
+        "n_malicious": 2,
+        "has_malicious": true
+      }
+    ],
+    "35": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.815,
+        "client_benign": 0.55,
+        "client_malicious": 0.871,
+        "n_benign": 22,
+        "n_malicious": 3,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.734,
+        "client_benign": 0.584,
+        "client_malicious": 0.922,
+        "n_benign": 22,
+        "n_malicious": 3,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 2,
+        "edge_asr": 0.379,
+        "client_benign": 0.45,
+        "client_malicious": 0.87,
+        "n_benign": 23,
+        "n_malicious": 2,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 3,
+        "edge_asr": 0.181,
+        "client_benign": 0.514,
+        "client_malicious": 0.808,
+        "n_benign": 23,
+        "n_malicious": 2,
+        "has_malicious": true
+      }
+    ],
+    "40": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.826,
+        "client_benign": 0.534,
+        "client_malicious": 0.919,
+        "n_benign": 22,
+        "n_malicious": 3,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.86,
+        "client_benign": 0.617,
+        "client_malicious": 0.775,
+        "n_benign": 22,
+        "n_malicious": 3,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 2,
+        "edge_asr": 0.533,
+        "client_benign": 0.609,
+        "client_malicious": 0.967,
+        "n_benign": 23,
+        "n_malicious": 2,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 3,
+        "edge_asr": 0.824,
+        "client_benign": 0.642,
+        "client_malicious": 0.761,
+        "n_benign": 23,
+        "n_malicious": 2,
+        "has_malicious": true
+      }
+    ],
+    "45": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.882,
+        "client_benign": 0.578,
+        "client_malicious": 0.93,
+        "n_benign": 22,
+        "n_malicious": 3,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.866,
+        "client_benign": 0.616,
+        "client_malicious": 0.875,
+        "n_benign": 22,
+        "n_malicious": 3,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 2,
+        "edge_asr": 0.653,
+        "client_benign": 0.575,
+        "client_malicious": 0.983,
+        "n_benign": 23,
+        "n_malicious": 2,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 3,
+        "edge_asr": 0.792,
+        "client_benign": 0.658,
+        "client_malicious": 0.937,
+        "n_benign": 23,
+        "n_malicious": 2,
+        "has_malicious": true
+      }
+    ],
+    "50": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.728,
+        "client_benign": 0.581,
+        "client_malicious": 0.879,
+        "n_benign": 22,
+        "n_malicious": 3,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.883,
+        "client_benign": 0.694,
+        "client_malicious": 0.963,
+        "n_benign": 22,
+        "n_malicious": 3,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 2,
+        "edge_asr": 0.596,
+        "client_benign": 0.559,
+        "client_malicious": 0.904,
+        "n_benign": 23,
+        "n_malicious": 2,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 3,
+        "edge_asr": 0.662,
+        "client_benign": 0.645,
+        "client_malicious": 0.947,
+        "n_benign": 23,
+        "n_malicious": 2,
+        "has_malicious": true
+      }
+    ],
+    "55": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.742,
+        "client_benign": 0.578,
+        "client_malicious": 0.883,
+        "n_benign": 22,
+        "n_malicious": 3,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.866,
+        "client_benign": 0.663,
+        "client_malicious": 0.952,
+        "n_benign": 22,
+        "n_malicious": 3,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 2,
+        "edge_asr": 0.937,
+        "client_benign": 0.571,
+        "client_malicious": 0.99,
+        "n_benign": 23,
+        "n_malicious": 2,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 3,
+        "edge_asr": 0.806,
+        "client_benign": 0.626,
+        "client_malicious": 0.941,
+        "n_benign": 23,
+        "n_malicious": 2,
+        "has_malicious": true
+      }
+    ],
+    "60": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.931,
+        "client_benign": 0.61,
+        "client_malicious": 0.954,
+        "n_benign": 22,
+        "n_malicious": 3,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.877,
+        "client_benign": 0.699,
+        "client_malicious": 0.975,
+        "n_benign": 22,
+        "n_malicious": 3,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 2,
+        "edge_asr": 0.832,
+        "client_benign": 0.607,
+        "client_malicious": 0.939,
+        "n_benign": 23,
+        "n_malicious": 2,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 3,
+        "edge_asr": 0.865,
+        "client_benign": 0.678,
+        "client_malicious": 0.953,
+        "n_benign": 23,
+        "n_malicious": 2,
+        "has_malicious": true
+      }
+    ],
+    "65": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.829,
+        "client_benign": 0.651,
+        "client_malicious": 0.939,
+        "n_benign": 22,
+        "n_malicious": 3,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.93,
+        "client_benign": 0.725,
+        "client_malicious": 0.983,
+        "n_benign": 22,
+        "n_malicious": 3,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 2,
+        "edge_asr": 0.859,
+        "client_benign": 0.615,
+        "client_malicious": 0.972,
+        "n_benign": 23,
+        "n_malicious": 2,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 3,
+        "edge_asr": 0.842,
+        "client_benign": 0.7,
+        "client_malicious": 0.952,
+        "n_benign": 23,
+        "n_malicious": 2,
+        "has_malicious": true
+      }
+    ],
+    "70": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.848,
+        "client_benign": 0.678,
+        "client_malicious": 0.956,
+        "n_benign": 22,
+        "n_malicious": 3,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.882,
+        "client_benign": 0.735,
+        "client_malicious": 0.986,
+        "n_benign": 22,
+        "n_malicious": 3,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 2,
+        "edge_asr": 0.83,
+        "client_benign": 0.657,
+        "client_malicious": 0.98,
+        "n_benign": 23,
+        "n_malicious": 2,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 3,
+        "edge_asr": 0.945,
+        "client_benign": 0.764,
+        "client_malicious": 0.977,
+        "n_benign": 23,
+        "n_malicious": 2,
+        "has_malicious": true
+      }
+    ],
+    "75": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.927,
+        "client_benign": 0.688,
+        "client_malicious": 0.957,
+        "n_benign": 22,
+        "n_malicious": 3,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.882,
+        "client_benign": 0.72,
+        "client_malicious": 0.974,
+        "n_benign": 22,
+        "n_malicious": 3,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 2,
+        "edge_asr": 0.903,
+        "client_benign": 0.663,
+        "client_malicious": 0.971,
+        "n_benign": 23,
+        "n_malicious": 2,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 3,
+        "edge_asr": 0.854,
+        "client_benign": 0.721,
+        "client_malicious": 0.978,
+        "n_benign": 23,
+        "n_malicious": 2,
+        "has_malicious": true
+      }
+    ],
+    "80": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.897,
+        "client_benign": 0.702,
+        "client_malicious": 0.961,
+        "n_benign": 22,
+        "n_malicious": 3,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.847,
+        "client_benign": 0.736,
+        "client_malicious": 0.977,
+        "n_benign": 22,
+        "n_malicious": 3,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 2,
+        "edge_asr": 0.917,
+        "client_benign": 0.691,
+        "client_malicious": 0.973,
+        "n_benign": 23,
+        "n_malicious": 2,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 3,
+        "edge_asr": 0.864,
+        "client_benign": 0.734,
+        "client_malicious": 0.973,
+        "n_benign": 23,
+        "n_malicious": 2,
+        "has_malicious": true
+      }
+    ]
+  },
+  "per_edge_final": [
+    {
+      "edge_id": 0,
+      "edge_asr": 0.897,
+      "client_benign": 0.702,
+      "client_malicious": 0.961,
+      "n_benign": 22,
+      "n_malicious": 3,
+      "has_malicious": true
+    },
+    {
+      "edge_id": 1,
+      "edge_asr": 0.847,
+      "client_benign": 0.736,
+      "client_malicious": 0.977,
+      "n_benign": 22,
+      "n_malicious": 3,
+      "has_malicious": true
+    },
+    {
+      "edge_id": 2,
+      "edge_asr": 0.917,
+      "client_benign": 0.691,
+      "client_malicious": 0.973,
+      "n_benign": 23,
+      "n_malicious": 2,
+      "has_malicious": true
+    },
+    {
+      "edge_id": 3,
+      "edge_asr": 0.864,
+      "client_benign": 0.734,
+      "client_malicious": 0.973,
+      "n_benign": 23,
+      "n_malicious": 2,
+      "has_malicious": true
+    }
+  ],
+  "acc_rounds": [
+    {
+      "round": 1,
+      "gm_acc": 0.1659,
+      "em_acc": 0.2771,
+      "pm_acc": null
+    },
+    {
+      "round": 2,
+      "gm_acc": 0.3543,
+      "em_acc": 0.3314,
+      "pm_acc": null
+    },
+    {
+      "round": 3,
+      "gm_acc": 0.4418,
+      "em_acc": 0.352,
+      "pm_acc": null
+    },
+    {
+      "round": 4,
+      "gm_acc": 0.4957,
+      "em_acc": 0.4086,
+      "pm_acc": null
+    },
+    {
+      "round": 5,
+      "gm_acc": 0.4979,
+      "em_acc": 0.4204,
+      "pm_acc": 0.5117
+    },
+    {
+      "round": 6,
+      "gm_acc": 0.5132,
+      "em_acc": 0.4382,
+      "pm_acc": null
+    },
+    {
+      "round": 7,
+      "gm_acc": 0.5424,
+      "em_acc": 0.4422,
+      "pm_acc": null
+    },
+    {
+      "round": 8,
+      "gm_acc": 0.554,
+      "em_acc": 0.4592,
+      "pm_acc": null
+    },
+    {
+      "round": 9,
+      "gm_acc": 0.568,
+      "em_acc": 0.4989,
+      "pm_acc": null
+    },
+    {
+      "round": 10,
+      "gm_acc": 0.5816,
+      "em_acc": 0.4878,
+      "pm_acc": 0.6216
+    },
+    {
+      "round": 11,
+      "gm_acc": 0.5876,
+      "em_acc": 0.519,
+      "pm_acc": null
+    },
+    {
+      "round": 12,
+      "gm_acc": 0.6085,
+      "em_acc": 0.5133,
+      "pm_acc": null
+    },
+    {
+      "round": 13,
+      "gm_acc": 0.6011,
+      "em_acc": 0.5436,
+      "pm_acc": null
+    },
+    {
+      "round": 14,
+      "gm_acc": 0.6038,
+      "em_acc": 0.5182,
+      "pm_acc": null
+    },
+    {
+      "round": 15,
+      "gm_acc": 0.6101,
+      "em_acc": 0.5492,
+      "pm_acc": 0.6701
+    },
+    {
+      "round": 16,
+      "gm_acc": 0.6213,
+      "em_acc": 0.5126,
+      "pm_acc": null
+    },
+    {
+      "round": 17,
+      "gm_acc": 0.6301,
+      "em_acc": 0.5786,
+      "pm_acc": null
+    },
+    {
+      "round": 18,
+      "gm_acc": 0.6214,
+      "em_acc": 0.574,
+      "pm_acc": null
+    },
+    {
+      "round": 19,
+      "gm_acc": 0.6456,
+      "em_acc": 0.5658,
+      "pm_acc": null
+    },
+    {
+      "round": 20,
+      "gm_acc": 0.6561,
+      "em_acc": 0.5805,
+      "pm_acc": 0.7011
+    },
+    {
+      "round": 21,
+      "gm_acc": 0.6529,
+      "em_acc": 0.5844,
+      "pm_acc": null
+    },
+    {
+      "round": 22,
+      "gm_acc": 0.6288,
+      "em_acc": 0.5469,
+      "pm_acc": null
+    },
+    {
+      "round": 23,
+      "gm_acc": 0.6582,
+      "em_acc": 0.563,
+      "pm_acc": null
+    },
+    {
+      "round": 24,
+      "gm_acc": 0.6638,
+      "em_acc": 0.5823,
+      "pm_acc": null
+    },
+    {
+      "round": 25,
+      "gm_acc": 0.6674,
+      "em_acc": 0.5681,
+      "pm_acc": 0.7067
+    },
+    {
+      "round": 26,
+      "gm_acc": 0.6802,
+      "em_acc": 0.631,
+      "pm_acc": null
+    },
+    {
+      "round": 27,
+      "gm_acc": 0.6655,
+      "em_acc": 0.6111,
+      "pm_acc": null
+    },
+    {
+      "round": 28,
+      "gm_acc": 0.6516,
+      "em_acc": 0.5716,
+      "pm_acc": null
+    },
+    {
+      "round": 29,
+      "gm_acc": 0.66,
+      "em_acc": 0.5821,
+      "pm_acc": null
+    },
+    {
+      "round": 30,
+      "gm_acc": 0.6634,
+      "em_acc": 0.6116,
+      "pm_acc": 0.7212
+    },
+    {
+      "round": 31,
+      "gm_acc": 0.6225,
+      "em_acc": 0.5567,
+      "pm_acc": null
+    },
+    {
+      "round": 32,
+      "gm_acc": 0.6707,
+      "em_acc": 0.6353,
+      "pm_acc": null
+    },
+    {
+      "round": 33,
+      "gm_acc": 0.6699,
+      "em_acc": 0.5866,
+      "pm_acc": null
+    },
+    {
+      "round": 34,
+      "gm_acc": 0.6705,
+      "em_acc": 0.6156,
+      "pm_acc": null
+    },
+    {
+      "round": 35,
+      "gm_acc": 0.6507,
+      "em_acc": 0.5783,
+      "pm_acc": 0.7247
+    },
+    {
+      "round": 36,
+      "gm_acc": 0.6758,
+      "em_acc": 0.6089,
+      "pm_acc": null
+    },
+    {
+      "round": 37,
+      "gm_acc": 0.6622,
+      "em_acc": 0.5757,
+      "pm_acc": null
+    },
+    {
+      "round": 38,
+      "gm_acc": 0.6573,
+      "em_acc": 0.5974,
+      "pm_acc": null
+    },
+    {
+      "round": 39,
+      "gm_acc": 0.6759,
+      "em_acc": 0.6281,
+      "pm_acc": null
+    },
+    {
+      "round": 40,
+      "gm_acc": 0.6594,
+      "em_acc": 0.62,
+      "pm_acc": 0.733
+    },
+    {
+      "round": 41,
+      "gm_acc": 0.6764,
+      "em_acc": 0.6281,
+      "pm_acc": null
+    },
+    {
+      "round": 42,
+      "gm_acc": 0.6816,
+      "em_acc": 0.638,
+      "pm_acc": null
+    },
+    {
+      "round": 43,
+      "gm_acc": 0.6894,
+      "em_acc": 0.6122,
+      "pm_acc": null
+    },
+    {
+      "round": 44,
+      "gm_acc": 0.6775,
+      "em_acc": 0.6083,
+      "pm_acc": null
+    },
+    {
+      "round": 45,
+      "gm_acc": 0.68,
+      "em_acc": 0.6541,
+      "pm_acc": 0.7384
+    },
+    {
+      "round": 46,
+      "gm_acc": 0.6888,
+      "em_acc": 0.6399,
+      "pm_acc": null
+    },
+    {
+      "round": 47,
+      "gm_acc": 0.6713,
+      "em_acc": 0.6312,
+      "pm_acc": null
+    },
+    {
+      "round": 48,
+      "gm_acc": 0.6747,
+      "em_acc": 0.5917,
+      "pm_acc": null
+    },
+    {
+      "round": 49,
+      "gm_acc": 0.667,
+      "em_acc": 0.6171,
+      "pm_acc": null
+    },
+    {
+      "round": 50,
+      "gm_acc": 0.6871,
+      "em_acc": 0.6586,
+      "pm_acc": 0.7537
+    },
+    {
+      "round": 51,
+      "gm_acc": 0.688,
+      "em_acc": 0.6706,
+      "pm_acc": null
+    },
+    {
+      "round": 52,
+      "gm_acc": 0.6702,
+      "em_acc": 0.6348,
+      "pm_acc": null
+    },
+    {
+      "round": 53,
+      "gm_acc": 0.685,
+      "em_acc": 0.6462,
+      "pm_acc": null
+    },
+    {
+      "round": 54,
+      "gm_acc": 0.6789,
+      "em_acc": 0.6564,
+      "pm_acc": null
+    },
+    {
+      "round": 55,
+      "gm_acc": 0.6755,
+      "em_acc": 0.6505,
+      "pm_acc": 0.7566
+    },
+    {
+      "round": 56,
+      "gm_acc": 0.6836,
+      "em_acc": 0.6742,
+      "pm_acc": null
+    },
+    {
+      "round": 57,
+      "gm_acc": 0.6932,
+      "em_acc": 0.649,
+      "pm_acc": null
+    },
+    {
+      "round": 58,
+      "gm_acc": 0.6479,
+      "em_acc": 0.5808,
+      "pm_acc": null
+    },
+    {
+      "round": 59,
+      "gm_acc": 0.683,
+      "em_acc": 0.6706,
+      "pm_acc": null
+    },
+    {
+      "round": 60,
+      "gm_acc": 0.689,
+      "em_acc": 0.6791,
+      "pm_acc": 0.7619
+    },
+    {
+      "round": 61,
+      "gm_acc": 0.6901,
+      "em_acc": 0.6787,
+      "pm_acc": null
+    },
+    {
+      "round": 62,
+      "gm_acc": 0.6894,
+      "em_acc": 0.6779,
+      "pm_acc": null
+    },
+    {
+      "round": 63,
+      "gm_acc": 0.6866,
+      "em_acc": 0.68,
+      "pm_acc": null
+    },
+    {
+      "round": 64,
+      "gm_acc": 0.6898,
+      "em_acc": 0.6813,
+      "pm_acc": null
+    },
+    {
+      "round": 65,
+      "gm_acc": 0.6891,
+      "em_acc": 0.6817,
+      "pm_acc": 0.7663
+    },
+    {
+      "round": 66,
+      "gm_acc": 0.6862,
+      "em_acc": 0.6769,
+      "pm_acc": null
+    },
+    {
+      "round": 67,
+      "gm_acc": 0.6883,
+      "em_acc": 0.6804,
+      "pm_acc": null
+    },
+    {
+      "round": 68,
+      "gm_acc": 0.6869,
+      "em_acc": 0.6796,
+      "pm_acc": null
+    },
+    {
+      "round": 69,
+      "gm_acc": 0.6853,
+      "em_acc": 0.6815,
+      "pm_acc": null
+    },
+    {
+      "round": 70,
+      "gm_acc": 0.6876,
+      "em_acc": 0.6817,
+      "pm_acc": 0.767
+    },
+    {
+      "round": 71,
+      "gm_acc": 0.6878,
+      "em_acc": 0.6835,
+      "pm_acc": null
+    },
+    {
+      "round": 72,
+      "gm_acc": 0.6872,
+      "em_acc": 0.6817,
+      "pm_acc": null
+    },
+    {
+      "round": 73,
+      "gm_acc": 0.6894,
+      "em_acc": 0.6882,
+      "pm_acc": null
+    },
+    {
+      "round": 74,
+      "gm_acc": 0.6856,
+      "em_acc": 0.6847,
+      "pm_acc": null
+    },
+    {
+      "round": 75,
+      "gm_acc": 0.6856,
+      "em_acc": 0.6831,
+      "pm_acc": 0.7682
+    },
+    {
+      "round": 76,
+      "gm_acc": 0.6844,
+      "em_acc": 0.6804,
+      "pm_acc": null
+    },
+    {
+      "round": 77,
+      "gm_acc": 0.6854,
+      "em_acc": 0.6812,
+      "pm_acc": null
+    },
+    {
+      "round": 78,
+      "gm_acc": 0.6868,
+      "em_acc": 0.6837,
+      "pm_acc": null
+    },
+    {
+      "round": 79,
+      "gm_acc": 0.6874,
+      "em_acc": 0.6824,
+      "pm_acc": null
+    },
+    {
+      "round": 80,
+      "gm_acc": 0.6866,
+      "em_acc": 0.678,
+      "pm_acc": 0.7694
+    }
+  ],
+  "final_acc": {
+    "round": 80,
+    "gm_acc": 0.6866,
+    "em_acc": 0.678,
+    "pm_acc": 0.7694,
+    "final_pm_weighted": 0.7695
+  },
+  "admitted": [],
+  "admitted_count_mean": null,
+  "rejected_ids": [],
+  "malicious_selected_rounds": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61,
+    62,
+    63,
+    64,
+    65,
+    66,
+    67,
+    68,
+    69,
+    70,
+    71,
+    72,
+    73,
+    74,
+    75,
+    76,
+    77,
+    78,
+    79,
+    80
+  ],
+  "n_malicious_participations": 79,
+  "malicious_participation_by_client": {
+    "1": [
+      1,
+      6,
+      7,
+      17,
+      18,
+      21,
+      24,
+      27,
+      29,
+      32,
+      34,
+      40,
+      49,
+      51,
+      56,
+      61,
+      63,
+      64,
+      65,
+      74,
+      76
+    ],
+    "5": [
+      7,
+      12,
+      13,
+      15,
+      16,
+      19,
+      20,
+      23,
+      24,
+      35,
+      36,
+      37,
+      41,
+      44,
+      45,
+      48,
+      52,
+      53,
+      57,
+      61,
+      63,
+      65,
+      68,
+      70,
+      73,
+      74,
+      80
+    ],
+    "13": [
+      3,
+      5,
+      6,
+      12,
+      17,
+      21,
+      24,
+      33,
+      34,
+      35,
+      39,
+      42,
+      43,
+      45,
+      57,
+      59,
+      60,
+      67,
+      68,
+      75,
+      76,
+      78,
+      80
+    ],
+    "26": [
+      4,
+      5,
+      7,
+      14,
+      21,
+      22,
+      24,
+      29,
+      30,
+      31,
+      33,
+      35,
+      36,
+      37,
+      39,
+      42,
+      44,
+      46,
+      50,
+      51,
+      53,
+      55,
+      56,
+      57,
+      58,
+      64,
+      68,
+      72,
+      73,
+      77,
+      78
+    ],
+    "30": [
+      9,
+      10,
+      11,
+      13,
+      16,
+      19,
+      20,
+      25,
+      36,
+      43,
+      44,
+      45,
+      49,
+      54,
+      56,
+      65,
+      66,
+      67,
+      68,
+      69,
+      73,
+      76
+    ],
+    "40": [
+      2,
+      4,
+      5,
+      6,
+      8,
+      11,
+      13,
+      14,
+      15,
+      18,
+      19,
+      22,
+      24,
+      25,
+      27,
+      38,
+      39,
+      49,
+      50,
+      51,
+      52,
+      60,
+      62,
+      65,
+      67,
+      70,
+      71,
+      73,
+      75,
+      78,
+      79,
+      80
+    ],
+    "53": [
+      1,
+      4,
+      6,
+      8,
+      12,
+      13,
+      14,
+      20,
+      21,
+      22,
+      25,
+      26,
+      30,
+      36,
+      38,
+      41,
+      43,
+      48,
+      51,
+      53,
+      62,
+      66,
+      67,
+      69,
+      75
+    ],
+    "73": [
+      1,
+      4,
+      9,
+      11,
+      12,
+      20,
+      21,
+      23,
+      24,
+      25,
+      33,
+      39,
+      46,
+      51,
+      55,
+      59,
+      61,
+      63,
+      67,
+      71,
+      76,
+      80
+    ],
+    "94": [
+      2,
+      7,
+      9,
+      11,
+      13,
+      15,
+      17,
+      18,
+      19,
+      21,
+      22,
+      23,
+      27,
+      31,
+      33,
+      36,
+      38,
+      39,
+      41,
+      42,
+      44,
+      45,
+      51,
+      52,
+      57,
+      61,
+      63,
+      66
+    ],
+    "99": [
+      6,
+      14,
+      16,
+      17,
+      18,
+      20,
+      21,
+      24,
+      25,
+      26,
+      28,
+      29,
+      30,
+      32,
+      36,
+      38,
+      39,
+      40,
+      42,
+      44,
+      48,
+      50,
+      54,
+      56,
+      57,
+      66,
+      67,
+      69,
+      70,
+      76
+    ]
+  },
+  "client_failures": [],
+  "errors": [],
+  "log_tail": [
+    "",
+    "[ Per-Class Report ]",
+    "              precision    recall  f1-score   support",
+    "",
+    "           0     0.7959    0.7820    0.7889      1491",
+    "           1     0.8244    0.8548    0.8393      1488",
+    "           2     0.7684    0.7200    0.7434      1525",
+    "           3     0.6718    0.6166    0.6430      1497",
+    "           4     0.7441    0.7111    0.7272      1464",
+    "           5     0.7207    0.6641    0.6912      1539",
+    "           6     0.7631    0.8321    0.7961      1471",
+    "           7     0.8099    0.7948    0.8023      1506",
+    "           8     0.8331    0.8935    0.8623      1503",
+    "           9     0.7479    0.8299    0.7868      1476",
+    "",
+    "    accuracy                         0.7695     14960",
+    "   macro avg     0.7679    0.7699    0.7680     14960",
+    "weighted avg     0.7679    0.7695    0.7678     14960",
+    "",
+    "[ F1 Score ]",
+    "  Macro    F1 : 0.7680",
+    "  Weighted F1 : 0.7678",
+    "",
+    "[ AUC (OvR) ]",
+    "  Macro    AUC : 0.9721",
+    "  Weighted AUC : 0.9721",
+    "",
+    "[ Confusion Matrix ] (shape: (10, 10))",
+    "[[1166   33   59   17   16    8   14   23   87   68]",
+    " [  29 1272    5   17    5    7   20    3   24  106]",
+    " [  68   17 1098   63   80   49   67   39   25   19]",
+    " [  24   25   63  923   70  176   98   46   22   50]",
+    " [  31   17   42   71 1041   69   72   59   27   35]",
+    " [  13   13   65  155   54 1022   67   80   28   42]",
+    " [  15   15   50   61   33   26 1224   14   14   19]",
+    " [  24   21   28   43   85   51    8 1197    8   41]",
+    " [  55   23   12   11    6    2   13    5 1343   33]",
+    " [  40  107    7   13    9    8   21   12   34 1225]]",
+    "============================================================",
+    "  Report saved to report_PM_hier_fedavg_fedrep_noniid_badpfl_seed43.txt"
+  ],
+  "exit_code": 0
+}

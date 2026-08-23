@@ -1,0 +1,1496 @@
+{
+  "run": {
+    "config_path": "/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tf-dpfl/experiments/attack/hfl-propagation/2edge_collocated.yaml",
+    "run_name": "hier_fedavg_fedrep_noniid_badpfl_seed42",
+    "method": "hier_fedrep",
+    "defense": "none",
+    "attack": "badpfl",
+    "n_rounds": 80,
+    "malicious_ids": [
+      5,
+      17,
+      20,
+      25,
+      27,
+      39,
+      45,
+      46,
+      47,
+      49
+    ],
+    "client_fraction": 0.1,
+    "poison_ratio": 0.2,
+    "n_clients": 100,
+    "n_edges": 2,
+    "n_malicious": 10,
+    "forced_participation": false,
+    "arch": "resnet10"
+  },
+  "rounds": [
+    {
+      "round": 5,
+      "global_asr": 0.212,
+      "edge_asr": 0.25,
+      "local_benign_asr": 0.172,
+      "same_edge_asr": 0.144,
+      "diff_edge_asr": 0.195,
+      "local_malicious_asr": 0.397
+    },
+    {
+      "round": 10,
+      "global_asr": 0.406,
+      "edge_asr": 0.446,
+      "local_benign_asr": 0.293,
+      "same_edge_asr": 0.343,
+      "diff_edge_asr": 0.253,
+      "local_malicious_asr": 0.66
+    },
+    {
+      "round": 15,
+      "global_asr": 0.403,
+      "edge_asr": 0.384,
+      "local_benign_asr": 0.38,
+      "same_edge_asr": 0.408,
+      "diff_edge_asr": 0.357,
+      "local_malicious_asr": 0.85
+    },
+    {
+      "round": 20,
+      "global_asr": 0.741,
+      "edge_asr": 0.686,
+      "local_benign_asr": 0.486,
+      "same_edge_asr": 0.542,
+      "diff_edge_asr": 0.441,
+      "local_malicious_asr": 0.898
+    },
+    {
+      "round": 25,
+      "global_asr": 0.825,
+      "edge_asr": 0.79,
+      "local_benign_asr": 0.501,
+      "same_edge_asr": 0.551,
+      "diff_edge_asr": 0.46,
+      "local_malicious_asr": 0.874
+    },
+    {
+      "round": 30,
+      "global_asr": 0.856,
+      "edge_asr": 0.842,
+      "local_benign_asr": 0.568,
+      "same_edge_asr": 0.637,
+      "diff_edge_asr": 0.514,
+      "local_malicious_asr": 0.942
+    },
+    {
+      "round": 35,
+      "global_asr": 0.752,
+      "edge_asr": 0.742,
+      "local_benign_asr": 0.583,
+      "same_edge_asr": 0.622,
+      "diff_edge_asr": 0.552,
+      "local_malicious_asr": 0.93
+    },
+    {
+      "round": 40,
+      "global_asr": 0.757,
+      "edge_asr": 0.735,
+      "local_benign_asr": 0.607,
+      "same_edge_asr": 0.631,
+      "diff_edge_asr": 0.588,
+      "local_malicious_asr": 0.935
+    },
+    {
+      "round": 45,
+      "global_asr": 0.829,
+      "edge_asr": 0.826,
+      "local_benign_asr": 0.618,
+      "same_edge_asr": 0.621,
+      "diff_edge_asr": 0.616,
+      "local_malicious_asr": 0.947
+    },
+    {
+      "round": 50,
+      "global_asr": 0.832,
+      "edge_asr": 0.825,
+      "local_benign_asr": 0.654,
+      "same_edge_asr": 0.655,
+      "diff_edge_asr": 0.653,
+      "local_malicious_asr": 0.957
+    },
+    {
+      "round": 55,
+      "global_asr": 0.854,
+      "edge_asr": 0.852,
+      "local_benign_asr": 0.663,
+      "same_edge_asr": 0.666,
+      "diff_edge_asr": 0.66,
+      "local_malicious_asr": 0.964
+    },
+    {
+      "round": 60,
+      "global_asr": 0.914,
+      "edge_asr": 0.905,
+      "local_benign_asr": 0.7,
+      "same_edge_asr": 0.705,
+      "diff_edge_asr": 0.696,
+      "local_malicious_asr": 0.966
+    },
+    {
+      "round": 65,
+      "global_asr": 0.891,
+      "edge_asr": 0.891,
+      "local_benign_asr": 0.708,
+      "same_edge_asr": 0.696,
+      "diff_edge_asr": 0.717,
+      "local_malicious_asr": 0.966
+    },
+    {
+      "round": 70,
+      "global_asr": 0.9,
+      "edge_asr": 0.898,
+      "local_benign_asr": 0.733,
+      "same_edge_asr": 0.726,
+      "diff_edge_asr": 0.739,
+      "local_malicious_asr": 0.969
+    },
+    {
+      "round": 75,
+      "global_asr": 0.898,
+      "edge_asr": 0.894,
+      "local_benign_asr": 0.717,
+      "same_edge_asr": 0.7,
+      "diff_edge_asr": 0.73,
+      "local_malicious_asr": 0.96
+    },
+    {
+      "round": 80,
+      "global_asr": 0.932,
+      "edge_asr": 0.928,
+      "local_benign_asr": 0.729,
+      "same_edge_asr": 0.706,
+      "diff_edge_asr": 0.747,
+      "local_malicious_asr": 0.969
+    }
+  ],
+  "final": {
+    "round": 80,
+    "global_asr": 0.932,
+    "edge_asr": 0.928,
+    "local_benign_asr": 0.729,
+    "same_edge_asr": 0.706,
+    "diff_edge_asr": 0.747,
+    "local_malicious_asr": 0.969
+  },
+  "per_edge_rounds": {
+    "5": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.156,
+        "client_benign": 0.144,
+        "client_malicious": 0.397,
+        "n_benign": 40,
+        "n_malicious": 10,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.343,
+        "client_benign": 0.195,
+        "client_malicious": 0.0,
+        "n_benign": 50,
+        "n_malicious": 0,
+        "has_malicious": false
+      }
+    ],
+    "10": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.638,
+        "client_benign": 0.343,
+        "client_malicious": 0.66,
+        "n_benign": 40,
+        "n_malicious": 10,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.254,
+        "client_benign": 0.253,
+        "client_malicious": 0.0,
+        "n_benign": 50,
+        "n_malicious": 0,
+        "has_malicious": false
+      }
+    ],
+    "15": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.417,
+        "client_benign": 0.408,
+        "client_malicious": 0.85,
+        "n_benign": 40,
+        "n_malicious": 10,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.35,
+        "client_benign": 0.357,
+        "client_malicious": 0.0,
+        "n_benign": 50,
+        "n_malicious": 0,
+        "has_malicious": false
+      }
+    ],
+    "20": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.915,
+        "client_benign": 0.542,
+        "client_malicious": 0.898,
+        "n_benign": 40,
+        "n_malicious": 10,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.458,
+        "client_benign": 0.441,
+        "client_malicious": 0.0,
+        "n_benign": 50,
+        "n_malicious": 0,
+        "has_malicious": false
+      }
+    ],
+    "25": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.901,
+        "client_benign": 0.551,
+        "client_malicious": 0.874,
+        "n_benign": 40,
+        "n_malicious": 10,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.68,
+        "client_benign": 0.46,
+        "client_malicious": 0.0,
+        "n_benign": 50,
+        "n_malicious": 0,
+        "has_malicious": false
+      }
+    ],
+    "30": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.922,
+        "client_benign": 0.637,
+        "client_malicious": 0.942,
+        "n_benign": 40,
+        "n_malicious": 10,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.761,
+        "client_benign": 0.514,
+        "client_malicious": 0.0,
+        "n_benign": 50,
+        "n_malicious": 0,
+        "has_malicious": false
+      }
+    ],
+    "35": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.676,
+        "client_benign": 0.622,
+        "client_malicious": 0.93,
+        "n_benign": 40,
+        "n_malicious": 10,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.807,
+        "client_benign": 0.552,
+        "client_malicious": 0.0,
+        "n_benign": 50,
+        "n_malicious": 0,
+        "has_malicious": false
+      }
+    ],
+    "40": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.684,
+        "client_benign": 0.631,
+        "client_malicious": 0.935,
+        "n_benign": 40,
+        "n_malicious": 10,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.787,
+        "client_benign": 0.588,
+        "client_malicious": 0.0,
+        "n_benign": 50,
+        "n_malicious": 0,
+        "has_malicious": false
+      }
+    ],
+    "45": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.827,
+        "client_benign": 0.621,
+        "client_malicious": 0.947,
+        "n_benign": 40,
+        "n_malicious": 10,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.824,
+        "client_benign": 0.616,
+        "client_malicious": 0.0,
+        "n_benign": 50,
+        "n_malicious": 0,
+        "has_malicious": false
+      }
+    ],
+    "50": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.81,
+        "client_benign": 0.655,
+        "client_malicious": 0.957,
+        "n_benign": 40,
+        "n_malicious": 10,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.839,
+        "client_benign": 0.653,
+        "client_malicious": 0.0,
+        "n_benign": 50,
+        "n_malicious": 0,
+        "has_malicious": false
+      }
+    ],
+    "55": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.868,
+        "client_benign": 0.666,
+        "client_malicious": 0.964,
+        "n_benign": 40,
+        "n_malicious": 10,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.836,
+        "client_benign": 0.66,
+        "client_malicious": 0.0,
+        "n_benign": 50,
+        "n_malicious": 0,
+        "has_malicious": false
+      }
+    ],
+    "60": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.944,
+        "client_benign": 0.705,
+        "client_malicious": 0.966,
+        "n_benign": 40,
+        "n_malicious": 10,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.866,
+        "client_benign": 0.696,
+        "client_malicious": 0.0,
+        "n_benign": 50,
+        "n_malicious": 0,
+        "has_malicious": false
+      }
+    ],
+    "65": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.901,
+        "client_benign": 0.696,
+        "client_malicious": 0.966,
+        "n_benign": 40,
+        "n_malicious": 10,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.88,
+        "client_benign": 0.717,
+        "client_malicious": 0.0,
+        "n_benign": 50,
+        "n_malicious": 0,
+        "has_malicious": false
+      }
+    ],
+    "70": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.901,
+        "client_benign": 0.726,
+        "client_malicious": 0.969,
+        "n_benign": 40,
+        "n_malicious": 10,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.895,
+        "client_benign": 0.739,
+        "client_malicious": 0.0,
+        "n_benign": 50,
+        "n_malicious": 0,
+        "has_malicious": false
+      }
+    ],
+    "75": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.908,
+        "client_benign": 0.7,
+        "client_malicious": 0.96,
+        "n_benign": 40,
+        "n_malicious": 10,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.88,
+        "client_benign": 0.73,
+        "client_malicious": 0.0,
+        "n_benign": 50,
+        "n_malicious": 0,
+        "has_malicious": false
+      }
+    ],
+    "80": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.946,
+        "client_benign": 0.706,
+        "client_malicious": 0.969,
+        "n_benign": 40,
+        "n_malicious": 10,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.91,
+        "client_benign": 0.747,
+        "client_malicious": 0.0,
+        "n_benign": 50,
+        "n_malicious": 0,
+        "has_malicious": false
+      }
+    ]
+  },
+  "per_edge_final": [
+    {
+      "edge_id": 0,
+      "edge_asr": 0.946,
+      "client_benign": 0.706,
+      "client_malicious": 0.969,
+      "n_benign": 40,
+      "n_malicious": 10,
+      "has_malicious": true
+    },
+    {
+      "edge_id": 1,
+      "edge_asr": 0.91,
+      "client_benign": 0.747,
+      "client_malicious": 0.0,
+      "n_benign": 50,
+      "n_malicious": 0,
+      "has_malicious": false
+    }
+  ],
+  "acc_rounds": [
+    {
+      "round": 1,
+      "gm_acc": 0.2115,
+      "em_acc": 0.2601,
+      "pm_acc": null
+    },
+    {
+      "round": 2,
+      "gm_acc": 0.3914,
+      "em_acc": 0.3662,
+      "pm_acc": null
+    },
+    {
+      "round": 3,
+      "gm_acc": 0.4378,
+      "em_acc": 0.4234,
+      "pm_acc": null
+    },
+    {
+      "round": 4,
+      "gm_acc": 0.4715,
+      "em_acc": 0.4391,
+      "pm_acc": null
+    },
+    {
+      "round": 5,
+      "gm_acc": 0.5098,
+      "em_acc": 0.4839,
+      "pm_acc": 0.5648
+    },
+    {
+      "round": 6,
+      "gm_acc": 0.496,
+      "em_acc": 0.4703,
+      "pm_acc": null
+    },
+    {
+      "round": 7,
+      "gm_acc": 0.5482,
+      "em_acc": 0.5272,
+      "pm_acc": null
+    },
+    {
+      "round": 8,
+      "gm_acc": 0.5516,
+      "em_acc": 0.5238,
+      "pm_acc": null
+    },
+    {
+      "round": 9,
+      "gm_acc": 0.5489,
+      "em_acc": 0.5407,
+      "pm_acc": null
+    },
+    {
+      "round": 10,
+      "gm_acc": 0.5919,
+      "em_acc": 0.5809,
+      "pm_acc": 0.6725
+    },
+    {
+      "round": 11,
+      "gm_acc": 0.6048,
+      "em_acc": 0.5806,
+      "pm_acc": null
+    },
+    {
+      "round": 12,
+      "gm_acc": 0.6022,
+      "em_acc": 0.561,
+      "pm_acc": null
+    },
+    {
+      "round": 13,
+      "gm_acc": 0.5923,
+      "em_acc": 0.5793,
+      "pm_acc": null
+    },
+    {
+      "round": 14,
+      "gm_acc": 0.605,
+      "em_acc": 0.5866,
+      "pm_acc": null
+    },
+    {
+      "round": 15,
+      "gm_acc": 0.608,
+      "em_acc": 0.5898,
+      "pm_acc": 0.712
+    },
+    {
+      "round": 16,
+      "gm_acc": 0.6326,
+      "em_acc": 0.5937,
+      "pm_acc": null
+    },
+    {
+      "round": 17,
+      "gm_acc": 0.6255,
+      "em_acc": 0.6064,
+      "pm_acc": null
+    },
+    {
+      "round": 18,
+      "gm_acc": 0.6376,
+      "em_acc": 0.6237,
+      "pm_acc": null
+    },
+    {
+      "round": 19,
+      "gm_acc": 0.6316,
+      "em_acc": 0.609,
+      "pm_acc": null
+    },
+    {
+      "round": 20,
+      "gm_acc": 0.6421,
+      "em_acc": 0.6189,
+      "pm_acc": 0.7244
+    },
+    {
+      "round": 21,
+      "gm_acc": 0.653,
+      "em_acc": 0.6245,
+      "pm_acc": null
+    },
+    {
+      "round": 22,
+      "gm_acc": 0.6493,
+      "em_acc": 0.6318,
+      "pm_acc": null
+    },
+    {
+      "round": 23,
+      "gm_acc": 0.6534,
+      "em_acc": 0.6325,
+      "pm_acc": null
+    },
+    {
+      "round": 24,
+      "gm_acc": 0.6348,
+      "em_acc": 0.6033,
+      "pm_acc": null
+    },
+    {
+      "round": 25,
+      "gm_acc": 0.6535,
+      "em_acc": 0.6323,
+      "pm_acc": 0.7385
+    },
+    {
+      "round": 26,
+      "gm_acc": 0.6618,
+      "em_acc": 0.6497,
+      "pm_acc": null
+    },
+    {
+      "round": 27,
+      "gm_acc": 0.6508,
+      "em_acc": 0.6296,
+      "pm_acc": null
+    },
+    {
+      "round": 28,
+      "gm_acc": 0.6611,
+      "em_acc": 0.6441,
+      "pm_acc": null
+    },
+    {
+      "round": 29,
+      "gm_acc": 0.6464,
+      "em_acc": 0.6332,
+      "pm_acc": null
+    },
+    {
+      "round": 30,
+      "gm_acc": 0.6426,
+      "em_acc": 0.6328,
+      "pm_acc": 0.7408
+    },
+    {
+      "round": 31,
+      "gm_acc": 0.6707,
+      "em_acc": 0.6555,
+      "pm_acc": null
+    },
+    {
+      "round": 32,
+      "gm_acc": 0.6446,
+      "em_acc": 0.6236,
+      "pm_acc": null
+    },
+    {
+      "round": 33,
+      "gm_acc": 0.6567,
+      "em_acc": 0.629,
+      "pm_acc": null
+    },
+    {
+      "round": 34,
+      "gm_acc": 0.6465,
+      "em_acc": 0.641,
+      "pm_acc": null
+    },
+    {
+      "round": 35,
+      "gm_acc": 0.6611,
+      "em_acc": 0.6415,
+      "pm_acc": 0.746
+    },
+    {
+      "round": 36,
+      "gm_acc": 0.6533,
+      "em_acc": 0.6436,
+      "pm_acc": null
+    },
+    {
+      "round": 37,
+      "gm_acc": 0.6652,
+      "em_acc": 0.6488,
+      "pm_acc": null
+    },
+    {
+      "round": 38,
+      "gm_acc": 0.6475,
+      "em_acc": 0.6368,
+      "pm_acc": null
+    },
+    {
+      "round": 39,
+      "gm_acc": 0.6553,
+      "em_acc": 0.6396,
+      "pm_acc": null
+    },
+    {
+      "round": 40,
+      "gm_acc": 0.6606,
+      "em_acc": 0.6324,
+      "pm_acc": 0.7485
+    },
+    {
+      "round": 41,
+      "gm_acc": 0.65,
+      "em_acc": 0.6351,
+      "pm_acc": null
+    },
+    {
+      "round": 42,
+      "gm_acc": 0.6562,
+      "em_acc": 0.6467,
+      "pm_acc": null
+    },
+    {
+      "round": 43,
+      "gm_acc": 0.6652,
+      "em_acc": 0.6608,
+      "pm_acc": null
+    },
+    {
+      "round": 44,
+      "gm_acc": 0.6646,
+      "em_acc": 0.6522,
+      "pm_acc": null
+    },
+    {
+      "round": 45,
+      "gm_acc": 0.6635,
+      "em_acc": 0.6618,
+      "pm_acc": 0.7575
+    },
+    {
+      "round": 46,
+      "gm_acc": 0.657,
+      "em_acc": 0.6493,
+      "pm_acc": null
+    },
+    {
+      "round": 47,
+      "gm_acc": 0.6499,
+      "em_acc": 0.6366,
+      "pm_acc": null
+    },
+    {
+      "round": 48,
+      "gm_acc": 0.6588,
+      "em_acc": 0.6557,
+      "pm_acc": null
+    },
+    {
+      "round": 49,
+      "gm_acc": 0.6674,
+      "em_acc": 0.6646,
+      "pm_acc": null
+    },
+    {
+      "round": 50,
+      "gm_acc": 0.6538,
+      "em_acc": 0.6326,
+      "pm_acc": 0.757
+    },
+    {
+      "round": 51,
+      "gm_acc": 0.6646,
+      "em_acc": 0.6608,
+      "pm_acc": null
+    },
+    {
+      "round": 52,
+      "gm_acc": 0.6663,
+      "em_acc": 0.6445,
+      "pm_acc": null
+    },
+    {
+      "round": 53,
+      "gm_acc": 0.6604,
+      "em_acc": 0.657,
+      "pm_acc": null
+    },
+    {
+      "round": 54,
+      "gm_acc": 0.665,
+      "em_acc": 0.6628,
+      "pm_acc": null
+    },
+    {
+      "round": 55,
+      "gm_acc": 0.6624,
+      "em_acc": 0.6611,
+      "pm_acc": 0.7552
+    },
+    {
+      "round": 56,
+      "gm_acc": 0.6625,
+      "em_acc": 0.66,
+      "pm_acc": null
+    },
+    {
+      "round": 57,
+      "gm_acc": 0.6642,
+      "em_acc": 0.6613,
+      "pm_acc": null
+    },
+    {
+      "round": 58,
+      "gm_acc": 0.6584,
+      "em_acc": 0.6562,
+      "pm_acc": null
+    },
+    {
+      "round": 59,
+      "gm_acc": 0.6625,
+      "em_acc": 0.6602,
+      "pm_acc": null
+    },
+    {
+      "round": 60,
+      "gm_acc": 0.6644,
+      "em_acc": 0.6622,
+      "pm_acc": 0.7576
+    },
+    {
+      "round": 61,
+      "gm_acc": 0.6618,
+      "em_acc": 0.66,
+      "pm_acc": null
+    },
+    {
+      "round": 62,
+      "gm_acc": 0.6625,
+      "em_acc": 0.6614,
+      "pm_acc": null
+    },
+    {
+      "round": 63,
+      "gm_acc": 0.6636,
+      "em_acc": 0.6636,
+      "pm_acc": null
+    },
+    {
+      "round": 64,
+      "gm_acc": 0.664,
+      "em_acc": 0.6624,
+      "pm_acc": null
+    },
+    {
+      "round": 65,
+      "gm_acc": 0.6648,
+      "em_acc": 0.663,
+      "pm_acc": 0.7576
+    },
+    {
+      "round": 66,
+      "gm_acc": 0.6646,
+      "em_acc": 0.6615,
+      "pm_acc": null
+    },
+    {
+      "round": 67,
+      "gm_acc": 0.6612,
+      "em_acc": 0.6615,
+      "pm_acc": null
+    },
+    {
+      "round": 68,
+      "gm_acc": 0.6627,
+      "em_acc": 0.6609,
+      "pm_acc": null
+    },
+    {
+      "round": 69,
+      "gm_acc": 0.6628,
+      "em_acc": 0.6635,
+      "pm_acc": null
+    },
+    {
+      "round": 70,
+      "gm_acc": 0.6601,
+      "em_acc": 0.6596,
+      "pm_acc": 0.7582
+    },
+    {
+      "round": 71,
+      "gm_acc": 0.6638,
+      "em_acc": 0.6635,
+      "pm_acc": null
+    },
+    {
+      "round": 72,
+      "gm_acc": 0.6626,
+      "em_acc": 0.6618,
+      "pm_acc": null
+    },
+    {
+      "round": 73,
+      "gm_acc": 0.6594,
+      "em_acc": 0.6579,
+      "pm_acc": null
+    },
+    {
+      "round": 74,
+      "gm_acc": 0.6605,
+      "em_acc": 0.66,
+      "pm_acc": null
+    },
+    {
+      "round": 75,
+      "gm_acc": 0.662,
+      "em_acc": 0.6604,
+      "pm_acc": 0.7559
+    },
+    {
+      "round": 76,
+      "gm_acc": 0.6632,
+      "em_acc": 0.6614,
+      "pm_acc": null
+    },
+    {
+      "round": 77,
+      "gm_acc": 0.662,
+      "em_acc": 0.6624,
+      "pm_acc": null
+    },
+    {
+      "round": 78,
+      "gm_acc": 0.6597,
+      "em_acc": 0.6585,
+      "pm_acc": null
+    },
+    {
+      "round": 79,
+      "gm_acc": 0.6616,
+      "em_acc": 0.6605,
+      "pm_acc": null
+    },
+    {
+      "round": 80,
+      "gm_acc": 0.6612,
+      "em_acc": 0.6602,
+      "pm_acc": 0.7553
+    }
+  ],
+  "final_acc": {
+    "round": 80,
+    "gm_acc": 0.6612,
+    "em_acc": 0.6602,
+    "pm_acc": 0.7553,
+    "final_pm_weighted": 0.7553
+  },
+  "admitted": [],
+  "admitted_count_mean": null,
+  "rejected_ids": [],
+  "malicious_selected_rounds": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61,
+    62,
+    63,
+    64,
+    65,
+    66,
+    67,
+    68,
+    69,
+    70,
+    71,
+    72,
+    73,
+    74,
+    75,
+    76,
+    77,
+    78,
+    79,
+    80
+  ],
+  "n_malicious_participations": 80,
+  "malicious_participation_by_client": {
+    "5": [
+      3,
+      7,
+      9,
+      10,
+      11,
+      12,
+      17,
+      18,
+      20,
+      22,
+      23,
+      26,
+      28,
+      29,
+      30,
+      32,
+      34,
+      36,
+      37,
+      42,
+      43,
+      44,
+      47,
+      50,
+      51,
+      56,
+      59,
+      61,
+      62,
+      63,
+      65,
+      66,
+      68,
+      71,
+      74,
+      75,
+      78,
+      79
+    ],
+    "17": [
+      4,
+      5,
+      7,
+      9,
+      12,
+      26,
+      29,
+      31,
+      33,
+      39,
+      41,
+      42,
+      44,
+      46,
+      48,
+      49,
+      51,
+      52,
+      54,
+      55,
+      60,
+      62,
+      65,
+      68,
+      70,
+      76,
+      78
+    ],
+    "20": [
+      2,
+      3,
+      4,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      13,
+      14,
+      15,
+      17,
+      18,
+      20,
+      25,
+      30,
+      33,
+      34,
+      38,
+      39,
+      48,
+      49,
+      51,
+      57,
+      60,
+      62,
+      66,
+      67,
+      70,
+      73,
+      75,
+      76,
+      77,
+      78,
+      80
+    ],
+    "25": [
+      1,
+      12,
+      13,
+      14,
+      16,
+      22,
+      23,
+      24,
+      26,
+      29,
+      30,
+      31,
+      34,
+      36,
+      42,
+      43,
+      44,
+      46,
+      51,
+      53,
+      54,
+      58,
+      60,
+      62,
+      64,
+      68,
+      73,
+      75,
+      77,
+      78
+    ],
+    "27": [
+      3,
+      4,
+      6,
+      13,
+      14,
+      16,
+      21,
+      23,
+      25,
+      26,
+      30,
+      32,
+      37,
+      40,
+      41,
+      42,
+      44,
+      49,
+      52,
+      58,
+      60,
+      61,
+      64,
+      65,
+      67,
+      70,
+      76,
+      79,
+      80
+    ],
+    "39": [
+      1,
+      2,
+      3,
+      4,
+      11,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      23,
+      26,
+      28,
+      32,
+      34,
+      36,
+      42,
+      44,
+      46,
+      47,
+      52,
+      53,
+      54,
+      56,
+      59,
+      63,
+      65,
+      67,
+      68,
+      69,
+      72,
+      74,
+      75,
+      79
+    ],
+    "45": [
+      4,
+      5,
+      8,
+      9,
+      10,
+      12,
+      16,
+      17,
+      19,
+      22,
+      25,
+      27,
+      28,
+      29,
+      34,
+      37,
+      38,
+      39,
+      41,
+      44,
+      46,
+      48,
+      51,
+      54,
+      56,
+      57,
+      59,
+      60,
+      62,
+      64,
+      65,
+      66,
+      68,
+      70,
+      75,
+      76,
+      77
+    ],
+    "46": [
+      1,
+      6,
+      7,
+      10,
+      11,
+      12,
+      13,
+      16,
+      17,
+      22,
+      24,
+      25,
+      30,
+      32,
+      35,
+      38,
+      39,
+      43,
+      50,
+      54,
+      58,
+      59,
+      61,
+      63,
+      64,
+      71,
+      73,
+      76,
+      80
+    ],
+    "47": [
+      7,
+      8,
+      9,
+      13,
+      15,
+      17,
+      20,
+      24,
+      27,
+      30,
+      31,
+      41,
+      43,
+      44,
+      45,
+      46,
+      49,
+      51,
+      52,
+      53,
+      57,
+      60,
+      61,
+      67,
+      69,
+      70,
+      72,
+      73,
+      74,
+      78
+    ],
+    "49": [
+      1,
+      8,
+      9,
+      12,
+      13,
+      14,
+      17,
+      19,
+      21,
+      22,
+      23,
+      26,
+      28,
+      30,
+      31,
+      35,
+      38,
+      40,
+      41,
+      42,
+      46,
+      50,
+      51,
+      52,
+      53,
+      57,
+      58,
+      59,
+      60,
+      62,
+      70,
+      72,
+      73,
+      74,
+      75,
+      76,
+      79
+    ]
+  },
+  "client_failures": [],
+  "errors": [],
+  "log_tail": [
+    "",
+    "[ Per-Class Report ]",
+    "              precision    recall  f1-score   support",
+    "",
+    "           0     0.7708    0.7869    0.7788      1492",
+    "           1     0.8265    0.8474    0.8368      1501",
+    "           2     0.6977    0.6547    0.6755      1477",
+    "           3     0.6505    0.6188    0.6343      1477",
+    "           4     0.7373    0.6858    0.7106      1547",
+    "           5     0.7139    0.6770    0.6949      1489",
+    "           6     0.7612    0.8063    0.7831      1451",
+    "           7     0.7821    0.7785    0.7803      1526",
+    "           8     0.8274    0.8628    0.8447      1450",
+    "           9     0.7664    0.8345    0.7990      1553",
+    "",
+    "    accuracy                         0.7553     14963",
+    "   macro avg     0.7534    0.7553    0.7538     14963",
+    "weighted avg     0.7534    0.7553    0.7538     14963",
+    "",
+    "[ F1 Score ]",
+    "  Macro    F1 : 0.7538",
+    "  Weighted F1 : 0.7538",
+    "",
+    "[ AUC (OvR) ]",
+    "  Macro    AUC : 0.9690",
+    "  Weighted AUC : 0.9690",
+    "",
+    "[ Confusion Matrix ] (shape: (10, 10))",
+    "[[1174   19   65   31   33   15   12   14   81   48]",
+    " [  29 1272   10    7    7    4    9    9   41  113]",
+    " [  81   28  967   86   84   70   56   51   24   30]",
+    " [  24   26   77  914   65  139  116   36   29   51]",
+    " [  33   10   77   65 1061   75   83   91   22   30]",
+    " [  32   15   62  157   62 1008   39   90    8   16]",
+    " [  21    5   56   72   41   36 1170   15   15   20]",
+    " [  37   19   53   41   65   48   19 1188    7   49]",
+    " [  55   38   13   20    9   11   11    4 1251   38]",
+    " [  37  107    6   12   12    6   22   21   34 1296]]",
+    "============================================================",
+    "  Report saved to report_PM_hier_fedavg_fedrep_noniid_badpfl_seed42.txt"
+  ],
+  "exit_code": 0
+}
