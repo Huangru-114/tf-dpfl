@@ -101,6 +101,8 @@ backdoor:
   badpfl_shared_generator: true   # P4：adversary 持有单一共享生成器（对齐官方 fba.py）
   eval_interval:  5               # ← 全长：每 5 轮评一次分层 ASR（看累积曲线）
   asr_max_samples: 2000           # ← ASR 子采样，限评估开销
+  drift_eval:     true          # 3C：开启参数/表示漂移测量
+  drift_probe_samples: 256      # 干净探针样本数（表示漂移的固定 batch）
   verbose_clients: false
   feature_eval:          false
   feature_eval_samples:  200

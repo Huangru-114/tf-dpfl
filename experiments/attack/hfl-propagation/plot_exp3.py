@@ -198,26 +198,58 @@ def fig_3c(runs, out):
     if not cells:
         return
     Rs = sorted(cells.keys())
-    fig, ax = plt.subplots(figsize=(7.5, 5))
-    series = [("global_asr", "GM ASR (global)", C["global"], _final_scalar),
-              ("edge_asr", "EM ASR (edge)", C["edge"], _final_scalar),
-              ("local_benign_asr", "benign ASR (local)", C["benign"], _final_scalar),
-              ("local_malicious_asr", "malicious ASR (local)", C["malicious"], _final_scalar),
-              ("__pm__", "PM acc (MTA)", C["pm"], None)]
-    for key, lbl, color, _ in series:
+
+    def _drift_agg(R, key):
+        return _agg([(r.get("drift_final") or {}).get(key) for r in runs[cells[R]]])
+
+    has_drift = any((runs[cells[R]][0].get("drift_final")) for R in Rs)
+
+    def _plot_series(ax, key, lbl, color, aggfn):
         mean, lo, hi = [], [], []
         for R in Rs:
-            agg = _pm(runs[cells[R]]) if key == "__pm__" else _final_scalar(runs[cells[R]], key)
+            agg = aggfn(R, key)
             mean.append(agg[0]); lo.append(agg[1]); hi.append(agg[2])
         mean, lo, hi = np.array(mean), np.array(lo), np.array(hi)
         ax.plot(Rs, mean, "-o", color=color, label=lbl, markersize=5)
         ax.fill_between(Rs, lo, hi, color=color, alpha=0.18)
-    ax.set_xscale("log", base=2)
-    ax.set_xticks(Rs); ax.get_xaxis().set_major_formatter(plt.matplotlib.ticker.ScalarFormatter())
-    ax.set_xlabel("edge_rounds  R_edge   (R_edge x R_cloud = 400 fixed;  R=1 ~ flat)")
-    ax.set_ylabel("ASR / Accuracy"); ax.set_ylim(0, 1.02)
-    ax.set_title("Exp 3C — aggregation frequency vs backdoor / main task (shaded = min–max over seeds)")
-    ax.legend(frameon=False, ncol=2); ax.grid(alpha=0.25)
+
+    nrow = 2 if has_drift else 1
+    fig, axes = plt.subplots(nrow, 1, figsize=(7.5, 4.6 * nrow), sharex=True, squeeze=False)
+    top = axes[0][0]
+
+    # ── 上panel：三层 ASR + MTA ─────────────────────────────────────────────
+    def _asr_agg(R, key):
+        return _pm(runs[cells[R]]) if key == "__pm__" else _final_scalar(runs[cells[R]], key)
+    for key, lbl, color in [("global_asr", "GM ASR (global)", C["global"]),
+                            ("edge_asr", "EM ASR (edge)", C["edge"]),
+                            ("local_benign_asr", "benign ASR (local)", C["benign"]),
+                            ("local_malicious_asr", "malicious ASR (local)", C["malicious"]),
+                            ("__pm__", "PM acc (MTA)", C["pm"])]:
+        _plot_series(top, key, lbl, color, _asr_agg)
+    top.set_ylabel("ASR / Accuracy"); top.set_ylim(0, 1.02)
+    top.set_title("Exp 3C — aggregation frequency (shaded = min–max over seeds)")
+    top.legend(frameon=False, ncol=2); top.grid(alpha=0.25)
+
+    # ── 下panel：漂移。相对量在左轴，绝对量 param_abs 在右孪生轴 ────────────
+    if has_drift:
+        bot = axes[1][0]
+        for key, lbl, color in [("repr_mean", "repr shift (mean)", "#009E73"),
+                                 ("repr_median", "repr shift (median)", "#56B4E9"),
+                                 ("param_rel", "param drift (rel)", "#CC79A7")]:
+            _plot_series(bot, key, lbl, color, _drift_agg)
+        bot.set_ylabel("relative drift  (1-cos  /  ||d||/||theta||)")
+        bot.grid(alpha=0.25)
+        botr = bot.twinx()
+        _plot_series(botr, "param_abs", "param drift (abs ||d||)", "#000000", _drift_agg)
+        botr.set_ylabel("absolute ||d|| (backbone L2)")
+        h1, l1 = bot.get_legend_handles_labels()
+        h2, l2 = botr.get_legend_handles_labels()
+        bot.legend(h1 + h2, l1 + l2, frameon=False, ncol=2, loc="best")
+
+    axb = axes[-1][0]
+    axb.set_xscale("log", base=2)
+    axb.set_xticks(Rs); axb.get_xaxis().set_major_formatter(plt.matplotlib.ticker.ScalarFormatter())
+    axb.set_xlabel("edge_rounds  R_edge   (R_edge x R_cloud = 400 fixed;  R=1 ~ flat)")
     fig.tight_layout()
     p = out / "fig_3c_frequency.png"
     fig.savefig(p, dpi=150, bbox_inches="tight"); plt.close(fig)
