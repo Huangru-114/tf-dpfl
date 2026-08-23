@@ -1,0 +1,134 @@
+# experiments/attack/hfl-propagation/10edge_distributed.yaml
+#   Experiment 3B —— HFL 层级结构与攻击传播。Distributed：每 edge 恰 1 个（每 edge 10% 密度）。
+#   与 exp007(bad-pfl/full_p4_resnet) 逐字同底座，只改 3 处：n_edges / edge_assignment=block /
+#   malicious_placement=by_edge(+malicious_per_edge)。**跨所有拓扑格恒定的不变量**：
+#     100 client · 10 恶意(全局 10%) · edge_rounds=5 × n_rounds=80 (=400 有效轮) ·
+#     badpfl · hier_fedrep · resnet10 · shared_generator=true · forced_participation=false ·
+#     poison_ratio=0.2 · seed=42（换 seed 43/44 复跑取 mean±std）。
+#   变的只有「恶意端在 10 个 edge 上的空间分布」。判据读 metrics.json 的 per_edge_final。
+#   跑法：
+#     sbatch run_full.sh attack hfl-propagation badpfl none 10edge_distributed hier_fedavg_fedrep \
+#            experiments/attack/hfl-propagation/10edge_distributed.yaml
+#
+seed: 42
+
+data:
+  dataset:        "cifar10"
+  img_size:       32
+  batch_size:     32
+  shuffle_buffer: 2000
+  num_classes:    10
+  per_client_test_ratio: 0.25
+
+federation:
+  edge_assignment:  "block"     # 确定性连续分块：E0=前 N 个 id …（by_edge 布点前提）
+  client_fraction:  0.1
+  warmup_rounds:    0
+  badpfl_allow_parallel: false   # 并行收集（提速）；⚠️ eager/@tf.function 并发有污染风险，异常回退串行
+  n_workers:        4           # 并行线程数（sbatch -c 4）
+  n_clients:        100         # 100 client / 10 恶意（全局 10%），跨所有拓扑格恒定
+  n_edges:          10
+  edge_rounds:      5           # ← 全长：每 global round 5 个 edge round
+  n_rounds:         80          # ← 全长：80 × 5 = 400 有效轮
+  partition:        "noniid"
+  classes_per_client: 10
+  alpha:            0.5
+  inter_edge:       {type: "dirichlet", alpha: 0.5}
+  intra_edge:       {type: "pathological", classes_per_client: 2}
+  min_samples:      10
+
+training:
+  local_epochs:   1
+  learning_rate:  0.1
+  lr_decay:       0.992
+  drift_correction: "hier_fedrep"  # 自描述；run 脚本另传 --framework hier_fedavg_fedrep
+  proximal_ref:     "edge"
+  mu:               1.0
+  mu_edge:          0.1
+  mu_global:        0.01
+  alpha_feddyn:     0.1
+  alpha_feddyn_global: 0.02
+  lambda_pfedme:    35.0
+  beta_pfedme:      1.0
+  pfedme_warm_start: false
+  lambda1_hier:     15.0
+  lambda2_hier:     15.0
+  beta_hier:        1.0
+  personal_lr_pfedme: 0.01
+  moreau_lr_pfedme:   0.005
+  mu_pfedme:          0.001
+  inner_steps_hier: 5
+  alpha_inner:      0.01
+  beta_outer:   0.01
+  label_smoothing: 0.1
+  plocal_epochs:    1          # 与 exp001 一致（隔离「训练长度」这一个变量）
+  head_lr_rep:      0.005
+  lambda_ditto:     0.1
+  ditto_pers_epochs: 1
+
+model:
+  arch: "resnet10"     # exp004：单变量换骨干（对齐论文 ResNet10，BN）；与 full_p4.yaml 只差这一行
+  rep_dim: 64
+
+backdoor:
+  enabled:        true
+  trigger:        "badnet"
+  malicious_strategy: "vanilla"   # 由 --attack_method badpfl 覆盖
+  target_label:   9
+  poison_ratio:   0.2
+  malicious_ids:  [3]             # spread 下被忽略，n_malicious 说了算
+  malicious_placement: "by_edge"   # 按 edge 精确布点（Experiment 3A/3B）
+  malicious_per_edge: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]   # 按 edge id 索引的恶意端个数；sum=10=全局10%
+  n_malicious:    10            # by_edge 下不用它定数量（malicious_per_edge 说了算），保留仅作记录
+  forced_participation: false   # 默认关闭：所有客户端同概率被抽取（当前实验的正确设定）。
+                                # exp006 的 pm_acc 崩溃即因此前隐式强制参与 + 恶意密集 edge 饿死良性端。
+  attack_freq_Q:  1             # 仅 forced_participation=true 时生效
+  badnet_size:    3
+  badnet_value:   1.0
+  blended_alpha:  0.2
+  blended_image:  "attack/triggers/hello_kitty.png"
+  dba_patterns:
+    - [[0,0],[0,1],[0,2],[0,3],[0,4],[0,5]]
+    - [[0,9],[0,10],[0,11],[0,12],[0,13],[0,14]]
+  neurotoxin_mask_ratio:   0.05
+  neurotoxin_mask_batches: 0
+  cerp_alpha:         0.0001
+  cerp_beta:          0.0001
+  cerp_trigger_lr:    0.1
+  cerp_trigger_phi:   10.0
+  cerp_trigger_steps: 1
+  badpfl_epsilon:     0.01569
+  badpfl_sigma:       0.01569
+  badpfl_gen_steps:   30
+  badpfl_gen_lr:      0.01
+  badpfl_shared_generator: true   # P4：adversary 持有单一共享生成器（对齐官方 fba.py）
+  eval_interval:  5               # ← 全长：每 5 轮评一次分层 ASR（看累积曲线）
+  asr_max_samples: 2000           # ← ASR 子采样，限评估开销
+  verbose_clients: false
+  feature_eval:          false
+  feature_eval_samples:  200
+  feature_clean_per_class: 50
+  forgetting_epochs:     0
+
+defense:
+  name:   "none"                  # 由 --defense 覆盖
+  params:
+    trim_ratio:      0.1
+    num_malicious:   0
+    noise_scale:     0.001
+    num_projections: 5
+    subspace_dim:    10000
+    filter_mult:     1.0
+    st_epochs:       10
+    st_lr:           0.0
+
+wandb:
+  enabled:  false
+
+evaluation:
+  eval_interval: 5
+  final_finetune:       false
+  final_finetune_steps: 5
+  test_client_eval:    false
+  test_client_ratio:   0.2
+  test_finetune_steps: 5
