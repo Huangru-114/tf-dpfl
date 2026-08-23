@@ -80,6 +80,11 @@ RE_PER_EDGE = re.compile(
     r"client_benign=([\d.]+) \| client_malicious=([\d.]+) \| "
     r"n_benign=(\d+) \| n_malicious=(\d+) \| has_malicious=(True|False)")
 
+# 漂移（Experiment 3C）：edge 相对本轮起点全局的参数/表示漂移
+RE_DRIFT = re.compile(
+    r"\[Drift\] Round (\d+) \| param_abs=(nan|[\d.]+) \| param_rel=(nan|[\d.]+) \| "
+    r"repr_mean=(nan|[\d.]+) \| repr_median=(nan|[\d.]+) \| n_edges=(\d+)")
+
 # ── 自描述 ──────────────────────────────────────────────────────────────────
 RE_CFG_PATH = re.compile(r"\[Config\] loading (\S+)")
 RE_RUN_NAME = re.compile(r"\[Config\] run_name = (\S+)")
@@ -232,6 +237,21 @@ def _collect_per_edge(log_text: str) -> dict:
     return {r: sorted(v, key=lambda d: d["edge_id"]) for r, v in by_round.items()}
 
 
+def _f(s):
+    return float("nan") if s == "nan" else float(s)
+
+
+def _collect_drift(log_text: str) -> list:
+    """[{round, param_abs, param_rel, repr_mean, repr_median, n_edges}]，按 round 升序。"""
+    out = []
+    for m in RE_DRIFT.finditer(log_text):
+        out.append({"round": int(m.group(1)),
+                    "param_abs": _f(m.group(2)), "param_rel": _f(m.group(3)),
+                    "repr_mean": _f(m.group(4)), "repr_median": _f(m.group(5)),
+                    "n_edges": int(m.group(6))})
+    return sorted(out, key=lambda d: d["round"])
+
+
 def collect(log_text: str) -> dict:
     lines = log_text.splitlines()
 
@@ -267,6 +287,7 @@ def collect(log_text: str) -> dict:
     per_edge_rounds = _collect_per_edge(log_text)
     per_edge_final = (per_edge_rounds[max(per_edge_rounds)]
                       if per_edge_rounds else [])
+    drift_rounds = _collect_drift(log_text)
 
     return {
         "run": run,
@@ -275,6 +296,9 @@ def collect(log_text: str) -> dict:
         # 逐 edge 传播路径（Experiment 3）：{round: [per-edge...]} + 末轮快照
         "per_edge_rounds": per_edge_rounds,
         "per_edge_final": per_edge_final,
+        # 漂移曲线（Experiment 3C）：drift_eval=true 才有；否则空
+        "drift_rounds": drift_rounds,
+        "drift_final": drift_rounds[-1] if drift_rounds else None,
         "acc_rounds": acc_rounds,
         "final_acc": final_acc,
         "admitted": admitted,

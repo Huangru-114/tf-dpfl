@@ -15,7 +15,9 @@ import numpy as np
 from server.server import CloudServer
 from attack.backdoor_eval import (evaluate_hierarchical_asr,
                                    evaluate_forgetting_curve,
-                                   evaluate_feature_separation)
+                                   evaluate_feature_separation,
+                                   evaluate_drift)
+from models.cnn import get_base_head_indices
 from defense import create_post_hoc_defense
 from utils.logger import FLLogger
 
@@ -46,6 +48,11 @@ class BackdoorCloudServer(CloudServer):
         self.history.setdefault("bd_asr", [])
 
         # 特征分离度 / 遗忘曲线相关配置
+        # 漂移测量（Experiment 3C）：默认关闭，零开销；3C 的 config 打开。
+        self.drift_eval = bool(self.bd_cfg.get("drift_eval", False))
+        self.drift_probe_samples = int(self.bd_cfg.get("drift_probe_samples", 256))
+        self._drift_base_idx = None   # 懒缓存 backbone 索引
+
         self.feature_eval = bool(self.bd_cfg.get("feature_eval", True))
         self.feature_eval_samples = int(self.bd_cfg.get("feature_eval_samples", 200))
         self.feature_clean_per_class = int(self.bd_cfg.get("feature_clean_per_class", 50))
@@ -61,12 +68,19 @@ class BackdoorCloudServer(CloudServer):
             lr_default=float(self.config["training"].get("learning_rate", 0.02)))
 
     def run_round(self, round_idx: int):
+        n_rounds = int(self.config["federation"]["n_rounds"])
+        do_eval  = (round_idx % self.bd_eval_interval == 0) or (round_idx == n_rounds)
+        # 漂移的 anchor = 本轮起点（broadcast/训练之前）的全局权重。必须在 super() 前深拷贝，
+        # 因为 super().run_round 会就地更新 self.global_model。
+        anchor = None
+        if self.drift_eval and do_eval:
+            anchor = [w.copy() for w in self.global_model.get_weights()]
+
         metrics = super().run_round(round_idx)
         # CerP：cloud 层协调器，按上一轮快照给恶意客户端互相分发 peer 权重
         self._coordinate_cerp_peers()
-        n_rounds = int(self.config["federation"]["n_rounds"])
-        if (round_idx % self.bd_eval_interval == 0) or (round_idx == n_rounds):
-            self._backdoor_eval(round_idx)
+        if do_eval:
+            self._backdoor_eval(round_idx, anchor=anchor)
         return metrics
 
     def _coordinate_cerp_peers(self):
@@ -104,7 +118,7 @@ class BackdoorCloudServer(CloudServer):
         self._feat_data = (poisoned, poisoned_true, clean_by_class)
         return self._feat_data
 
-    def _backdoor_eval(self, round_idx: int):
+    def _backdoor_eval(self, round_idx: int, anchor=None):
         xt, yt = self.x_test, self.y_test
         if self.bd_asr_max and yt is not None and len(yt) > self.bd_asr_max:
             # ASR 子采样必须固定：每轮换一批样本会让 ASR 曲线混入采样噪声，
@@ -188,6 +202,10 @@ class BackdoorCloudServer(CloudServer):
                   f"n_benign={pe['n_benign']} | n_malicious={pe['n_malicious']} | "
                   f"has_malicious={pe['has_malicious']}")
 
+        # ── 漂移测量（Experiment 3C）：edge 相对本轮起点全局的参数/表示漂移 ──────
+        if self.drift_eval and anchor is not None:
+            self._eval_drift(round_idx, anchor)
+
         # ── 任务3：wandb 记录全部分层指标 ─────────────────────────────────
         FLLogger.log_round_metrics(round_idx, metrics)
         # 兼容旧看板字段
@@ -199,3 +217,20 @@ class BackdoorCloudServer(CloudServer):
                           step=round_idx)
         except Exception:
             pass
+
+    def _eval_drift(self, round_idx: int, anchor):
+        """Experiment 3C：每 edge 相对 anchor（本轮起点全局）的参数/表示漂移，打一条可解析行。"""
+        if self.x_test is None or not self.edge_servers:
+            return
+        if self._drift_base_idx is None:
+            num_classes = int(self.config["data"]["num_classes"])
+            split = get_base_head_indices(self.global_model, num_classes)
+            self._drift_base_idx = split["base_weight_indices"]
+        n = min(self.drift_probe_samples, len(self.x_test))
+        x_probe = self.x_test[:n]                       # 固定干净探针（确定性、跨轮跨格可比）
+        d = evaluate_drift(self.edge_servers, self.global_model, anchor,
+                           self._drift_base_idx, x_probe)
+        print(f"[Drift] Round {round_idx} | "
+              f"param_abs={d['param_abs']:.4f} | param_rel={d['param_rel']:.4f} | "
+              f"repr_mean={d['repr_mean']:.4f} | repr_median={d['repr_median']:.4f} | "
+              f"n_edges={len(self.edge_servers)}")

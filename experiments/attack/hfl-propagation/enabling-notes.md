@@ -46,6 +46,20 @@ backdoor:
 调度强制在场，**base 抽中的良性一个不砍**。之前「只砍良性」在恶意密集 edge 会把良性砍光
 （exp006 的 pm_acc 崩溃根因）。3B 若开 forced_participation 控密度，不会再复发。
 
+## ④ 漂移测量（Experiment 3C）
+
+`backdoor.drift_eval`（默认 false，零开销；3C config 打开）。每 `eval_interval` 轮，测每个 edge
+相对**本轮起点全局** anchor 的漂移，打一条可解析行：
+```
+[Drift] Round R | param_abs=.. | param_rel=.. | repr_mean=.. | repr_median=.. | n_edges=..
+```
+- **参数漂移**（只在 backbone 索引，剔私有 head，陷阱#9）：`param_abs=‖Δ‖₂`（绝对量）+
+  `param_rel=‖Δ‖/‖anchor‖₂`（相对）。
+- **表示漂移**：固定干净探针（`x_test` 前 `drift_probe_samples`=256 张）的 penultimate 特征
+  `1−cos(F_edge, F_anchor)`，对样本取 `repr_mean` 与 `repr_median`（median 对极端样本稳健）。
+- 纯 numpy 核在 `attack/drift_metrics.py`（本地 L1）；TF 特征抽取在 `backdoor_eval.evaluate_drift`。
+- `collect_metrics` 解析进 `drift_rounds[]` + `drift_final`；`plot_exp3.py` 的 3C 图加下panel。
+
 ## 提醒（沿用上个会话结论）
 
 - Exp 3 全程 `badpfl_shared_generator: true`（eval trigger 取 mal[0]，共享 generator 才对全体
