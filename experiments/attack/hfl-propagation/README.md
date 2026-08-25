@@ -95,6 +95,18 @@ CONFIGS="3c_R1 3c_R2 3c_R4 3c_R5 3c_R10 3c_R20" bash experiments/attack/hfl-prop
 > ⚠️ **parameter / representation drift 需要另加训练循环仪表，本批未含** —— 3C 现在能出
 > MTA + 三层 ASR 的频率曲线（用户发现的主曲线），drift 列待补。
 
+## flat（两层）基线 —— `flat_baseline.yaml`
+
+`n_edges=1 + edge_rounds=1` → 退化成普通 FedAvg（cloud↔client，无 edge 中间层），
+`n_rounds=400` 与层级各组**等有效预算**。放进时间序列图作参照，凸显「引入层级结构」本身
+对后门植入/主任务的影响（已观察到 flat 的 benign ASR 明显更高、更接近论文）。
+```bash
+sbatch run_full.sh attack hfl-propagation badpfl none flat_baseline hier_fedavg_fedrep \
+       experiments/attack/hfl-propagation/flat_baseline.yaml
+```
+> ⚠️ `n_edges=1` 是本仓库层级路径少走的角落，**第一格先单独 smoke 一下**确认能跑通
+> （same/diff-edge、聚合分支在单 edge 下的行为），再纳入批量。
+
 ## 画图 —— `plot_exp3.py`
 
 跑完（或跑到一半）后，把每格 metrics.json 聚合成图：
@@ -103,8 +115,10 @@ python3 experiments/attack/hfl-propagation/plot_exp3.py     # 读 results/，图
 ```
 - 跨 seed 同设定 → **均值 + [min, max] 界**（须/带），不是 ±std。
 - 颜色用 Okabe–Ito 色盲安全色板，每个量一个独立色相（高对比、非同色系）。
-- 产出三张：`fig_topology_summary.png`（3A/3B 各拓扑 global/benign/PM）、
-  `fig_per_edge_propagation.png`（3A 逐 edge，含恶意 edge 灰底）、`fig_3c_frequency.png`（3C 频率曲线）。
+- 产出五张：`fig_topology_summary.png`（3A/3B 各拓扑 global/benign/PM 柱）、
+  `fig_per_edge_propagation.png`（3A 逐 edge，含恶意 edge 灰底）、`fig_3c_frequency.png`（3C 频率曲线，含漂移下panel）、
+  **`fig_timeseries_topology.png` / `fig_timeseries_3c.png`**（benign ASR & MTA vs **有效轮**
+  `cloud_round×edge_rounds`，各组一条线 + **flat 两层基线黑虚线**——最能体现组间差异与架构影响）。
 - 只需 matplotlib+numpy，不需要 GPU/TF；缺 matplotlib 就 `pip install matplotlib` 或在容器里跑。
   单 seed 时 min–max 界退化为点，会打印提醒。
 

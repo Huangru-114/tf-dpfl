@@ -35,6 +35,22 @@ C = {
 }
 CELL_RE = re.compile(r"^(?P<cell>.+)_seed(?P<seed>\d+)$")
 
+# 多组时间序列用高对比定性色（tab10，色相彼此拉开）；flat 基线单独用黑色虚线。
+GROUP_COLORS = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd",
+                "#8c564b", "#e377c2", "#17becf", "#bcbd22", "#7f7f7f"]
+FLAT_CELL = "flat_baseline"
+
+
+def _edge_rounds_of(runs_of_cell, cell):
+    """优先取 run.edge_rounds（自描述），否则从名字推断：3c_R{n}→n，flat→1，其余→5。"""
+    er = (runs_of_cell[0].get("run") or {}).get("edge_rounds")
+    if er:
+        return int(er)
+    m = re.match(r"^3c_R(\d+)$", cell)
+    if m:
+        return int(m.group(1))
+    return 1 if cell.startswith("flat") else 5
+
 # 3A/3B 展示顺序
 ORDER_3AB = [
     "2edge_collocated", "2edge_distributed",
@@ -256,6 +272,79 @@ def fig_3c(runs, out):
     print(f"[plot] {p}")
 
 
+# ══════════════════════════════════════════════════════════════════════════
+# Fig D：时间序列（ASR / MTA vs 有效轮），各组一条线 + flat 基线；体现架构影响
+# ══════════════════════════════════════════════════════════════════════════
+def _series_over_rounds(runs_of_cell, cell, source, key):
+    """
+    {effective_round: (mean, lo, hi)}，跨 seed 聚合。
+    source="rounds"（后门 ASR，键如 local_benign_asr）或 "acc"（acc_rounds 的 pm_acc）。
+    有效轮 = cloud_round × edge_rounds，使不同 R_edge 的组可比。
+    """
+    er = _edge_rounds_of(runs_of_cell, cell)
+    buckets = {}
+    for r in runs_of_cell:
+        rows = r.get("rounds", []) if source == "rounds" else r.get("acc_rounds", [])
+        for row in rows:
+            v = row.get(key)
+            if v is None:
+                continue
+            buckets.setdefault(int(row["round"]) * er, []).append(float(v))
+    return {x: _agg(vs) for x, vs in sorted(buckets.items())}
+
+
+def _plot_ts(ax, runs, cells, source, key):
+    ci = 0
+    for cell in cells:
+        if cell not in runs:
+            continue
+        ser = _series_over_rounds(runs[cell], cell, source, key)
+        if not ser:
+            continue
+        xs = sorted(ser.keys())
+        mean = np.array([ser[x][0] for x in xs])
+        lo   = np.array([ser[x][1] for x in xs])
+        hi   = np.array([ser[x][2] for x in xs])
+        if cell == FLAT_CELL:
+            ax.plot(xs, mean, "--", color="black", lw=2.2, label="flat (2-layer)", zorder=5)
+            ax.fill_between(xs, lo, hi, color="black", alpha=0.12, zorder=4)
+        else:
+            c = GROUP_COLORS[ci % len(GROUP_COLORS)]; ci += 1
+            ax.plot(xs, mean, "-", color=c, label=cell, lw=1.6)
+            ax.fill_between(xs, lo, hi, color=c, alpha=0.15)
+    ax.grid(alpha=0.25)
+
+
+def _fig_timeseries(runs, out, cells, fname, title):
+    present = [c for c in cells if c in runs] + (
+        [FLAT_CELL] if FLAT_CELL in runs and FLAT_CELL not in cells else [])
+    if not present:
+        return
+    fig, (a1, a2) = plt.subplots(2, 1, figsize=(9, 7.5), sharex=True)
+    _plot_ts(a1, runs, present, "rounds", "local_benign_asr")
+    a1.set_ylabel("benign ASR (local, transfer)"); a1.set_ylim(0, 1.02)
+    a1.set_title(title)
+    a1.legend(frameon=False, ncol=3, fontsize=8)
+    _plot_ts(a2, runs, present, "acc", "pm_acc")
+    a2.set_ylabel("MTA — PM accuracy"); a2.set_ylim(0, 1.02)
+    a2.set_xlabel("effective local rounds  (cloud_round x edge_rounds)")
+    fig.tight_layout()
+    p = out / fname
+    fig.savefig(p, dpi=150, bbox_inches="tight"); plt.close(fig)
+    print(f"[plot] {p}")
+
+
+def fig_timeseries(runs, out):
+    # 3A/3B 各拓扑 + flat 基线
+    _fig_timeseries(runs, out, ORDER_3AB, "fig_timeseries_topology.png",
+                    "Exp 3A/3B — benign ASR & MTA vs effective rounds (dashed=flat 2-layer baseline)")
+    # 3C 频率各组 + flat 基线
+    r3c = sorted([c for c in runs if re.match(r"^3c_R\d+$", c)],
+                 key=lambda c: int(re.match(r"^3c_R(\d+)$", c).group(1)))
+    _fig_timeseries(runs, out, r3c, "fig_timeseries_3c.png",
+                    "Exp 3C — benign ASR & MTA vs effective rounds (dashed=flat 2-layer baseline)")
+
+
 def main():
     here = Path(__file__).resolve().parent
     ap = argparse.ArgumentParser()
@@ -278,6 +367,7 @@ def main():
     fig_topology_summary(runs, out)
     fig_per_edge(runs, out)
     fig_3c(runs, out)
+    fig_timeseries(runs, out)
     print(f"[plot] 完成，图在 {out}")
 
 
