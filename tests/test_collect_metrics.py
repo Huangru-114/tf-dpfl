@@ -23,8 +23,8 @@ from collect_metrics import collect          # noqa: E402
 def _log(strategy="vanilla", attack_lines=False, n_rounds=3,
          malicious=(0, 9), defense="none", with_pm=True,
          settings=True, client_fraction=0.1, poison_ratio=0.2,
-         n_clients=10, n_edges=2, arch="fedavg_cnn", forced_participation=False,
-         per_edge=False, drift=False):
+         n_clients=10, n_edges=2, edge_rounds=5, arch="fedavg_cnn",
+         forced_participation=False, per_edge=False, drift=False):
     L = [
         "[Config] loading ../experiments/smoke-base.yaml",
         "[Config] run_name = hier_pfedme_noniid_badnet_seed42",
@@ -34,7 +34,7 @@ def _log(strategy="vanilla", attack_lines=False, n_rounds=3,
     if settings:
         L.append(
             f"[设定] client_fraction={client_fraction} | poison_ratio={poison_ratio} | "
-            f"n_clients={n_clients} | n_edges={n_edges} | "
+            f"n_clients={n_clients} | n_edges={n_edges} | edge_rounds={edge_rounds} | "
             f"n_malicious={len(malicious)} | forced_participation={forced_participation} | "
             f"arch={arch}")
     L.append(f"[Backdoor] resolved malicious clients (placement=spread): "
@@ -106,13 +106,14 @@ def test_settings_are_self_describing():
     实为全参与，而 metrics.json 里根本看不到 fraction）。现在必须能读出来。
     """
     m = collect(_log(client_fraction=0.1, poison_ratio=0.2, n_clients=100,
-                     n_edges=2, arch="resnet10", malicious=tuple(range(10)),
-                     forced_participation=True))
+                     n_edges=2, edge_rounds=5, arch="resnet10",
+                     malicious=tuple(range(10)), forced_participation=True))
     run = m["run"]
     assert run["client_fraction"] == pytest.approx(0.1)
     assert run["poison_ratio"] == pytest.approx(0.2)
     assert run["n_clients"] == 100
     assert run["n_edges"] == 2
+    assert run["edge_rounds"] == 5
     assert run["n_malicious"] == 10
     assert run["forced_participation"] is True
     assert run["arch"] == "resnet10"
@@ -128,6 +129,7 @@ def test_settings_absent_in_legacy_log_is_none_not_zero():
     assert run["client_fraction"] is None
     assert run["poison_ratio"] is None
     assert run["n_clients"] is None
+    assert run["edge_rounds"] is None
     assert run["forced_participation"] is None
     assert run["arch"] is None
 

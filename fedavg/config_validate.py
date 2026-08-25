@@ -262,6 +262,7 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
           f"poison_ratio={float(bd.get('poison_ratio', 0.0)) if bd_enabled else 0.0} | "
           f"n_clients={int(fed.get('n_clients', 0) or 0)} | "
           f"n_edges={int(fed.get('n_edges', 0) or 0)} | "
+          f"edge_rounds={int(fed.get('edge_rounds', 1) or 1)} | "
           f"n_malicious={int(bd.get('n_malicious', 0) or 0) if bd_enabled else 0} | "
           f"forced_participation={bool(bd.get('forced_participation', False)) if bd_enabled else False} | "
           f"arch={config.get('model', {}).get('arch', '?')}")
