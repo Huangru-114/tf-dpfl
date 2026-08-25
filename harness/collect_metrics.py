@@ -94,7 +94,7 @@ RE_VALIDATE = re.compile(
 # client_fraction / poison_ratio 此前不进 run 块，"改成论文值" 无法从 artifact 证实。
 RE_SETTINGS = re.compile(
     r"\[设定\] client_fraction=([\d.]+) \| poison_ratio=([\d.]+) \| "
-    r"n_clients=(\d+) \| n_edges=(\d+) \| n_malicious=(\d+) \| "
+    r"n_clients=(\d+) \| n_edges=(\d+) \| edge_rounds=(\d+) \| n_malicious=(\d+) \| "
     r"forced_participation=(True|False) \| arch=(\S+)")
 
 # ── 失败 / 错误 ─────────────────────────────────────────────────────────────
@@ -137,9 +137,10 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
         "poison_ratio":    float(setg.group(2)) if setg else None,
         "n_clients":       int(setg.group(3)) if setg else None,
         "n_edges":         int(setg.group(4)) if setg else None,
-        "n_malicious":     int(setg.group(5)) if setg else None,
-        "forced_participation": (setg.group(6) == "True") if setg else None,
-        "arch":            setg.group(7) if setg else None,
+        "edge_rounds":     int(setg.group(5)) if setg else None,
+        "n_malicious":     int(setg.group(6)) if setg else None,
+        "forced_participation": (setg.group(7) == "True") if setg else None,
+        "arch":            setg.group(8) if setg else None,
     }
 
 
@@ -335,7 +336,8 @@ def main():
           f"attack={run['attack']} defense={run['defense']} n_rounds={run['n_rounds']}")
     print(f"[collect] 设定: client_fraction={run['client_fraction']} "
           f"poison_ratio={run['poison_ratio']} n_clients={run['n_clients']} "
-          f"n_edges={run['n_edges']} n_malicious={run['n_malicious']} "
+          f"n_edges={run['n_edges']} edge_rounds={run['edge_rounds']} "
+          f"n_malicious={run['n_malicious']} "
           f"forced_participation={run['forced_participation']} arch={run['arch']}")
     if f:
         print(f"[collect] final round {f['round']}: GM_ASR={f['global_asr']:.3f} "
