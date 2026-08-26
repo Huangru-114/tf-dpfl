@@ -74,3 +74,11 @@ report_*.txt
 # ── SLURM 作业输出（sbatch 默认写到提交目录）────────────────────────────────
 slurm-*.out
 slurm-*.err
+
+# 误提交的 venv（Alvis 集群，repo 根目录）——永不进 git
+/bin/
+/pyvenv.cfg
+/lib/
+/lib64
+/include/
+/share/
