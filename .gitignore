@@ -13,7 +13,11 @@ reference/
 *.pb
 *.keras
 *.weights
-checkpoints/
+# checkpoint 目录：`.npz` 留集群，**manifest.json 放行进 git**（CLAUDE.md 回程红线：
+# 「git 里只放 manifest（method / path / git_commit / step / metrics）」）。
+# 注意不能写成 `checkpoints/` —— 目录本身被排除时，里面的文件无法再被 `!` 放回来。
+**/checkpoints/*
+!**/checkpoints/*.manifest.json
 saved_model/
 
 # ── 大张量 / 金标准产物：靠固定种子的脚本重生成，产物不进 git ────────────

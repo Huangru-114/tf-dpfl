@@ -12,7 +12,8 @@ import copy
 import pytest
 
 from config_validate import (ConfigError, validate_config,
-                             METHOD_SUPPORTS_DEFENSE, AGGREGATION_DEFENSES)
+                             METHOD_SUPPORTS_DEFENSE, AGGREGATION_DEFENSES,
+                             PROBE_SUPPORTED_METHODS, PROBE_HOOK_GATED_STRATEGIES)
 
 
 BASE = {
@@ -173,3 +174,70 @@ def test_missing_seed_warns():
     c = cfg()
     del c["seed"]
     assert any("seed" in w for w in validate_config(c))
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 探针轴（Exp 0.3）—— checkpoint 少存个性化状态是「静默跑错」的教科书例子
+# ══════════════════════════════════════════════════════════════════════════
+
+def test_probe_checkpoint_rounds_default_off_changes_nothing():
+    """缺省不配 probe 段时，校验行为与改动前完全一致。"""
+    validate_config(cfg())
+    validate_config(cfg(**{"probe.checkpoint_rounds": []}))
+
+
+@pytest.mark.parametrize("method", sorted(PROBE_SUPPORTED_METHODS))
+def test_probe_accepts_methods_that_implement_probe_state(method):
+    validate_config(cfg(**{"training.drift_correction": method,
+                           "probe.checkpoint_rounds": [1, 5]}))
+
+
+@pytest.mark.parametrize("method",
+                         sorted(set(METHOD_SUPPORTS_DEFENSE) - PROBE_SUPPORTED_METHODS))
+def test_probe_rejects_methods_without_probe_state(method):
+    """
+    没实现 get/set_probe_state 的方法会让 checkpoint **静默丢掉**个性化状态
+    （pFedMe 的锚点 Θ、Ditto 的 v_k），探针复现的是另一条轨迹而没有任何日志提到它。
+    宁可拒绝启动。
+    """
+    with pytest.raises(ConfigError, match="probe_state"):
+        validate_config(cfg(**{"training.drift_correction": method,
+                               "probe.checkpoint_rounds": [1]}))
+
+
+@pytest.mark.parametrize("rounds", [[0], [-1], [1.5], ["2"]])
+def test_probe_rejects_illegal_round_numbers(rounds):
+    with pytest.raises(ConfigError, match="非法轮号"):
+        validate_config(cfg(**{"probe.checkpoint_rounds": rounds}))
+
+
+def test_probe_warns_when_a_checkpoint_round_exceeds_n_rounds():
+    """超出总轮数的 checkpoint 永远不会被写出 —— run 照常跑完，产物里就是少几个文件。"""
+    w = validate_config(cfg(**{"federation.n_rounds": 5,
+                               "probe.checkpoint_rounds": [2, 99]}))
+    assert any("99" in x and "n_rounds" in x for x in w)
+
+
+def test_probe_warns_on_dataset_baked_attack():
+    """
+    vanilla 的投毒不经 on_batch 钩子 → `is_malicious` 开关无效 → Δθ_BD 恒为 0。
+    checkpoint 照写（对别的分析仍有用），但必须警告。
+    """
+    w = validate_config(cfg(**{"backdoor.enabled": True,
+                               "backdoor.malicious_strategy": "vanilla",
+                               "backdoor.trigger": "badnet",
+                               "backdoor.target_label": 9,
+                               "backdoor.n_malicious": 2,
+                               "probe.checkpoint_rounds": [1]}))
+    assert any("恒为 0" in x for x in w)
+
+
+@pytest.mark.parametrize("strategy", sorted(PROBE_HOOK_GATED_STRATEGIES))
+def test_probe_no_warning_for_hook_gated_attacks(strategy):
+    w = validate_config(cfg(**{"backdoor.enabled": True,
+                               "backdoor.malicious_strategy": strategy,
+                               "backdoor.trigger": "badnet",
+                               "backdoor.target_label": 9,
+                               "backdoor.n_malicious": 2,
+                               "probe.checkpoint_rounds": [1]}))
+    assert not any("恒为 0" in x for x in w)

@@ -53,6 +53,12 @@ class BackdoorCloudServer(CloudServer):
         self.drift_probe_samples = int(self.bd_cfg.get("drift_probe_samples", 256))
         self._drift_base_idx = None   # 懒缓存 backbone 索引
 
+        # 探针 checkpoint（Exp 0.3）：缺省空列表 = 零开销，现有 run 逐字节不变。
+        _probe = self.config.get("probe", {}) or {}
+        self.probe_ckpt_rounds = set(int(r) for r in _probe.get("checkpoint_rounds", []))
+        self.probe_ckpt_dir = str(_probe.get("checkpoint_dir", "checkpoints"))
+        self.probe_ckpt_tag = str(_probe.get("tag", "ckpt"))
+
         self.feature_eval = bool(self.bd_cfg.get("feature_eval", True))
         self.feature_eval_samples = int(self.bd_cfg.get("feature_eval_samples", 200))
         self.feature_clean_per_class = int(self.bd_cfg.get("feature_clean_per_class", 50))
@@ -76,12 +82,63 @@ class BackdoorCloudServer(CloudServer):
         if self.drift_eval and do_eval:
             anchor = [w.copy() for w in self.global_model.get_weights()]
 
+        # 探针 checkpoint：**在 super() 之前**落盘，存的是「进入本轮时」的状态。
+        # 语义必须是这个：探针要复现的是「从第 t 轮的起点出发做一次本地训练」，
+        # 存轮末状态的话，探针 replay 的其实是第 t+1 轮，与日志里的 ASR/MTA 曲线错开一轮。
+        if round_idx in self.probe_ckpt_rounds:
+            self._save_probe_checkpoint(round_idx)
+
         metrics = super().run_round(round_idx)
         # CerP：cloud 层协调器，按上一轮快照给恶意客户端互相分发 peer 权重
         self._coordinate_cerp_peers()
         if do_eval:
             self._backdoor_eval(round_idx, anchor=anchor)
         return metrics
+
+    # ── 探针 checkpoint（Exp 0.3）────────────────────────────────────────────
+    def _shared_generator(self):
+        """
+        找出 Bad-PFL 的共享 generator 与其 Adam。
+
+        它是**跨轮持续累积的攻击者状态**（main.py 在 badpfl_shared_generator=true 时
+        给全体恶意端注入同一个对象）。不存它，从 checkpoint 复现出来的 poison twin
+        会拿到一个**随机初始化**的生成器——那不是第 t 轮的攻击，是第 0 轮的攻击。
+        """
+        for c in self._all_clients:
+            g = getattr(c, "_atk_generator", None)
+            if g is not None:
+                return g, getattr(c, "_atk_gen_opt", None)
+        return None, None
+
+    def _save_probe_checkpoint(self, round_idx: int):
+        from probe.checkpoint import save_checkpoint
+
+        gen, gen_opt = self._shared_generator()
+        path = f"{self.probe_ckpt_dir}/{self.probe_ckpt_tag}_r{int(round_idx):04d}"
+        try:
+            npz = save_checkpoint(
+                path, round_idx=round_idx,
+                global_weights=self.global_model.get_weights(),
+                edge_weights={e.edge_id: e.model.get_weights() for e in self.edge_servers},
+                clients=self._all_clients,
+                shared_generator=gen, shared_gen_opt=gen_opt,
+                malicious_ids=self.malicious_ids,
+                run_info={
+                    "method": self.config["training"].get("drift_correction"),
+                    "strategy": self.bd_cfg.get("malicious_strategy"),
+                    "arch": self.config.get("model", {}).get("arch"),
+                    "seed": self.config.get("seed"),
+                    "n_edges": self.config["federation"].get("n_edges"),
+                    "edge_rounds": self.config["federation"].get("edge_rounds"),
+                })
+            print(f"  [Probe] checkpoint round {round_idx} -> {npz}")
+        except Exception as e:
+            # 落盘失败**不**杀掉训练 run：为一次 checkpoint 写失败而丢掉 24 小时的训练
+            # 更糟。但必须喊得足够大声 —— 否则会在训练结束后才发现探针无米下锅。
+            # （最常见的一类失败「该 PFL 方法没实现 probe_state」已由 config_validate
+            #   在启动时挡掉，走到这里的基本是磁盘/权限问题。）
+            print(f"  [Probe] ⚠️⚠️ checkpoint round {round_idx} FAILED —— "
+                  f"这一轮没有 checkpoint，探针跑不了: {type(e).__name__}: {e}")
 
     def _coordinate_cerp_peers(self):
         """收集 CerP 恶意客户端最新权重，互相分发（排除自身），供下一轮 cos 正则使用。"""

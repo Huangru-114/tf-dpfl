@@ -627,9 +627,19 @@ def build_edge_servers(clients, global_model, config,
 
     return edge_servers, test_clients
 
-def run_experiment(config_path="config/config.yaml"):
-    config       = load_config(config_path)
-    set_seed(config.get("seed", 42))
+def build_world(config: dict) -> dict:
+    """
+    从 config 建出一次 run 需要的全部对象：数据 / 全局模型 / clients /
+    edge servers / 评估触发器 / cloud server。
+
+    **为什么抽出来**：Exp 0.3 的探针（probe/run_probe.py）必须用**同一份**
+    config + seed 重建出**同一批**客户端对象、同一套数据分区与 edge 归属，
+    再把 checkpoint 灌进去。重实现一遍分区逻辑就等于造出两条不可比的数据管线 ——
+    而它们的差异不会报错，只会让探针测量的"同一个客户端"其实不是同一个。
+
+    行为与抽出来之前逐字节相同（`run_experiment` 现在只是调它 + 跑训练）。
+    调用方负责先 `set_seed(config.get("seed", 42))`。
+    """
 
     print("[Setup] Loading dataset...")
     dataset_name = config["data"].get("dataset", "cifar10").lower()
@@ -734,6 +744,36 @@ def run_experiment(config_path="config/config.yaml"):
             test_dataset=g_test_ds,
             config=config
         )
+
+
+    return {
+        "config": config,
+        "global_model": global_model,
+        "clients": clients,
+        "edge_servers": edge_servers,
+        "test_clients": test_clients,
+        "cloud": cloud,
+        "g_test_ds": g_test_ds,
+        "test_ds": test_ds,
+        "x_test": x_test, "y_test": y_test,
+        "malicious_ids": malicious_ids if bd_enabled else set(),
+        "eval_trigger": eval_trigger if bd_enabled else None,
+        "bd_enabled": bd_enabled,
+    }
+
+
+def run_experiment(config_path="config/config.yaml"):
+    config = load_config(config_path)
+    set_seed(config.get("seed", 42))
+    world = build_world(config)
+    global_model = world["global_model"]
+    clients      = world["clients"]
+    edge_servers = world["edge_servers"]
+    test_clients = world["test_clients"]
+    cloud        = world["cloud"]
+    g_test_ds    = world["g_test_ds"]
+    test_ds      = world["test_ds"]
+    x_test, y_test = world["x_test"], world["y_test"]
 
     logger = None
     if config.get("wandb", {}).get("enabled", False):

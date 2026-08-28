@@ -109,6 +109,26 @@ class HierFedRepClient(FLClientBase):
         print(f"  [Client {self.client_id:>2}] Received edge backbone (private head kept).")
 
     # ══════════════════════════════════════════════════════════════════════
+    # 探针状态（Exp 0.3）：FedRep 的持久个性化状态 = 私有 head
+    # ══════════════════════════════════════════════════════════════════════
+
+    def get_probe_state(self) -> dict:
+        """
+        私有 head 永不上传、轮次间 warm-start，是 self.model 之外唯一的持久状态。
+        首轮之前（_head_weights 为 None）返回空 —— 那时 head 还没被捕获。
+        """
+        if self._head_weights is None:
+            return {}
+        return {"head_weights": [w.copy() for w in self._head_weights]}
+
+    def set_probe_state(self, state: dict):
+        unknown = set(state) - {"head_weights"}
+        if unknown:
+            raise ValueError(f"HierFedRepClient 不认识的探针状态键: {sorted(unknown)}")
+        hw = state.get("head_weights")
+        self._head_weights = None if hw is None else [np.asarray(w).copy() for w in hw]
+
+    # ══════════════════════════════════════════════════════════════════════
     # 训练
     # ══════════════════════════════════════════════════════════════════════
 

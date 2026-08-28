@@ -98,6 +98,15 @@ def _client_mixin_of(name: str):
     return getattr(cls, "client_mixin", None) if cls is not None else None
 
 
+# 实现了 get/set_probe_state 的 PFL 方法 —— 只有它们能被 Exp 0.3 的 checkpoint 忠实复现。
+# 新方法要上探针，在它的客户端类上实现这对方法后加进来。
+PROBE_SUPPORTED_METHODS = {"hier_fedrep", "hierfedavg", "fedavg"}
+
+# 投毒经 on_batch / on_round_start 钩子、因而可被 `is_malicious` 开关关掉的攻击。
+# vanilla（badnet/blended/dba）把投毒样本烘焙进 client.dataset，不在此列。
+PROBE_HOOK_GATED_STRATEGIES = {"badpfl", "neurotoxin", "cerp"}
+
+
 def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
     """
     校验 config 的跨轴兼容性。
@@ -245,6 +254,36 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
     # ── 5. 可复现性 ─────────────────────────────────────────────────────
     if "seed" not in config:
         warnings.append("config 缺 seed，实验不可复现。建议显式写死。")
+
+    # ── 5.5 探针轴（Exp 0.3）──────────────────────────────────────────────
+    #   checkpoint 存的是「进入第 t 轮时」的完整状态，其中**客户端私有个性化状态**
+    #   走 FLClientBase.get/set_probe_state 协议。只有实现了这对方法的 PFL 方法能被
+    #   忠实复现；别的方法会静默丢掉个性化状态（FedRep 的私有 head、pFedMe 的锚点 Θ、
+    #   Ditto 的 v_k），复现出来的是另一条轨迹，而没有任何日志会提到这件事。
+    probe = config.get("probe", {}) or {}
+    ckpt_rounds = probe.get("checkpoint_rounds", []) or []
+    if ckpt_rounds:
+        if method not in PROBE_SUPPORTED_METHODS:
+            _fail(f"probe.checkpoint_rounds 非空，但 training.drift_correction = {method!r} "
+                  f"还没实现 get/set_probe_state。\n"
+                  f"  → checkpoint 会**静默丢掉**该方法的个性化状态，探针复现的是另一条轨迹。\n"
+                  f"  当前支持：{sorted(PROBE_SUPPORTED_METHODS)}（在方法的客户端类上实现"
+                  f"这对方法即可扩充）。")
+        bad = [r for r in ckpt_rounds if not isinstance(r, int) or r < 1]
+        if bad:
+            _fail(f"probe.checkpoint_rounds 含非法轮号 {bad}（必须是 ≥1 的整数）。")
+        n_rounds = int(fed.get("n_rounds", 0) or 0)
+        over = [r for r in ckpt_rounds if n_rounds and r > n_rounds]
+        if over:
+            warnings.append(
+                f"probe.checkpoint_rounds 里的 {over} 超过 federation.n_rounds={n_rounds}，"
+                f"这些 checkpoint 永远不会被写出（run 会正常跑完，产物里就是少几个文件）。")
+        if bd_enabled and str(bd.get("malicious_strategy", "vanilla")).lower() \
+                not in PROBE_HOOK_GATED_STRATEGIES:
+            warnings.append(
+                f"malicious_strategy={bd.get('malicious_strategy')!r} 的投毒烘焙在数据集里、"
+                f"不经 on_batch 钩子 → paired counterfactual 的 `is_malicious` 开关对它无效，"
+                f"Δθ_BD 会恒为 0（假阴性）。checkpoint 照常写出，但 probe.run_probe 会拒绝跑。")
 
     for w in warnings:
         print(f"[配置校验警告] {w}")

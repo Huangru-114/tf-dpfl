@@ -109,20 +109,24 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
 
    | 环境 | 预期 | 说明 |
    |---|---|---|
-   | **本地（无 TF）** | `172 passed / 4 skipped / 3 xfailed` → **PASS**（exit 0） | 4 skipped = 4 个需要 TF 的测试模块整体 skip |
-   | **集群（有 TF）** | `213 passed / 3 skipped / 3 xfailed / 6 failed` → **FAIL** | 6 条红是**既有**的陷阱 #4/#5，见下 |
+   | **本地（无 TF）** | `270 passed / 11 skipped / 3 xfailed` → **PASS**（exit 0），<1 秒 | 11 skipped = 11 个需要 TF 的测试模块整体 skip |
+   | **集群 / 有 TF** | `388 passed / 2 failed / 3 skipped / 3 xfailed` → **FAIL** | 2 条红是**既有**的陷阱 #4，见下 |
 
-   > 若在容器里直接跑裸 `pytest`（不加 `tests/`），会多收 6 条
-   > `fedavg/defense/test_defenses_offline.py` → **219 passed**。
-   > `run_l1.sh` 只跑 `tests/`，所以是 213。两个数都对，别被吓到。
-   > 已实测（2026-08-20，容器内 Python 3.10.12）：`6 failed, 219 passed, 3 skipped, 3 xfailed`。
+   > **这两行数字实测于 2026-08-28**（本地装 `tensorflow-cpu==2.15.1` / Keras 2.15，
+   > 与仓库隐含要求的 Keras 2.x 一致，见陷阱 #6）。此前 CLAUDE.md 写的
+   > `172/4/3` 与 `213 passed + 6 failed` 早已过期：main 上后来合入的 exp3 系列测试
+   > （`test_malicious_placement` / `test_forced_participation` 等）与本次的 `probe/`
+   > 都没被计进去。**照旧不要拿老数字当门禁。**
 
    集群上 `run_l1.sh` 返回 FAIL 是**当前的预期状态**，不是回归：
    `test_neurotoxin_mask` ×2 是陷阱 #4（mask 语义方向未证实，测试按文献语义写、
-   等实现被改过来）；`test_badpfl_trigger` ×4 是陷阱 #5 + `build_autoencoder(img_size=8)`
-   的 shape bug + 一条测试自身的 float32 舍入写法。
-   这 6 条修好之前，集群上的门禁请用 `bash run_l1.sh 2>&1 | tail -3` 人工核对数字，
+   等实现被改过来）。陷阱 #5 的 `test_badpfl_trigger` ×4 **已修好**（commit `e34da4b`），
+   不该再红。这 2 条修好之前，门禁请用 `bash run_l1.sh 2>&1 | tail -3` 人工核对数字，
    **多出来的红才是回归**。（3 xfailed 是 FLAME 的已知 bug，陷阱 #3。）
+
+   > 有 TF 时 `run_l1.sh` 约 **60 秒**（此前无 TF 只跑纯 numpy 核，是秒级）。
+   > 大头是 `test_probe_determinism.py`（真训练）与 `test_probe_end_to_end.py`
+   > （build_world → checkpoint → 探针的接线测试）。
 3. **读 `experiments/<axis>/<method>/current-focus.md`** —— 本会话**唯一**要回答的问题
    和客观判据都在里面。没有这个文件就先和我一起写，不要直接开始改代码。
 
@@ -163,6 +167,16 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
   `_collect_updates_*` 的 `meta_grad` 模式随之删除。
 - **矩阵提交器**：`matrix.conf` + `submit_matrix.sh` + `experiment_tf.sh`
   + `harness/collect_matrix.py`。
+- **paired counterfactual 探针**（`fedavg/probe/`，Exp 0.3）：从一个 checkpoint θ_t
+  出发，对同一个客户端跑 clean_A / poison / clean_B 三条轨迹，导出
+  `Δθ_BD = Δθ_poison − Δθ_clean` 与随机性对照 `Δθ_stochastic`。
+  **投毒开关是 `client.is_malicious`**（三个 mixin 攻击都以它门控），所以探针攻击无关。
+  地基三件（缺一件 Δθ_BD 就全是噪声）：批序冻结（`FrozenOrder`）、
+  全状态快照还原（`ClientSnapshot`，含 **Bad-PFL 共享 generator + 其 Adam slot**）、
+  checkpoint（`probe/checkpoint.py` + `FLClientBase.get/set_probe_state` 协议）。
+  由 `probe.checkpoint_rounds` 门控，**缺省空 = 零开销**。
+  守卫：`tests/test_probe_determinism.py`（同 order_seed 两条 clean twin 必须逐比特一致）
+  + `tests/test_probe_end_to_end.py`（接线）。入口 `run_probe.sh`。
 
 **留了接口但没有实现的**（不要以为它们能用）：
 - 主动防御（需要客户端配合的防御）：接口齐了（`BaseDefense.layers` /

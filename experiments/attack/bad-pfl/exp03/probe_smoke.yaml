@@ -1,0 +1,162 @@
+# experiments/attack/bad-pfl/exp03/probe_smoke.yaml
+#   Exp 0.3 Stage 0：把探针管线**跑通**用的最小配置（不产出科学结论）。
+#
+# 与 smoke-base 的差异，每条都有理由：
+#   drift_correction: hier_fedrep  探针目前只在实现了 get/set_probe_state 的方法上忠实
+#                                  （config_validate 会挡住别的方法）
+#   arch: cifar_cnn_3conv          **带 BN 且小** —— 为后续 Metric J（BN state）铺路；
+#                                  锚点 run 才换 resnet10
+#   malicious_strategy: badpfl     投毒经 on_batch 钩子 → `is_malicious` 是有效开关。
+#                                  vanilla 的投毒烘焙在数据集里，Δθ_BD 会恒为 0（假阴性）
+#   edge_rounds: 1                 探针复现的是「cloud round t 的第一个 edge round」，
+#                                  R_edge=1 时这个语义无歧义
+#   badpfl_shared_generator: true  对齐官方 fba.py（单一 adversary generator），也与
+#                                  exp3 系列的锚点设定一致
+#   n_workers: 1                   badpfl 走 eager FGSM/生成器，线程并发不安全
+#
+# 跑法（集群，cwd=fedavg）：
+#   sbatch ../run_probe.sh          # 训练 + 落 checkpoint + 逐 checkpoint 跑探针
+seed: 42
+data:
+  dataset: cifar10
+  img_size: 32
+  batch_size: 32
+  shuffle_buffer: 2000
+  num_classes: 10
+  per_client_test_ratio: 0.25
+federation:
+  edge_assignment: random
+  client_fraction: 1.0
+  warmup_rounds: 0
+  n_clients: 10
+  n_edges: 2
+  edge_rounds: 1
+  n_rounds: 5
+  partition: noniid
+  classes_per_client: 10
+  alpha: 0.5
+  inter_edge:
+    type: dirichlet
+    alpha: 0.5
+  intra_edge:
+    type: pathological
+    classes_per_client: 2
+  min_samples: 10
+  n_workers: 1
+training:
+  local_epochs: 1
+  learning_rate: 0.02
+  lr_decay: 0.992
+  drift_correction: hier_fedrep
+  proximal_ref: edge
+  mu: 1.0
+  mu_edge: 0.1
+  mu_global: 0.01
+  alpha_feddyn: 0.1
+  alpha_feddyn_global: 0.02
+  lambda_pfedme: 35.0
+  beta_pfedme: 1.0
+  pfedme_warm_start: false
+  lambda1_hier: 15.0
+  lambda2_hier: 15.0
+  beta_hier: 1.0
+  personal_lr_pfedme: 0.01
+  moreau_lr_pfedme: 0.005
+  mu_pfedme: 0.001
+  inner_steps_hier: 5
+  alpha_inner: 0.01
+  beta_outer: 0.01
+  label_smoothing: 0.1
+  plocal_epochs: 1
+  head_lr_rep: 0.005
+  lambda_ditto: 0.1
+  ditto_pers_epochs: 1
+model:
+  arch: cifar_cnn_3conv
+  rep_dim: 64
+backdoor:
+  enabled: true
+  trigger: badnet
+  malicious_strategy: badpfl
+  target_label: 9
+  poison_ratio: 0.2
+  malicious_ids:
+  - 3
+  malicious_placement: spread
+  n_malicious: 2
+  forced_participation: false
+  attack_freq_Q: 1
+  badnet_size: 3
+  badnet_value: 1.0
+  blended_alpha: 0.2
+  blended_image: attack/triggers/hello_kitty.png
+  dba_patterns:
+  - - - 0
+      - 0
+    - - 0
+      - 1
+    - - 0
+      - 2
+    - - 0
+      - 3
+    - - 0
+      - 4
+    - - 0
+      - 5
+  - - - 0
+      - 9
+    - - 0
+      - 10
+    - - 0
+      - 11
+    - - 0
+      - 12
+    - - 0
+      - 13
+    - - 0
+      - 14
+  neurotoxin_mask_ratio: 0.05
+  neurotoxin_mask_batches: 0
+  cerp_alpha: 0.0001
+  cerp_beta: 0.0001
+  cerp_trigger_lr: 0.1
+  cerp_trigger_phi: 10.0
+  cerp_trigger_steps: 1
+  badpfl_epsilon: 0.01569
+  badpfl_sigma: 0.01569
+  badpfl_gen_steps: 5
+  badpfl_gen_lr: 0.01
+  eval_interval: 1
+  asr_max_samples: 2000
+  verbose_clients: false
+  feature_eval: false
+  feature_eval_samples: 200
+  feature_clean_per_class: 50
+  forgetting_epochs: 0
+  badpfl_shared_generator: true
+defense:
+  name: none
+  params:
+    trim_ratio: 0.1
+    num_malicious: 0
+    noise_scale: 0.001
+    num_projections: 5
+    subspace_dim: 10000
+    filter_mult: 1.0
+    st_epochs: 10
+    st_lr: 0.0
+wandb:
+  enabled: false
+evaluation:
+  eval_interval: 1
+  final_finetune: false
+  final_finetune_steps: 5
+  test_client_eval: false
+  test_client_ratio: 0.2
+  test_finetune_steps: 5
+probe:
+  checkpoint_rounds:
+  - 2
+  - 5
+  checkpoint_dir: ../experiments/attack/bad-pfl/exp03/checkpoints
+  tag: probe_smoke
