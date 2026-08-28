@@ -94,6 +94,17 @@ class FrozenOrder:
 
     def __enter__(self):
         c = self.client
+        self._saved["random_state"] = random.getstate()
+
+        # **先播种再物化。** 物化会真的迭代一次 dataset，而训练管线里带随机数据增强
+        # （data/dataset.py 的 augment：random_flip / random_crop）。播种放在后面的话，
+        # 那次迭代就是未播种的随机 op —— 在 probe 的 cpu 模式（enable_op_determinism）
+        # 下会直接抛 "Random ops require a seed"，在别处则让首次物化不可复现。
+        # （物化只做一次并缓存，所以三条 twin 看到的批**内容**本来就相同；
+        #   这里保的是跨进程重跑也相同。）
+        random.seed(self.order_seed)
+        tf.random.set_seed(self.order_seed)
+
         batches = _materialize(c)
 
         # drop_last：复刻 `_shuffled_batches` 里的 `x.shape[0] == self._batch_size` 过滤，
@@ -110,7 +121,6 @@ class FrozenOrder:
         self._saved["dataset"] = c.dataset
         self._saved["_batch_list"] = getattr(c, "_batch_list", None)
         self._saved["_shuffled_batches"] = c.__dict__.get("_shuffled_batches", _MISSING)
-        self._saved["random_state"] = random.getstate()
 
         c.dataset = frozen
         if hasattr(c, "_batch_list"):
@@ -119,8 +129,6 @@ class FrozenOrder:
             # 实例属性遮蔽类方法；退出时删掉这个属性即还原
             c._shuffled_batches = lambda: list(iter(frozen))
 
-        random.seed(self.order_seed)
-        tf.random.set_seed(self.order_seed)
         frozen.reset()
         self._frozen = frozen
         return self

@@ -50,41 +50,79 @@ def write_summary(path, payload) -> Path:
     return path
 
 
-def verdicts(summaries, *, ratio_threshold: float = 3.0) -> dict:
-    """
-    Stage 1 的三条判据，直接算成数字，免得靠人眼在 CSV 里翻。
+def _stats(xs):
+    xs = [x for x in xs if isinstance(x, float) and not math.isnan(x)]
+    return {"n": len(xs), "min": min(xs) if xs else None,
+            "max": max(xs) if xs else None,
+            "mean": (sum(xs) / len(xs)) if xs else None}
 
-    判据 1（仪表）：良性端的 ‖Δθ_BD‖ —— 良性端两个 twin 走的是**逐字节相同**的代码
-                    路径，所以这个值只反映批序冻结与状态还原是否真的生效。
-                    它不为 ~0 就说明仪表坏了，下面所有数字都不可读。
-    判据 2（信号）：恶意端 ‖Δθ_BD‖ / ‖Δθ_stochastic‖ 是否显著 > 1。
+
+def hardware_floor(summaries) -> dict:
+    """
+    良性端的 ‖Δθ_BD‖ —— 纯硬件/实现噪声。
+
+    良性端没有攻击 mixin，翻 `is_malicious` 是无操作 → 两条 twin 走**逐字节相同**的
+    代码路径。所以这个量里不含任何算法内容，只有「同一段计算跑两遍是否给出同一个数」。
+    `determinism=cpu` 下它必须精确为 0；GPU 上（cuDNN 的非确定性 kernel）它不为 0，
+    那时它就是**必须被超过的地板**，而不是"仪表坏了"。
+    """
+    return _stats([s["bd_norm"] for s in summaries if s.get("role") == "benign"])
+
+
+def verdicts(summaries, *, ratio_threshold: float = 3.0,
+             determinism: str = "cpu", tol: float = 1e-6) -> dict:
+    """
+    Stage 1 的判据，直接算成数字，免得靠人眼在 CSV 里翻。
+
+    三个量语义各不相同，必须分开报（混起来会把硬件问题读成科学结论）：
+
+        hardware_floor  良性端 ‖Δθ_BD‖        同一段计算跑两遍的残差（见上）
+        sgd_floor       ‖Δθ_stochastic‖       换 order_seed 引起的**真实** SGD 噪声
+        signal          恶意端 ‖Δθ_BD‖        后门位移 + 上面两者
+
+    判据 1（仪表）：`determinism=cpu` 时 hardware_floor 必须 < tol。
+                    不为 0 → 批序冻结或状态还原漏了东西，下面所有数字都不可读。
+                    `gpu-measure` 时不做这个断言 —— 那个模式的地板本来就非零，
+                    它被并进判据 2 的分母里。
+    判据 2（信号）：signal / max(hardware_floor, sgd_floor) 是否显著 > 1。
+                    **除以 max 而不是只除以 sgd_floor**：GPU 模式下硬件地板可能是
+                    两者中更大的那个，只跟 SGD 噪声比会高估信号。
                     不显著 → Q1 的答案是「参数空间不可定位」，**这是结论不是 bug**。
-    判据 3（量级）：恶意端与良性端的 stochastic 噪声地板量级是否可比。
     """
     mal = [s for s in summaries if s.get("role") == "malicious"]
     ben = [s for s in summaries if s.get("role") == "benign"]
 
-    def _f(xs):
-        xs = [x for x in xs if isinstance(x, float) and not math.isnan(x)]
-        return {"n": len(xs), "min": min(xs) if xs else None,
-                "max": max(xs) if xs else None,
-                "mean": (sum(xs) / len(xs)) if xs else None}
+    hw = hardware_floor(summaries)
+    hw_max = hw["max"] or 0.0
 
-    benign_bd = _f([s["bd_norm"] for s in ben])
-    mal_ratio = _f([s["bd_over_stochastic"] for s in mal])
+    ratios = []
+    for s in mal:
+        floor = max(hw_max, s.get("stochastic_norm") or 0.0)
+        if floor > 1e-12 and not math.isnan(s["bd_norm"]):
+            ratios.append(s["bd_norm"] / floor)
+    sig = _stats(ratios)
+
+    instrument_pass = (determinism != "cpu"
+                       or (hw["max"] is not None and hw["max"] < tol))
     return {
+        "determinism": determinism,
         "instrument_ok": {
-            "benign_bd_norm": benign_bd,
-            "note": "良性端两个 twin 代码路径逐字节相同 → 这个值就是批序冻结/状态还原的残差。",
-            "pass": bool(benign_bd["max"] is not None and benign_bd["max"] < 1e-6),
+            "hardware_floor": hw,
+            "tol": tol,
+            "note": ("良性端两条 twin 代码路径逐字节相同 → 这个值只反映批序冻结/状态还原"
+                     "（cpu 模式）或硬件非确定性（gpu-measure 模式）。"),
+            "pass": bool(instrument_pass),
+            "asserted": determinism == "cpu",
         },
         "signal": {
-            "malicious_bd_over_stochastic": mal_ratio,
+            "signal_over_floor": sig,
+            "floor_used": "max(hardware_floor, sgd_floor)",
             "threshold": ratio_threshold,
-            "pass": bool(mal_ratio["min"] is not None and mal_ratio["min"] > ratio_threshold),
+            # 取**最差**的恶意端：用均值会被另一个高比值的端掩盖过去
+            "pass": bool(sig["min"] is not None and sig["min"] > ratio_threshold),
         },
         "noise_floor": {
-            "benign_stochastic_norm": _f([s["stochastic_norm"] for s in ben]),
-            "malicious_stochastic_norm": _f([s["stochastic_norm"] for s in mal]),
+            "benign_stochastic_norm": _stats([s["stochastic_norm"] for s in ben]),
+            "malicious_stochastic_norm": _stats([s["stochastic_norm"] for s in mal]),
         },
     }

@@ -25,8 +25,8 @@
 
 | # | 判据 | 读哪里 | 不过意味着 |
 |---|---|---|---|
-| **1 仪表** | 良性端 `‖Δθ_BD‖` **精确为 0** | `verdicts.instrument_ok` | 批序冻结或状态还原漏了东西。良性端没有攻击 mixin，翻 `is_malicious` 是无操作 → 两条 twin 走**逐字节相同**的代码路径，非零就只能是仪表问题。**下面所有数字不可读。** GPU 上先确认 `TF_DETERMINISTIC_OPS=1` 生效（`run_probe.sh` 已导出）；仍不为零就把这个值当**噪声地板**记录，此后所有 Δθ_BD 相对它解释 |
-| **2 信号** | 恶意端 `‖Δθ_BD‖ / ‖Δθ_stochastic‖` 显著 > 1（默认阈值 3.0，取**最差**的那个恶意端） | `verdicts.signal` | BD 位移淹没在 local SGD 噪声里 → Q1 的答案是「**参数空间不可定位**」。**这是科学结论，不是 bug** —— 直接写进 notes，并把 Q3（表征空间）的优先级提到前面。不要靠调超参把比值"调"上去 |
+| **1 仪表** | `hardware_floor`（良性端 `‖Δθ_BD‖`）**精确为 0**（`determinism=cpu` 下才断言） | `verdicts.instrument_ok` | 批序冻结或状态还原漏了东西。良性端没有攻击 mixin，翻 `is_malicious` 是无操作 → 两条 twin 走**逐字节相同**的代码路径，非零就只能是仪表问题。**下面所有数字不可读**，所以 `run_probe.py` 在良性端跑完就**提前中止**，不再烧恶意端 |
+| **2 信号** | 恶意端 `‖Δθ_BD‖ / max(hardware_floor, sgd_floor)` 显著 > 1（默认阈值 3.0，取**最差**的那个恶意端） | `verdicts.signal` | BD 位移淹没在噪声里 → Q1 的答案是「**参数空间不可定位**」。**这是科学结论，不是 bug** —— 直接写进 notes，并把 Q3（表征空间）的优先级提到前面。不要靠调超参把比值"调"上去 |
 | 3 定位 | `topk_bd_energy` 与 `bd_energy_frac_by_layer` | `summaries[]` | 判据 2 过了才读。回答 Q1「集中于少数 layer / 少数 parameter 与否」 |
 | 4 占据 | `occupation_vs_bd.curve`（**分箱曲线**）+ `per_group` | `summaries[]` | 回答 Q2。**主读数是曲线不是 r** —— 见下方方法论限制 |
 
@@ -41,6 +41,12 @@
 - **判据 1 与「良性端 Δθ_BD ≈ 0」是同一件事的两种说法**，不是两条独立证据。
   真正独立的第二路检查是 `tests/test_probe_determinism.py::test_frozen_order_is_not_a_no_op`
   （不同 order_seed 必须给出不同轨迹）——否则噪声地板会被伪造成零、比值恒为 inf。
+- **三个地板量语义不同，不要混着读**（`verdicts` 分开报）：
+  `hardware_floor`（良性端 ‖Δθ_BD‖）= 同一段计算跑两遍的残差，不含任何算法内容；
+  `sgd_floor`（‖Δθ_stochastic‖）= 换 order_seed 引起的**真实** SGD 噪声；
+  `signal`（恶意端 ‖Δθ_BD‖）= 后门位移 + 上面两者。
+  判据 2 除以 `max(前两者)` 而不是只除以 SGD 地板 —— `gpu-measure` 模式下硬件地板
+  可能是更大的那个，只跟 SGD 噪声比会**高估信号**。
 - **Metric A（`cosine_poison_clean`）只是辅助指标。** 它反映「恶意端整体更新是否仍沿
   正常任务方向」，**不是**后门相似度。主指标是 Metric B（`cosine_bd_clean`）。
 
@@ -65,12 +71,21 @@ neurotoxin / cerp 直接可用，IBA 移植后零改动接入。vanilla（badnet
 ## 怎么跑
 
 ```bash
-# Stage 0：先把管线跑通（不产出科学结论）
-sbatch run_probe.sh experiments/attack/bad-pfl/exp03/probe_smoke.yaml
+# Stage 0：先把管线跑通（不产出科学结论）。第一次建议先只探 1+1 个客户端：
+# smoke 是 10 client 分 cifar10 全量，每端 ~6000 样本，比锚点（100 client，每端 ~600）**更重**。
+PROBE_N_BENIGN=1 PROBE_N_MALICIOUS=1 \
+  sbatch run_probe.sh experiments/attack/bad-pfl/exp03/probe_smoke.yaml
 
 # 只重跑探针（checkpoint 已在）
 PROBE_SKIP_TRAIN=1 sbatch run_probe.sh experiments/attack/bad-pfl/exp03/probe_smoke.yaml
 ```
+
+**探针缺省跑在 CPU 上**（`PROBE_DETERMINISM=cpu`），这不是保守，是**必须**：
+GPU + 确定性 + BN + Bad-PFL 的 FGSM 四者不可兼得（CLAUDE.md 陷阱 #11 —— 曾经在
+`run_probe.sh` 里 `export TF_DETERMINISTIC_OPS=1`，直接把训练阶段打挂了）。
+探针是离线小负载（锚点每端 ~600 样本 / 18 batch），CPU 吃得下。
+需要用 GPU 时 `PROBE_DETERMINISM=gpu-measure`：不开确定性、把 clean twin 残差
+当作硬件地板上报，判据 2 自动改用 `max(硬件地板, SGD 地板)` 作分母。
 
 Stage 0 三条判据（1、2、以及"恶意端确有位移"）都过之后，才换 exp007 锚点：
 `experiments/attack/hfl-propagation/2edge_distributed.yaml` + `probe.checkpoint_rounds`，
@@ -98,3 +113,4 @@ Stage 1 = T1/T3 × 3 benign + 3 malicious × 1 seed。
 | 日期 | 做了什么 | 证据 | 结论 |
 |---|---|---|---|
 | 2026-08-28 | 建 `probe/` 包 + 142 条 L1；`main.build_world` 抽取；checkpoint 钩子 | 本地（TF 2.15/Keras 2.15）`run_l1.sh`：**388 passed / 2 failed / 3 skipped / 3 xfailed**。2 红 = 陷阱 #4（Neurotoxin），与本会话无关。零回归核对：既有测试文件现为 264 passed / 2 failed，减去本会话补进 `test_config_validate.py` 的 18 条探针校验 = **246 passed / 2 failed，与改动前逐条相同** | 地基就位。CPU 上同 `order_seed` 的两条 clean twin **maxdiff = 0.000e+00**（逐比特一致）；不同 seed 有差异（冻结非平凡）；ClientSnapshot 还原 model / 共享 generator / RNG / 私有 head / 优化器 slot 全部精确。**GPU 上的判据 1 尚未验证** |
+| 2026-08-28 | 修：`run_probe.sh` 里作业级的 `TF_DETERMINISTIC_OPS=1` 把**训练阶段**打挂 | 集群 `UnimplementedError: A deterministic GPU implementation of fused batch-norm backprop, when training is disabled, is not currently available`，栈落在 `_backdoor_eval → compute_asr → eval_trigger → _atk_fgsm_noise → tape.gradient(loss, x)`。本地实测：CPU + `TF_DETERMINISTIC_OPS=1` 下同一段 FGSM-through-BN **正常** → guard 只在 GPU kernel 路径上 | **GPU + 确定性 + BN + FGSM 四者不可兼得**（陷阱 #11），不是配置写错。改法：删掉作业级 export（训练回到与 exp007 逐字节相同的环境）；确定性下沉为探针进程内的 `--determinism {cpu,gpu-measure}`，缺省 `cpu`（隐藏 GPU + `enable_op_determinism`）。判据 2 的分母推广成 `max(硬件地板, SGD 地板)`，于是 `gpu-measure` 也能读。仪表不过时在良性端跑完就**提前中止**。L1：**402 passed / 2 failed**（+14，逐条对得上：7 守卫 + 6 判据语义 + 1 早停），2 红仍是陷阱 #4 |

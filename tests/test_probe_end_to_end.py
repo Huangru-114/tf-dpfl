@@ -200,14 +200,17 @@ def test_probe_runs_end_to_end_and_emits_verdicts(trained, tmp_path):
 
     payload = json.loads((out / "probe_summary_r0001.json").read_text())
     assert payload["client_failures"] == []
+    assert payload["aborted"] is None
     assert payload["run"]["round"] == 1
     assert payload["run"]["method"] == "hier_fedrep"
-    # 判据 1：良性端两条 twin 代码路径逐字节相同 → ‖Δθ_BD‖ 必须精确为 0
+    assert payload["run"]["determinism"] == "cpu"
+    # 判据 1：良性端两条 twin 代码路径逐字节相同 → hardware_floor 必须精确为 0
     assert payload["verdicts"]["instrument_ok"]["pass"] is True
-    assert payload["verdicts"]["instrument_ok"]["benign_bd_norm"]["max"] == 0.0
+    assert payload["verdicts"]["instrument_ok"]["asserted"] is True
+    assert payload["verdicts"]["instrument_ok"]["hardware_floor"]["max"] == 0.0
     # 恶意端必须真的有位移（否则开关没接上）
-    assert payload["verdicts"]["signal"]["malicious_bd_over_stochastic"]["n"] == 1
-    assert payload["verdicts"]["signal"]["malicious_bd_over_stochastic"]["min"] > 0.0
+    assert payload["verdicts"]["signal"]["signal_over_floor"]["n"] == 1
+    assert payload["verdicts"]["signal"]["signal_over_floor"]["min"] > 0.0
 
     import csv
     rows = list(csv.DictReader((out / "probe_rows_r0001.csv").open()))
@@ -215,6 +218,26 @@ def test_probe_runs_end_to_end_and_emits_verdicts(trained, tmp_path):
     assert {"backbone", "head"} == {r["scope"] for r in rows}
     assert {"upload", "personal"} == {r["weight_space"] for r in rows}
     assert {"benign", "malicious"} == {r["role"] for r in rows}
+
+
+def test_probe_aborts_early_when_the_instrument_is_broken(trained, tmp_path):
+    """
+    仪表坏了就不该把恶意端跑完再报一个谁也看不懂的 FAIL —— 在锚点上那是几十分钟白烧。
+    用一个荒谬严格的 tol 强制触发早停路径，断言：恶意端**没被跑**、退出码非 0、
+    并且 `aborted` 里写清了原因。
+    """
+    ckpt = Path(trained["config"]["probe"]["checkpoint_dir"]) / "e2e_r0001.npz"
+    from probe.run_probe import main as probe_main
+    trained["mp"].setattr(sys, "argv",
+                          ["run_probe", "--config", str(trained["cfg_path"])])
+    out = tmp_path / "abort"
+    rc = probe_main(["--checkpoint", str(ckpt), "--out", str(out),
+                     "--benign", "1", "--malicious", "1",
+                     "--floor-tol", "-1.0", "--tag", "abort"])
+    assert rc == 2
+    payload = json.loads((out / "probe_summary_abort.json").read_text())
+    assert payload["aborted"] and "仪表未通过" in payload["aborted"]
+    assert {s["role"] for s in payload["summaries"]} == {"benign"}   # 恶意端未被跑
 
 
 def test_probe_refuses_dataset_baked_attacks(synthetic_cifar, tiny_config, monkeypatch):

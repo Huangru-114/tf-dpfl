@@ -21,6 +21,19 @@ checkpoint 存的是「进入第 t 轮时」的状态。`--theta-from global`（
 探针复现的是 **cloud round t 的第一个 edge round** —— 那一刻 edge 刚被 broadcast
 成全局权重，client 收到的就是它。`edge_rounds > 1` 时后续 edge round 的起点各不相同，
 本探针不覆盖（那属于 HFL 传播会话的 edge 层嵌套 counterfactual）。
+
+`--determinism`（见 CLAUDE.md 陷阱 #11）
+────────────────────────────────────────
+paired counterfactual 要求两条 clean twin 逐比特一致，但 **GPU 上做不到**：
+Bad-PFL 的 FGSM 要在 `training=False` 下对输入求梯度，模型又带 BN，而 TF 没有这个
+形状的确定性 GPU kernel —— 请求确定性直接抛 UnimplementedError。所以：
+
+    cpu（缺省）  进程内隐藏 GPU + enable_op_determinism()。已实测：不触发那个 guard，
+                 且两条 clean twin maxdiff = 0.000e+00。探针是离线小负载，CPU 吃得下。
+    gpu-measure  用 GPU、不开确定性。快，但 clean twin 残差非零 —— 该残差作为
+                 **硬件地板**上报，判据 2 改用「信号 ≫ max(硬件地板, SGD 地板)」。
+
+**没有 gpu-strict** —— 上面已说明它不可能成立。
 """
 import argparse
 import sys
@@ -34,7 +47,38 @@ from probe import checkpoint as ckpt_io
 from probe.analyze import analyze_probe
 from probe.layermap import weight_index_map, layer_groups
 from probe.paired import assert_attack_is_hook_gated, probe_client
-from probe.writer import verdicts, write_rows, write_summary
+from probe.writer import hardware_floor, verdicts, write_rows, write_summary
+
+
+def _setup_devices(mode: str):
+    """
+    必须在**建任何模型之前**调用（`main()` 里它排在 `build_world` 之前；
+    import 顺序无关 —— `set_visible_devices` 看的是 GPU 有没有被**初始化**，
+    而 import TF / keras 本身不跑任何 op）。
+
+    隐藏 GPU 用 `tf.config.set_visible_devices` 而不是 `CUDA_VISIBLE_DEVICES=`：
+    容器（apptainer）的环境变量传递有历史包袱（cluster_env.sh:57-60 为
+    TFDPFL_KERAS_HOME 同时设了 APPTAINERENV_ 前缀作显式保证）。进程内设定不依赖
+    任何传递机制。`enable_op_determinism()` 必须在隐藏 GPU **之后**调，
+    否则又会装上 GPU 的 fused-BN guard。
+
+    ⚠️ `enable_op_determinism()` 是**进程级且不可逆**（TF 2.15 没有 disable_*），
+    并且会把所有**未播种**的随机 op 变成硬错误
+    （RuntimeError: Random ops require a seed）。本函数之后紧接着就是
+    `set_seed(...)`（→ tf.random.set_seed），全局种子一旦设上，后续 op 就不会再撞
+    这个错。调用顺序不要动。
+    """
+    import tensorflow as tf
+
+    if mode == "cpu":
+        tf.config.set_visible_devices([], "GPU")
+        tf.config.experimental.enable_op_determinism()
+        print("[Probe] determinism=cpu —— 已隐藏 GPU 并开启 op determinism")
+    else:
+        gpus = tf.config.list_physical_devices("GPU")
+        print(f"[Probe] determinism=gpu-measure —— 用 GPU ({len(gpus)} 个)、不开确定性；"
+              f"clean twin 残差将作为硬件地板上报")
+    return tf
 
 
 def _pick(clients, malicious_ids, n_benign: int, n_malicious: int):
@@ -58,13 +102,20 @@ def main(argv=None):
     ap.add_argument("--benign", type=int, default=3)
     ap.add_argument("--malicious", type=int, default=3)
     ap.add_argument("--theta-from", choices=("global", "edge"), default="global")
+    ap.add_argument("--determinism", choices=("cpu", "gpu-measure"), default="cpu",
+                    help="见模块 docstring 与 CLAUDE.md 陷阱 #11")
     ap.add_argument("--ratio-threshold", type=float, default=3.0)
+    ap.add_argument("--floor-tol", type=float, default=1e-6,
+                    help="cpu 模式下 hardware_floor 的容差；超过就判仪表坏了并早停")
     ap.add_argument("--tag", default="")
     # --config / --override / --seed 由 main.load_config 自己解析（parse_known_args）
     args, _ = ap.parse_known_args(argv)
 
     config = load_config()
     assert_attack_is_hook_gated(config)
+
+    # 必须在 build_world 建模型之前定设备
+    _setup_devices(args.determinism)
 
     set_seed(config.get("seed", 42))
     world = build_world(config)
@@ -106,8 +157,26 @@ def main(argv=None):
     print(f"[Probe] 层分组 {len(tensor_groups)} 层 | backbone {len(base_idx)} 张量 / "
           f"head {len(head_idx)} 张量 | BN state 张量 {len(imap['bn_state_indices'])}")
 
+    def _scoped(summs):
+        """判据只看 upload×backbone —— 那是真正参与聚合、决定后门如何传播的权重。"""
+        return [s for s in summs
+                if s["scope"] == "backbone" and s["weight_space"] == "upload"]
+
     rows, summaries, failures = [], [], []
-    for c in benign + malicious:
+    aborted = None
+    # 良性端**先跑**：它们是仪表本身。仪表坏了就不必把剩下的客户端跑完再报一个
+    # 谁也看不懂的 FAIL —— 那在锚点上是几十分钟的白烧。
+    for i, c in enumerate(benign + malicious):
+        if i == len(benign) and args.determinism == "cpu":
+            hw = hardware_floor(_scoped(summaries))
+            if hw["max"] is not None and hw["max"] >= args.floor_tol:
+                aborted = (
+                    f"仪表未通过：determinism=cpu 下良性端 ‖Δθ_BD‖ max={hw['max']:.3e} "
+                    f"≥ tol={args.floor_tol:.0e}。良性端两条 twin 走的是逐字节相同的"
+                    f"代码路径，非零只能是批序冻结或状态还原漏了东西 —— 先修仪表，"
+                    f"恶意端跑出来也不可读。")
+                print(f"\n[Probe] ✗ {aborted}\n[Probe] 提前中止，跳过恶意端。")
+                break
         cid = int(c.client_id)
         theta_t = (ckpt_io.global_weights(ck) if args.theta_from == "global"
                    else ckpt_io.edge_weights(ck, int(getattr(c, "assigned_edge", 0))))
@@ -133,14 +202,13 @@ def main(argv=None):
     outdir = Path(args.out)
     write_rows(outdir / f"probe_rows_{tag}.csv", rows)
 
-    # 判据只看 upload×backbone —— 那是真正参与聚合、决定后门如何传播的那部分权重
-    scoped = [s for s in summaries
-              if s["scope"] == "backbone" and s["weight_space"] == "upload"]
-    v = verdicts(scoped, ratio_threshold=args.ratio_threshold)
+    v = verdicts(_scoped(summaries), ratio_threshold=args.ratio_threshold,
+                 determinism=args.determinism, tol=args.floor_tol)
     payload = {
         "run": {
             "checkpoint": str(args.checkpoint), "round": round_idx, "tag": tag,
             "theta_from": args.theta_from, "seed": seed,
+            "determinism": args.determinism,
             "method": config["training"].get("drift_correction"),
             "strategy": config.get("backdoor", {}).get("malicious_strategy"),
             "arch": config.get("model", {}).get("arch"),
@@ -150,22 +218,28 @@ def main(argv=None):
             "ckpt_run_info": m.get("run", {}),
         },
         "verdicts": v,
+        "aborted": aborted,
         "client_failures": failures,
         "summaries": summaries,
     }
     write_summary(outdir / f"probe_summary_{tag}.json", payload)
 
     print("\n" + "=" * 60)
-    print(f"[Probe] 判据 1 仪表  | 良性端 ‖Δθ_BD‖ max = "
-          f"{v['instrument_ok']['benign_bd_norm']['max']} | pass={v['instrument_ok']['pass']}")
-    print(f"[Probe] 判据 2 信号  | 恶意端 ‖Δθ_BD‖/‖Δθ_stoch‖ min = "
-          f"{v['signal']['malicious_bd_over_stochastic']['min']} "
+    print(f"[Probe] determinism = {args.determinism}")
+    print(f"[Probe] 判据 1 仪表  | hardware_floor(良性端 ‖Δθ_BD‖) max = "
+          f"{v['instrument_ok']['hardware_floor']['max']} | pass={v['instrument_ok']['pass']}"
+          f"{'' if v['instrument_ok']['asserted'] else ' (gpu-measure：不断言，只作地板)'}")
+    print(f"[Probe] 判据 2 信号  | 恶意端 ‖Δθ_BD‖ / max(硬件地板, SGD地板) min = "
+          f"{v['signal']['signal_over_floor']['min']} "
           f"(阈值 {args.ratio_threshold}) | pass={v['signal']['pass']}")
-    print(f"[Probe] 噪声地板     | {v['noise_floor']}")
+    print(f"[Probe] SGD 噪声地板 | {v['noise_floor']}")
     if failures:
         print(f"[Probe] ⚠️ 失败客户端 {len(failures)} 个: {failures}")
     print(f"[Probe] 产物 -> {outdir}")
     print("=" * 60)
+    if aborted:
+        print(f"[Probe] ✗ {aborted}")
+        return 2
     return 0
 
 

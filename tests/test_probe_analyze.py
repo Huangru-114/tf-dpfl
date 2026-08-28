@@ -15,7 +15,8 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "fedavg"))
 
 from probe.analyze import analyze_probe, ROW_COLUMNS          # noqa: E402
-from probe.writer import write_rows, write_summary, verdicts  # noqa: E402
+from probe.writer import (hardware_floor, write_rows,          # noqa: E402
+                          write_summary, verdicts)
 
 
 # 玩具模型：张量 0/1 = conv 层（backbone），张量 2/3 = head 的 kernel+bias
@@ -147,6 +148,60 @@ def test_verdict_signal_uses_the_worst_malicious_client_not_the_mean():
                   _summ("malicious", 100.0, 1.0), _summ("malicious", 1.0, 1.0)],
                  ratio_threshold=3.0)
     assert v["signal"]["pass"] is False
+
+
+# ── 判据在两种 determinism 模式下的语义（陷阱 #11）─────────────────────────
+def test_hardware_floor_is_the_benign_bd_norm():
+    """
+    良性端没有攻击 mixin，翻 is_malicious 是无操作 → 两条 twin 代码路径逐字节相同。
+    所以它们的 ‖Δθ_BD‖ 里不含任何算法内容，只有"同一段计算跑两遍是否一致"。
+    """
+    assert hardware_floor([_summ("benign", 0.25, 9.0),
+                           _summ("malicious", 99.0, 9.0)])["max"] == 0.25
+
+
+def test_cpu_mode_asserts_a_zero_hardware_floor():
+    v = verdicts([_summ("benign", 1e-3, 1.0), _summ("malicious", 10.0, 1.0)],
+                 determinism="cpu")
+    assert v["instrument_ok"]["asserted"] is True
+    assert v["instrument_ok"]["pass"] is False
+
+
+def test_gpu_measure_mode_does_not_assert_the_floor_it_only_reports_it():
+    """
+    GPU 上 clean twin 残差本来就非零（cuDNN 非确定性 kernel）。把它判成"仪表坏了"
+    是把硬件性质误读成 bug —— 那个模式下地板不断言，只并进判据 2 的分母。
+    """
+    v = verdicts([_summ("benign", 1e-3, 1.0), _summ("malicious", 10.0, 1.0)],
+                 determinism="gpu-measure")
+    assert v["instrument_ok"]["asserted"] is False
+    assert v["instrument_ok"]["pass"] is True
+    assert v["instrument_ok"]["hardware_floor"]["max"] == 1e-3
+    assert v["determinism"] == "gpu-measure"
+
+
+def test_signal_is_divided_by_the_larger_of_the_two_floors():
+    """
+    硬件地板 5.0 > SGD 地板 1.0 时，只跟 SGD 噪声比会把信号高估 5 倍。
+    signal=10 → 必须是 10/5=2（不过阈值 3），而不是 10/1=10。
+    """
+    v = verdicts([_summ("benign", 5.0, 1.0), _summ("malicious", 10.0, 1.0)],
+                 ratio_threshold=3.0, determinism="gpu-measure")
+    assert v["signal"]["signal_over_floor"]["min"] == pytest.approx(2.0)
+    assert v["signal"]["pass"] is False
+
+
+def test_sgd_floor_still_wins_when_it_is_the_larger_one():
+    v = verdicts([_summ("benign", 0.0, 1.0), _summ("malicious", 10.0, 2.0)],
+                 ratio_threshold=3.0)
+    assert v["signal"]["signal_over_floor"]["min"] == pytest.approx(5.0)
+    assert v["signal"]["pass"] is True
+
+
+def test_cpu_mode_reduces_to_the_plain_stochastic_ratio():
+    """hardware_floor=0 时新公式必须退化成旧行为（除以 SGD 地板）。"""
+    v = verdicts([_summ("benign", 0.0, 4.0), _summ("malicious", 12.0, 4.0)])
+    assert v["signal"]["signal_over_floor"]["min"] == pytest.approx(3.0)
 
 
 # ── 落盘 ────────────────────────────────────────────────────────────────────

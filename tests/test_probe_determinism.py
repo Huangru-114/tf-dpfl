@@ -18,6 +18,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "fedavg"))
 
 tf = pytest.importorskip("tensorflow", reason="L1 需要 TF；本地无 TF 时在集群跑")
 
+# 本文件的断言是**逐比特**的，前提是跑在 CPU 上 —— 由 tests/conftest.py 统一钉死
+# （那里写了为什么不能靠 TF 的确定性开关在 GPU 上救它）。这里加一条自检：设备没被
+# 钉住时直接 skip，而不是产出一堆看起来像回归、实为环境问题的红。
+if tf.config.get_visible_devices("GPU"):
+    pytest.skip("本文件的逐比特断言要求 CPU；GPU 可见（conftest 的钉死没生效）→ skip",
+                allow_module_level=True)
+
 from client.client_badpfl import BadPFLMixin          # noqa: E402
 from client.compose import compose_client_class       # noqa: E402
 from client.hier_fedrep import HierFedRepClient       # noqa: E402

@@ -109,8 +109,8 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
 
    | 环境 | 预期 | 说明 |
    |---|---|---|
-   | **本地（无 TF）** | `270 passed / 11 skipped / 3 xfailed` → **PASS**（exit 0），<1 秒 | 11 skipped = 11 个需要 TF 的测试模块整体 skip |
-   | **集群 / 有 TF** | `388 passed / 2 failed / 3 skipped / 3 xfailed` → **FAIL** | 2 条红是**既有**的陷阱 #4，见下 |
+   | **本地（无 TF）** | `283 passed / 11 skipped / 3 xfailed` → **PASS**（exit 0），<1 秒 | 11 skipped = 11 个需要 TF 的测试模块整体 skip |
+   | **集群 / 有 TF** | `402 passed / 2 failed / 3 skipped / 3 xfailed` → **FAIL** | 2 条红是**既有**的陷阱 #4，见下 |
 
    > **这两行数字实测于 2026-08-28**（本地装 `tensorflow-cpu==2.15.1` / Keras 2.15，
    > 与仓库隐含要求的 Keras 2.x 一致，见陷阱 #6）。此前 CLAUDE.md 写的
@@ -364,3 +364,44 @@ methods-registry.md   所有候选方法的台账 = 研究看板
     守卫：`tests/test_cloud_aggregate_default.py`（5 个防御逐个断言真的发出了这行）
     + `tests/test_collect_metrics.py`（断言解析得出来）。这两件是分开测的 ——
     解析器认得格式 ≠ 代码会打印它。
+
+11. **GPU 确定性 × BatchNorm × 「对输入求梯度」三者不可兼得（已确认，2026-08-28 集群实测）**
+    症状：训练跑到第一次后门评估时抛
+    ```
+    UnimplementedError: A deterministic GPU implementation of fused batch-norm
+    backprop, when training is disabled, is not currently available.
+    [Op:FusedBatchNormGradV3]
+    ```
+    **报错信息与真实起因隔着三层栈**，极易误判成模型/数据的问题。真实链条：
+    `TF_DETERMINISTIC_OPS=1` → Bad-PFL 的 FGSM 要在 `training=False` 下对**输入**求梯度
+    （`client/client_badpfl.py:_atk_fgsm_noise`）→ 模型带 BN（`cifar_cnn_3conv` 与
+    `resnet10` 都带）→ TF 没有这个形状的确定性 GPU kernel。
+    栈：`main.py → cloud.run → _backdoor_eval → evaluate_hierarchical_asr → compute_asr
+    → eval_trigger → _atk_fgsm_noise → tape.gradient(loss, x)`。
+
+    实测矩阵：
+
+    | 组合 | 结果 |
+    |---|---|
+    | CPU + 无确定性 | OK |
+    | **CPU + `TF_DETERMINISTIC_OPS=1`** | **OK** —— 那个 guard 只在 GPU kernel 路径上 |
+    | GPU + `TF_DETERMINISTIC_OPS=1` | **UnimplementedError** |
+
+    **所以：绝不要在跑攻击的作业里设 `TF_DETERMINISTIC_OPS` / `TF_CUDNN_DETERMINISTIC`。**
+    训练要的是「同种子可复现」（各处 seeded RNG 已保证），那与「逐比特确定性」是两回事；
+    只有 Exp 0.3 的 paired counterfactual 需要后者，且只在探针进程里需要 ——
+    由 `probe.run_probe --determinism {cpu,gpu-measure}` 在进程内处理：
+    `cpu` 隐藏 GPU + `enable_op_determinism()`（实测 clean twin maxdiff = 0.000e+00）；
+    `gpu-measure` 不开确定性，把 clean twin 残差当作**硬件地板**上报，判据改用
+    「信号 ≫ max(硬件地板, SGD 地板)」。**没有 gpu-strict**，上面已说明它不可能成立。
+    守卫：`tests/test_probe_shell_guard.py`（`run_probe.sh` 里不许有活的确定性 export）。
+
+    连带两条：
+    - `enable_op_determinism()` 是**进程级且不可逆**（TF 2.15 无 `disable_*`），
+      且会把所有**未播种**的随机 op 变成硬错误
+      （`RuntimeError: Random ops require a seed`）。所以它必须紧跟一个
+      `tf.random.set_seed(...)`，顺序不能动。
+    - `tests/conftest.py` 现在把整个 L1 钉在 CPU 上（`set_visible_devices([], "GPU")`）。
+      理由：`test_probe_determinism.py` 的断言是**逐比特**的，在 GPU 上会因 cuDNN 的
+      非确定性 kernel 变红 —— 那是环境问题不是回归，会污染门禁；而上面已证明
+      「打开确定性开关」在 GPU 上救不了它。L1 本来也不需要 GPU。

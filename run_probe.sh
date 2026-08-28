@@ -18,6 +18,12 @@
 #     PROBE_SKIP_TRAIN=1  只跑探针（checkpoint 已存在时复用，省一次训练）
 #     PROBE_SKIP_PROBE=1  只跑训练（先把 checkpoint 攒出来）
 #
+# 其他开关：
+#     PROBE_DETERMINISM=cpu|gpu-measure   缺省 cpu（见阶段 2 与 CLAUDE.md 陷阱 #11）
+#     PROBE_N_BENIGN / PROBE_N_MALICIOUS  每个 checkpoint 探测几个客户端，缺省 3/3
+#         第一次跑 smoke 建议先 =1：smoke 是 10 client 分 cifar10 全量，
+#         每端 ~6000 样本，比锚点（100 client，每端 ~600）**更重**。
+#
 # 产出：
 #     <outdir>/probe_rows_r####.csv      layer 级长表 —— **小，回传 git**
 #     <outdir>/probe_summary_r####.json  含三条判据 —— **小，回传 git**
@@ -26,8 +32,9 @@
 #     $LOGDIR/probe_<tag>.log            日志 —— 大，留集群
 #
 # 判据（写在 experiments/attack/bad-pfl/exp03/current-focus.md，此处只负责产出数字）：
-#   1 仪表：良性端 ‖Δθ_BD‖ ≈ 0    不过 → 下面所有数字都不可读，先修仪表
-#   2 信号：恶意端 ‖Δθ_BD‖/‖Δθ_stochastic‖ 显著 > 1
+#   1 仪表：hardware_floor（良性端 ‖Δθ_BD‖）≈ 0
+#           不过 → 下面所有数字都不可读，先修仪表
+#   2 信号：恶意端 ‖Δθ_BD‖ / max(hardware_floor, sgd_floor) 显著 > 1
 #           不过 → 「参数空间不可定位」，**这是结论不是 bug**
 set -euo pipefail
 
@@ -41,11 +48,20 @@ TAG="$(basename "${CONFIG%.yaml}")"
 LOGDIR="${TFDPFL_LOGDIR:-$ROOT/../tfdpfl-logs}"
 mkdir -p "$LOGDIR" "$OUTDIR"
 
-# ⚠️ GPU 上 cuDNN 的部分 kernel 默认是非确定性的 —— 那会直接毁掉 paired counterfactual：
-# 两条 clean twin 就对不上，Δθ_BD 里混进硬件噪声。判据 1 正是查这件事的。
-# 这个开关必须在 import tensorflow **之前**设。
-export TF_DETERMINISTIC_OPS=1
-export TF_CUDNN_DETERMINISTIC=1
+# ⚠️⚠️ **不要在这里 export TF_DETERMINISTIC_OPS / TF_CUDNN_DETERMINISTIC。**
+#
+# 曾经这么干过，结果把**训练阶段**直接打挂（见 CLAUDE.md 陷阱 #11）：
+#     UnimplementedError: A deterministic GPU implementation of fused batch-norm
+#     backprop, when training is disabled, is not currently available.
+# 起因隔着三层栈：Bad-PFL 的 FGSM 要在 `training=False` 下对**输入**求梯度
+# （client_badpfl.py:_atk_fgsm_noise），模型又带 BN（cifar_cnn_3conv / resnet10 都带），
+# 而 TF 没有这个形状的确定性 GPU kernel。GPU + 确定性 + BN + FGSM 四者不可兼得。
+#
+# 确定性是**探针阶段专属**的需求（训练只要求「同种子可复现」，那由各处 seeded RNG
+# 保证，与逐比特确定性是两回事）。所以它由 `--determinism` 交给 probe.run_probe
+# 在进程内处理，见阶段 2。
+#
+# 守卫：tests/test_probe_shell_guard.py（这条 bug 不报错，只在训练跑到后门评估那一刻炸）。
 
 # checkpoint 目录从 config 里读（cwd=fedavg 时 config 里写的是相对 fedavg 的路径）
 CKPTDIR="$($PY - "$CONFIG" <<'PYEOF'
@@ -89,6 +105,7 @@ for ck in "${CKPTS[@]}"; do
             --config "$ROOT/$CONFIG" \
             --checkpoint "$ROOT/${ck#./}" \
             --out "$ROOT/$OUTDIR" \
+            --determinism "${PROBE_DETERMINISM:-cpu}" \
             --benign "${PROBE_N_BENIGN:-3}" \
             --malicious "${PROBE_N_MALICIOUS:-3}" ) \
         2>&1 | tee "$LOGDIR/probe_${name}.log"; then
@@ -105,11 +122,11 @@ for js in "$OUTDIR"/probe_summary_*.json; do
 import json, sys
 d = json.load(open(sys.argv[1]))
 v, r = d["verdicts"], d["run"]
-print(f"  {sys.argv[1].split('/')[-1]}  round={r['round']}")
+print(f"  {sys.argv[1].split('/')[-1]}  round={r['round']}  determinism={r.get('determinism')}")
 print(f"    判据1 仪表 pass={v['instrument_ok']['pass']}  "
-      f"良性 ‖Δθ_BD‖max={v['instrument_ok']['benign_bd_norm']['max']}")
+      f"hardware_floor(良性 ‖Δθ_BD‖max)={v['instrument_ok']['hardware_floor']['max']}")
 print(f"    判据2 信号 pass={v['signal']['pass']}  "
-      f"恶意 ‖Δθ_BD‖/‖Δθ_stoch‖ min={v['signal']['malicious_bd_over_stochastic']['min']}")
+      f"恶意 ‖Δθ_BD‖/max(地板) min={v['signal']['signal_over_floor']['min']}")
 if d["client_failures"]:
     print(f"    ⚠️ 失败客户端: {d['client_failures']}")
 PYEOF
