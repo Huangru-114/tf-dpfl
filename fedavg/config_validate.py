@@ -63,14 +63,14 @@ POST_HOC_DEFENSES    = {"simple_tuning"}
 VALID_DEFENSES       = {"none"} | AGGREGATION_DEFENSES | POST_HOC_DEFENSES
 
 # ── 攻击轴 ───────────────────────────────────────────────────────────────
-VALID_STRATEGIES = {"vanilla", "neurotoxin", "cerp", "badpfl"}
+VALID_STRATEGIES = {"vanilla", "neurotoxin", "cerp", "badpfl", "iba"}
 VALID_TRIGGERS   = {"badnet", "blended", "dba"}
 
 # 需要行为 mixin 的攻击策略（vanilla 只换数据集，不需要 mixin）。
 # CLAUDE.md 陷阱 #1 已修复：这些策略现在是 mixin，与 PFL 方法类**组合**而非替换
 # （main.py:resolve_client_classes + client/compose.py），因此配任何方法都可解释。
 # 守卫：tests/test_attack_method_orthogonality.py
-MIXIN_STRATEGIES = {"neurotoxin", "cerp", "badpfl"}
+MIXIN_STRATEGIES = {"neurotoxin", "cerp", "badpfl", "iba"}
 
 # 防御可作用的层。用户在 defense.layers 里选，缺省 ["edge"]。
 VALID_DEFENSE_LAYERS = {"client", "edge", "cloud", "post_hoc"}

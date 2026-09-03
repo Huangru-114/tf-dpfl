@@ -115,6 +115,14 @@ backdoor:
   badpfl_sigma:       0.01569  # FGSM 噪声幅度 σ=4/255
   badpfl_gen_steps:   30       # 每轮生成器训练步数
   badpfl_gen_lr:      0.01     # 生成器 Adam 学习率
+  # IBA（malicious_strategy="iba"，动态投毒）：LIRA 可学习触发器 noise=G(x)*eps，
+  # target-network 双缓冲（atk/tgt）。IBA 在**标准化空间**操作、eps 不做 ÷STD 换算。
+  # 第一版为打通端到端做了简化（决策 C①/D①，见 experiments/attack/iba/current-focus.md）。
+  iba_eps:            0.01      # 触发器扰动预算（标准化空间，官方 atk_eps）
+  iba_gen_steps:      30        # 每轮生成器训练步数
+  iba_gen_lr:         0.01      # 生成器 Adam 学习率
+  iba_shared_generator: false  # true=全恶意端共享单一 atk/tgt 生成器（对齐官方、跨轮持久）
+  iba_scale_weights_poison: 1.0 # 净增1 固定系数 model-replacement（1.0=关；锚 edge、只替换 edge 层）
   eval_interval:  5             # 每多少轮算一次分层 ASR（建议 5，重型评估开销大）
   asr_max_samples: 0            # ASR 测试子采样上限（0=用全部非目标类样本）
   verbose_clients: true         # 是否逐 client 打印 C-Acc/ASR

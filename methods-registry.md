@@ -21,6 +21,7 @@
 | **neurotoxin** | github.com/jhcknzzm/Federated-Learning-Backdoor | ? | 把后门藏进良性梯度最小的坐标 → 持久 | **porting** | 陷阱 #4：mask 语义疑似反向；陷阱 #1：接线 |
 | cerp | ? | ? | 可训练触发器 + 模型距离 + peer 余弦正则 | backlog | 动态投毒；官方仓库待确认 |
 | **bad-pfl** | github.com/fmy266/Bad-PFL | ? | 生成器扰动 δ + FGSM 破坏性噪声 ξ，T(x)=x+ξ+δ | **porting** | 陷阱 #5 + 陷阱 #1 |
+| **iba** | github.com/sail-research/iba | 69a5139 | LIRA 可学习触发器 noise=G(x)·eps + target-network 双缓冲 + 逐步植入 | **parity-passed** | 第一版打通端到端（决策 C①/D①，见 experiments/attack/iba/current-focus.md）；净增1 固定 γ 默认关；两阶段/eps 退火/自适应缩放待回补 |
 
 ## 防御轴（`defense.name`）
 

@@ -37,6 +37,7 @@ from attack.backdoor        import (get_malicious_ids, resolve_malicious_ids,
 from client.client_neurotoxin import NeurotoxinMixin
 from client.client_cerp        import CerPMixin
 from client.client_badpfl      import BadPFLMixin
+from client.client_iba         import IBAMixin
 from client.compose            import compose_client_class
 
 
@@ -94,6 +95,7 @@ ATTACK_METHOD_MAP = {
     # 故 trigger 字段仅作标签用；投毒不走 build_poisoned_dataset）：
     "cerp":      {"enabled": True,  "trigger": "badnet",     "strategy": "cerp"},
     "badpfl":    {"enabled": True,  "trigger": "badnet",     "strategy": "badpfl"},
+    "iba":       {"enabled": True,  "trigger": "badnet",     "strategy": "iba"},
 }
 
 
@@ -113,6 +115,7 @@ def select_attack_mixin(strategy: str):
         "neurotoxin": NeurotoxinMixin,
         "cerp":       CerPMixin,
         "badpfl":     BadPFLMixin,
+        "iba":        IBAMixin,
     }.get(str(strategy).lower())
 
 
@@ -168,7 +171,7 @@ def build_eval_trigger(bd_cfg, static_trigger, clients, config):
     """
     strategy = str(bd_cfg.get("malicious_strategy", "vanilla")).lower()
     mal = [c for c in clients if getattr(c, "is_malicious", False)]
-    if strategy in ("cerp", "badpfl") and mal:
+    if strategy in ("cerp", "badpfl", "iba") and mal:
         c0 = mal[0]
         return lambda model, x, y=None: c0.eval_trigger(model, x, y)
     return lambda model, x, y=None: static_trigger(x)
@@ -442,7 +445,7 @@ def build_clients(images_np, labels_np, global_model, config,
     dba_triggers  = (make_dba_local_triggers(bd_cfg, malicious_ids)
                      if (bd_enabled and trigger_kind == "dba") else {})
     # 动态投毒策略（Phase 2 CerP/Bad-PFL）：恶意客户端保留 clean 数据，训练时动态投毒
-    dynamic_poison = strategy in ("cerp", "badpfl")
+    dynamic_poison = strategy in ("cerp", "badpfl", "iba")
 
     # 安全防护：CerP/Bad-PFL 的恶意客户端用自定义 eager 训练（可训练触发器 / generator），
     # 与良性客户端的 @tf.function 路径在线程池里并发**可能**互相污染 TF 图（reshape/形状错乱）。
@@ -473,6 +476,21 @@ def build_clients(images_np, labels_np, global_model, config,
         print("[Backdoor] P4: single SHARED generator across all malicious clients "
               "(adversary-held; download-optimize-return).")
 
+    # IBA：adversary 持有单一 (atkmodel, tgtmodel, optimizer)，跨轮持久累积
+    # （对齐官方 use_our_attack 里 atk/tgt 只建一次全恶意端共享）。默认关，
+    # config.backdoor.iba_shared_generator=true 时启用；n_workers=1 串行故线程安全。
+    iba_shared = None
+    if bd_enabled and strategy == "iba" and bd_cfg.get("iba_shared_generator", False):
+        _img = int(config["data"]["img_size"])
+        _atk = build_autoencoder(img_size=_img, channels=3)
+        _tgt = build_autoencoder(img_size=_img, channels=3)
+        _tgt.set_weights(_atk.get_weights())
+        _opt = tf.keras.optimizers.Adam(
+            learning_rate=float(bd_cfg.get("iba_gen_lr", 0.01)))
+        iba_shared = (_atk, _tgt, _opt)
+        print("[Backdoor] IBA: single SHARED atk/tgt generator across all malicious "
+              "clients (adversary-held; cross-round persistent).")
+
     # 类解析走单一入口：攻击/防御都是 mixin，与 PFL 方法类**组合**而非替换。
     BenignCls, MaliciousCls = resolve_client_classes(config)
     print(f"[Setup] client classes | benign={BenignCls.__name__} | "
@@ -502,6 +520,9 @@ def build_clients(images_np, labels_np, global_model, config,
         # P4：把同一个共享 generator+optimizer 注入每个恶意端（未启用时 shared_gen=None）
         if is_mal and shared_gen is not None and hasattr(client, "set_shared_generator"):
             client.set_shared_generator(shared_gen, shared_opt)
+        # IBA：注入共享的 (atkmodel, tgtmodel, optimizer)（未启用时 iba_shared=None）
+        if is_mal and iba_shared is not None and hasattr(client, "set_shared_generator"):
+            client.set_shared_generator(*iba_shared)
         # Neurotoxin：注入干净数据集（仅用于算 benign 梯度 mask，不参与投毒训练）
         if is_mal and hasattr(client, "set_clean_dataset"):
             client.set_clean_dataset(clean_ds)
@@ -717,7 +738,7 @@ def run_experiment(config_path="config/config.yaml"):
         # （strategy∈{neurotoxin,badpfl,cerp} 时用 Q=1，其余用 attack_freq_Q）。
         strategy = str(bd_cfg.get("malicious_strategy", "vanilla")).lower()
         if bool(bd_cfg.get("forced_participation", False)):
-            CONTINUOUS = ("neurotoxin", "badpfl", "cerp")
+            CONTINUOUS = ("neurotoxin", "badpfl", "cerp", "iba")
             Q = 1 if strategy in CONTINUOUS else int(bd_cfg.get("attack_freq_Q", 10))
             print(f"[Backdoor] forced_participation=true | strategy={strategy} | Q={Q} "
                   f"—— 恶意端被强制选入（⚠️ 非同概率抽样；投毒时间模式实验专用）。")
