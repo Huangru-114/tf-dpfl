@@ -1,0 +1,838 @@
+{
+  "round": 2,
+  "tensors": [
+    {
+      "key": "global",
+      "n": 42
+    },
+    {
+      "key": "edge/0",
+      "n": 42
+    },
+    {
+      "key": "edge/1",
+      "n": 42
+    },
+    {
+      "key": "client/2/model",
+      "n": 42
+    },
+    {
+      "key": "client/2/probe/head_weights",
+      "n": 2
+    },
+    {
+      "key": "client/3/model",
+      "n": 42
+    },
+    {
+      "key": "client/3/probe/head_weights",
+      "n": 2
+    },
+    {
+      "key": "client/5/model",
+      "n": 42
+    },
+    {
+      "key": "client/5/probe/head_weights",
+      "n": 2
+    },
+    {
+      "key": "client/7/model",
+      "n": 42
+    },
+    {
+      "key": "client/7/probe/head_weights",
+      "n": 2
+    },
+    {
+      "key": "client/8/model",
+      "n": 42
+    },
+    {
+      "key": "client/8/probe/head_weights",
+      "n": 2
+    },
+    {
+      "key": "client/0/model",
+      "n": 42
+    },
+    {
+      "key": "client/0/probe/head_weights",
+      "n": 2
+    },
+    {
+      "key": "client/1/model",
+      "n": 42
+    },
+    {
+      "key": "client/1/probe/head_weights",
+      "n": 2
+    },
+    {
+      "key": "client/4/model",
+      "n": 42
+    },
+    {
+      "key": "client/4/probe/head_weights",
+      "n": 2
+    },
+    {
+      "key": "client/6/model",
+      "n": 42
+    },
+    {
+      "key": "client/6/probe/head_weights",
+      "n": 2
+    },
+    {
+      "key": "client/9/model",
+      "n": 42
+    },
+    {
+      "key": "client/9/probe/head_weights",
+      "n": 2
+    },
+    {
+      "key": "generator",
+      "n": 37
+    }
+  ],
+  "clients": [
+    {
+      "client_id": 2,
+      "is_malicious": false,
+      "probe_keys": [
+        "head_weights"
+      ],
+      "optimizers": {
+        "optimizer": [
+          "iteration:0"
+        ],
+        "_head_opt": [
+          "iteration:0",
+          "SGD/m/dense_2/kernel:0",
+          "SGD/m/dense_2/bias:0"
+        ],
+        "_base_opt": [
+          "iteration:0",
+          "SGD/m/conv2d/kernel:0",
+          "SGD/m/conv2d/bias:0",
+          "SGD/m/batch_normalization/gamma:0",
+          "SGD/m/batch_normalization/beta:0",
+          "SGD/m/conv2d_1/kernel:0",
+          "SGD/m/conv2d_1/bias:0",
+          "SGD/m/batch_normalization_1/gamma:0",
+          "SGD/m/batch_normalization_1/beta:0",
+          "SGD/m/conv2d_2/kernel:0",
+          "SGD/m/conv2d_2/bias:0",
+          "SGD/m/batch_normalization_2/gamma:0",
+          "SGD/m/batch_normalization_2/beta:0",
+          "SGD/m/conv2d_3/kernel:0",
+          "SGD/m/conv2d_3/bias:0",
+          "SGD/m/batch_normalization_3/gamma:0",
+          "SGD/m/batch_normalization_3/beta:0",
+          "SGD/m/conv2d_4/kernel:0",
+          "SGD/m/conv2d_4/bias:0",
+          "SGD/m/batch_normalization_4/gamma:0",
+          "SGD/m/batch_normalization_4/beta:0",
+          "SGD/m/conv2d_5/kernel:0",
+          "SGD/m/conv2d_5/bias:0",
+          "SGD/m/batch_normalization_5/gamma:0",
+          "SGD/m/batch_normalization_5/beta:0",
+          "SGD/m/dense/kernel:0",
+          "SGD/m/dense/bias:0",
+          "SGD/m/dense_1/kernel:0",
+          "SGD/m/dense_1/bias:0"
+        ]
+      },
+      "rng": {
+        "bit_generator": "PCG64",
+        "state": {
+          "state": 101185307982227980403646092242293960608,
+          "inc": 120537689036857471261156532351869052963
+        },
+        "has_uint32": 0,
+        "uinteger": 0
+      }
+    },
+    {
+      "client_id": 3,
+      "is_malicious": false,
+      "probe_keys": [
+        "head_weights"
+      ],
+      "optimizers": {
+        "optimizer": [
+          "iteration:0"
+        ],
+        "_head_opt": [
+          "iteration:0",
+          "SGD/m/dense_2/kernel:0",
+          "SGD/m/dense_2/bias:0"
+        ],
+        "_base_opt": [
+          "iteration:0",
+          "SGD/m/conv2d/kernel:0",
+          "SGD/m/conv2d/bias:0",
+          "SGD/m/batch_normalization/gamma:0",
+          "SGD/m/batch_normalization/beta:0",
+          "SGD/m/conv2d_1/kernel:0",
+          "SGD/m/conv2d_1/bias:0",
+          "SGD/m/batch_normalization_1/gamma:0",
+          "SGD/m/batch_normalization_1/beta:0",
+          "SGD/m/conv2d_2/kernel:0",
+          "SGD/m/conv2d_2/bias:0",
+          "SGD/m/batch_normalization_2/gamma:0",
+          "SGD/m/batch_normalization_2/beta:0",
+          "SGD/m/conv2d_3/kernel:0",
+          "SGD/m/conv2d_3/bias:0",
+          "SGD/m/batch_normalization_3/gamma:0",
+          "SGD/m/batch_normalization_3/beta:0",
+          "SGD/m/conv2d_4/kernel:0",
+          "SGD/m/conv2d_4/bias:0",
+          "SGD/m/batch_normalization_4/gamma:0",
+          "SGD/m/batch_normalization_4/beta:0",
+          "SGD/m/conv2d_5/kernel:0",
+          "SGD/m/conv2d_5/bias:0",
+          "SGD/m/batch_normalization_5/gamma:0",
+          "SGD/m/batch_normalization_5/beta:0",
+          "SGD/m/dense/kernel:0",
+          "SGD/m/dense/bias:0",
+          "SGD/m/dense_1/kernel:0",
+          "SGD/m/dense_1/bias:0"
+        ]
+      },
+      "rng": {
+        "bit_generator": "PCG64",
+        "state": {
+          "state": 56941570345671340382331689787110702289,
+          "inc": 316815829111261285112580664950796197721
+        },
+        "has_uint32": 0,
+        "uinteger": 0
+      }
+    },
+    {
+      "client_id": 5,
+      "is_malicious": false,
+      "probe_keys": [
+        "head_weights"
+      ],
+      "optimizers": {
+        "optimizer": [
+          "iteration:0"
+        ],
+        "_head_opt": [
+          "iteration:0",
+          "SGD/m/dense_2/kernel:0",
+          "SGD/m/dense_2/bias:0"
+        ],
+        "_base_opt": [
+          "iteration:0",
+          "SGD/m/conv2d/kernel:0",
+          "SGD/m/conv2d/bias:0",
+          "SGD/m/batch_normalization/gamma:0",
+          "SGD/m/batch_normalization/beta:0",
+          "SGD/m/conv2d_1/kernel:0",
+          "SGD/m/conv2d_1/bias:0",
+          "SGD/m/batch_normalization_1/gamma:0",
+          "SGD/m/batch_normalization_1/beta:0",
+          "SGD/m/conv2d_2/kernel:0",
+          "SGD/m/conv2d_2/bias:0",
+          "SGD/m/batch_normalization_2/gamma:0",
+          "SGD/m/batch_normalization_2/beta:0",
+          "SGD/m/conv2d_3/kernel:0",
+          "SGD/m/conv2d_3/bias:0",
+          "SGD/m/batch_normalization_3/gamma:0",
+          "SGD/m/batch_normalization_3/beta:0",
+          "SGD/m/conv2d_4/kernel:0",
+          "SGD/m/conv2d_4/bias:0",
+          "SGD/m/batch_normalization_4/gamma:0",
+          "SGD/m/batch_normalization_4/beta:0",
+          "SGD/m/conv2d_5/kernel:0",
+          "SGD/m/conv2d_5/bias:0",
+          "SGD/m/batch_normalization_5/gamma:0",
+          "SGD/m/batch_normalization_5/beta:0",
+          "SGD/m/dense/kernel:0",
+          "SGD/m/dense/bias:0",
+          "SGD/m/dense_1/kernel:0",
+          "SGD/m/dense_1/bias:0"
+        ]
+      },
+      "rng": {
+        "bit_generator": "PCG64",
+        "state": {
+          "state": 98143920610770738825183921725145197062,
+          "inc": 276478222125047394338564000331563123375
+        },
+        "has_uint32": 0,
+        "uinteger": 0
+      }
+    },
+    {
+      "client_id": 7,
+      "is_malicious": false,
+      "probe_keys": [
+        "head_weights"
+      ],
+      "optimizers": {
+        "optimizer": [
+          "iteration:0"
+        ],
+        "_head_opt": [
+          "iteration:0",
+          "SGD/m/dense_2/kernel:0",
+          "SGD/m/dense_2/bias:0"
+        ],
+        "_base_opt": [
+          "iteration:0",
+          "SGD/m/conv2d/kernel:0",
+          "SGD/m/conv2d/bias:0",
+          "SGD/m/batch_normalization/gamma:0",
+          "SGD/m/batch_normalization/beta:0",
+          "SGD/m/conv2d_1/kernel:0",
+          "SGD/m/conv2d_1/bias:0",
+          "SGD/m/batch_normalization_1/gamma:0",
+          "SGD/m/batch_normalization_1/beta:0",
+          "SGD/m/conv2d_2/kernel:0",
+          "SGD/m/conv2d_2/bias:0",
+          "SGD/m/batch_normalization_2/gamma:0",
+          "SGD/m/batch_normalization_2/beta:0",
+          "SGD/m/conv2d_3/kernel:0",
+          "SGD/m/conv2d_3/bias:0",
+          "SGD/m/batch_normalization_3/gamma:0",
+          "SGD/m/batch_normalization_3/beta:0",
+          "SGD/m/conv2d_4/kernel:0",
+          "SGD/m/conv2d_4/bias:0",
+          "SGD/m/batch_normalization_4/gamma:0",
+          "SGD/m/batch_normalization_4/beta:0",
+          "SGD/m/conv2d_5/kernel:0",
+          "SGD/m/conv2d_5/bias:0",
+          "SGD/m/batch_normalization_5/gamma:0",
+          "SGD/m/batch_normalization_5/beta:0",
+          "SGD/m/dense/kernel:0",
+          "SGD/m/dense/bias:0",
+          "SGD/m/dense_1/kernel:0",
+          "SGD/m/dense_1/bias:0"
+        ]
+      },
+      "rng": {
+        "bit_generator": "PCG64",
+        "state": {
+          "state": 264199448901942451559250987017980666171,
+          "inc": 207826817491989830858419542637832178599
+        },
+        "has_uint32": 0,
+        "uinteger": 0
+      }
+    },
+    {
+      "client_id": 8,
+      "is_malicious": false,
+      "probe_keys": [
+        "head_weights"
+      ],
+      "optimizers": {
+        "optimizer": [
+          "iteration:0"
+        ],
+        "_head_opt": [
+          "iteration:0",
+          "SGD/m/dense_2/kernel:0",
+          "SGD/m/dense_2/bias:0"
+        ],
+        "_base_opt": [
+          "iteration:0",
+          "SGD/m/conv2d/kernel:0",
+          "SGD/m/conv2d/bias:0",
+          "SGD/m/batch_normalization/gamma:0",
+          "SGD/m/batch_normalization/beta:0",
+          "SGD/m/conv2d_1/kernel:0",
+          "SGD/m/conv2d_1/bias:0",
+          "SGD/m/batch_normalization_1/gamma:0",
+          "SGD/m/batch_normalization_1/beta:0",
+          "SGD/m/conv2d_2/kernel:0",
+          "SGD/m/conv2d_2/bias:0",
+          "SGD/m/batch_normalization_2/gamma:0",
+          "SGD/m/batch_normalization_2/beta:0",
+          "SGD/m/conv2d_3/kernel:0",
+          "SGD/m/conv2d_3/bias:0",
+          "SGD/m/batch_normalization_3/gamma:0",
+          "SGD/m/batch_normalization_3/beta:0",
+          "SGD/m/conv2d_4/kernel:0",
+          "SGD/m/conv2d_4/bias:0",
+          "SGD/m/batch_normalization_4/gamma:0",
+          "SGD/m/batch_normalization_4/beta:0",
+          "SGD/m/conv2d_5/kernel:0",
+          "SGD/m/conv2d_5/bias:0",
+          "SGD/m/batch_normalization_5/gamma:0",
+          "SGD/m/batch_normalization_5/beta:0",
+          "SGD/m/dense/kernel:0",
+          "SGD/m/dense/bias:0",
+          "SGD/m/dense_1/kernel:0",
+          "SGD/m/dense_1/bias:0"
+        ]
+      },
+      "rng": {
+        "bit_generator": "PCG64",
+        "state": {
+          "state": 125573329349964957705767589044914775695,
+          "inc": 70392207171057024230389163462817126201
+        },
+        "has_uint32": 0,
+        "uinteger": 0
+      }
+    },
+    {
+      "client_id": 0,
+      "is_malicious": true,
+      "probe_keys": [
+        "head_weights"
+      ],
+      "optimizers": {
+        "optimizer": [
+          "iteration:0"
+        ],
+        "_head_opt": [
+          "iteration:0",
+          "SGD/m/dense_2/kernel:0",
+          "SGD/m/dense_2/bias:0"
+        ],
+        "_base_opt": [
+          "iteration:0",
+          "SGD/m/conv2d/kernel:0",
+          "SGD/m/conv2d/bias:0",
+          "SGD/m/batch_normalization/gamma:0",
+          "SGD/m/batch_normalization/beta:0",
+          "SGD/m/conv2d_1/kernel:0",
+          "SGD/m/conv2d_1/bias:0",
+          "SGD/m/batch_normalization_1/gamma:0",
+          "SGD/m/batch_normalization_1/beta:0",
+          "SGD/m/conv2d_2/kernel:0",
+          "SGD/m/conv2d_2/bias:0",
+          "SGD/m/batch_normalization_2/gamma:0",
+          "SGD/m/batch_normalization_2/beta:0",
+          "SGD/m/conv2d_3/kernel:0",
+          "SGD/m/conv2d_3/bias:0",
+          "SGD/m/batch_normalization_3/gamma:0",
+          "SGD/m/batch_normalization_3/beta:0",
+          "SGD/m/conv2d_4/kernel:0",
+          "SGD/m/conv2d_4/bias:0",
+          "SGD/m/batch_normalization_4/gamma:0",
+          "SGD/m/batch_normalization_4/beta:0",
+          "SGD/m/conv2d_5/kernel:0",
+          "SGD/m/conv2d_5/bias:0",
+          "SGD/m/batch_normalization_5/gamma:0",
+          "SGD/m/batch_normalization_5/beta:0",
+          "SGD/m/dense/kernel:0",
+          "SGD/m/dense/bias:0",
+          "SGD/m/dense_1/kernel:0",
+          "SGD/m/dense_1/bias:0"
+        ],
+        "_atk_gen_opt": [
+          "iteration:0",
+          "Adam/m/conv2d_6/kernel:0",
+          "Adam/v/conv2d_6/kernel:0",
+          "Adam/m/batch_normalization_6/gamma:0",
+          "Adam/v/batch_normalization_6/gamma:0",
+          "Adam/m/batch_normalization_6/beta:0",
+          "Adam/v/batch_normalization_6/beta:0",
+          "Adam/m/conv2d_7/kernel:0",
+          "Adam/v/conv2d_7/kernel:0",
+          "Adam/m/batch_normalization_7/gamma:0",
+          "Adam/v/batch_normalization_7/gamma:0",
+          "Adam/m/batch_normalization_7/beta:0",
+          "Adam/v/batch_normalization_7/beta:0",
+          "Adam/m/conv2d_8/kernel:0",
+          "Adam/v/conv2d_8/kernel:0",
+          "Adam/m/batch_normalization_8/gamma:0",
+          "Adam/v/batch_normalization_8/gamma:0",
+          "Adam/m/batch_normalization_8/beta:0",
+          "Adam/v/batch_normalization_8/beta:0",
+          "Adam/m/conv2d_9/kernel:0",
+          "Adam/v/conv2d_9/kernel:0",
+          "Adam/m/batch_normalization_9/gamma:0",
+          "Adam/v/batch_normalization_9/gamma:0",
+          "Adam/m/batch_normalization_9/beta:0",
+          "Adam/v/batch_normalization_9/beta:0",
+          "Adam/m/conv2d_transpose/kernel:0",
+          "Adam/v/conv2d_transpose/kernel:0",
+          "Adam/m/batch_normalization_10/gamma:0",
+          "Adam/v/batch_normalization_10/gamma:0",
+          "Adam/m/batch_normalization_10/beta:0",
+          "Adam/v/batch_normalization_10/beta:0",
+          "Adam/m/conv2d_transpose_1/kernel:0",
+          "Adam/v/conv2d_transpose_1/kernel:0",
+          "Adam/m/batch_normalization_11/gamma:0",
+          "Adam/v/batch_normalization_11/gamma:0",
+          "Adam/m/batch_normalization_11/beta:0",
+          "Adam/v/batch_normalization_11/beta:0",
+          "Adam/m/conv2d_transpose_2/kernel:0",
+          "Adam/v/conv2d_transpose_2/kernel:0",
+          "Adam/m/batch_normalization_12/gamma:0",
+          "Adam/v/batch_normalization_12/gamma:0",
+          "Adam/m/batch_normalization_12/beta:0",
+          "Adam/v/batch_normalization_12/beta:0",
+          "Adam/m/conv2d_transpose_3/kernel:0",
+          "Adam/v/conv2d_transpose_3/kernel:0",
+          "Adam/m/conv2d_transpose_3/bias:0",
+          "Adam/v/conv2d_transpose_3/bias:0"
+        ]
+      },
+      "rng": {
+        "bit_generator": "PCG64",
+        "state": {
+          "state": 108632682566140101186920408953518075117,
+          "inc": 332724090758049132448979897138935081983
+        },
+        "has_uint32": 1,
+        "uinteger": 752844972
+      }
+    },
+    {
+      "client_id": 1,
+      "is_malicious": false,
+      "probe_keys": [
+        "head_weights"
+      ],
+      "optimizers": {
+        "optimizer": [
+          "iteration:0"
+        ],
+        "_head_opt": [
+          "iteration:0",
+          "SGD/m/dense_2/kernel:0",
+          "SGD/m/dense_2/bias:0"
+        ],
+        "_base_opt": [
+          "iteration:0",
+          "SGD/m/conv2d/kernel:0",
+          "SGD/m/conv2d/bias:0",
+          "SGD/m/batch_normalization/gamma:0",
+          "SGD/m/batch_normalization/beta:0",
+          "SGD/m/conv2d_1/kernel:0",
+          "SGD/m/conv2d_1/bias:0",
+          "SGD/m/batch_normalization_1/gamma:0",
+          "SGD/m/batch_normalization_1/beta:0",
+          "SGD/m/conv2d_2/kernel:0",
+          "SGD/m/conv2d_2/bias:0",
+          "SGD/m/batch_normalization_2/gamma:0",
+          "SGD/m/batch_normalization_2/beta:0",
+          "SGD/m/conv2d_3/kernel:0",
+          "SGD/m/conv2d_3/bias:0",
+          "SGD/m/batch_normalization_3/gamma:0",
+          "SGD/m/batch_normalization_3/beta:0",
+          "SGD/m/conv2d_4/kernel:0",
+          "SGD/m/conv2d_4/bias:0",
+          "SGD/m/batch_normalization_4/gamma:0",
+          "SGD/m/batch_normalization_4/beta:0",
+          "SGD/m/conv2d_5/kernel:0",
+          "SGD/m/conv2d_5/bias:0",
+          "SGD/m/batch_normalization_5/gamma:0",
+          "SGD/m/batch_normalization_5/beta:0",
+          "SGD/m/dense/kernel:0",
+          "SGD/m/dense/bias:0",
+          "SGD/m/dense_1/kernel:0",
+          "SGD/m/dense_1/bias:0"
+        ]
+      },
+      "rng": {
+        "bit_generator": "PCG64",
+        "state": {
+          "state": 250210943798331054557161383057150179561,
+          "inc": 113204330891739641508896700955661438365
+        },
+        "has_uint32": 0,
+        "uinteger": 0
+      }
+    },
+    {
+      "client_id": 4,
+      "is_malicious": false,
+      "probe_keys": [
+        "head_weights"
+      ],
+      "optimizers": {
+        "optimizer": [
+          "iteration:0"
+        ],
+        "_head_opt": [
+          "iteration:0",
+          "SGD/m/dense_2/kernel:0",
+          "SGD/m/dense_2/bias:0"
+        ],
+        "_base_opt": [
+          "iteration:0",
+          "SGD/m/conv2d/kernel:0",
+          "SGD/m/conv2d/bias:0",
+          "SGD/m/batch_normalization/gamma:0",
+          "SGD/m/batch_normalization/beta:0",
+          "SGD/m/conv2d_1/kernel:0",
+          "SGD/m/conv2d_1/bias:0",
+          "SGD/m/batch_normalization_1/gamma:0",
+          "SGD/m/batch_normalization_1/beta:0",
+          "SGD/m/conv2d_2/kernel:0",
+          "SGD/m/conv2d_2/bias:0",
+          "SGD/m/batch_normalization_2/gamma:0",
+          "SGD/m/batch_normalization_2/beta:0",
+          "SGD/m/conv2d_3/kernel:0",
+          "SGD/m/conv2d_3/bias:0",
+          "SGD/m/batch_normalization_3/gamma:0",
+          "SGD/m/batch_normalization_3/beta:0",
+          "SGD/m/conv2d_4/kernel:0",
+          "SGD/m/conv2d_4/bias:0",
+          "SGD/m/batch_normalization_4/gamma:0",
+          "SGD/m/batch_normalization_4/beta:0",
+          "SGD/m/conv2d_5/kernel:0",
+          "SGD/m/conv2d_5/bias:0",
+          "SGD/m/batch_normalization_5/gamma:0",
+          "SGD/m/batch_normalization_5/beta:0",
+          "SGD/m/dense/kernel:0",
+          "SGD/m/dense/bias:0",
+          "SGD/m/dense_1/kernel:0",
+          "SGD/m/dense_1/bias:0"
+        ]
+      },
+      "rng": {
+        "bit_generator": "PCG64",
+        "state": {
+          "state": 321089841771030997676453394333783305337,
+          "inc": 299187462342578702843609589580865774183
+        },
+        "has_uint32": 0,
+        "uinteger": 0
+      }
+    },
+    {
+      "client_id": 6,
+      "is_malicious": false,
+      "probe_keys": [
+        "head_weights"
+      ],
+      "optimizers": {
+        "optimizer": [
+          "iteration:0"
+        ],
+        "_head_opt": [
+          "iteration:0",
+          "SGD/m/dense_2/kernel:0",
+          "SGD/m/dense_2/bias:0"
+        ],
+        "_base_opt": [
+          "iteration:0",
+          "SGD/m/conv2d/kernel:0",
+          "SGD/m/conv2d/bias:0",
+          "SGD/m/batch_normalization/gamma:0",
+          "SGD/m/batch_normalization/beta:0",
+          "SGD/m/conv2d_1/kernel:0",
+          "SGD/m/conv2d_1/bias:0",
+          "SGD/m/batch_normalization_1/gamma:0",
+          "SGD/m/batch_normalization_1/beta:0",
+          "SGD/m/conv2d_2/kernel:0",
+          "SGD/m/conv2d_2/bias:0",
+          "SGD/m/batch_normalization_2/gamma:0",
+          "SGD/m/batch_normalization_2/beta:0",
+          "SGD/m/conv2d_3/kernel:0",
+          "SGD/m/conv2d_3/bias:0",
+          "SGD/m/batch_normalization_3/gamma:0",
+          "SGD/m/batch_normalization_3/beta:0",
+          "SGD/m/conv2d_4/kernel:0",
+          "SGD/m/conv2d_4/bias:0",
+          "SGD/m/batch_normalization_4/gamma:0",
+          "SGD/m/batch_normalization_4/beta:0",
+          "SGD/m/conv2d_5/kernel:0",
+          "SGD/m/conv2d_5/bias:0",
+          "SGD/m/batch_normalization_5/gamma:0",
+          "SGD/m/batch_normalization_5/beta:0",
+          "SGD/m/dense/kernel:0",
+          "SGD/m/dense/bias:0",
+          "SGD/m/dense_1/kernel:0",
+          "SGD/m/dense_1/bias:0"
+        ]
+      },
+      "rng": {
+        "bit_generator": "PCG64",
+        "state": {
+          "state": 217901066922802506657300670933659091608,
+          "inc": 337508499510030494111222414024856526833
+        },
+        "has_uint32": 0,
+        "uinteger": 0
+      }
+    },
+    {
+      "client_id": 9,
+      "is_malicious": true,
+      "probe_keys": [
+        "head_weights"
+      ],
+      "optimizers": {
+        "optimizer": [
+          "iteration:0"
+        ],
+        "_head_opt": [
+          "iteration:0",
+          "SGD/m/dense_2/kernel:0",
+          "SGD/m/dense_2/bias:0"
+        ],
+        "_base_opt": [
+          "iteration:0",
+          "SGD/m/conv2d/kernel:0",
+          "SGD/m/conv2d/bias:0",
+          "SGD/m/batch_normalization/gamma:0",
+          "SGD/m/batch_normalization/beta:0",
+          "SGD/m/conv2d_1/kernel:0",
+          "SGD/m/conv2d_1/bias:0",
+          "SGD/m/batch_normalization_1/gamma:0",
+          "SGD/m/batch_normalization_1/beta:0",
+          "SGD/m/conv2d_2/kernel:0",
+          "SGD/m/conv2d_2/bias:0",
+          "SGD/m/batch_normalization_2/gamma:0",
+          "SGD/m/batch_normalization_2/beta:0",
+          "SGD/m/conv2d_3/kernel:0",
+          "SGD/m/conv2d_3/bias:0",
+          "SGD/m/batch_normalization_3/gamma:0",
+          "SGD/m/batch_normalization_3/beta:0",
+          "SGD/m/conv2d_4/kernel:0",
+          "SGD/m/conv2d_4/bias:0",
+          "SGD/m/batch_normalization_4/gamma:0",
+          "SGD/m/batch_normalization_4/beta:0",
+          "SGD/m/conv2d_5/kernel:0",
+          "SGD/m/conv2d_5/bias:0",
+          "SGD/m/batch_normalization_5/gamma:0",
+          "SGD/m/batch_normalization_5/beta:0",
+          "SGD/m/dense/kernel:0",
+          "SGD/m/dense/bias:0",
+          "SGD/m/dense_1/kernel:0",
+          "SGD/m/dense_1/bias:0"
+        ],
+        "_atk_gen_opt": [
+          "iteration:0",
+          "Adam/m/conv2d_6/kernel:0",
+          "Adam/v/conv2d_6/kernel:0",
+          "Adam/m/batch_normalization_6/gamma:0",
+          "Adam/v/batch_normalization_6/gamma:0",
+          "Adam/m/batch_normalization_6/beta:0",
+          "Adam/v/batch_normalization_6/beta:0",
+          "Adam/m/conv2d_7/kernel:0",
+          "Adam/v/conv2d_7/kernel:0",
+          "Adam/m/batch_normalization_7/gamma:0",
+          "Adam/v/batch_normalization_7/gamma:0",
+          "Adam/m/batch_normalization_7/beta:0",
+          "Adam/v/batch_normalization_7/beta:0",
+          "Adam/m/conv2d_8/kernel:0",
+          "Adam/v/conv2d_8/kernel:0",
+          "Adam/m/batch_normalization_8/gamma:0",
+          "Adam/v/batch_normalization_8/gamma:0",
+          "Adam/m/batch_normalization_8/beta:0",
+          "Adam/v/batch_normalization_8/beta:0",
+          "Adam/m/conv2d_9/kernel:0",
+          "Adam/v/conv2d_9/kernel:0",
+          "Adam/m/batch_normalization_9/gamma:0",
+          "Adam/v/batch_normalization_9/gamma:0",
+          "Adam/m/batch_normalization_9/beta:0",
+          "Adam/v/batch_normalization_9/beta:0",
+          "Adam/m/conv2d_transpose/kernel:0",
+          "Adam/v/conv2d_transpose/kernel:0",
+          "Adam/m/batch_normalization_10/gamma:0",
+          "Adam/v/batch_normalization_10/gamma:0",
+          "Adam/m/batch_normalization_10/beta:0",
+          "Adam/v/batch_normalization_10/beta:0",
+          "Adam/m/conv2d_transpose_1/kernel:0",
+          "Adam/v/conv2d_transpose_1/kernel:0",
+          "Adam/m/batch_normalization_11/gamma:0",
+          "Adam/v/batch_normalization_11/gamma:0",
+          "Adam/m/batch_normalization_11/beta:0",
+          "Adam/v/batch_normalization_11/beta:0",
+          "Adam/m/conv2d_transpose_2/kernel:0",
+          "Adam/v/conv2d_transpose_2/kernel:0",
+          "Adam/m/batch_normalization_12/gamma:0",
+          "Adam/v/batch_normalization_12/gamma:0",
+          "Adam/m/batch_normalization_12/beta:0",
+          "Adam/v/batch_normalization_12/beta:0",
+          "Adam/m/conv2d_transpose_3/kernel:0",
+          "Adam/v/conv2d_transpose_3/kernel:0",
+          "Adam/m/conv2d_transpose_3/bias:0",
+          "Adam/v/conv2d_transpose_3/bias:0"
+        ]
+      },
+      "rng": {
+        "bit_generator": "PCG64",
+        "state": {
+          "state": 223722563927651003399959109134894565608,
+          "inc": 226930621816107972103751554488511231463
+        },
+        "has_uint32": 0,
+        "uinteger": 2312045394
+      }
+    }
+  ],
+  "edges": [
+    0,
+    1
+  ],
+  "generator": {
+    "opt_names": [
+      "iteration:0",
+      "Adam/m/conv2d_6/kernel:0",
+      "Adam/v/conv2d_6/kernel:0",
+      "Adam/m/batch_normalization_6/gamma:0",
+      "Adam/v/batch_normalization_6/gamma:0",
+      "Adam/m/batch_normalization_6/beta:0",
+      "Adam/v/batch_normalization_6/beta:0",
+      "Adam/m/conv2d_7/kernel:0",
+      "Adam/v/conv2d_7/kernel:0",
+      "Adam/m/batch_normalization_7/gamma:0",
+      "Adam/v/batch_normalization_7/gamma:0",
+      "Adam/m/batch_normalization_7/beta:0",
+      "Adam/v/batch_normalization_7/beta:0",
+      "Adam/m/conv2d_8/kernel:0",
+      "Adam/v/conv2d_8/kernel:0",
+      "Adam/m/batch_normalization_8/gamma:0",
+      "Adam/v/batch_normalization_8/gamma:0",
+      "Adam/m/batch_normalization_8/beta:0",
+      "Adam/v/batch_normalization_8/beta:0",
+      "Adam/m/conv2d_9/kernel:0",
+      "Adam/v/conv2d_9/kernel:0",
+      "Adam/m/batch_normalization_9/gamma:0",
+      "Adam/v/batch_normalization_9/gamma:0",
+      "Adam/m/batch_normalization_9/beta:0",
+      "Adam/v/batch_normalization_9/beta:0",
+      "Adam/m/conv2d_transpose/kernel:0",
+      "Adam/v/conv2d_transpose/kernel:0",
+      "Adam/m/batch_normalization_10/gamma:0",
+      "Adam/v/batch_normalization_10/gamma:0",
+      "Adam/m/batch_normalization_10/beta:0",
+      "Adam/v/batch_normalization_10/beta:0",
+      "Adam/m/conv2d_transpose_1/kernel:0",
+      "Adam/v/conv2d_transpose_1/kernel:0",
+      "Adam/m/batch_normalization_11/gamma:0",
+      "Adam/v/batch_normalization_11/gamma:0",
+      "Adam/m/batch_normalization_11/beta:0",
+      "Adam/v/batch_normalization_11/beta:0",
+      "Adam/m/conv2d_transpose_2/kernel:0",
+      "Adam/v/conv2d_transpose_2/kernel:0",
+      "Adam/m/batch_normalization_12/gamma:0",
+      "Adam/v/batch_normalization_12/gamma:0",
+      "Adam/m/batch_normalization_12/beta:0",
+      "Adam/v/batch_normalization_12/beta:0",
+      "Adam/m/conv2d_transpose_3/kernel:0",
+      "Adam/v/conv2d_transpose_3/kernel:0",
+      "Adam/m/conv2d_transpose_3/bias:0",
+      "Adam/v/conv2d_transpose_3/bias:0"
+    ]
+  },
+  "malicious_ids": [
+    0,
+    9
+  ],
+  "run": {
+    "method": "hier_fedrep",
+    "strategy": "badpfl",
+    "arch": "cifar_cnn_3conv",
+    "seed": 42,
+    "n_edges": 2,
+    "edge_rounds": 1
+  }
+}
