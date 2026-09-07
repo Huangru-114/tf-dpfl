@@ -43,7 +43,8 @@ $PY -m pytest -q \
     tests/test_undefined_metrics_are_null.py \
     tests/test_exp3_config_invariants.py \
     tests/test_eval_timing.py \
-    tests/test_plot_exp3_style.py || fail "L1 未通过"
+    tests/test_plot_exp3_style.py \
+    tests/test_metrics_doc.py || fail "L1 未通过"
 
 # ── 2. config_validate ────────────────────────────────────────────────────
 echo -e "\n== [2/4] config_validate 全部 config =="
