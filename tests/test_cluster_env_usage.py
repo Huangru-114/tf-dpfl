@@ -144,3 +144,49 @@ def test_container_path_is_not_hardcoded_outside_cluster_env(path):
     """新脚本不要再硬写容器路径 —— CLAUDE.md 明确要求收口到 cluster_env.sh。"""
     assert SIF not in _code(path), \
         f"{path.name} 硬写了容器路径；改成 source cluster_env.sh 用 $PY"
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# cwd 必须留在仓库根：apptainer 只自动挂 $PWD
+# ══════════════════════════════════════════════════════════════════════════
+TRAIN_SCRIPTS = [p for p in JOB_SCRIPTS
+                 if re.search(r"\$(PY|RUN) (fedavg/)?main\.py", _code(p))]
+
+
+def test_there_are_training_scripts_to_check():
+    assert len(TRAIN_SCRIPTS) >= 4, [p.name for p in TRAIN_SCRIPTS]
+
+
+@pytest.mark.parametrize("path", TRAIN_SCRIPTS, ids=lambda p: p.name)
+def test_training_runs_from_the_repo_root_not_from_fedavg(path):
+    """apptainer **只自动挂 $PWD**（2026-09 实测）。`cd $ROOT/fedavg` 之后，
+    兄弟目录 `$ROOT/experiments/` 在 $PWD 之外 -> 容器里看不见 ->
+    `FileNotFoundError: .../experiments/calibration/xxx.yaml`，而文件明明在。
+
+    `$PY fedavg/main.py` 的 sys.path[0] 仍是 `fedavg/`，import 一行都不用改。
+    """
+    code = _code(path)
+    assert 'cd "$ROOT/fedavg"' not in code, \
+        f"{path.name} 还在 cd 进 fedavg —— 兄弟目录会看不见"
+    assert re.search(r"\$(PY|RUN) fedavg/main\.py", code), \
+        f"{path.name} 没有以 fedavg/main.py 的形式调用"
+
+
+@pytest.mark.parametrize("path", JOB_SCRIPTS, ids=lambda p: p.name)
+def test_log_dir_defaults_inside_the_repo(path):
+    """日志默认目录必须在 $PWD 之内。放在仓库**上一级**（旧的 tfdpfl-logs）
+    同样在容器视野之外 —— collect_metrics 会读不到自己刚写的日志。
+    `.gitignore` 已忽略 `logs/`，大日志照样不进 git。
+    """
+    code = _code(path)
+    if "LOGDIR=" not in code:
+        pytest.skip(f"{path.name} 不写日志")
+    assert "../tfdpfl-logs" not in code, \
+        f"{path.name} 的日志默认在仓库上一级 —— 容器看不见"
+    # 注意默认值里可能有**嵌套** ${...}（experiment_tf.sh 就是
+    # `${TFDPFL_LOGDIR:-${SLURM_SUBMIT_DIR:-$ROOT}/logs}`），所以不能用 [^}]*
+    # —— 第一版就栽在这儿，是正则错不是脚本错。
+    m = re.search(r'LOGDIR="\$\{TFDPFL_LOGDIR:-(.*)\}"', code)
+    assert m, f"{path.name} 没有可识别的 LOGDIR 默认值"
+    assert m.group(1).rstrip("}").endswith("/logs"), \
+        f"{path.name} 的 LOGDIR 默认值不在仓库内：{m.group(1)}"

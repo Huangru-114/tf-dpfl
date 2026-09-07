@@ -49,7 +49,7 @@ fi
 # 小结果（进 git）：experiments/matrix/<cell>.metrics.json
 # 大日志（留集群）：$LOGDIR/<cell>.log   —— 永远不要放进仓库
 OUTDIR="$ROOT/experiments/matrix"
-LOGDIR="${TFDPFL_LOGDIR:-${SLURM_SUBMIT_DIR:-$ROOT}/../tfdpfl-logs}"
+LOGDIR="${TFDPFL_LOGDIR:-${SLURM_SUBMIT_DIR:-$ROOT}/logs}"
 mkdir -p "$OUTDIR" "$LOGDIR"
 
 METRICS="$OUTDIR/$CELL.metrics.json"
@@ -94,8 +94,12 @@ if [ -n "${OVERRIDES:-}" ]; then
 fi
 
 # ── 跑（cwd=fedavg，与 import 语义一致）───────────────────────────────────
-cd "$ROOT/fedavg"
-$RUN main.py \
+# ⚠️ **cwd 必须留在仓库根**（2026-09 实测）：apptainer **只自动挂 $PWD**。
+#    `cd $ROOT/fedavg` 之后，兄弟目录 $ROOT/experiments/ 与上一级的日志目录
+#    都在 $PWD 之外 -> 容器里看不见 -> FileNotFoundError，而文件明明在。
+#    `$PY fedavg/main.py` 的 sys.path[0] 仍是 fedavg/，import 一行都不用改。
+cd "$ROOT"
+$RUN fedavg/main.py \
     --config "$ROOT/$BASE_CONFIG" \
     --attack_method "$ATTACK" \
     --defense "$DEFENSE" \

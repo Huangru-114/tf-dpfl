@@ -22,7 +22,7 @@
 #
 # python 一律经 apptainer 容器（cluster_env.sh），裸 python3 在集群上找不到库。
 # 产出：experiments/<axis>/<method>/<exp_id>.metrics.json（小，回传 git）
-#       大日志留集群（tfdpfl-logs/，永不进 git）。
+#       大日志留集群（logs/（仓库内，.gitignore 已忽略），永不进 git）。
 
 set -euo pipefail
 
@@ -42,7 +42,7 @@ CONFIG_ABS="$ROOT/$CONFIG_REL"
 [ -f "$CONFIG_ABS" ] || { echo "[full] 配置不存在: $CONFIG_ABS"; exit 2; }
 
 OUTDIR="$ROOT/experiments/$AXIS/$METHOD"
-LOGDIR="${TFDPFL_LOGDIR:-$ROOT/../tfdpfl-logs}"
+LOGDIR="${TFDPFL_LOGDIR:-$ROOT/logs}"
 LOG="$LOGDIR/full_${AXIS}_${METHOD}_${ATTACK}_${DEFENSE}${FRAMEWORK:+_$FRAMEWORK}.log"
 
 mkdir -p "$OUTDIR" "$LOGDIR"
@@ -56,9 +56,13 @@ echo "[full] axis=$AXIS method=$METHOD attack=$ATTACK defense=$DEFENSE" \
      "framework=${FRAMEWORK:-<yaml 默认>} config=$CONFIG_REL"
 echo "[full] 大日志 -> $LOG （留集群，不进 git）"
 
-cd "$ROOT/fedavg"
+# ⚠️ **cwd 必须留在仓库根**（2026-09 实测）：apptainer **只自动挂 $PWD**。
+#    `cd $ROOT/fedavg` 之后，兄弟目录 $ROOT/experiments/ 与上一级的日志目录
+#    都在 $PWD 之外 -> 容器里看不见 -> FileNotFoundError，而文件明明在。
+#    `$PY fedavg/main.py` 的 sys.path[0] 仍是 fedavg/，import 一行都不用改。
+cd "$ROOT"
 set +e
-$PY main.py \
+$PY fedavg/main.py \
     --config "$CONFIG_ABS" \
     --attack_method "$ATTACK" \
     --defense "$DEFENSE" \

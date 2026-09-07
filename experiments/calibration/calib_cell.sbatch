@@ -34,16 +34,20 @@ CONFIG_ABS="$ROOT/$CONFIG_REL"
 [ -f "$CONFIG_ABS" ] || { echo "[calib] 配置不存在: $CONFIG_ABS"; exit 2; }
 
 OUTDIR="$ROOT/experiments/calibration/results"
-LOGDIR="${TFDPFL_LOGDIR:-$ROOT/../tfdpfl-logs}"
+LOGDIR="${TFDPFL_LOGDIR:-$ROOT/logs}"
 LOG="$LOGDIR/calib_${EXP_ID}.log"          # ← 带 exp_id，每格独立
 mkdir -p "$OUTDIR" "$LOGDIR"
 
 echo "[calib] cell=$EXP_ID config=$CONFIG_REL seed=$SEED"
 echo "[calib] 大日志 -> $LOG （留集群，不进 git）"
 
-cd "$ROOT/fedavg"
+# ⚠️ **cwd 必须留在仓库根**（2026-09 实测）：apptainer **只自动挂 $PWD**。
+#    `cd $ROOT/fedavg` 之后，兄弟目录 $ROOT/experiments/ 与上一级的日志目录
+#    都在 $PWD 之外 -> 容器里看不见 -> FileNotFoundError，而文件明明在。
+#    `$PY fedavg/main.py` 的 sys.path[0] 仍是 fedavg/，import 一行都不用改。
+cd "$ROOT"
 set +e
-$PY main.py \
+$PY fedavg/main.py \
     --config "$CONFIG_ABS" \
     --attack_method badpfl \
     --defense none \

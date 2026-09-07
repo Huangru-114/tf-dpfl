@@ -30,7 +30,7 @@
 #
 # 产出：
 #     experiments/<axis>/<method>/<exp_id>.metrics.json   ← 小，回传 git
-#     ${TFDPFL_LOGDIR:-<仓库同级>/tfdpfl-logs}/smoke_<...>.log   ← 大，留集群
+#     ${TFDPFL_LOGDIR:-$ROOT/logs}/smoke_<...>.log   ← 大，留集群
 #     （不写 /tmp：sbatch 下 /tmp 在计算节点上，作业结束后从登录节点拿不到）
 #
 # 判据由你在 current-focus.md 里事先写死；本脚本只负责「客观、自动、无需人肉判读」。
@@ -50,9 +50,9 @@ source "$ROOT/cluster_env.sh"
 
 OUTDIR="$ROOT/experiments/$AXIS/$METHOD"
 # 大日志（留集群，永不进 git）。与 experiment_tf.sh 同一套约定：写到仓库同级的
-# tfdpfl-logs/，**不要写 /tmp** —— sbatch 下 /tmp 在计算节点上，作业结束后
+# logs/（仓库内，.gitignore 已忽略），**不要写 /tmp** —— sbatch 下 /tmp 在计算节点上，作业结束后
 # 从登录节点根本拿不到，而 Step 1 的判据要 grep 这个日志。
-LOGDIR="${TFDPFL_LOGDIR:-$ROOT/../tfdpfl-logs}"
+LOGDIR="${TFDPFL_LOGDIR:-$ROOT/logs}"
 LOG="$LOGDIR/smoke_${AXIS}_${METHOD}_${ATTACK}_${DEFENSE}${FRAMEWORK:+_$FRAMEWORK}.log"
 
 mkdir -p "$OUTDIR" "$LOGDIR"
@@ -66,9 +66,13 @@ echo "[smoke] axis=$AXIS method=$METHOD attack=$ATTACK defense=$DEFENSE" \
      "framework=${FRAMEWORK:-<yaml 默认>}"
 echo "[smoke] 大日志 -> $LOG （留集群，不进 git）"
 
-cd "$ROOT/fedavg"
+# ⚠️ **cwd 必须留在仓库根**（2026-09 实测）：apptainer **只自动挂 $PWD**。
+#    `cd $ROOT/fedavg` 之后，兄弟目录 $ROOT/experiments/ 与上一级的日志目录
+#    都在 $PWD 之外 -> 容器里看不见 -> FileNotFoundError，而文件明明在。
+#    `$PY fedavg/main.py` 的 sys.path[0] 仍是 fedavg/，import 一行都不用改。
+cd "$ROOT"
 set +e
-$PY main.py \
+$PY fedavg/main.py \
     --config "$ROOT/experiments/smoke-base.yaml" \
     --attack_method "$ATTACK" \
     --defense "$DEFENSE" \

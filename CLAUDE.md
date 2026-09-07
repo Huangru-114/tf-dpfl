@@ -46,26 +46,51 @@ $PY main.py --config ...
 **每次跑之前扫一眼这行** —— 静默地跑在错误的环境里是最难查的一类问题。
 `TFDPFL_PY` / `TFDPFL_SIF` / `TFDPFL_BIND` 可覆盖。
 
-**⚠️ 默认**不**加 `--bind`（2026-09 更正）**：Arrhenius 上实测可用的标准写法是
+**⚠️ 容器只自动挂 `$PWD` —— 所以 cwd 必须留在仓库根（2026-09-07 实测）**
+
+两件事，别混在一起：
+
+**1. 不要用 `--bind`。** Arrhenius 上实测可用的标准写法没有它：
 
 ```bash
 module load GPU/buildenv-nvhpc/25.9-cu13.0
-apptainer exec --nv /nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tensorflow.sif \
-    python3 /abs/path/to/script.py
+apptainer exec --nv /nobackup/.../tensorflow.sif python3 -m 你的模块
 ```
 
-—— **没有 `--bind`**。这台机器的 apptainer 已在系统级把 `/nobackup` 挂进容器，
-再显式 `--bind` 反而会失败，而失败信息长得像「容器里看不到仓库目录」。
+显式 `--bind <仓库上一级>` 在这台机器上**会让容器起不来**，而报错长得像
+「容器里看不到仓库目录」。`cluster_env.sh` 默认不绑；`TFDPFL_BIND=<路径>`
+仍可显式打开，换集群时再说。
 
-> 本文件一度写着「`--bind` 不能省，apptainer 默认只挂 `$PWD` 和 `$HOME`」。
-> **那条经验在这台机器上不成立**，已按用户给的标准示例更正。
-> `cluster_env.sh` 现在默认不绑；`TFDPFL_BIND=<路径>` 仍可显式打开 ——
-> 换集群后若出现「文件明明在却 FileNotFoundError」，那才是要动的旋钮。
-> 守卫：`tests/test_cluster_env_usage.py::test_bind_is_off_by_default`。
+**2. 但「只挂 `$PWD`」这条是真的。** 作业脚本一旦 `cd $ROOT/fedavg`，
+兄弟目录 `$ROOT/experiments/` 和上一级的日志目录就都在 `$PWD` 之外 ——
+容器里看不见，报 `FileNotFoundError` 而文件明明在。实测证据：
 
-**`.sif` 必须写绝对路径**；脚本与数据路径**可以相对** —— apptainer 保留
-`$PWD`，标准示例里的 `--data-root ./data` / `--ckpt-dir checkpoints/...`
-就是相对的。（先前这里写成「一律用绝对路径」是过度概括，已更正。）
+```
+[Config] loading /nobackup/.../tf-dpfl/experiments/calibration/local_epochs1_seed42.yaml
+FileNotFoundError: ... /experiments/calibration/local_epochs1_seed42.yaml
+```
+（同一个 run 里 `$ROOT/fedavg/main.py` 读得到 —— 它在 `$PWD` **之内**。）
+
+**约定**：所有作业脚本 `cd "$ROOT"`（仓库根）后调 `$PY fedavg/main.py`。
+`python fedavg/main.py` 的 `sys.path[0]` 仍是 `fedavg/`，`from client.x import`
+一行都不用改。日志默认目录也从仓库上一级挪进 `$ROOT/logs`
+（`.gitignore` 已有 `logs/`，大日志照样不进 git）。
+守卫：`tests/test_cluster_env_usage.py` 的
+`test_training_runs_from_the_repo_root_not_from_fedavg` /
+`test_log_dir_defaults_inside_the_repo`。
+
+> 本文件对这一段改过两次：先写「`--bind` 不能省」，再改成「`--bind` 无关紧要」，
+> 都不准确。**准确的说法是上面两条**：`--bind` 不能用，而 `$PWD` 之外确实看不见，
+> 所以靠把 cwd 放在仓库根来解决。
+
+**`.sif` 必须写绝对路径**；脚本与数据路径可以相对 —— apptainer 保留 `$PWD`，
+标准示例里的 `--data-root ./data` 就是相对的。
+
+**cwd=仓库根之后的两处遗留**（都不影响当前实验，记录备查）：
+`fedavg/data/partition.py:412` 的 `open("config/config.yaml")` 在
+`if __name__ == "__main__":` 的 demo 块里，作业不走；
+`fedavg/attack/triggers.py` 的 blended 默认图已改为按**包目录**解析，
+不再依赖 cwd。
 
 **Bad-PFL（torch）用的是另一个容器**：
 `/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/torch_fl.sif`，
@@ -473,6 +498,22 @@ methods-registry.md   所有候选方法的台账 = 研究看板
     `cluster_env.sh`、SLURM 头是 Arrhenius 式、容器路径不在 `cluster_env.sh`
     之外硬写；另有一条反向自检防止「零个文件全部通过」）。
     **新写作业脚本时从 `run_full.sh` 抄头，不要从 git 历史里翻。**
+
+17. ~~**cwd=fedavg 时容器看不见兄弟目录**~~ ✅ **已修复**（`<本次>`）
+    apptainer **只自动挂 `$PWD`**。全部 5 个作业脚本都 `cd $ROOT/fedavg`
+    再跑 `$PY main.py`，于是 `$ROOT/experiments/` 与上一级的 `tfdpfl-logs/`
+    都在容器视野之外。实测：Stage B 第一格死在
+    `FileNotFoundError: .../experiments/calibration/local_epochs1_seed42.yaml`，
+    紧接着 `collect_metrics.py` 又读不到自己刚写的日志 —— 同一个根因两处爆发。
+    （此前没暴露，是因为 exp3 那批历史 run 跑在 Alvis 的裸 python 下，没进容器。）
+    现：`cd "$ROOT"` + `$PY fedavg/main.py`（`sys.path[0]` 仍是 `fedavg/`，
+    import 不变），日志默认挪进 `$ROOT/logs`（`.gitignore` 已忽略）。
+    守卫：`tests/test_cluster_env_usage.py` 的两条新断言，
+    **反向锚点都实测过**（改回 `cd fedavg` / 改回上一级日志 → 立刻红）。
+    ⚠️ 顺带发现本地测试跑批器有**假绿**：参数化用例整组包在一个 try 里，
+    第一个 skip 会让其余用例根本不跑却记成整体 skip。修好后真实计数从
+    「112 passed」变成「166 passed」—— 此前几次汇报的通过数是**少算的**
+    （pass/fail 的判断没错，总数错了）。
 
 15. **`run_exp3.sh` 按 `exit_code: 0` 跳过已完成格子**
     重跑前必须把旧的 `results/*.metrics.json` 移走，否则**一个 GPU 作业都不会提交**，

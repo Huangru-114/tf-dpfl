@@ -29,19 +29,23 @@ CONFIG_ABS="$ROOT/$CONFIG_REL"
 [ -f "$CONFIG_ABS" ] || { echo "[exp3] 配置不存在: $CONFIG_ABS"; exit 2; }
 
 OUTDIR="$ROOT/experiments/attack/hfl-propagation/results"
-LOGDIR="${TFDPFL_LOGDIR:-$ROOT/../tfdpfl-logs}"
+LOGDIR="${TFDPFL_LOGDIR:-$ROOT/logs}"
 LOG="$LOGDIR/exp3_${EXP_ID}.log"          # ← 带 exp_id，每格独立
 mkdir -p "$OUTDIR" "$LOGDIR"
 
 echo "[exp3] cell=$EXP_ID config=$CONFIG_REL seed=$SEED"
 echo "[exp3] 大日志 -> $LOG （留集群，不进 git）"
 
-cd "$ROOT/fedavg"
+# ⚠️ **cwd 必须留在仓库根**（2026-09 实测）：apptainer **只自动挂 $PWD**。
+#    `cd $ROOT/fedavg` 之后，兄弟目录 $ROOT/experiments/ 与上一级的日志目录
+#    都在 $PWD 之外 -> 容器里看不见 -> FileNotFoundError，而文件明明在。
+#    `$PY fedavg/main.py` 的 sys.path[0] 仍是 fedavg/，import 一行都不用改。
+cd "$ROOT"
 set +e
 # **必须走 $PY**（cluster_env.sh 解析出的 apptainer 容器）。裸 python3 在
 # Arrhenius 上一个库都找不到，而且报的是 numpy/tensorflow 的 ImportError,
 # 看起来像「依赖没装」。守卫：tests/test_cluster_env_usage.py。
-$PY main.py \
+$PY fedavg/main.py \
     --config "$CONFIG_ABS" \
     --attack_method badpfl \
     --defense none \

@@ -10,6 +10,7 @@ attack/triggers.py  –  后门触发器（在标准化后的图像空间上操�
 所有 trigger 函数输入/输出均为「已标准化的 numpy 数组」(N,H,W,C) float32。
 """
 
+from pathlib import Path
 import os
 
 import numpy as np
@@ -104,7 +105,12 @@ def build_trigger(bd_cfg, img_size=32):
             value=float(bd_cfg.get("badnet_value", 1.0)),
         )
     if kind == "blended":
-        path = bd_cfg.get("blended_image", "attack/triggers/hello_kitty.png")
+        # 默认路径按**包目录**解析，不按 cwd —— 作业现在以 cwd=仓库根运行
+        # （apptainer 只自动挂 $PWD，cwd 留在 fedavg/ 会看不见兄弟目录）。
+        # 用户显式给的 blended_image 保持原样（相对 cwd 或绝对都行）。
+        _default = str(Path(__file__).resolve().parent.parent
+                       / "attack" / "triggers" / "hello_kitty.png")
+        path = bd_cfg.get("blended_image") or _default
         if not os.path.isfile(path):
             raise FileNotFoundError(
                 f"Blended trigger image not found: {path!r}. "
