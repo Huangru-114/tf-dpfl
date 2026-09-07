@@ -42,6 +42,28 @@ def _code(path: Path) -> str:
                      if not ln.lstrip().startswith("#"))
 
 
+def _stdlib_only_lines(path: Path) -> set:
+    """紧跟在 `# stdlib-only:` 注释块之后的那些行，允许用裸 python3。
+
+    有些脚本（如 read_calibration.py）**刻意**不 import TF，登录节点上裸
+    python3 就能跑、不必进容器。没有这个出口的话，守卫会逼着所有东西都套
+    容器 —— 那会让「提交作业」这件事绑在「容器此刻可用」上。
+    标记必须写明**为什么**是 stdlib-only，不能只写标记。
+    """
+    lines = path.read_text(encoding="utf-8").splitlines()
+    out, armed = set(), False
+    for i, ln in enumerate(lines):
+        stripped = ln.lstrip()
+        if stripped.startswith("#"):
+            if "stdlib-only:" in stripped:
+                armed = True
+            continue
+        if armed:
+            out.add(i)
+            armed = False
+    return out
+
+
 def test_there_are_job_scripts_to_check():
     """反向自检：正则/路径写错时不能悄悄变成「零个文件全部通过」。"""
     assert len(JOB_SCRIPTS) >= 6, [p.name for p in JOB_SCRIPTS]
@@ -51,9 +73,12 @@ def test_there_are_job_scripts_to_check():
 @pytest.mark.parametrize("path", JOB_SCRIPTS, ids=lambda p: p.name)
 def test_no_bare_python_invocation(path):
     """任何 `python3 <脚本>` / `python <脚本>` 都必须是 `$PY ...`。"""
-    bad = [ln.strip() for ln in _code(path).splitlines()
-           if re.search(r"(?<![\w$/])python3?\s+(-m\s+)?[\w./]+", ln)
-           and "$PY" not in ln and "PY=" not in ln]
+    allowed = _stdlib_only_lines(path)
+    bad = [ln.strip() for i, ln in enumerate(path.read_text(encoding="utf-8").splitlines())
+           if not ln.lstrip().startswith("#")
+           and re.search(r"(?<![\w$/])python3?\s+(-m\s+)?[\w./]+", ln)
+           and "$PY" not in ln and "PY=" not in ln
+           and i not in allowed]
     assert not bad, (
         f"{path.name} 里有裸 python 调用（必须走 $PY，否则不在容器里）：\n  "
         + "\n  ".join(bad))

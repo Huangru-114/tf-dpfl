@@ -73,12 +73,71 @@ echo "[env] python = $PY   (mode=$PY_MODE)"
 # ── 启动自检：容器能不能看见仓库 ───────────────────────────────────────────
 # 一次容器启动（~1s），换掉一个跑到一半才 FileNotFoundError 的 GPU 作业。
 # 曾经就是漏了 --bind，五个 smoke 全废在这上面。
+#
+# **分三步查，因为这三种病的修法完全不同**（旧版只报「看不到仓库」这一种，
+# 而且用 2>/dev/null 把 apptainer 自己的报错吞了 —— 等于自己把诊断信息删掉）：
+#   1. 容器根本起不来（--nv 没驱动 / .sif 读不了 / apptainer 配置问题）
+#   2. 容器起得来，但 --bind 那个挂载点在镜像里不存在且没有 overlay/underlay
+#      → apptainer 直接失败。这是 HPC 上最常见的一种。
+#   3. 挂上了，但路径里有软链，容器里解析不到目标
+_tfdpfl_try() {           # $* = 在容器里跑的 python 语句；回显 stderr
+    apptainer exec --nv ${1:+--bind "$1"} "$TFDPFL_SIF" python3 -c "$2" 2>&1
+}
+
 if [ "$PY_MODE" = "apptainer" ] && [ -z "${TFDPFL_SKIP_ENV_CHECK:-}" ]; then
+    _tfdpfl_ok=1
     if ! $PY -c "import sys, os; sys.exit(0 if os.path.isdir(sys.argv[1]) else 1)" \
-            "$_TFDPFL_ROOT" 2>/dev/null; then
+            "$_TFDPFL_ROOT" >/dev/null 2>&1; then
+        _tfdpfl_ok=0
+    fi
+
+    if [ "$_tfdpfl_ok" -eq 0 ]; then
         echo "[env] ✗ 容器里看不到仓库目录 $_TFDPFL_ROOT" >&2
         echo "[env]   当前绑定根：--bind $TFDPFL_BIND" >&2
-        echo "[env]   apptainer 默认只挂 \$PWD 和 \$HOME；用 TFDPFL_BIND=<能覆盖仓库和日志目录的路径> 覆盖。" >&2
+        echo "[env]   ── 正在分步定位（三种病因修法完全不同）──" >&2
+
+        # 步骤 1：不带 --bind，容器本身起不起得来
+        _out="$(_tfdpfl_try "" "print('container-ok')")"
+        if ! printf '%s' "$_out" | grep -q "container-ok"; then
+            echo "[env]   [1/3] ✗ 容器**根本起不来**（与 --bind 无关）。apptainer 原话：" >&2
+            printf '%s\n' "$_out" | sed 's/^/[env]        /' >&2
+            echo "[env]   常见原因：登录节点没有 NVIDIA 驱动 -> 去掉 --nv 试试；" >&2
+            echo "[env]             或 .sif 读不到 / apptainer 配置问题。" >&2
+            echo "[env]   临时绕过（只做不需要 GPU 的事时）：TFDPFL_SKIP_ENV_CHECK=1" >&2
+            return 1 2>/dev/null || exit 1
+        fi
+        echo "[env]   [1/3] ✓ 容器能起来（不带 --bind）" >&2
+
+        # 步骤 2：带 --bind 还能不能起来
+        _out="$(_tfdpfl_try "$TFDPFL_BIND" "print('bind-ok')")"
+        if ! printf '%s' "$_out" | grep -q "bind-ok"; then
+            echo "[env]   [2/3] ✗ 加上 --bind $TFDPFL_BIND 之后容器起不来。apptainer 原话：" >&2
+            printf '%s\n' "$_out" | sed 's/^/[env]        /' >&2
+            echo "[env]   最常见原因：这个挂载点在镜像里不存在，而 apptainer 没开" >&2
+            echo "[env]   overlay/underlay，创建不出多级目录。修法：" >&2
+            echo "[env]     换一个层级更浅、镜像里已存在的绑定根，例如" >&2
+            echo "[env]       TFDPFL_BIND=/nobackup  bash <你的脚本>" >&2
+            echo "[env]   ⚠️ 不要用 src:dst 改挂载点（如 ...:/mnt）：本仓库的脚本" >&2
+            echo "[env]     全程用**宿主机的绝对路径**，改了挂载点之后容器里" >&2
+            echo "[env]     那些路径就不存在了，只是把错误换个地方报。" >&2
+            return 1 2>/dev/null || exit 1
+        fi
+        echo "[env]   [2/3] ✓ 带 --bind 也能起来 -> 挂载本身没问题" >&2
+
+        # 步骤 3：挂上了但路径看不见 -> 多半是软链
+        _real_root="$(readlink -f "$_TFDPFL_ROOT" 2>/dev/null || echo "$_TFDPFL_ROOT")"
+        _real_bind="$(readlink -f "$TFDPFL_BIND" 2>/dev/null || echo "$TFDPFL_BIND")"
+        echo "[env]   [3/3] 挂载正常但路径不可见 -> 检查软链：" >&2
+        echo "[env]        仓库   $_TFDPFL_ROOT" >&2
+        echo "[env]        readlink -f -> $_real_root" >&2
+        echo "[env]        绑定根 $TFDPFL_BIND" >&2
+        echo "[env]        readlink -f -> $_real_bind" >&2
+        if [ "$_real_bind" != "$TFDPFL_BIND" ] || [ "$_real_root" != "$_TFDPFL_ROOT" ]; then
+            echo "[env]   ⇒ 路径里有**软链**。容器绑的是字面路径，链接目标不在里面。" >&2
+            echo "[env]     修法：绑真实路径 —— TFDPFL_BIND='$_real_bind' bash <你的脚本>" >&2
+        else
+            echo "[env]   ⇒ 没有软链。请把上面三步的输出发我。" >&2
+        fi
         return 1 2>/dev/null || exit 1
     fi
 fi
