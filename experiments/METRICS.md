@@ -51,8 +51,22 @@ T(x) = clip_{[0,1]}( x + ξ(x) )  +  δ(x)
   评估时却要迁移到良性客户端的个性化模型上 —— 见陷阱 #5，这是已知的方法学限制，
   不是 bug。
 - ξ 依赖 `client.local_model`：**触发器是 model-dependent 的**，同一张图在不同
-  客户端/不同轮次上得到的扰动不同。所以"触发器可视化"必须注明是哪个模型、哪一轮
-  （见 `diag/viz_trigger.py`）。
+  客户端/不同轮次上得到的扰动不同。所以"触发器可视化"必须注明是哪个模型、哪一轮。
+
+### 触发器可视化（导师第 1 条的 "visualize the attacks"）
+
+```bash
+# 先查 checkpoint 齐不齐（不需要 torch，秒级）
+python -m diag.viz_trigger --ckpt-dir checkpoints/<run> --client-id 0 --check-only
+# 出图（CPU 就够，不用排 GPU 队）
+python -m diag.viz_trigger --ckpt-dir checkpoints/<run> --client-id 0 \
+    --data-root ./data --out results/figs/trigger_visualization.png
+```
+
+五联图：clean `x` / ξ / δ / `T(x)` / 总残差。三个扰动 panel **按 4/255 满量程
+放大 32 倍**并把倍数写在标题里 —— 不写倍数的扰动图看不出它是 4/255 还是 40/255。
+超范围**截断**而不是重新归一化，所以跨 panel 可比（总残差能到 8/255 这件事
+画得出来）。每个 panel 还打出实测的 L∞ 及其占 4/255 的比例，读者可自行核对预算。
 
 ### ρ（poison rate / poisoning probability）的定义
 
