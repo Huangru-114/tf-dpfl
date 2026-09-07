@@ -26,9 +26,11 @@ JOB="$REL/exp3_cell.sbatch"
 OUTDIR="$ROOT/$REL/results"
 mkdir -p "$OUTDIR"
 
-# 默认扫描本目录所有 *.yaml（3A/3B 8 个 + 3C 6 个）。用 CONFIGS= 缩小范围，例如：
+# 默认扫描本目录所有 *.yaml（3A/3B 8 个 + 3C 7 个 + flat 基线 1 个 = 16 格）。
+# 用 CONFIGS= 缩小范围，例如：
 #   3A/3B：CONFIGS="2edge_collocated 4edge_collocated 4edge_distributed 4edge_mixed 10edge_*"
-#   3C：   CONFIGS="3c_R1 3c_R2 3c_R4 3c_R5 3c_R10 3c_R20"
+#   3C：   CONFIGS="3c_R1 3c_R2 3c_R4 3c_R5 3c_R10 3c_R20 3c_R40"
+#   归因对照： CONFIGS="flat_baseline 3c_R1 3c_R5"   ← 分离「层级结构」与「聚合频率」
 CONFIGS="${CONFIGS:-$(cd "$ROOT/$REL" && ls *.yaml 2>/dev/null | sed 's/\.yaml$//' | tr '\n' ' ')}"
 SEEDS="${SEEDS:-42 43 44}"
 

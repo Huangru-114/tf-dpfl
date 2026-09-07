@@ -77,14 +77,27 @@ sbatch run_full.sh attack hfl-propagation badpfl none 4edge_collocated  hier_fed
 固定拓扑 = **2edge distributed `[5,5]`**（= exp007 锚点在 R_edge=5），唯一自变量 = `edge_rounds`
 `R_edge`，`n_rounds` 随之使 `R_edge × R_cloud = 400`（有效 local budget 恒定）：
 
-| config | edge_rounds | n_rounds | 含义 |
-|---|---|---|---|
-| `3c_R1`  | 1  | 400 | 每轮都 cloud 聚合，≈ flat（用户观察到的稀释一端） |
-| `3c_R2`  | 2  | 200 | |
-| `3c_R4`  | 4  | 100 | |
-| `3c_R5`  | 5  | 80  | = exp007 层级锚点 |
-| `3c_R10` | 10 | 40  | |
-| `3c_R20` | 20 | 20  | 强层级 |
+| config | edge_rounds | n_rounds | `eval_interval`(cloud) | 评估点数 | 含义 |
+|---|---|---|---|---|---|
+| `3c_R1`  | 1  | 400 | 10 | 40 | 每轮都 cloud 聚合，但**保留 edge 层** → 与 flat 的归因对照 |
+| `3c_R2`  | 2  | 200 | 5  | 40 | |
+| `3c_R4`  | 4  | 100 | 2  | 50 | |
+| `3c_R5`  | 5  | 80  | 2  | 40 | = exp007 层级锚点 |
+| `3c_R10` | 10 | 40  | 1  | 40 | |
+| `3c_R20` | 20 | 20  | 1  | 20 | 强层级；`eval_interval` 已到下限 1 |
+| `3c_R40` | 40 | 10  | 1  | 10 | 极端；同上，只有 10 个点，轨迹比较到此为止 |
+
+> **`eval_interval` 按有效轮对齐**：它数的是 **cloud round**，而有效轮 =
+> cloud × `edge_rounds`。此前各格一律设 5，于是等预算 400 下 flat 拿到 80 个评估点、
+> R20 只有 4 个、R40 只有 2 个 —— 任何「谁涨得快」的轨迹比较在大 R 的格子上
+> 根本没有分辨率。现在统一成**约每 10 个有效轮评一次**；R20/R40 受 cloud 轮数
+> 下限所限（`eval_interval` 不能小于 1），是设计固有的稀疏，不是配置错误。
+> 守卫：`tests/test_exp3_config_invariants.py`。
+
+> **`3c_R1` 是归因的关键格**，README 早就设计了它但文件一直没被创建。
+> `flat_baseline` 同时改了 `n_edges 2→1` **和** `edge_rounds 5→1` 两个变量，
+> 所以「引入 edge 层抑制传播」这个主发现此前无法归因。三格对照：
+> `flat_baseline`(1 edge, R=1) vs `3c_R1`(2 edge, R=1) vs `3c_R5`(2 edge, R=5)。
 
 跑法（复用同一套脚本，用 `CONFIGS=` 缩到 3C）：
 ```bash

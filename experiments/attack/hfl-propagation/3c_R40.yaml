@@ -1,7 +1,7 @@
-# experiments/attack/hfl-propagation/3c_R1.yaml
+# experiments/attack/hfl-propagation/3c_R40.yaml
 #   Experiment 3C —— Hierarchical aggregation frequency。固定拓扑 = 2edge distributed [5,5]
 #   （= exp007 锚点在 R_edge=5），**唯一自变量 = edge_rounds R_edge**，n_rounds 随之调整使
-#   R_edge × R_cloud = 1 × 400 = 400（有效 local budget 恒定）。R_edge=1 ≈ 每轮都 cloud 聚合
+#   R_edge × R_cloud = 40 × 10 = 400（有效 local budget 恒定）。R_edge=1 ≈ 每轮都 cloud 聚合
 #   （最接近 flat，用户已观察到的稀释一端）；R_edge=20 = 强层级。
 #   判据：MTA(pm_acc) + ASR client/edge/global（per_edge_final）随 R_edge 的曲线。斜率回答
 #   「edge aggregation 是放大器还是稀释器」。⚠️ parameter/representation drift 需另加仪表（未含）。
@@ -71,7 +71,9 @@ backdoor:
   enabled:        true
   trigger:        "badnet"
   malicious_strategy: "vanilla"   # 由 --attack_method badpfl 覆盖
-  target_label:   9
+  target_label:   0              # ← CIFAR-10 class 0 = airplane。与 Bad-PFL 库
+                                #   （main.py --ba_target_label 默认 0）统一，两库结果才能同框讨论。
+                                #   本轴是 all-to-one、无 source class 限制：任何非目标类样本都可被投毒。
   poison_ratio:   0.2
   malicious_ids:  [3]             # spread 下被忽略，n_malicious 说了算
   malicious_placement: "by_edge"   # 按 edge 精确布点（Experiment 3A/3B）
@@ -99,7 +101,10 @@ backdoor:
   badpfl_gen_steps:   30
   badpfl_gen_lr:      0.01
   badpfl_shared_generator: true   # P4：adversary 持有单一共享生成器（对齐官方 fba.py）
-  eval_interval:  5               # ← 全长：每 5 轮评一次分层 ASR（看累积曲线）
+  eval_interval:  1  # ← 按【有效轮】对齐：eval_interval(cloud) x edge_rounds ≈ 10 个有效轮评一次。
+                                #   原本各格一律 5 个 cloud 轮，而有效轮 = cloud x edge_rounds，
+                                #   于是等预算 400 下 flat 拿到 80 个评估点、R20 只有 4 个、R40 只有 2 个
+                                #   —— 任何「谁涨得快」的轨迹比较在大 R 的格子上根本没有分辨率。
   asr_max_samples: 2000           # ← ASR 子采样，限评估开销
   drift_eval:     true          # 3C：开启参数/表示漂移测量
   drift_probe_samples: 256      # 干净探针样本数（表示漂移的固定 batch）
@@ -125,7 +130,7 @@ wandb:
   enabled:  false
 
 evaluation:
-  eval_interval: 5
+  eval_interval: 1
   final_finetune:       false
   final_finetune_steps: 5
   test_client_eval:    false

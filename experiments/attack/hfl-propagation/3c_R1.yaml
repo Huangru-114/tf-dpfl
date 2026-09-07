@@ -1,14 +1,24 @@
-# experiments/attack/hfl-propagation/10edge_mixed.yaml
-#   Experiment 3B —— HFL 层级结构与攻击传播。Mixed：梯度 4/3/2/1/0…（6 个干净 edge）。
-#   与 exp007(bad-pfl/full_p4_resnet) 逐字同底座，只改 3 处：n_edges / edge_assignment=block /
-#   malicious_placement=by_edge(+malicious_per_edge)。**跨所有拓扑格恒定的不变量**：
-#     100 client · 10 恶意(全局 10%) · edge_rounds=5 × n_rounds=80 (=400 有效轮) ·
-#     badpfl · hier_fedrep · resnet10 · shared_generator=true · forced_participation=false ·
-#     poison_ratio=0.2 · seed=42（换 seed 43/44 复跑取 mean±std）。
-#   变的只有「恶意端在 10 个 edge 上的空间分布」。判据读 metrics.json 的 per_edge_final。
-#   跑法：
-#     sbatch run_full.sh attack hfl-propagation badpfl none 10edge_mixed hier_fedavg_fedrep \
-#            experiments/attack/hfl-propagation/10edge_mixed.yaml
+# experiments/attack/hfl-propagation/3c_R1.yaml
+#   Experiment 3C —— Hierarchical aggregation frequency，**R_edge = 1 的极端点**。
+#
+#   ▲ 这一格是把「层级结构本身」与「cloud 聚合频率」分开的**关键对照**，
+#     README 早就设计了它，但 3c_R1.yaml 一直没有被创建，于是这两个变量
+#     在整个 Experiment 3 里始终缠在一起：
+#
+#         flat_baseline :  n_edges=1  且  edge_rounds=1     ← 同时改了两个变量
+#         3c_R5 (锚点)  :  n_edges=2  且  edge_rounds=5
+#         3c_R1 (本格)  :  n_edges=2  且  edge_rounds=1     ← 只改频率，保留 edge 层
+#
+#     有了本格才能回答：flat 相对层级组的差异，是因为**少了 edge 这一层**，
+#     还是仅仅因为**cloud 聚合得更勤**？
+#       · 3c_R1 ≈ flat  → 差异来自聚合频率，edge 层本身不起作用
+#       · 3c_R1 ≈ 3c_R5 → 差异来自 edge 层结构（3C 已显示 ASR 对 R_edge 不敏感，
+#                          这是先验上更可能的一支，但此前没有对照格可证）
+#
+#   固定拓扑 = 2edge distributed [5,5]（= exp007 锚点在 R_edge=5），
+#   唯一自变量 = edge_rounds R_edge，n_rounds 随之使 R_edge × R_cloud = 1 × 400 = 400
+#   （有效 local budget 与所有其他格恒定）。
+#   跑法：CONFIGS="3c_R1 3c_R2 3c_R4 3c_R5 3c_R10 3c_R20 3c_R40" bash …/run_exp3.sh
 #
 seed: 42
 
@@ -27,9 +37,9 @@ federation:
   badpfl_allow_parallel: false   # 并行收集（提速）；⚠️ eager/@tf.function 并发有污染风险，异常回退串行
   n_workers:        4           # 并行线程数（sbatch -c 4）
   n_clients:        100         # 100 client / 10 恶意（全局 10%），跨所有拓扑格恒定
-  n_edges:          10
-  edge_rounds:      5           # ← 全长：每 global round 5 个 edge round
-  n_rounds:         80          # ← 全长：80 × 5 = 400 有效轮
+  n_edges:          2
+  edge_rounds:      1           # ← R_edge=1：每个 cloud round 只做 1 个 edge round
+  n_rounds:         400         # ← 1 × 400 = 400 有效轮，与所有其他格等预算
   partition:        "noniid"
   classes_per_client: 10
   alpha:            0.5
@@ -80,7 +90,7 @@ backdoor:
   poison_ratio:   0.2
   malicious_ids:  [3]             # spread 下被忽略，n_malicious 说了算
   malicious_placement: "by_edge"   # 按 edge 精确布点（Experiment 3A/3B）
-  malicious_per_edge: [4, 3, 2, 1, 0, 0, 0, 0, 0, 0]   # 按 edge id 索引的恶意端个数；sum=10=全局10%
+  malicious_per_edge: [5, 5]   # 按 edge id 索引的恶意端个数；sum=10=全局10%
   n_malicious:    10            # by_edge 下不用它定数量（malicious_per_edge 说了算），保留仅作记录
   forced_participation: false   # 默认关闭：所有客户端同概率被抽取（当前实验的正确设定）。
                                 # exp006 的 pm_acc 崩溃即因此前隐式强制参与 + 恶意密集 edge 饿死良性端。
@@ -104,11 +114,13 @@ backdoor:
   badpfl_gen_steps:   30
   badpfl_gen_lr:      0.01
   badpfl_shared_generator: true   # P4：adversary 持有单一共享生成器（对齐官方 fba.py）
-  eval_interval:  2  # ← 按【有效轮】对齐：eval_interval(cloud) x edge_rounds ≈ 10 个有效轮评一次。
+  eval_interval:  10  # ← 1 × 10 = 每 10 个有效轮评一次，与其他格同密度
                                 #   原本各格一律 5 个 cloud 轮，而有效轮 = cloud x edge_rounds，
                                 #   于是等预算 400 下 flat 拿到 80 个评估点、R20 只有 4 个、R40 只有 2 个
                                 #   —— 任何「谁涨得快」的轨迹比较在大 R 的格子上根本没有分辨率。
   asr_max_samples: 2000           # ← ASR 子采样，限评估开销
+  drift_eval:     true          # 3C：开启参数/表示漂移测量
+  drift_probe_samples: 256      # 干净探针样本数（表示漂移的固定 batch）
   verbose_clients: false
   feature_eval:          false
   feature_eval_samples:  200
@@ -131,7 +143,7 @@ wandb:
   enabled:  false
 
 evaluation:
-  eval_interval: 2
+  eval_interval: 10
   final_finetune:       false
   final_finetune_steps: 5
   test_client_eval:    false
