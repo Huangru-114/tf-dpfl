@@ -1,3 +1,4 @@
+import random
 import yaml
 import numpy as np
 import tensorflow as tf
@@ -310,22 +311,34 @@ def load_config(path: str = "config/config.yaml") -> dict:
 def set_seed(seed: int):
     """
     固定随机种子，保证实验可复现。
-    FL 的随机性来自三处：numpy（分区/采样）、tensorflow（初始化）。
+    FL 的随机性来自三处：numpy（分区/采样）、tensorflow（初始化）、
+    **Python random（各方法客户端每个 epoch 的 batch 洗牌）**。
+
+    第三处曾被漏掉：`hier_fedrep.py` / `client_pfedme.py` / `hier_ditto.py` /
+    `hier_ditto_rep.py` / `hier_pfedme_rep.py` 的本地训练循环都用
+    `random.shuffle(eb)` 打乱 batch 顺序。不播它 → **同一个 seed 重跑对不上**，
+    Rep/Ditto/pFedMe 全家（即 Experiment 3 的全部格子）都受影响。
     """
+    random.seed(seed)
     np.random.seed(seed)
     tf.random.set_seed(seed)
     print(f"[Setup] Random seed: {seed}")
 
 
-def build_clients(images_np, labels_np, global_model, config,
-                  x_test_np=None, y_test_np=None):
+def build_clients(images_np, labels_np, global_model, config):
     """
     数据分区 + 批量实例化所有客户端。
 
     每个客户端拿到：
       - 自己的 dataset partition
       - 全局模型的独立副本（clone_model，不共享权重对象）
-      - per-client 同分布测试集（x_test_np/y_test_np 存在时注入，论文评估方式）
+      - per-client 同分布测试集：从该 client **自己的分片内部**按
+        `data.per_client_test_ratio` 切出（`split_client_train_test`），
+        与官方 test split 无关
+
+    注：曾有 `x_test_np` / `y_test_np` 两个参数，docstring 声称「存在时注入」，
+    但函数体里**从未引用过**——看起来像做了训练/评估隔离，实际没有。已删除，
+    以免再次误导。真正的隔离在调用方：只传 x_train/y_train。
 
     Returns:
         clients     : List[FLClient]
@@ -659,14 +672,26 @@ def run_experiment(config_path="config/config.yaml"):
     baked_assignments = None
     edge_fine_classes = None
 
-    # 合并全量数据后分区：确保 per-client train/test 同分布（PFLlib 标准做法）
-    # x_test/y_test 保留用于 edge/GM 评估，不受影响。
-    x_all = np.concatenate([x_train, x_test], axis=0)
-    y_all = np.concatenate([y_train, y_test], axis=0)
+    # ⚠️ 只把**训练集**切给客户端。官方 test split 必须留在客户端数据之外。
+    #
+    # 此处曾经是 `x_all = np.concatenate([x_train, x_test])`，注释写着
+    # 「x_test/y_test 保留用于 edge/GM 评估，**不受影响**」—— 那句断言是错的：
+    #   1. `noniid_partition` 里 `np.split(class_indices, cut_points)` 是一个**划分**，
+    #      x_all 的 60000 个 index 每一个都会归属某个 client；
+    #   2. `split_client_train_test` 再把每个 client 的 index 按 1−test_ratio
+    #      划进**训练集**（exp3 是 0.75）；
+    #   3. 而 `BackdoorCloudServer(x_test=x_test, ...)` 又拿同一份 x_test 算
+    #      global/edge/local 六个 ASR 与 global_acc。
+    # 净效果：官方 test set 的 **75%** 被客户端训练过，ASR/MTA 的绝对值被系统性抬高。
+    # 守卫：tests/test_no_test_leakage.py
+    #
+    # per-client train/test 同分布（PFLlib 做法）由 `split_client_train_test` 在
+    # **每个 client 自己的分片内部**切分保证，本来就不依赖这次合并。
     clients, baked_assignments, edge_fine_classes = build_clients(
-        x_all, y_all, global_model, config,
-        x_test_np=x_test, y_test_np=y_test
+        x_train, y_train, global_model, config
     )
+    print(f"[Setup] client pool = train split only ({len(y_train)} samples); "
+          f"official test split ({len(y_test)} samples) held out for GM/edge/ASR eval")
 
     # 把 clients 分组给 Edge Server
     print("[Setup] Building edge servers...")
