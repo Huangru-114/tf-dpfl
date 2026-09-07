@@ -10,6 +10,8 @@ server/backdoor_server.py  –  后门感知的 Cloud 服务器
 所有指标通过 FLLogger.log_round_metrics 记入 wandb。
 """
 
+import time
+
 import numpy as np
 
 from server.server import CloudServer
@@ -140,6 +142,18 @@ class BackdoorCloudServer(CloudServer):
 
         print(f"\n[Backdoor] ===== Round {round_idx} hierarchical backdoor eval =====")
 
+        # ── 分阶段计时 ───────────────────────────────────────────────────
+        # 为什么需要：`[Cloud] … time=Xs` 测的是 CloudServer.run_round 的
+        # t0→elapsed，而 _backdoor_eval 是在 super().run_round() **返回之后**
+        # 才调用的（见 run_round），所以那个数**不含**后门评估。
+        # 于是「一轮到底花了多少、其中多少花在评估上」在 metrics.json 里
+        # 此前完全看不到 —— 标定 (local_epochs, n_rounds, eval_interval)
+        # 时这正是要读的那个数。
+        # 未启用的阶段记 None → 打 "n/a"，不是 0.0（陷阱 #13 的同一约定：
+        # 「没跑」与「跑了但是很快」不能在数值上长得一样）。
+        _t_all = time.perf_counter()
+        t_feature = t_forget = t_drift = None
+
         # ── Simple-Tuning 防御：良性 client 本地模型评估前做「重置头 + 干净微调」──
         # （恶意 client 不设防，保持 c.model 原样，仅用于报告 local_asr_malicious）
         local_model_fn = None
@@ -152,6 +166,7 @@ class BackdoorCloudServer(CloudServer):
                   f"before ASR eval (round {round_idx})")
 
         # ── 任务2：分层 ASR（global/edge/local 三层 + same/diff edge） ────────
+        _t0 = time.perf_counter()
         metrics = evaluate_hierarchical_asr(
             self.global_model, self.edge_servers, self._all_clients,
             self.test_dataset, self.trigger_fn, self.bd_target,
@@ -159,9 +174,11 @@ class BackdoorCloudServer(CloudServer):
             local_model_fn=local_model_fn,
             asr_max_samples=self.bd_asr_max,
         )
+        t_asr = time.perf_counter() - _t0
 
         # ── 任务2：特征空间分离度（global + 抽样 1 个良性 local） ─────────────
         if self.feature_eval:
+            _t0 = time.perf_counter()
             poisoned, poisoned_true, clean_by_class = self._prepare_feature_data()
             sep_g = evaluate_feature_separation(
                 self.global_model, poisoned, poisoned_true,
@@ -175,12 +192,14 @@ class BackdoorCloudServer(CloudServer):
                     benign[0].model, poisoned, poisoned_true,
                     clean_by_class, self.bd_target)
                 metrics["sep_score_local"] = sep_l["separation_score"]
+            t_feature = time.perf_counter() - _t0
 
         # ── 任务2：后门遗忘曲线（仅个性化/微调方法、抽样 1 个良性客户端） ─────
         method = self.config["training"].get("drift_correction", "fedavg")
         do_forget = (method in _PERSONALIZED_METHODS
                      or self.config.get("evaluation", {}).get("final_finetune", False))
         if do_forget:
+            _t0 = time.perf_counter()
             benign = [c for c in self._all_clients
                       if int(c.client_id) not in self.malicious_ids]
             if benign:
@@ -196,6 +215,7 @@ class BackdoorCloudServer(CloudServer):
                     metrics["forgetting_curve"] = evaluate_forgetting_curve(
                         c0.model, self.forgetting_epochs, c0.dataset,
                         fx, fy, self.trigger_fn, self.bd_target, lr=lr)
+            t_forget = time.perf_counter() - _t0
 
         # ── 历史 + 控制台 ─────────────────────────────────────────────────
         self.history["bd_c_acc"].append(metrics["local_acc_mean"])
@@ -225,7 +245,17 @@ class BackdoorCloudServer(CloudServer):
 
         # ── 漂移测量（Experiment 3C）：edge 相对本轮起点全局的参数/表示漂移 ──────
         if self.drift_eval and anchor is not None:
+            _t0 = time.perf_counter()
             self._eval_drift(round_idx, anchor)
+            t_drift = time.perf_counter() - _t0
+
+        # ── 计时行（可解析；harness/collect_metrics.py 的 RE_TIMING 认它）─────
+        def _t3(v):
+            return "n/a" if v is None else f"{v:.1f}"
+
+        print(f"[Timing] Round {round_idx} | asr={_t3(t_asr)}s | "
+              f"feature={_t3(t_feature)}s | forgetting={_t3(t_forget)}s | "
+              f"drift={_t3(t_drift)}s | total={_t3(time.perf_counter() - _t_all)}s")
 
         # ── 任务3：wandb 记录全部分层指标 ─────────────────────────────────
         FLLogger.log_round_metrics(round_idx, metrics)

@@ -173,6 +173,14 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
   `_collect_updates_*` 的 `meta_grad` 模式随之删除。
 - **矩阵提交器**：`matrix.conf` + `submit_matrix.sh` + `experiment_tf.sh`
   + `harness/collect_matrix.py`。
+- **墙钟已可拆分**：`_backdoor_eval` 分段计时（asr / feature / forgetting / drift）
+  打一条 `[Timing] Round N | asr=…s | … | total=…s`，`collect_metrics` 另从
+  `[Cloud]` 行抓 `time=`，`metrics.json` 出 `timing_rounds` + `timing_summary`
+  （`round_time_total_s` / `bd_eval_total_s` / `bd_eval_fraction`）。
+  **口径**：`round_time` 测的是 `CloudServer.run_round` 的 t0→elapsed，而
+  `_backdoor_eval` 在 `super().run_round()` **返回之后**才跑 → 两者要**相加**
+  才是一轮的墙钟。标定 (local_epochs, n_rounds, eval_interval) 读的就是这几个数。
+  守卫：`tests/test_eval_timing.py`（上游 AST + 下游解析两侧分开测）。
 
 **留了接口但没有实现的**（不要以为它们能用）：
 - 主动防御（需要客户端配合的防御）：接口齐了（`BaseDefense.layers` /

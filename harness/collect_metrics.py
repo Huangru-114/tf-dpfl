@@ -50,6 +50,19 @@ RE_BD = re.compile(
 # ── 准确率（PM 只在 eval_interval 轮出现，故可选）─────────────────────────────
 RE_ACC = re.compile(
     r"\[Cloud\] GM=([\d.]+) \| EM=([\d.]+)(?: PM=([\d.]+))? \|")
+# 单轮墙钟。**故意与 RE_ACC 分开**：RE_ACC 有 25 条现有测试挂着，把 time= 并进去
+# 会让「老日志少一个字段」变成解析失败。这里在同一行上做一次**可选**搜索，
+# 老日志拿到 None，新日志拿到数字。
+# 注意口径：这个 elapsed 测的是 CloudServer.run_round 的 t0→elapsed，
+# 而 BackdoorCloudServer._backdoor_eval 是在 super().run_round() 返回**之后**
+# 才跑的 → round_time **不含**后门评估。两者要相加才是这一轮的墙钟。
+RE_ROUND_TIME = re.compile(r"\[Cloud\] GM=[\d.]+ .*?\| time=([\d.]+)s")
+
+# 后门评估的分阶段耗时（BackdoorCloudServer._backdoor_eval 打）。
+# 未启用的阶段是 "n/a" 而不是 0.0 —— 与陷阱 #10/#13 同一约定。
+RE_TIMING = re.compile(
+    r"\[Timing\] Round (\d+) \| asr=([\d.]+|n/a)s \| feature=([\d.]+|n/a)s \| "
+    r"forgetting=([\d.]+|n/a)s \| drift=([\d.]+|n/a)s \| total=([\d.]+|n/a)s")
 RE_ROUND_HDR = re.compile(r"^\[Round\s+(\d+)\]")
 RE_FINAL_PM = re.compile(r"\[Final PM\] weighted C-Acc = ([\d.]+)")
 
@@ -161,11 +174,15 @@ def _collect_acc(lines: list) -> list:
             continue
         a = RE_ACC.search(ln)
         if a:
+            t = RE_ROUND_TIME.search(ln)
             out.append({
                 "round":  cur,
                 "gm_acc": float(a.group(1)),
                 "em_acc": float(a.group(2)),
                 "pm_acc": float(a.group(3)) if a.group(3) else None,
+                # 训练 + 常规评估的墙钟；不含后门评估（见 RE_ROUND_TIME 注释）。
+                # 老日志没有 time= 字段时是 None，不是 0.0。
+                "round_time": float(t.group(1)) if t else None,
             })
     return out
 
@@ -265,6 +282,60 @@ def _collect_drift(log_text: str) -> list:
     return sorted(out, key=lambda d: d["round"])
 
 
+def _collect_timing(log_text: str) -> list:
+    """[{round, asr_s, feature_s, forgetting_s, drift_s, total_s}]，按 round 升序。"""
+    out = []
+    for m in RE_TIMING.finditer(log_text):
+        out.append({"round": int(m.group(1)),
+                    "asr_s": _opt(m.group(2)), "feature_s": _opt(m.group(3)),
+                    "forgetting_s": _opt(m.group(4)), "drift_s": _opt(m.group(5)),
+                    "total_s": _opt(m.group(6))})
+    return sorted(out, key=lambda d: d["round"])
+
+
+def _timing_summary(acc_rounds: list, timing_rounds: list) -> dict:
+    """墙钟拆分：训练+常规评估 vs 后门评估。
+
+    这是标定 (local_epochs, n_rounds, eval_interval) 时唯一要读的数。
+    两个来源的口径不同、必须分开累加：
+      - `round_time`  每轮都有，来自 [Cloud] 行，**不含**后门评估
+      - `total_s`     只在 bd_eval_interval 轮有，来自 [Timing] 行
+
+    任何一侧无数据就留 `None` —— 0.0 会被读成「不花时间」（铁律：无定义的
+    指标留空）。`bd_eval_fraction` 只在两侧都有数时才给。
+    """
+    rt = [a["round_time"] for a in acc_rounds if a.get("round_time") is not None]
+    bd = [t["total_s"] for t in timing_rounds if t["total_s"] is not None]
+    train_s = round(sum(rt), 1) if rt else None
+    bd_s    = round(sum(bd), 1) if bd else None
+    frac = (round(bd_s / (train_s + bd_s), 4)
+            if (train_s is not None and bd_s is not None and train_s + bd_s > 0)
+            else None)
+
+    def _phase(key):
+        xs = [t[key] for t in timing_rounds if t[key] is not None]
+        return round(sum(xs) / len(xs), 2) if xs else None
+
+    return {
+        "n_rounds_timed":        len(rt),
+        "n_bd_evals":            len(bd),
+        "round_time_total_s":    train_s,     # 训练 + GM/EM/PM 评估
+        "bd_eval_total_s":       bd_s,        # 后门评估（ASR/特征/遗忘/漂移）
+        "wall_total_s":          (round(train_s + bd_s, 1)
+                                  if train_s is not None and bd_s is not None
+                                  else None),
+        "bd_eval_fraction":      frac,
+        "round_time_mean_s":     round(train_s / len(rt), 2) if rt else None,
+        "bd_eval_mean_s":        round(bd_s / len(bd), 2) if bd else None,
+        "bd_phase_mean_s": {
+            "asr":        _phase("asr_s"),
+            "feature":    _phase("feature_s"),
+            "forgetting": _phase("forgetting_s"),
+            "drift":      _phase("drift_s"),
+        },
+    }
+
+
 def collect(log_text: str) -> dict:
     lines = log_text.splitlines()
 
@@ -301,6 +372,7 @@ def collect(log_text: str) -> dict:
     per_edge_final = (per_edge_rounds[max(per_edge_rounds)]
                       if per_edge_rounds else [])
     drift_rounds = _collect_drift(log_text)
+    timing_rounds = _collect_timing(log_text)
 
     return {
         "run": run,
@@ -314,6 +386,9 @@ def collect(log_text: str) -> dict:
         "drift_final": drift_rounds[-1] if drift_rounds else None,
         "acc_rounds": acc_rounds,
         "final_acc": final_acc,
+        # 墙钟拆分（标定用）：round_time 不含后门评估，两者要相加，见 RE_ROUND_TIME
+        "timing_rounds": timing_rounds,
+        "timing_summary": _timing_summary(acc_rounds, timing_rounds),
         "admitted": admitted,
         # 只对有客户端级判决的防御求均值；坐标类（admitted=None）不参与，
         # 全是坐标类或无防御时结果是 None —— 0 会被误读成「全部被剔除」。
