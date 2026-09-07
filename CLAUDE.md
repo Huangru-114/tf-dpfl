@@ -107,10 +107,19 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
    的直接前置，比如正交化之于 Neurotoxin/Bad-PFL）。
 2. **`bash run_l1.sh`** —— 基线分两种环境，对不上就先停下来问我，别在坏掉的地基上改东西。
 
-   | 环境 | 预期 | 说明 |
+   > ⚠️ **下表的数字已过期，开工前必须自己实测一次**，不要拿它当门禁基准。
+   > 两个原因：(a) `test_badpfl_trigger` 的 4 条红已于 2026-08-21（`f76ff71`/`e34da4b`）
+   > 修好，见 `experiments/attack/bad-pfl/current-focus.md:68` —— 集群实际红灯应为
+   > **2 条**（`test_neurotoxin_mask`，陷阱 #4），不是 6 条；
+   > (b) 本轮新增了 4 个测试模块（seeding / leakage / quota / undefined-metrics /
+   > exp3-config），通过数会涨。
+   > **正确做法**：`bash run_l1.sh 2>&1 | tail -3` 记下当天的数字作为基线，
+   > **之后多出来的红才是回归**。
+
+   | 环境 | 历史记录（2026-08-20 实测，**已过期**） | 说明 |
    |---|---|---|
-   | **本地（无 TF）** | `172 passed / 4 skipped / 3 xfailed` → **PASS**（exit 0） | 4 skipped = 4 个需要 TF 的测试模块整体 skip |
-   | **集群（有 TF）** | `213 passed / 3 skipped / 3 xfailed / 6 failed` → **FAIL** | 6 条红是**既有**的陷阱 #4/#5，见下 |
+   | **本地（无 TF）** | `172 passed / 4 skipped / 3 xfailed` → PASS（exit 0） | 4 skipped = 4 个需要 TF 的测试模块整体 skip |
+   | **集群（有 TF）** | `213 passed / 3 skipped / 3 xfailed / 6 failed` → FAIL | 当时的 6 条红；其中 4 条已修，现应为 2 条 |
 
    > 若在容器里直接跑裸 `pytest`（不加 `tests/`），会多收 6 条
    > `fedavg/defense/test_defenses_offline.py` → **219 passed**。
@@ -119,10 +128,11 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
 
    集群上 `run_l1.sh` 返回 FAIL 是**当前的预期状态**，不是回归：
    `test_neurotoxin_mask` ×2 是陷阱 #4（mask 语义方向未证实，测试按文献语义写、
-   等实现被改过来）；`test_badpfl_trigger` ×4 是陷阱 #5 + `build_autoencoder(img_size=8)`
-   的 shape bug + 一条测试自身的 float32 舍入写法。
-   这 6 条修好之前，集群上的门禁请用 `bash run_l1.sh 2>&1 | tail -3` 人工核对数字，
-   **多出来的红才是回归**。（3 xfailed 是 FLAME 的已知 bug，陷阱 #3。）
+   等实现被改过来）。
+   ~~`test_badpfl_trigger` ×4~~ **已修**（2026-08-21，`f76ff71`/`e34da4b`）：
+   `build_autoencoder` 加了 `assert img_size % 16 == 0`、STD 改为按 dataset 匹配、
+   测试自身的 float32 舍入改用 `np.isclose`。
+   （3 xfailed 是 FLAME 的已知 bug，陷阱 #3。）
 3. **读 `experiments/<axis>/<method>/current-focus.md`** —— 本会话**唯一**要回答的问题
    和客观判据都在里面。没有这个文件就先和我一起写，不要直接开始改代码。
 
@@ -192,6 +202,8 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
 
 ```
 fedavg/        唯一活跃代码（在集群上以 cwd=fedavg 运行，import 是 `from client.x import`）
+               ⚠️ 绝大多数模块 import TF → 本地测不了。把纯算术抽成不依赖 TF 的
+               小模块（如 `server/participation.py`），L1 就能在本地秒级覆盖它。
 reference/     官方 torch/py 实现，gitignore，一次只 clone 1~2 个，用完即删
 tests/         L1 算法不变量测试（本地秒级，见下）
 experiments/<axis>/<method>/
@@ -261,10 +273,22 @@ methods-registry.md   所有候选方法的台账 = 研究看板
    证据：`tests/test_attack_method_orthogonality.py`（33 passed，改动前 18 failed）。
    **新增攻击/防御时不要再写成 Client 子类**，写 mixin + 钩子。
 
-2. ~~**随机性未播种**~~ ⚠️ **大部分已修**（commit `d2717cd`），但**有一处漏网**
+2. ~~**随机性未播种**~~ ⚠️ **大部分已修**（`d2717cd`），**Python `random` 已补**（`53a076d`），
+   仍有 FLAME 一处漏网
    已修：`select_clients`、投毒选样、DnC 投影、ASR 子采样，都改用
    `np.random.default_rng([seed, edge_id/client_id])`。
-   **未修（第五处）**：`defense/flame.py:76` 的高斯噪声用的是全局
+   ~~**未修（第五处）**~~ ✅ **已修**（`53a076d`）：`main.set_seed` 只播了
+   `np.random` 与 `tf.random`，而它自己的 docstring 写着「随机性来自**三处**」——
+   漏掉的第三处是 Python 内置 `random`。五个方法客户端每个 epoch 都用它打乱 batch
+   （`hier_fedrep.py:176` / `client_pfedme.py:137` / `hier_ditto.py:130` /
+   `hier_ditto_rep.py:202` / `hier_pfedme_rep.py:189` 的 `random.shuffle(eb)`）
+   → **Rep/Ditto/pFedMe 全家在固定 seed 下都不可复现**，即 Experiment 3 的每一个格子。
+   这会伪装成「种子方差大」：3C 轴上 seed42≈0.80 / seed43≈0.58 的落差里有多少是
+   真种子方差、多少是这个未播种的洗牌，修好之前无法分离。
+   守卫：`tests/test_seeding_completeness.py`（并通用扫描 `client/`、`server/` 下
+   任何 `random.*` 的使用，新增方法不会重蹈覆辙）。
+
+   **仍未修（第六处）**：`defense/flame.py:76` 的高斯噪声用的是全局
    `np.random.normal`，且在**训练循环内**（每个 edge round 调一次）→
    `defense=flame` 的格子固定种子重跑对不上。修法一行：改用 seeded RNG。
    **新写的代码不要再碰全局 `np.random`**（setup 期的分区除外，那里顺序确定）。
@@ -350,3 +374,50 @@ methods-registry.md   所有候选方法的台账 = 研究看板
     守卫：`tests/test_cloud_aggregate_default.py`（5 个防御逐个断言真的发出了这行）
     + `tests/test_collect_metrics.py`（断言解析得出来）。这两件是分开测的 ——
     解析器认得格式 ≠ 代码会打印它。
+
+11. ~~**官方 test split 泄漏进客户端训练集**~~ ✅ **已修复**（`53a076d`）
+    `main.py` 曾把 CIFAR-10 官方 10k test 并进分区池：
+    `x_all = np.concatenate([x_train, x_test])` → `build_clients(x_all, y_all, ...)`，
+    注释写着「x_test/y_test 保留用于评估，**不受影响**」——**那句断言是错的**。
+    `noniid_partition` 里的 `np.split` 是一个**划分**（传进去的每个 index 都会归属
+    某个 client），`split_client_train_test` 再把 `1−test_ratio` 划进训练集。
+    而 `BackdoorCloudServer(x_test=x_test)` 仍用同一份 x_test 算六个 ASR 与 `global_acc`。
+    > 纯 Python 复刻索引逻辑实测：官方 10k 有 **7546 张（75.5%）**进了客户端训练集；
+    > 2000 张 ASR 探针里 **1509 张（75.4%）**被训练过。
+    误导性在于 `build_clients(..., x_test_np=..., y_test_np=...)` 这两个参数：
+    docstring 说「存在时注入」，**函数体里从未引用过**，看起来像做了隔离。已删除。
+    抬高的是**绝对值**（组间相对趋势多半仍成立），但任何绝对数字都不能外发，
+    跨库比较更不行——Bad-PFL 侧没有这个泄漏。
+    守卫：`tests/test_no_test_leakage.py`（分区穷尽性 + 调用方只传 train split）。
+    **此前所有 Experiment 3 的绝对数字都要重新解释**，旧结果已归档到
+    `experiments/attack/hfl-propagation/results/archive-pre-fix/`。
+
+12. ~~**每轮参与端数依赖 `n_edges`**~~ ✅ **已修复**（`a00a959`）
+    `EdgeServerBase.select_clients` 逐 edge 各自向下取整
+    `max(1, int(len(self.clients) * frac))`，但 `client_fraction` 的语义是**全局**参与率。
+    N=100/frac=0.1 下：2 edge → 5×2=10；**4 edge → int(2.5)=2 ×4=8（少训 20%）**；
+    10 edge → 1×10=10。于是 Experiment 3A 声称的「唯一自变量 = 恶意端布点」不成立。
+    现改为整数配额（`server/participation.py`，**不 import TF** 以便本地秒级测试），
+    余数**按轮轮转**——恶意端是按 edge 布点的，固定配额会让「布点」与「训练量」缠在一起。
+    守卫：`tests/test_participation_quota.py`（含反向锚点：断言旧公式确实给出 8）。
+
+13. ~~**无定义的分组指标被填 0.0**~~ ✅ **已修复**（`9d20c87`）
+    `attack/backdoor_eval.py` 的 `_mean`/`_std` 空组返回 `0.0`，于是「该指标在本配置下
+    无定义」与「后门完全没传过去」数值上完全一样。实际后果：所有 *distributed* 布点
+    `diff_edge_asr=0.000`（没有干净 edge）；`10edge_collocated` 的 `same_edge_asr=0.000`
+    且 `per_edge[0].client_benign=0.000`（E0 没有良性端）——后者还被画进逐 edge 图，
+    把那条线拉到底。现改为 `None`，日志打 `n/a`，`collect_metrics` 解析成 JSON `null`
+    （与陷阱 #10 的 `admitted=None` 同一约定）。守卫：`tests/test_undefined_metrics_are_null.py`。
+
+14. **`experiments/` 下的文档会比数据旧（已发生，且骗过了一份报告）**
+    `hfl-propagation/RESULTS.md` 写于 2026-08-26，称「3C seed43 因 GPU 分配失败」
+    「3c_R40 两 seed 均失败」——这两批数据在**前一天**的 `0f7a716` 就已入库且
+    `exit_code: 0`。报告里的 Figure 12 正是照着这份错误认知画的：R=2 是 2-seed 均值
+    0.698、R≥4 是 seed42 单值，于是「从 0.70 跳到 0.81 然后走平」纯粹是**种子可得性
+    的假象**，被当成了「ASR 对 R_edge 不敏感」的证据。
+    **教训**：写结论前先 `ls results/` 数一遍文件，不要凭上一次会话的记忆。
+    `run_exp3.sh --status` 是权威，手写的进度表不是。
+
+15. **`run_exp3.sh` 按 `exit_code: 0` 跳过已完成格子**
+    重跑前必须把旧的 `results/*.metrics.json` 移走，否则**一个 GPU 作业都不会提交**，
+    而输出显示「已完成=N」，看起来一切正常。这类失败最难发现。
