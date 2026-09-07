@@ -130,10 +130,27 @@ def fig_topology_summary(runs, out):
             means.append(agg[0]); los.append(agg[1]); his.append(agg[2])
         means, los, his = np.array(means), np.array(los), np.array(his)
         xpos = x + (i - 1) * w
-        yerr = np.nan_to_num(np.clip(np.vstack([means - los, his - means]), 0, None))
-        ax.bar(xpos, np.nan_to_num(means), width=w, color=color, label=lbl, alpha=0.9)
-        ax.errorbar(xpos, np.nan_to_num(means), yerr=yerr, fmt="none", ecolor="#222222",
-                    elinewidth=1.2, capsize=3)
+        # ⚠️ 这里**不能** np.nan_to_num(means)：`_agg` 对「该指标在本配置下无定义」
+        # 返回 nan（陷阱 #13 修好之后 metrics.json 里就是 null），nan_to_num 把它
+        # 变成 0，于是「无定义」被画成一根高度为 0 的柱 —— 与「后门完全没传过去」
+        # 一模一样。报告 Figure 11 里 10edge_collocated 的 E0 就是这么来的。
+        # 现在：nan 的格子**不画柱**，改在 x 轴附近标一个 "n/a"。
+        defined = np.isfinite(means)
+        if defined.any():
+            yerr = np.clip(np.vstack([means[defined] - los[defined],
+                                      his[defined] - means[defined]]), 0, None)
+            yerr = np.nan_to_num(yerr)      # 单 seed 时 lo==hi==mean，须长为 0
+            ax.bar(xpos[defined], means[defined], width=w, color=color,
+                   label=lbl, alpha=0.9)
+            ax.errorbar(xpos[defined], means[defined], yerr=yerr, fmt="none",
+                        ecolor="#222222", elinewidth=1.2, capsize=3)
+        else:
+            # 整条 series 都无定义时也要在图例里占个位，否则读者以为忘了画
+            ax.bar([], [], width=w, color=color, label=f"{lbl} (all n/a)",
+                   alpha=0.9)
+        for xp in xpos[~defined]:
+            ax.text(xp, 0.02, "n/a", ha="center", va="bottom", fontsize=7,
+                    color=color, rotation=90)
     ax.set_xticks(x)
     ax.set_xticklabels(cells, rotation=30, ha="right", fontsize=9)
     ax.set_ylabel("ASR / Accuracy")
@@ -182,8 +199,14 @@ def fig_per_edge(runs, out):
             mean = np.array([pe[e][key][0] for e in eids])
             lo   = np.array([pe[e][key][1] for e in eids])
             hi   = np.array([pe[e][key][2] for e in eids])
+            # nan 处 matplotlib 会自动断线（不会画成 0，这是对的），
+            # 但断口看起来像「忘了画」。显式标 n/a。
             ax.plot(eids, mean, "-o", color=color, label=lbl, markersize=4)
             ax.fill_between(eids, lo, hi, color=color, alpha=0.18)
+            for e, m in zip(eids, mean):
+                if not np.isfinite(m):
+                    ax.text(e, 0.03, "n/a", ha="center", va="bottom",
+                            fontsize=7, color=color, rotation=90)
         # 标出含恶意端的 edge
         for e in eids:
             if pe[e]["has_malicious"]:
@@ -220,14 +243,28 @@ def fig_3c(runs, out):
 
     has_drift = any((runs[cells[R]][0].get("drift_final")) for R in Rs)
 
-    def _plot_series(ax, key, lbl, color, aggfn):
+    def _plot_series(ax, key, lbl, color, aggfn, *, style=None):
+        """一条均值线 + min–max 带。
+
+        ``style`` = (linestyle, marker, linewidth, zorder)。**颜色不够**：
+        报告 Figure 12 里蓝色的 GM ASR 被橙红的 EM ASR 完全遮住 ——
+        两者数值本来就贴得极近（这本身是个发现，不该被画没）。
+        给每条线不同的虚线样式和 marker，重合时两条都还看得见。
+        """
+        ls, marker, lw, z = style or ("-", "o", 1.8, 3)
         mean, lo, hi = [], [], []
         for R in Rs:
             agg = aggfn(R, key)
             mean.append(agg[0]); lo.append(agg[1]); hi.append(agg[2])
         mean, lo, hi = np.array(mean), np.array(lo), np.array(hi)
-        ax.plot(Rs, mean, "-o", color=color, label=lbl, markersize=5)
-        ax.fill_between(Rs, lo, hi, color=color, alpha=0.18)
+        ax.plot(Rs, mean, linestyle=ls, marker=marker, color=color, label=lbl,
+                markersize=6, linewidth=lw, zorder=z,
+                markerfacecolor="none" if marker in ("s", "D") else color)
+        ax.fill_between(Rs, lo, hi, color=color, alpha=0.15, zorder=z - 2)
+        for R, m in zip(Rs, mean):
+            if not np.isfinite(m):
+                ax.text(R, 0.03, "n/a", ha="center", va="bottom", fontsize=7,
+                        color=color, rotation=90)
 
     nrow = 2 if has_drift else 1
     fig, axes = plt.subplots(nrow, 1, figsize=(7.5, 4.6 * nrow), sharex=True, squeeze=False)
@@ -236,36 +273,54 @@ def fig_3c(runs, out):
     # ── 上panel：三层 ASR + MTA ─────────────────────────────────────────────
     def _asr_agg(R, key):
         return _pm(runs[cells[R]]) if key == "__pm__" else _final_scalar(runs[cells[R]], key)
-    for key, lbl, color in [("global_asr", "GM ASR (global)", C["global"]),
-                            ("edge_asr", "EM ASR (edge)", C["edge"]),
-                            ("local_benign_asr", "benign ASR (local)", C["benign"]),
-                            ("local_malicious_asr", "malicious ASR (local)", C["malicious"]),
-                            ("__pm__", "PM acc (MTA)", C["pm"])]:
-        _plot_series(top, key, lbl, color, _asr_agg)
+    # (key, label, color, (linestyle, marker, linewidth, zorder))
+    # GM 画粗实线在**最上层**、EM 画虚线方框在其下：两者贴合时，EM 的虚线
+    # 会从 GM 的粗线里透出来，读者能看出「它们重合」而不是「只有一条线」。
+    for key, lbl, color, style in [
+            ("global_asr", "GM ASR (global)", C["global"], ("-", "o", 2.6, 5)),
+            ("edge_asr", "EM ASR (edge)", C["edge"], ("--", "s", 1.6, 4)),
+            ("local_benign_asr", "benign ASR (local)", C["benign"], ("-", "^", 1.8, 3)),
+            ("local_malicious_asr", "malicious ASR (local)", C["malicious"],
+             (":", "v", 1.6, 3)),
+            ("__pm__", "PM acc (MTA)", C["pm"], ("-.", "D", 1.8, 3))]:
+        _plot_series(top, key, lbl, color, _asr_agg, style=style)
     top.set_ylabel("ASR / Accuracy"); top.set_ylim(0, 1.02)
     top.set_title("Exp 3C — aggregation frequency (shaded = min–max over seeds)")
-    top.legend(frameon=False, ncol=2); top.grid(alpha=0.25)
+    top.legend(frameon=False, ncol=2, loc="lower right"); top.grid(alpha=0.25)
+    # **上 panel 也要有 x 轴**。sharex=True 只给最下面那个 panel 刻度标签，
+    # 于是上 panel 单独被截进报告时完全没有横轴（报告 Figure 12 就是这样）。
+    # 每个 panel 自带刻度，被单独引用也读得懂。
+    top.tick_params(axis="x", labelbottom=True)
 
     # ── 下panel：漂移。相对量在左轴，绝对量 param_abs 在右孪生轴 ────────────
     if has_drift:
         bot = axes[1][0]
-        for key, lbl, color in [("repr_mean", "repr shift (mean)", "#009E73"),
-                                 ("repr_median", "repr shift (median)", "#56B4E9"),
-                                 ("param_rel", "param drift (rel)", "#CC79A7")]:
-            _plot_series(bot, key, lbl, color, _drift_agg)
+        for key, lbl, color, style in [
+                ("repr_mean", "repr shift (mean)", "#009E73", ("-", "o", 1.8, 3)),
+                ("repr_median", "repr shift (median)", "#56B4E9", ("--", "s", 1.6, 3)),
+                ("param_rel", "param drift (rel)", "#CC79A7", (":", "^", 1.6, 3))]:
+            _plot_series(bot, key, lbl, color, _drift_agg, style=style)
         bot.set_ylabel("relative drift  (1-cos  /  ||d||/||theta||)")
         bot.grid(alpha=0.25)
         botr = bot.twinx()
-        _plot_series(botr, "param_abs", "param drift (abs ||d||)", "#000000", _drift_agg)
+        _plot_series(botr, "param_abs", "param drift (abs ||d||)", "#000000",
+                     _drift_agg, style=("-.", "D", 1.6, 3))
         botr.set_ylabel("absolute ||d|| (backbone L2)")
         h1, l1 = bot.get_legend_handles_labels()
         h2, l2 = botr.get_legend_handles_labels()
         bot.legend(h1 + h2, l1 + l2, frameon=False, ncol=2, loc="best")
 
-    axb = axes[-1][0]
-    axb.set_xscale("log", base=2)
-    axb.set_xticks(Rs); axb.get_xaxis().set_major_formatter(plt.matplotlib.ticker.ScalarFormatter())
-    axb.set_xlabel("edge_rounds  R_edge   (R_edge x R_cloud = 400 fixed;  R=1 ~ flat)")
+    xlabel = "edge_rounds  R_edge   (R_edge x R_cloud = 400 fixed;  R=1 ~ flat)"
+    for ax in [a[0] for a in axes]:
+        ax.set_xscale("log", base=2)
+        ax.set_xticks(Rs)
+        ax.get_xaxis().set_major_formatter(plt.matplotlib.ticker.ScalarFormatter())
+        ax.tick_params(axis="x", labelbottom=True)
+    axes[-1][0].set_xlabel(xlabel)
+    if len(axes) > 1:
+        # 上 panel 的 x 轴标签用小一号字，避免与下 panel 的标题打架，
+        # 但**必须有** —— 它会被单独截进报告。
+        axes[0][0].set_xlabel(xlabel, fontsize=8)
     fig.tight_layout()
     p = out / "fig_3c_frequency.png"
     fig.savefig(p, dpi=150, bbox_inches="tight"); plt.close(fig)
@@ -327,7 +382,12 @@ def _fig_timeseries(runs, out, cells, fname, title):
     a1.legend(frameon=False, ncol=3, fontsize=8)
     _plot_ts(a2, runs, present, "acc", "pm_acc")
     a2.set_ylabel("MTA — PM accuracy"); a2.set_ylim(0, 1.02)
-    a2.set_xlabel("effective local rounds  (cloud_round x edge_rounds)")
+    xlabel = "effective local rounds  (cloud_round x edge_rounds)"
+    a2.set_xlabel(xlabel)
+    # 上 panel 也带 x 轴刻度与标签：这两个 panel 常被分别截进报告，
+    # 而 sharex=True 默认只给最下面那个标签（Figure 12 的同一个毛病）。
+    a1.tick_params(axis="x", labelbottom=True)
+    a1.set_xlabel(xlabel, fontsize=8)
     fig.tight_layout()
     p = out / fname
     fig.savefig(p, dpi=150, bbox_inches="tight"); plt.close(fig)
