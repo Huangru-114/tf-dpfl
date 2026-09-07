@@ -1,23 +1,26 @@
 #!/bin/bash
-#SBATCH --account=naiss2026-4-650
-#SBATCH --job-name=calib_stageB
-#SBATCH --gpus-per-node=A40:1
-#SBATCH --time=12:00:00
-#SBATCH --output=logs/calib_%j.log
+#SBATCH -n 1
+#SBATCH -c 4
+#SBATCH --gpus 1
+#SBATCH -t 12:00:00
+#SBATCH -A naiss2026-4-650-gpu
+#SBATCH -p gpu
+#SBATCH --mem=24G
+#SBATCH --job-name=tfdpfl-calib
 # ══════════════════════════════════════════════════════════════════════════
 # calib_cell.sbatch  —  Stage B 标定的**一个格子**（一个 local_epochs × 一个 seed）。
 #   由 run_calibration.sh 提交，一般不手动调用。
 #
 #   sbatch experiments/calibration/calib_cell.sbatch <config_rel> <seed> <exp_id>
 #
-# 与 exp3_cell.sbatch 逐字同构（同一套 Alvis header、同样带 exp_id 的独立日志、
-# 同样注入 exit_code 供断点续跑），只差 --time 12h（标定预算是 150 有效轮，
-# 不是 400）与产物目录。
+# 与 exp3_cell.sbatch 逐字同构（同一套 Arrhenius SLURM 头、同样带 exp_id 的
+# 独立日志、同样注入 exit_code 供断点续跑），只差 --time 12h（标定预算是
+# 150 有效轮，不是 400）与产物目录。
 #
-# ⚠️ **训练用裸 `python3` 而不是 cluster_env.sh 的 `$PY`**，与 exp3_cell.sbatch 一致
-#    —— 那是 commit 7ae2966（"exp3 alvis part"）刻意改的：Alvis 上跑的是仓库里的
-#    virtualenv，不是 apptainer 容器。`$PY` 只留给 collect_metrics.py（纯 stdlib，
-#    两种解释器下都能跑）。**改这一行之前先确认你在哪个集群上。**
+# ⚠️ **所有 python 一律走 `$PY`**（cluster_env.sh 解析出的 apptainer 容器，
+#    路径见那个文件里的 TFDPFL_SIF）。裸 `python3` 在 Arrhenius 上一个库都
+#    找不到。仓库里一度有两个脚本用裸 python3（Alvis 时期的遗留），已改回；
+#    守卫 tests/test_cluster_env_usage.py 挡住重演。
 # ══════════════════════════════════════════════════════════════════════════
 set -uo pipefail
 
@@ -42,7 +45,7 @@ echo "[calib] 大日志 -> $LOG （留集群，不进 git）"
 
 cd "$ROOT/fedavg"
 set +e
-python3 main.py \
+$PY main.py \
     --config "$CONFIG_ABS" \
     --attack_method badpfl \
     --defense none \

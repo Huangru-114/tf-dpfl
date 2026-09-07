@@ -448,6 +448,21 @@ methods-registry.md   所有候选方法的台账 = 研究看板
     **教训**：写结论前先 `ls results/` 数一遍文件，不要凭上一次会话的记忆。
     `run_exp3.sh --status` 是权威，手写的进度表不是。
 
+16. ~~**两个 sbatch 绕过了容器（Alvis 时期的遗留）**~~ ✅ **已修复**（`<本次>`）
+    `exp3_cell.sbatch` 在 commit `7ae2966`（"exp3 alvis part"）被改成裸
+    `python3 main.py` + Alvis 的 SLURM 头（`--account=naiss2026-4-650` 不带
+    `-gpu`、`--gpus-per-node=A40:1`）；换回 Arrhenius 之后没跟着改回来，
+    新写的 `calib_cell.sbatch` 又照抄了它。**两个脚本都会在 GPU 排到之后才炸**，
+    报的是 numpy/tensorflow 的 ImportError —— 看起来像「依赖没装」，
+    真实原因是根本没进容器。仓库里其余 5 个脚本一直是对的
+    （`run_full.sh` / `run_smoke.sh` / `experiment_tf.sh` / `run_l1.sh` /
+    `run_evidence.sh` 都用 `$PY`）。
+    现已改回 Arrhenius 头 + `$PY`。守卫：`tests/test_cluster_env_usage.py`
+    （扫全部作业脚本：无裸 python 调用、用了 `$PY` 就必须 source
+    `cluster_env.sh`、SLURM 头是 Arrhenius 式、容器路径不在 `cluster_env.sh`
+    之外硬写；另有一条反向自检防止「零个文件全部通过」）。
+    **新写作业脚本时从 `run_full.sh` 抄头，不要从 git 历史里翻。**
+
 15. **`run_exp3.sh` 按 `exit_code: 0` 跳过已完成格子**
     重跑前必须把旧的 `results/*.metrics.json` 移走，否则**一个 GPU 作业都不会提交**，
     而输出显示「已完成=N」，看起来一切正常。这类失败最难发现。

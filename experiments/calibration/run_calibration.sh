@@ -24,6 +24,12 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 cd "$ROOT"
 
+# 解析出 $PY（Arrhenius 上 = apptainer 容器）。本脚本自己只调 sbatch，
+# source 它是为了：(a) 打印那行 `[env] python = ...`，跑之前扫一眼；
+# (b) 末尾的读数提示能给出**在这台机器上真的能跑**的命令，而不是裸 python3。
+# shellcheck source=cluster_env.sh
+source "$ROOT/cluster_env.sh"
+
 REL="experiments/calibration"
 JOB="$REL/calib_cell.sbatch"
 OUTDIR="$ROOT/$REL/results"
@@ -74,5 +80,6 @@ echo "格子总数=$total  已完成=$done_n  本次${DRY:+(dry-run)}入队=$que
 [ "$STATUS" -eq 1 ] && echo "(仅状态；未提交)"
 [ "$DRY" -eq 1 ]    && echo "(dry-run；未提交。去掉 --dry-run 即真正 sbatch)"
 echo
-echo "跑完后读数：python3 experiments/calibration/read_calibration.py"
+echo "跑完后读数：$PY experiments/calibration/read_calibration.py"
+echo "  （read_calibration.py 是纯 stdlib，不需要 TF；容器内外都跑得动）"
 exit 0

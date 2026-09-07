@@ -1,9 +1,12 @@
 #!/bin/bash
-#SBATCH --account=naiss2026-4-650
-#SBATCH --job-name=sweep_phase3
-#SBATCH --gpus-per-node=A40:1
-#SBATCH --time=24:00:00
-#SBATCH --output=logs/phase3_%j.log
+#SBATCH -n 1
+#SBATCH -c 4
+#SBATCH --gpus 1
+#SBATCH -t 24:00:00
+#SBATCH -A naiss2026-4-650-gpu
+#SBATCH -p gpu
+#SBATCH --mem=24G
+#SBATCH --job-name=tfdpfl-exp3
 # ══════════════════════════════════════════════════════════════════════════
 # exp3_cell.sbatch  —  跑 Experiment 3 的**一个格子**（一个 config × 一个 seed）。
 #   由 run_exp3.sh 提交，一般不手动调用。
@@ -37,7 +40,10 @@ echo "[exp3] 大日志 -> $LOG （留集群，不进 git）"
 
 cd "$ROOT/fedavg"
 set +e
-python3 main.py \
+# **必须走 $PY**（cluster_env.sh 解析出的 apptainer 容器）。裸 python3 在
+# Arrhenius 上一个库都找不到，而且报的是 numpy/tensorflow 的 ImportError,
+# 看起来像「依赖没装」。守卫：tests/test_cluster_env_usage.py。
+$PY main.py \
     --config "$CONFIG_ABS" \
     --attack_method badpfl \
     --defense none \
