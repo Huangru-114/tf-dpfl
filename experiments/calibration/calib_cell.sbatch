@@ -1,11 +1,9 @@
 #!/bin/bash
-#SBATCH -n 1
 #SBATCH -c 4
 #SBATCH --gpus 1
 #SBATCH -t 12:00:00
 #SBATCH -A naiss2026-4-650-gpu
 #SBATCH -p gpu
-#SBATCH --mem=24G
 #SBATCH --job-name=tfdpfl-calib
 # ══════════════════════════════════════════════════════════════════════════
 # calib_cell.sbatch  —  Stage B 标定的**一个格子**（一个 local_epochs × 一个 seed）。

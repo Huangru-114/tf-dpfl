@@ -22,14 +22,20 @@ TFDPFL_SIF="${TFDPFL_SIF:-/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/
 # 本文件所在目录 = 仓库根
 _TFDPFL_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 
-# ── 绑定根：默认取仓库的**上一级** ────────────────────────────────────────
-# **为什么必须显式 --bind**（踩过的坑）：apptainer 默认只把 `$PWD` 和 `$HOME`
-# 挂进容器。而本仓库的脚本会跨目录访问：
-#     cd $ROOT/fedavg  →  读 $ROOT/experiments/smoke-base.yaml   （$PWD 的兄弟目录）
-#     cd $ROOT         →  读 $ROOT/../tfdpfl-logs/*.log          （$PWD 的上一级）
-# 这两处在容器里都**不存在**，报的是 FileNotFoundError —— 看起来像「文件没了」，
-# 实际文件好好的，只是容器看不见。绑定仓库上一级可同时覆盖仓库本身与 tfdpfl-logs。
-TFDPFL_BIND="${TFDPFL_BIND:-$(cd "$_TFDPFL_ROOT/.." && pwd)}"
+# ── 绑定根：**默认不绑** ──────────────────────────────────────────────────
+# Arrhenius 上实测可用的写法（用户给的标准示例）是：
+#     apptainer exec --nv <abs .sif> python -m <module>
+# —— 没有 --bind。这台机器的 apptainer 已经在系统级配置里把 /nobackup 挂进
+# 容器了，再显式 --bind 反而会失败（挂载点/软链的问题），而失败信息长得像
+# 「容器里看不到仓库目录」。
+#
+# 我们一度以为 --bind 是必须的（"apptainer 默认只挂 $PWD 和 $HOME"）。
+# 那条经验在**这台机器上不成立**：跨目录访问之所以能work，是因为
+# /nobackup 整个就在容器里。所以默认留空，需要时再用 TFDPFL_BIND 显式打开。
+#
+# ⚠️ 若哪天换了集群、又出现 FileNotFoundError「文件明明在却读不到」，
+#    那才是需要 TFDPFL_BIND=<能覆盖仓库和 tfdpfl-logs 的路径> 的场景。
+TFDPFL_BIND="${TFDPFL_BIND:-}"
 
 if [ -n "${TFDPFL_PY:-}" ]; then
     # 显式覆盖，最高优先级
@@ -42,7 +48,12 @@ elif command -v apptainer >/dev/null 2>&1 && [ -f "$TFDPFL_SIF" ]; then
         module load GPU/buildenv-nvhpc/25.9-cu13.0 2>/dev/null || \
             echo "[env] 警告：module load GPU/buildenv-nvhpc/25.9-cu13.0 失败，GPU 可能不可用" >&2
     fi
-    PY="apptainer exec --nv --bind $TFDPFL_BIND $TFDPFL_SIF python3"
+    # --bind 只在显式设了 TFDPFL_BIND 时才加（默认不加，见上）
+    if [ -n "$TFDPFL_BIND" ]; then
+        PY="apptainer exec --nv --bind $TFDPFL_BIND $TFDPFL_SIF python3"
+    else
+        PY="apptainer exec --nv $TFDPFL_SIF python3"
+    fi
     PY_MODE="apptainer"
 
     # ── keras 数据缓存：绕开 $HOME 下的软链 ─────────────────────────────
@@ -52,9 +63,11 @@ elif command -v apptainer >/dev/null 2>&1 && [ -f "$TFDPFL_SIF" ]; then
     # 绑定根下有 data/datasets 就直接指过去，不碰软链。
     # 判据用 data/ 而不是 data/datasets/：datasets 子目录可能还没建出来
     # （$HOME 下的软链常常指向一个尚未创建的目标），建不出来才是真问题。
-    if [ -z "${TFDPFL_KERAS_HOME:-}" ] && [ -d "$TFDPFL_BIND/data" ]; then
-        mkdir -p "$TFDPFL_BIND/data/datasets" 2>/dev/null || true
-        export TFDPFL_KERAS_HOME="$TFDPFL_BIND/data"
+    # 探测路径与挂载解耦：这里只是找数据目录在哪，与绑不绑没关系。
+    _tfdpfl_data_root="${TFDPFL_BIND:-$(cd "$_TFDPFL_ROOT/.." && pwd)}"
+    if [ -z "${TFDPFL_KERAS_HOME:-}" ] && [ -d "$_tfdpfl_data_root/data" ]; then
+        mkdir -p "$_tfdpfl_data_root/data/datasets" 2>/dev/null || true
+        export TFDPFL_KERAS_HOME="$_tfdpfl_data_root/data"
         # apptainer 默认继承宿主环境变量；APPTAINERENV_ 前缀是显式保证，两条都设，
         # 免得哪天容器换成 --cleanenv 就静默失效。
         export APPTAINERENV_TFDPFL_KERAS_HOME="$TFDPFL_KERAS_HOME"
@@ -93,7 +106,7 @@ if [ "$PY_MODE" = "apptainer" ] && [ -z "${TFDPFL_SKIP_ENV_CHECK:-}" ]; then
 
     if [ "$_tfdpfl_ok" -eq 0 ]; then
         echo "[env] ✗ 容器里看不到仓库目录 $_TFDPFL_ROOT" >&2
-        echo "[env]   当前绑定根：--bind $TFDPFL_BIND" >&2
+        echo "[env]   当前绑定根：${TFDPFL_BIND:-<默认不绑，与用户给的标准示例一致>}" >&2
         echo "[env]   ── 正在分步定位（三种病因修法完全不同）──" >&2
 
         # 步骤 1：不带 --bind，容器本身起不起得来

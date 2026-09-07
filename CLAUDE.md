@@ -46,20 +46,31 @@ $PY main.py --config ...
 **每次跑之前扫一眼这行** —— 静默地跑在错误的环境里是最难查的一类问题。
 `TFDPFL_PY` / `TFDPFL_SIF` / `TFDPFL_BIND` 可覆盖。
 
-**⚠️ `--bind` 不能省（踩过的坑）**：apptainer 默认只把 `$PWD` 和 `$HOME` 挂进容器。
-本仓库的脚本会**跨目录**访问：
+**⚠️ 默认**不**加 `--bind`（2026-09 更正）**：Arrhenius 上实测可用的标准写法是
 
+```bash
+module load GPU/buildenv-nvhpc/25.9-cu13.0
+apptainer exec --nv /nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tensorflow.sif \
+    python3 /abs/path/to/script.py
 ```
-cd $ROOT/fedavg  →  读 $ROOT/experiments/smoke-base.yaml   （$PWD 的兄弟目录）
-cd $ROOT         →  读 $ROOT/../tfdpfl-logs/*.log          （$PWD 的上一级）
-```
 
-这两处在容器里都不存在，报的是 `FileNotFoundError` —— **看起来像「文件丢了」，
-其实文件好好的，只是容器看不见**。`cluster_env.sh` 默认绑定仓库的**上一级**目录
-（同时覆盖仓库本身与 `tfdpfl-logs`），并在 source 时做一次自检：
-容器里看不到仓库就直接报错退出，而不是等 GPU 作业跑到一半才炸。
+—— **没有 `--bind`**。这台机器的 apptainer 已在系统级把 `/nobackup` 挂进容器，
+再显式 `--bind` 反而会失败，而失败信息长得像「容器里看不到仓库目录」。
 
-**同一个坑的第二种长相**：`~/.keras/datasets` 往往是指向共享盘的**符号链接**。
+> 本文件一度写着「`--bind` 不能省，apptainer 默认只挂 `$PWD` 和 `$HOME`」。
+> **那条经验在这台机器上不成立**，已按用户给的标准示例更正。
+> `cluster_env.sh` 现在默认不绑；`TFDPFL_BIND=<路径>` 仍可显式打开 ——
+> 换集群后若出现「文件明明在却 FileNotFoundError」，那才是要动的旋钮。
+> 守卫：`tests/test_cluster_env_usage.py::test_bind_is_off_by_default`。
+
+**脚本里一律用绝对路径**（标准示例就是这么写的）：容器里的 cwd 与宿主机
+未必一致，相对路径是另一类「文件明明在却读不到」的来源。
+
+**Bad-PFL（torch）用的是另一个容器**：
+`/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/torch_fl.sif`，
+而且入口是 `python` 不是 `python3`。两个仓库的容器不要混用。
+
+**keras 数据缓存的软链坑**：`~/.keras/datasets` 往往是指向共享盘的符号链接。
 容器里看不到链接目标时它就是**悬空**的，`os.path.isdir()` 为 False，
 keras 的 `os.makedirs(..., exist_ok=True)` 去 mkdir 撞上链接本身，抛出
 
@@ -68,9 +79,8 @@ FileExistsError: [Errno 17] File exists: '/home/<user>/.keras/datasets'
 ```
 
 这句话和真实原因毫无关系（既不是「已存在」也不是权限）。
-`cluster_env.sh` 现在检测到 `<绑定根>/data/datasets` 就导出 `TFDPFL_KERAS_HOME`，
-绕开软链；`data/dataset.py:resolve_keras_home` 另外会在悬空时**提前拦截**并打印
-链接指向哪里、该设什么。
+`cluster_env.sh` 检测到仓库上一级的 `data/datasets` 就导出 `TFDPFL_KERAS_HOME`
+绕开软链；`data/dataset.py:resolve_keras_home` 另外会在悬空时**提前拦截**。
 > 注意 `CIFAR_MIMER_PATH = /mimer/NOBACKUP/Datasets/CIFAR` 是 **Chalmers Mimer**
 > 的路径，在别的集群上不存在，会静默走到 `~/.keras` 那条 fallback 上。
 

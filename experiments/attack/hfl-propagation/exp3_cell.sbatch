@@ -1,11 +1,9 @@
 #!/bin/bash
-#SBATCH -n 1
 #SBATCH -c 4
 #SBATCH --gpus 1
 #SBATCH -t 24:00:00
 #SBATCH -A naiss2026-4-650-gpu
 #SBATCH -p gpu
-#SBATCH --mem=24G
 #SBATCH --job-name=tfdpfl-exp3
 # ══════════════════════════════════════════════════════════════════════════
 # exp3_cell.sbatch  —  跑 Experiment 3 的**一个格子**（一个 config × 一个 seed）。

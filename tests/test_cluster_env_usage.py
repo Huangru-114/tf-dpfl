@@ -107,6 +107,8 @@ def test_slurm_header_is_arrhenius(path):
         f"{path.name} 的 account 不是 Arrhenius 的 naiss2026-4-650-gpu：\n{head}"
     assert re.search(r"^#SBATCH\s+-p\s+gpu\s*$", head, re.M), \
         f"{path.name} 少了 -p gpu：\n{head}"
+    assert re.search(r"^#SBATCH\s+--gpus\s+1\s*$", head, re.M), \
+        f"{path.name} 少了 --gpus 1：\n{head}"
     assert "--gpus-per-node" not in head, \
         f"{path.name} 还带着 Alvis 的 --gpus-per-node：\n{head}"
 
@@ -116,7 +118,25 @@ def test_cluster_env_points_at_the_arrhenius_container():
     env = (ROOT / "cluster_env.sh").read_text(encoding="utf-8")
     assert SIF in env, f"cluster_env.sh 里的容器路径不是 {SIF}"
     assert "apptainer exec --nv" in env
-    assert "--bind" in env, "少了 --bind：容器里看不到仓库的兄弟/上级目录（踩过的坑）"
+
+
+def test_bind_is_off_by_default():
+    """**默认不加 --bind**，与 Arrhenius 上实测可用的写法一致：
+
+        apptainer exec --nv <abs .sif> python -m <module>
+
+    这台机器的 apptainer 已在系统级把 /nobackup 挂进容器；再显式 --bind
+    反而会失败，且失败信息长得像「容器里看不到仓库目录」。
+    我们一度以为 --bind 是必须的，那条经验在这台机器上不成立。
+    """
+    env = (ROOT / "cluster_env.sh").read_text(encoding="utf-8")
+    assert 'TFDPFL_BIND="${TFDPFL_BIND:-}"' in env, \
+        "TFDPFL_BIND 又有默认值了 —— 默认必须为空（不绑）"
+    assert 'PY="apptainer exec --nv $TFDPFL_SIF python3"' in env, \
+        "缺少不带 --bind 的那条路径"
+    # 但仍要保留显式打开的能力（换集群时可能需要）
+    assert 'if [ -n "$TFDPFL_BIND" ]; then' in env, \
+        "TFDPFL_BIND 设了值时应该仍然生效"
 
 
 @pytest.mark.parametrize("path", JOB_SCRIPTS, ids=lambda p: p.name)
