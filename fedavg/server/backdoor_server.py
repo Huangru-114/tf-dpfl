@@ -184,21 +184,26 @@ class BackdoorCloudServer(CloudServer):
         # ── 历史 + 控制台 ─────────────────────────────────────────────────
         self.history["bd_c_acc"].append(metrics["local_acc_mean"])
         self.history["bd_asr"].append(metrics["local_asr_benign_mean"])
+        # 无定义的分组打 "n/a"（不是 0.000）——见 backdoor_eval._mean 的说明。
+        # 回程解析器 harness/collect_metrics.py 认这个记号并写成 JSON 的 null。
+        def _f3(v):
+            return "n/a" if v is None else f"{v:.3f}"
+
         print(f"[Backdoor] Round {round_idx} | "
-              f"GM_ASR={metrics['global_asr']:.3f} | "
-              f"EM_ASR={metrics['edge_asr_mean']:.3f} | "
-              f"local_benign={metrics['local_asr_benign_mean']:.3f} "
-              f"(same_edge={metrics['local_asr_same_edge']:.3f}, "
-              f"diff_edge={metrics['local_asr_diff_edge']:.3f}) | "
-              f"local_malicious={metrics['local_asr_malicious_mean']:.3f}\n")
+              f"GM_ASR={_f3(metrics['global_asr'])} | "
+              f"EM_ASR={_f3(metrics['edge_asr_mean'])} | "
+              f"local_benign={_f3(metrics['local_asr_benign_mean'])} "
+              f"(same_edge={_f3(metrics['local_asr_same_edge'])}, "
+              f"diff_edge={_f3(metrics['local_asr_diff_edge'])}) | "
+              f"local_malicious={_f3(metrics['local_asr_malicious_mean'])}\n")
 
         # 逐 edge 面板（Experiment 3：per-edge 传播路径。聚合均值会抹平 amplification/
         # dilution/cross-edge cancellation，所以每个 edge 单独打一条可解析行）。
         for pe in metrics.get("per_edge", []):
             print(f"[Backdoor] Round {round_idx} | edge{pe['edge_id']} | "
-                  f"edge_asr={pe['edge_asr']:.3f} | "
-                  f"client_benign={pe['client_benign']:.3f} | "
-                  f"client_malicious={pe['client_malicious']:.3f} | "
+                  f"edge_asr={_f3(pe['edge_asr'])} | "
+                  f"client_benign={_f3(pe['client_benign'])} | "
+                  f"client_malicious={_f3(pe['client_malicious'])} | "
                   f"n_benign={pe['n_benign']} | n_malicious={pe['n_malicious']} | "
                   f"has_malicious={pe['has_malicious']}")
 

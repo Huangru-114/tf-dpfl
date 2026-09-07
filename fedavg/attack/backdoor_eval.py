@@ -175,11 +175,22 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
             else:
                 diff_edge_asrs.append(asr)
 
+    # 空组 = **该指标在本配置下无定义**，返回 None 而不是 0.0。
+    #
+    # 0.0 会被读成「后门完全没传过去」，与真实的强结论无法区分。实际发生过：
+    #   · 所有 *distributed* 布点（每个 edge 都有恶意端）→ 不存在「无恶意 edge 的
+    #     良性端」→ diff_edge_asrs 为空 → 旧代码报 diff_edge_asr=0.000；
+    #   · 10edge_collocated（E0 全是恶意端，没有良性端）→ same_edge_asrs 为空
+    #     → 旧代码报 same_edge_asr=0.000，per_edge[0].client_benign 也是 0.000。
+    # 后者还会被画进逐 edge 图里，把那条线拉到底。
+    #
+    # 与防御判决的约定一致（RobustAggregationMixin 对坐标类防御记 admitted=None
+    # 而非 0）：**无定义就留空，绝不用 0 填充后当数值参与统计**。
     def _mean(xs):
-        return float(np.mean(xs)) if len(xs) else 0.0
+        return float(np.mean(xs)) if len(xs) else None
 
     def _std(xs):
-        return float(np.std(xs)) if len(xs) else 0.0
+        return float(np.std(xs)) if len(xs) else None
 
     # 逐 edge 面板：edge 模型 ASR / 该 edge 内良性、恶意个性化 ASR 均值 / 计数 / 是否含恶意
     per_edge = []
@@ -211,7 +222,7 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
         "local_asr_malicious_mean": _mean(malicious_asrs),
         "local_asr_same_edge":    _mean(same_edge_asrs),
         "local_asr_diff_edge":    _mean(diff_edge_asrs),
-        "local_acc_mean":         float(np.nanmean(local_accs)) if local_accs else 0.0,
+        "local_acc_mean":         float(np.nanmean(local_accs)) if local_accs else None,
         "per_edge":               per_edge,
     }
 

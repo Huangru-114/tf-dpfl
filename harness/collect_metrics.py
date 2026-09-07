@@ -40,10 +40,12 @@ import sys
 from pathlib import Path
 
 # ── 后门分层评估 ────────────────────────────────────────────────────────────
+# 数值字段一律允许 "n/a"：无定义的分组（如全 distributed 布点下的 diff_edge、
+# 或 100% 恶意 edge 的 same_edge）打 n/a 而非 0.000，解析成 JSON 的 null。
 RE_BD = re.compile(
-    r"\[Backdoor\] Round (\d+) \| GM_ASR=([\d.]+) \| EM_ASR=([\d.]+) \| "
-    r"local_benign=([\d.]+) \(same_edge=([\d.]+), diff_edge=([\d.]+)\) \| "
-    r"local_malicious=([\d.]+)")
+    r"\[Backdoor\] Round (\d+) \| GM_ASR=([\d.]+|n/a) \| EM_ASR=([\d.]+|n/a) \| "
+    r"local_benign=([\d.]+|n/a) \(same_edge=([\d.]+|n/a), diff_edge=([\d.]+|n/a)\) \| "
+    r"local_malicious=([\d.]+|n/a)")
 
 # ── 准确率（PM 只在 eval_interval 轮出现，故可选）─────────────────────────────
 RE_ACC = re.compile(
@@ -76,8 +78,8 @@ RE_CLIENT_ROUND = re.compile(r"\[Client\s*(\d+)\]\s+Round\s+(\d+)\s*\|")
 
 # 逐 edge 面板（Experiment 3：per-edge 传播路径）
 RE_PER_EDGE = re.compile(
-    r"\[Backdoor\] Round (\d+) \| edge(\d+) \| edge_asr=([\d.]+) \| "
-    r"client_benign=([\d.]+) \| client_malicious=([\d.]+) \| "
+    r"\[Backdoor\] Round (\d+) \| edge(\d+) \| edge_asr=([\d.]+|n/a) \| "
+    r"client_benign=([\d.]+|n/a) \| client_malicious=([\d.]+|n/a) \| "
     r"n_benign=(\d+) \| n_malicious=(\d+) \| has_malicious=(True|False)")
 
 # 漂移（Experiment 3C）：edge 相对本轮起点全局的参数/表示漂移
@@ -228,14 +230,24 @@ def _collect_per_edge(log_text: str) -> dict:
         rnd = int(m.group(1))
         by_round.setdefault(rnd, []).append({
             "edge_id":          int(m.group(2)),
-            "edge_asr":         float(m.group(3)),
-            "client_benign":    float(m.group(4)),
-            "client_malicious": float(m.group(5)),
+            "edge_asr":         _opt(m.group(3)),
+            "client_benign":    _opt(m.group(4)),
+            "client_malicious": _opt(m.group(5)),
             "n_benign":         int(m.group(6)),
             "n_malicious":      int(m.group(7)),
             "has_malicious":    m.group(8) == "True",
         })
     return {r: sorted(v, key=lambda d: d["edge_id"]) for r, v in by_round.items()}
+
+
+def _opt(s):
+    """
+    "n/a" → None（写进 JSON 就是 null）。
+
+    绝不返回 0.0：无定义的分组与「后门完全没传过去」在数值上无法区分，
+    而后者是个强结论。上游打印见 server/backdoor_server.py 的 _f3。
+    """
+    return None if s == "n/a" else float(s)
 
 
 def _f(s):
@@ -258,12 +270,12 @@ def collect(log_text: str) -> dict:
 
     rounds = [{
         "round":               int(m.group(1)),
-        "global_asr":          float(m.group(2)),
-        "edge_asr":            float(m.group(3)),
-        "local_benign_asr":    float(m.group(4)),
-        "same_edge_asr":       float(m.group(5)),
-        "diff_edge_asr":       float(m.group(6)),
-        "local_malicious_asr": float(m.group(7)),
+        "global_asr":          _opt(m.group(2)),
+        "edge_asr":            _opt(m.group(3)),
+        "local_benign_asr":    _opt(m.group(4)),
+        "same_edge_asr":       _opt(m.group(5)),
+        "diff_edge_asr":       _opt(m.group(6)),
+        "local_malicious_asr": _opt(m.group(7)),
     } for m in RE_BD.finditer(log_text)]
 
     run = _collect_run_info(log_text, lines)
