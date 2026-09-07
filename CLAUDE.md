@@ -63,8 +63,9 @@ apptainer exec --nv /nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tensor
 > 换集群后若出现「文件明明在却 FileNotFoundError」，那才是要动的旋钮。
 > 守卫：`tests/test_cluster_env_usage.py::test_bind_is_off_by_default`。
 
-**脚本里一律用绝对路径**（标准示例就是这么写的）：容器里的 cwd 与宿主机
-未必一致，相对路径是另一类「文件明明在却读不到」的来源。
+**`.sif` 必须写绝对路径**；脚本与数据路径**可以相对** —— apptainer 保留
+`$PWD`，标准示例里的 `--data-root ./data` / `--ckpt-dir checkpoints/...`
+就是相对的。（先前这里写成「一律用绝对路径」是过度概括，已更正。）
 
 **Bad-PFL（torch）用的是另一个容器**：
 `/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/torch_fl.sif`，
