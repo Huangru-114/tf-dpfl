@@ -5,13 +5,21 @@
 > 下面这份快照写于 2026-08-26，其中的结论建立在**三个此后被证伪或修掉的前提**上。
 > 保留原文是为了留档「当时是怎么读的」，**不要**再从中取任何数字。
 >
-> **1. 测试集泄漏（最严重）**
-> `main.py` 曾把 CIFAR-10 官方 10k test split 并进分给客户端的数据池，
-> 而同一份 `x_test` 又用来算 ASR 与 `global_acc`。分区是穷尽的、每个 client 再按
-> `1−per_client_test_ratio` 划进训练集 → **官方 test 的 75.5% 被训练过**，
-> ASR 探针 2000 张里 1509 张被训练过。`global_asr / edge_asr / local_benign_asr /
-> same_edge / diff_edge / local_malicious` 六个 ASR 与 `global_acc` 全部受影响。
-> 抬高的是**绝对值**；组间相对趋势多半仍成立，但任何绝对数字都不能外发。
+> **1. ASR 探针用了官方 x_test（最严重）**
+> ⚠️ **合并 train+test 再分区不是 bug** —— 那是 PFLlib 口径，本仓库照做，
+> 而且分区是划分、切分在客户端内部，所以「所有留出分片」与「所有训练数据」
+> 全局不相交。（我们一度误判成合并本身有问题并把它删掉，已回退。）
+>
+> 错的是评估侧：`BackdoorCloudServer` 把**原始 `x_test` 数组**又当独立探针
+> 去算六个 ASR。合并之后官方 test split 的图已经分给客户端、其中
+> 1−`per_client_test_ratio` 进了训练集 → 等于在训练过的图上测 ASR。
+> 连带地，ASR 测在类别均匀的官方测试集上而 `pm_acc` 测在非 IID 的
+> per-client 分片上，两个数字不在同一个 population。
+> 现已改为三层都测留出分片（client 用它自己的那份，与 `pm_acc` 同集合）。
+>
+> **影响幅度未知**：落在恶意端训练分片的那部分是记忆（抬高 ASR），
+> 落在良性端的那部分按正确标签训过（压低 ASR），净方向要跑对照才知道。
+> 量化：`bash run_evidence.sh`（不需要 GPU）。
 >
 > **2. 固定 seed 下不可复现**
 > `set_seed` 漏播了 Python 内置 `random`，而 `hier_fedrep` 等五个方法客户端每个

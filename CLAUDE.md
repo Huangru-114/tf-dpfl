@@ -375,21 +375,43 @@ methods-registry.md   所有候选方法的台账 = 研究看板
     + `tests/test_collect_metrics.py`（断言解析得出来）。这两件是分开测的 ——
     解析器认得格式 ≠ 代码会打印它。
 
-11. ~~**官方 test split 泄漏进客户端训练集**~~ ✅ **已修复**（`53a076d`）
-    `main.py` 曾把 CIFAR-10 官方 10k test 并进分区池：
-    `x_all = np.concatenate([x_train, x_test])` → `build_clients(x_all, y_all, ...)`，
-    注释写着「x_test/y_test 保留用于评估，**不受影响**」——**那句断言是错的**。
-    `noniid_partition` 里的 `np.split` 是一个**划分**（传进去的每个 index 都会归属
-    某个 client），`split_client_train_test` 再把 `1−test_ratio` 划进训练集。
-    而 `BackdoorCloudServer(x_test=x_test)` 仍用同一份 x_test 算六个 ASR 与 `global_acc`。
-    > 纯 Python 复刻索引逻辑实测：官方 10k 有 **7546 张（75.5%）**进了客户端训练集；
-    > 2000 张 ASR 探针里 **1509 张（75.4%）**被训练过。
-    误导性在于 `build_clients(..., x_test_np=..., y_test_np=...)` 这两个参数：
-    docstring 说「存在时注入」，**函数体里从未引用过**，看起来像做了隔离。已删除。
-    抬高的是**绝对值**（组间相对趋势多半仍成立），但任何绝对数字都不能外发，
-    跨库比较更不行——Bad-PFL 侧没有这个泄漏。
-    守卫：`tests/test_no_test_leakage.py`（分区穷尽性 + 调用方只传 train split）。
-    **此前所有 Experiment 3 的绝对数字都要重新解释**，旧结果已归档到
+11. ~~**ASR 探针用了官方 `x_test`，而它已被合并进客户端数据池**~~ ✅ **已修复**
+    （`53a076d` 用了错的修法，`<本次>` 改正）
+
+    **⚠️ 先说清楚什么不是 bug**：把 train+test **合并后再逐客户端分区**是
+    PFLlib 的标准做法，本仓库照做，**这不造成任何泄漏**。因为
+    `noniid_partition` 是一个**划分**（每个 index 恰好归一个客户端），
+    `split_client_train_test` 再在**每个客户端分片内部**切 train/test ——
+    于是「所有留出分片的并集」与「所有训练数据的并集」**全局不相交**。
+    那才是真正的留出集，而且保住了全部 60k 数据。
+    > 我们一度误判成「合并本身是泄漏」并把它删掉（改成只喂 x_train），
+    > 那是错的，已回退。守卫 `tests/test_no_test_leakage.py` 里有一条
+    > `test_merge_is_kept_because_it_is_not_the_bug` 专门挡这次误删重演。
+
+    **真正错的地方在评估侧**：`BackdoorCloudServer` 曾把**原始 `x_test` 数组**
+    又当成一份独立探针去算六个 ASR（`main.py` → `_backdoor_eval`）。
+    合并之后官方 test split 里的图已经分给客户端、其中
+    1−`per_client_test_ratio` 进了训练集，再拿它当探针就是**在训练过的图上
+    测攻击成功率**。第二个连带问题：那样 ASR 测在类别均匀的官方测试集上，
+    而 `pm_acc` 测在非 IID 的 per-client 分片上，两个数字不在同一个 population。
+
+    **修法**：三层 ASR 一律测在留出分片上 ——
+    global ← `merge_test_datasets(所有 edge)`｜edge ← `edge.get_test_dataset()`｜
+    client ← `client.test_dataset`（与它自己的 `pm_acc` 同一个集合）。
+    新增 `compute_asr_on_dataset`；`compute_asr` 无合格样本时返回 `None`
+    而非 `0.0`（非 IID 下客户端留出分片可能一个非目标类样本都没有，
+    换探针之后这从罕见变成常态）。
+
+    **影响幅度未知，不要替它下结论**。我们曾在这里写过「抬高的是绝对值、
+    组间相对趋势多半仍成立」——**那句没有证据，已撤回**。方向其实不单一：
+    落在**恶意端**训练分片的那部分被真的投毒训过（模型是记忆 → 抬高 ASR），
+    落在良性端的那部分按正确标签训过（更难被翻 → 压低 ASR）。
+    净效果要同一 config 跑新旧两套探针各一次才能定。
+    量化工具：`harness/evidence_data_split.py`（用真实分区函数，
+    连「多少张落进恶意端训练分片」都数得出来），`bash run_evidence.sh` 即可跑，
+    **不需要 GPU**。
+
+    **此前所有 Experiment 3 的 ASR 都要重新解释**，旧结果已归档到
     `experiments/attack/hfl-propagation/results/archive-pre-fix/`。
 
 12. ~~**每轮参与端数依赖 `n_edges`**~~ ✅ **已修复**（`a00a959`）

@@ -1,51 +1,55 @@
-"""
-tests/test_no_test_leakage.py  —  官方 test split 绝不能进客户端训练集
+"""ASR 探针必须是**留出分片**，不能是原始 x_test。
 
-**这条测试存在的理由**（真实的、存活了约一年的 bug）：
-`main.run_experiment` 曾经这样构造客户端数据池 ——
+# 先说清楚什么不是 bug
 
-    # 合并全量数据后分区：确保 per-client train/test 同分布（PFLlib 标准做法）
-    # x_test/y_test 保留用于 edge/GM 评估，不受影响。      ← 这句断言是错的
-    x_all = np.concatenate([x_train, x_test], axis=0)
-    y_all = np.concatenate([y_train, y_test], axis=0)
-    clients, ... = build_clients(x_all, y_all, ...)
+把 train+test **合并后再逐客户端分区**是 PFLlib 的标准做法，本仓库照做，
+**这不是泄漏**。关键性质是：
 
-而同一份 `x_test` 又被交给 `BackdoorCloudServer(x_test=x_test, ...)` 去算
-global / edge / local 六个 ASR 与 global_acc。
+  1. `noniid_partition` 是一个**划分** —— `np.split` 让 x_all 的每个 index
+     恰好归属一个客户端；
+  2. `split_client_train_test` 再在**每个客户端自己的分片内部**切 train/test。
 
-泄漏是两步的必然结果，与 seed / alpha 无关：
-  1. `noniid_partition` 里 `np.split(class_indices, cut_points)` 是一个**划分** ——
-     传进去的每一个 index 都会落到某个 client 上，没有任何 index 被排除；
-  2. `split_client_train_test` 再把每个 client 分片的 (1 − test_ratio) 划进训练集。
-  ⇒ 官方 test set 的 (1 − test_ratio) = **75%**（exp3 的 test_ratio=0.25）被训练过。
+⇒ 「所有客户端留出分片的并集」与「所有训练数据的并集」**全局不相交**。
+   那才是真正的留出集，而且它保住了全部 60k 数据。
 
-误导性在于 `build_clients(..., x_test_np=x_test, y_test_np=y_test)` 这两个参数：
-docstring 说「存在时注入」，但函数体里**从未引用过**，看起来像做了隔离，其实没有。
+# 真正错过的地方
 
-下面两条测试合起来构成完整证明：
-  A. 分区是**穷尽**的（需要 TF，集群上跑）——「传进去多少就用掉多少」；
-  B. 调用方只传 **x_train**（纯 AST，本地毫秒级）——「传进去的里面没有 test」。
+评估侧曾经把**原始 `x_test` 数组**又当成一份独立探针，拿去算六个 ASR
+（`main.py` → `BackdoorCloudServer(x_test=x_test)` → `_backdoor_eval`）。
+一旦合并，官方 test split 里的图已经分给客户端、其中 1−`per_client_test_ratio`
+进了训练集，再拿它当探针就是**在训练过的图上测攻击成功率**。
+
+顺带的第二个问题：那样一来 ASR 测在类别均匀的官方测试集上，而 `pm_acc` 测在
+非 IID 的 per-client 分片上 —— 两个数字根本不在同一个样本 population 上。
+
+现在三层 ASR 一律测在留出分片上：
+  global ← `merge_test_datasets(所有 edge)`｜edge ← `edge.get_test_dataset()`
+  ｜client ← `client.test_dataset`（与它自己的 `pm_acc` 同一个集合）
 """
 
 import ast
+import sys
 from pathlib import Path
 
 import pytest
 
-FEDAVG = Path(__file__).resolve().parent.parent / "fedavg"
-MAIN = FEDAVG / "main.py"
+ROOT = Path(__file__).resolve().parent.parent
+FEDAVG = ROOT / "fedavg"
 
 
-# ─────────────────────────── A. 分区是穷尽的（需要 TF） ───────────────────────────
+# ═══════════════ A. 划分性质：训练与留出全局不相交（需要 TF） ═══════════════
 
-def test_partition_is_exhaustive_so_nothing_passed_in_is_ever_held_out():
+def test_train_and_heldout_pools_are_globally_disjoint():
     """
-    机制证明：喂给分区的每一个 index 最终都会成为某个客户端的数据。
-    所以「传进去但指望它不被用到」是不可能的 —— 隔离只能发生在调用方。
+    **这是 B 方案成立的全部依据。**
+
+    不是「客户端 i 的 test 与它自己的 train 不相交」（那是显然的），
+    而是「所有 test 分片的并集」与「所有 train 分片的并集」不相交 ——
+    因为每个 index 只归属一个客户端。若这条不成立，用留出分片当 ASR 探针
+    就和用 x_test 一样有问题。
     """
     pytest.importorskip("tensorflow")
     import numpy as np
-    import sys
     sys.path.insert(0, str(FEDAVG))
     from data.partition import noniid_partition, split_client_train_test
 
@@ -57,83 +61,108 @@ def test_partition_is_exhaustive_so_nothing_passed_in_is_ever_held_out():
 
     _, client_indices = noniid_partition(images, labels, N_CLIENTS, cfg, alpha=0.5)
 
-    covered = set()
-    for idx in client_indices:
-        covered |= set(np.asarray(idx).tolist())
-    assert covered == set(range(N)), (
-        f"分区没有覆盖全部 index（覆盖 {len(covered)}/{N}）—— 若这条失败，"
-        "说明分区语义变了，本文件的推理需要重做")
+    # 1) 分区是划分：每个 index 恰好出现一次
+    flat = [int(i) for idx in client_indices for i in np.asarray(idx)]
+    assert len(flat) == len(set(flat)) == N, (
+        f"分区不是划分：{len(flat)} 个 index，去重后 {len(set(flat))}，应为 {N}")
 
-    _, train_indices, _ = split_client_train_test(
+    # 2) 训练并集与留出并集不相交
+    _, train_idx, _ = split_client_train_test(
         images, labels, client_indices, cfg, test_ratio=0.25)
-    train_pool = set()
-    for idx in train_indices:
-        train_pool |= set(np.asarray(idx).tolist())
-    frac = len(train_pool) / N
-    assert 0.70 < frac < 0.80, (
-        f"喂进去的 index 有 {frac:.1%} 进了训练集（预期 ≈1−test_ratio=75%）")
+    train_pool = {int(i) for idx in train_idx for i in np.asarray(idx)}
+    heldout_pool = set(range(N)) - train_pool
+    assert not (train_pool & heldout_pool), "训练池与留出池相交了"
+    frac = len(heldout_pool) / N
+    assert 0.20 < frac < 0.30, f"留出池占 {frac:.1%}，应 ≈ 25%"
 
 
-# ─────────────────── B. 调用方只把 train split 喂进去（纯 AST） ───────────────────
+# ═══════════════ B. 评估侧：探针来自留出分片（纯 AST，本地可跑） ═══════════════
 
-def _run_experiment_fn():
-    tree = ast.parse(MAIN.read_text(encoding="utf-8"))
-    for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef) and node.name == "run_experiment":
+def _fn(path: Path, name: str):
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        if isinstance(node, ast.FunctionDef) and node.name == name:
             return node
-    raise AssertionError("main.py 里找不到 run_experiment —— 结构变了，请更新本测试")
+    raise AssertionError(f"{path.name} 里找不到 {name}")
 
 
-def _build_clients_call():
-    for node in ast.walk(_run_experiment_fn()):
+def test_hierarchical_asr_is_called_with_the_heldout_dataset():
+    """`_backdoor_eval` 传给 ASR 的必须是留出集，不是 x_test 派生的数组。"""
+    fn = _fn(FEDAVG / "server" / "backdoor_server.py", "_backdoor_eval")
+    for node in ast.walk(fn):
         if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
-                and node.func.id == "build_clients"):
-            return node
-    raise AssertionError("run_experiment 里找不到 build_clients(...) 调用")
-
-
-def test_build_clients_receives_the_train_split_only():
-    """前两个位置实参必须字面上是 x_train / y_train。"""
-    call = _build_clients_call()
-    got = [ast.unparse(a) for a in call.args[:2]]
-    assert got == ["x_train", "y_train"], (
-        f"build_clients 的前两个实参是 {got}，应为 ['x_train', 'y_train']。"
-        " 任何把 x_test 混进客户端数据池的写法都会让 ASR/MTA 失去意义。")
-
-
-def test_test_split_is_never_merged_into_the_client_pool():
-    """
-    run_experiment 里不允许出现把 x_test / y_test 并进另一个数组的拼接。
-    这正是被移除的那两行 `np.concatenate([x_train, x_test])`。
-    """
-    offenders = []
-    for node in ast.walk(_run_experiment_fn()):
-        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)):
-            continue
-        if node.func.attr not in ("concatenate", "vstack", "hstack", "append"):
-            continue
-        src = ast.unparse(node)
-        if "x_test" in src or "y_test" in src:
-            offenders.append(f"line {node.lineno}: {src}")
-    assert not offenders, (
-        "run_experiment 里把官方 test split 拼进了别的数组：\n  "
-        + "\n  ".join(offenders)
-        + "\n它随后会被 build_clients 分区 → 75% 进客户端训练集，"
-          "而 BackdoorCloudServer 仍用同一份 x_test 算 ASR/global_acc。")
-
-
-def test_build_clients_has_no_unused_test_set_parameters():
-    """
-    `x_test_np` / `y_test_np` 曾是「看起来像隔离、实际从未被引用」的参数。
-    留着它们迟早会有人再次以为隔离已经做过了。
-    """
-    tree = ast.parse(MAIN.read_text(encoding="utf-8"))
-    for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef) and node.name == "build_clients":
-            names = [a.arg for a in node.args.args] + [a.arg for a in node.args.kwonlyargs]
-            for dead in ("x_test_np", "y_test_np"):
-                assert dead not in names, (
-                    f"build_clients 又出现了参数 `{dead}`。若真要用它做隔离，"
-                    "请在函数体里实际引用并补一条断言；否则不要留这个误导性签名。")
+                and node.func.id == "evaluate_hierarchical_asr"):
+            args = [ast.unparse(a) for a in node.args]
+            assert "self.test_dataset" in args, (
+                f"实参是 {args}，其中应当有 self.test_dataset（留出集的并集）")
+            joined = " ".join(args)
+            assert "x_test" not in joined and "y_test" not in joined, (
+                f"实参里出现了 x_test/y_test：{args}。合并分区之后官方 test split "
+                "已经分给客户端了，不能再拿它当 ASR 探针。")
             return
-    raise AssertionError("main.py 里找不到 build_clients")
+    raise AssertionError("_backdoor_eval 里找不到 evaluate_hierarchical_asr(...) 调用")
+
+
+def test_no_asr_subsampling_over_the_official_test_array():
+    """
+    旧路径会缓存一份 `_asr_subsample_idx` 对 x_test 做随机子采样。
+    现在改成在留出集上「取前 N 个合格样本」（dataset 是 shuffle=False 建的，
+    顺序固定，确定性），那份缓存索引不该再存在。
+    """
+    src = (FEDAVG / "server" / "backdoor_server.py").read_text(encoding="utf-8")
+    assert "_asr_subsample_idx" not in src, (
+        "还留着对官方 x_test 的随机子采样缓存 —— 说明探针没换干净")
+
+
+def test_compute_asr_returns_none_when_no_eligible_samples():
+    """
+    非 IID 下客户端的留出分片**可能一个非目标类样本都没有** → ASR 无定义。
+    返回 0.0 会被读成「攻击完全失败」，那是个强结论。
+    B 方案把探针换成 per-client 分片之后，这种情况从罕见变成常态。
+    """
+    src = (FEDAVG / "attack" / "backdoor_eval.py").read_text(encoding="utf-8")
+    for name in ("compute_asr", "compute_asr_on_dataset"):
+        fn = _fn(FEDAVG / "attack" / "backdoor_eval.py", name)
+        body = ast.unparse(fn)
+        assert "return 0.0" not in body, (
+            f"{name} 里还有 `return 0.0` —— 无合格样本时必须返回 None")
+    assert "return None" in src
+
+
+def test_per_client_asr_uses_that_client_own_split():
+    """
+    每个客户端的 ASR 探针必须是它**自己**的 test_dataset ——
+    这样 ASR 与 pm_acc 才在同一个 population 上。
+    """
+    fn = _fn(FEDAVG / "attack" / "backdoor_eval.py", "evaluate_hierarchical_asr")
+    # 找客户端循环里那次 compute_asr_on_dataset，断言第二个实参就是 `ds`，
+    # 而 `ds` 来自 c.test_dataset。用 AST 而不是子串匹配，改了缩进也不会假绿。
+    calls = [n for n in ast.walk(fn)
+             if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+             and n.func.id == "compute_asr_on_dataset"]
+    assert calls, "找不到 compute_asr_on_dataset 调用"
+    probes = {ast.unparse(c.args[1]) for c in calls if len(c.args) > 1}
+    assert "ds" in probes, f"客户端 ASR 的探针实参是 {probes}，应含 ds"
+    assigns = [n for n in ast.walk(fn) if isinstance(n, ast.Assign)
+               and any(getattr(t, "id", "") == "ds" for t in n.targets)]
+    assert assigns and "c.test_dataset" in ast.unparse(assigns[0]), \
+        "ds 不是从 c.test_dataset 来的 —— 客户端探针不是它自己的分片"
+
+
+def test_edge_asr_uses_that_edge_own_split():
+    fn = _fn(FEDAVG / "attack" / "backdoor_eval.py", "evaluate_hierarchical_asr")
+    src = ast.unparse(fn)
+    assert "edge.get_test_dataset()" in src, "edge ASR 没有用该 edge 的留出集"
+
+
+def test_merge_is_kept_because_it_is_not_the_bug():
+    """
+    合并 train+test 再分区是 PFLlib 口径，**不是** bug，不要再被删掉。
+    （这条测试存在是因为我们曾经误删过一次。）
+    """
+    fn = _fn(FEDAVG / "main.py", "run_experiment")
+    merged = [n for n in ast.walk(fn)
+              if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+              and n.func.attr == "concatenate"
+              and {"x_train", "x_test"} <= set(ast.unparse(n).replace("[", " ")
+                                               .replace("]", " ").replace(",", " ").split())]
+    assert merged, "run_experiment 里没有合并 x_train/x_test —— PFLlib 口径被丢掉了"

@@ -13,6 +13,11 @@ import tensorflow as tf
 from attack.drift_metrics import param_drift, repr_shift
 
 
+def _f3(v):
+    """None → "n/a"，否则三位小数。无定义与 0 必须在日志里就分得开。"""
+    return "n/a" if v is None else f"{v:.3f}"
+
+
 def _acc_on_dataset(model, ds):
     tc = tn = 0
     for x, y in ds:
@@ -51,13 +56,95 @@ def compute_asr(model, x_test, y_test, trigger_fn, target_label, batch_size=256)
     yt = y_test[mask]
     n = len(xt)
     if n == 0:
-        return 0.0
+        # 无定义（这个评估集里没有非目标类样本），不是「ASR 为零」。
+        # 非 IID 下这是常态：pathological/Dirichlet 划分会让一些客户端的留出
+        # 分片全是目标类。返回 0.0 会被读成「攻击完全失败」——那是个强结论。
+        return None
     xp = trigger_fn(model, xt, yt)
     hits = 0
     for i in range(0, n, batch_size):
         p = model(xp[i:i + batch_size], training=False).numpy()
         hits += np.sum(np.argmax(p, 1) == int(target_label))
     return float(hits / n)
+
+
+def _collect_eligible(ds, target_label, max_samples=0):
+    """从 tf.data.Dataset 里收集**真实标签非目标类**的样本，返回 (x, y) numpy。
+
+    转成 numpy 再交给 trigger_fn，是为了与 `compute_asr` 的调用约定完全一致 ——
+    静态触发器（badnet/blended/dba）在 numpy 上做切片赋值，喂 tf 张量会炸。
+
+    测试集的 dataset 是 `make_client_dataset(..., shuffle=False)` 建的，顺序固定，
+    所以「取前 max_samples 个」是确定性的，不需要 RNG。
+    """
+    xs, ys, got = [], [], 0
+    for x, y in ds:
+        xb = x.numpy()
+        yb = np.asarray(y.numpy()).reshape(-1)
+        m = yb != int(target_label)
+        if m.any():
+            xs.append(xb[m])
+            ys.append(yb[m])
+            got += int(m.sum())
+        if max_samples and got >= max_samples:
+            break
+    if not xs:
+        return None, None
+    X = np.concatenate(xs, axis=0)
+    Y = np.concatenate(ys, axis=0)
+    if max_samples and len(Y) > max_samples:
+        X, Y = X[:max_samples], Y[:max_samples]
+    return X, Y
+
+
+def dataset_to_numpy(ds, max_samples=0):
+    """把 tf.data.Dataset 摊平成 (x, y) numpy。**不做**目标类过滤。
+
+    给还在吃 numpy 的旧接口用（如 `evaluate_forgetting_curve`，它内部自己调
+    `compute_asr`、自己做过滤）。测试集的 dataset 是 shuffle=False 建的，
+    顺序固定，所以「取前 max_samples 个」是确定性的。
+    """
+    xs, ys, got = [], [], 0
+    for x, y in ds:
+        xs.append(x.numpy())
+        ys.append(np.asarray(y.numpy()).reshape(-1))
+        got += len(ys[-1])
+        if max_samples and got >= max_samples:
+            break
+    if not xs:
+        return None, None
+    X = np.concatenate(xs, axis=0)
+    Y = np.concatenate(ys, axis=0)
+    if max_samples and len(Y) > max_samples:
+        X, Y = X[:max_samples], Y[:max_samples]
+    return X, Y
+
+
+def compute_asr_on_dataset(model, ds, trigger_fn, target_label,
+                           max_samples=0, batch_size=256):
+    """在**留出分片**上算 ASR。返回 ``(asr 或 None, 合格样本数)``。
+
+    与 `compute_asr` 的区别只是取数来源：那个吃 numpy 全量测试集，这个吃
+    per-client / per-edge / 全局的 `tf.data.Dataset`。判据（排除真实标签已是
+    目标类的样本、统计 argmax == target）逐字相同。
+
+    **为什么要有这个函数**：本仓库按 PFLlib 口径把 train+test 合并后分区，
+    于是原始 `x_test` 数组里的图已经分给客户端了，再拿它当 ASR 探针就是在
+    训练过的图上测攻击成功率。而「所有客户端留出分片的并集」与「所有训练数据」
+    **全局不相交**（分区使每个 index 只归一个客户端），才是真正的留出集。
+    顺带地，ASR 与 `pm_acc` 这下测在同一个 population 上了。
+
+    合格样本数为 0 → 返回 ``(None, 0)``：无定义，不是「ASR 为零」。
+    """
+    X, Y = _collect_eligible(ds, target_label, max_samples)
+    if X is None or len(Y) == 0:
+        return None, 0
+    xp = trigger_fn(model, X, Y)
+    hits = 0
+    for i in range(0, len(Y), batch_size):
+        p = model(xp[i:i + batch_size], training=False).numpy()
+        hits += int(np.sum(np.argmax(p, 1) == int(target_label)))
+    return float(hits / len(Y)), int(len(Y))
 
 
 def evaluate_backdoor(clients, x_test, y_test, trigger_fn, target_label,
@@ -82,12 +169,15 @@ def evaluate_backdoor(clients, x_test, y_test, trigger_fn, target_label,
         per_client.append((int(c.client_id), cacc, asr))
         if verbose:
             print(f"Round {round_idx} | Client {c.client_id} | "
-                  f"C-Acc: {cacc:.3f} | ASR: {asr:.3f}")
+                  f"C-Acc: {cacc:.3f} | ASR: {_f3(asr)}")
 
-    mc = float(np.nanmean(caccs)) if caccs else 0.0
-    ma = float(np.mean(asrs)) if asrs else 0.0
+    # compute_asr 现在在「没有非目标类样本」时返回 None（无定义）——
+    # 本函数当前无人调用（扁平路径的遗留），但留着不处理就是个地雷。
+    defined = [v for v in asrs if v is not None]
+    mc = float(np.nanmean(caccs)) if caccs else None
+    ma = float(np.mean(defined)) if defined else None
     print(f"Round {round_idx} | AVG over {len(benign)} benign clients | "
-          f"C-Acc: {mc:.3f} | ASR: {ma:.3f}")
+          f"C-Acc: {_f3(mc)} | ASR: {_f3(ma)}")
     return {"c_acc": mc, "asr": ma, "per_client": per_client}
 
 
@@ -96,9 +186,10 @@ def evaluate_backdoor(clients, x_test, y_test, trigger_fn, target_label,
 # ════════════════════════════════════════════════════════════════════════════
 
 def evaluate_hierarchical_asr(global_model, edge_servers, clients,
-                              x_test, y_test, trigger_fn, target_label,
+                              global_test_ds, trigger_fn, target_label,
                               malicious_ids, fallback_test_ds=None,
-                              batch_size=256, local_model_fn=None):
+                              batch_size=256, local_model_fn=None,
+                              asr_max_samples=0):
     """
     分别评估三层模型的 ASR 与干净精度（ACC）。
 
@@ -110,7 +201,13 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
         edge_servers  : List[EdgeServer]，每个含 .model / .edge_id
         clients       : List[FLClient]，每个含 .model / .client_id /
                         .is_malicious / .assigned_edge / .test_dataset
-        x_test,y_test : 已标准化的全量测试集 numpy（ASR 与 global ACC 用）
+        global_test_ds: 全局留出集（= 所有客户端留出分片的并集，
+                        `merge_test_datasets(edge_servers, ...)`）。
+                        **不是**官方 x_test —— 本仓库按 PFLlib 口径合并了
+                        train+test 再分区，官方 test 的图已经分给客户端了，
+                        拿它当探针就是在训练过的图上测 ASR。留出分片的并集
+                        与全部训练数据全局不相交，才是真正的留出集。
+        asr_max_samples: 每个探针最多取多少合格样本（0 = 全用）。限评估开销。
         malicious_ids : 恶意客户端 id 集合
         local_model_fn: 可选 callable(client) -> model，对本地模型评估前做变换
                         （Simple-Tuning 防御：返回重置头+干净微调后的模型）。
@@ -119,21 +216,24 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
     Returns:
         dict（见 log_round_metrics 使用的全部字段）
     """
-    y_test = np.asarray(y_test).reshape(-1)
     malicious_ids = set(int(i) for i in (malicious_ids or set()))
 
-    # ── 全局模型 ──────────────────────────────────────────────────────────
-    global_asr = compute_asr(global_model, x_test, y_test, trigger_fn,
-                             target_label, batch_size)
-    global_acc = _acc_on_numpy(global_model, x_test, y_test, batch_size)
+    # ── 全局模型：探针 = 所有客户端留出分片的并集 ─────────────────────────
+    global_asr, _ = compute_asr_on_dataset(
+        global_model, global_test_ds, trigger_fn, target_label,
+        asr_max_samples, batch_size)
+    global_acc = _acc_on_dataset(global_model, global_test_ds)
 
     # ── 边缘模型 ──────────────────────────────────────────────────────────
     edge_ids, edge_asr_per_node, edge_accs = [], [], []
     malicious_edges = set()
     for edge in edge_servers:
-        e_asr = compute_asr(edge.model, x_test, y_test, trigger_fn,
-                            target_label, batch_size)
-        e_acc = _acc_on_numpy(edge.model, x_test, y_test, batch_size)
+        # 探针 = 该 edge 下所有客户端留出分片的并集（与 em_acc 同一个集合）
+        e_ds = edge.get_test_dataset() or global_test_ds
+        e_asr, _ = compute_asr_on_dataset(
+            edge.model, e_ds, trigger_fn, target_label,
+            asr_max_samples, batch_size)
+        e_acc = _acc_on_dataset(edge.model, e_ds)
         edge_ids.append(int(edge.edge_id))
         edge_asr_per_node.append(e_asr)
         edge_accs.append(e_acc)
@@ -155,11 +255,18 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
         cid = int(c.client_id)
         # Simple-Tuning 等后处理防御：评估前对本地模型做变换（默认用 c.model 原样）
         eval_model = local_model_fn(c) if local_model_fn is not None else c.model
-        asr = compute_asr(eval_model, x_test, y_test, trigger_fn,
-                          target_label, batch_size)
+        # 探针 = **这个客户端自己**的留出分片，与它的 pm_acc 同一个集合。
+        # 于是 ASR 与 MTA 终于测在同一个 population 上（非 IID 下这很重要：
+        # 全局均匀的官方测试集与某个客户端的类别分布可以差得很远）。
         ds = c.test_dataset if getattr(c, "test_dataset", None) is not None \
             else fallback_test_ds
-        acc = _acc_on_dataset(eval_model, ds) if ds is not None else float("nan")
+        if ds is None:
+            asr, acc = None, float("nan")
+        else:
+            asr, _ = compute_asr_on_dataset(
+                eval_model, ds, trigger_fn, target_label,
+                asr_max_samples, batch_size)
+            acc = _acc_on_dataset(eval_model, ds)
         local_asrs.append(asr)
         local_accs.append(acc)
 
@@ -186,11 +293,20 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
     #
     # 与防御判决的约定一致（RobustAggregationMixin 对坐标类防御记 admitted=None
     # 而非 0）：**无定义就留空，绝不用 0 填充后当数值参与统计**。
+    # 先滤掉 None 再求均值：单个客户端的 ASR 可能**无定义**（它的留出分片里
+    # 没有非目标类样本 —— 非 IID 下这是常态，不是异常）。把 None 混进 np.mean
+    # 会直接炸；把它当 0 参与平均则会把「无定义」读成「攻击失败」。
+    # 全组都无定义 → 整个指标无定义 → None。
+    def _defined(xs):
+        return [v for v in xs if v is not None]
+
     def _mean(xs):
-        return float(np.mean(xs)) if len(xs) else None
+        vals = _defined(xs)
+        return float(np.mean(vals)) if vals else None
 
     def _std(xs):
-        return float(np.std(xs)) if len(xs) else None
+        vals = _defined(xs)
+        return float(np.std(vals)) if vals else None
 
     # 逐 edge 面板：edge 模型 ASR / 该 edge 内良性、恶意个性化 ASR 均值 / 计数 / 是否含恶意
     per_edge = []

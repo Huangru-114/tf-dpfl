@@ -16,7 +16,8 @@ from server.server import CloudServer
 from attack.backdoor_eval import (evaluate_hierarchical_asr,
                                    evaluate_forgetting_curve,
                                    evaluate_feature_separation,
-                                   evaluate_drift)
+                                   evaluate_drift,
+                                   dataset_to_numpy)
 from models.cnn import get_base_head_indices
 from defense import create_post_hoc_defense
 from utils.logger import FLLogger
@@ -119,16 +120,23 @@ class BackdoorCloudServer(CloudServer):
         return self._feat_data
 
     def _backdoor_eval(self, round_idx: int, anchor=None):
-        xt, yt = self.x_test, self.y_test
-        if self.bd_asr_max and yt is not None and len(yt) > self.bd_asr_max:
-            # ASR 子采样必须固定：每轮换一批样本会让 ASR 曲线混入采样噪声，
-            # 分不清「后门在增强」还是「这轮抽到的样本更好骗」。
-            if getattr(self, "_asr_subsample_idx", None) is None:
-                self._asr_subsample_idx = np.random.default_rng(
-                    int(self.config.get("seed", 42))
-                ).choice(len(yt), self.bd_asr_max, replace=False)
-            idx = self._asr_subsample_idx
-            xt, yt = xt[idx], yt[idx]
+        # ASR 的探针是**留出分片**，不是原始 x_test。
+        #
+        # 本仓库按 PFLlib 口径把 train+test 合并后分区，所以官方 test split 里的图
+        # 已经分给客户端、其中约 1−per_client_test_ratio 进了训练集。再拿同一份
+        # x_test 当探针，等于在训练过的图上测攻击成功率。
+        # 而分区使每个 index 只归属一个客户端、再在客户端内部切 train/test，
+        # 于是「所有留出分片的并集」与「所有训练数据」**全局不相交** —— 那才是
+        # 真正的留出集，而且 ASR 与 pm_acc 这下测在同一个 population 上。
+        #
+        #   global ASR ← self.test_dataset（= merge_test_datasets(所有 edge)）
+        #   edge   ASR ← edge.get_test_dataset()
+        #   client ASR ← client.test_dataset
+        #
+        # 子采样改为「取前 N 个合格样本」：测试集的 dataset 是 shuffle=False 建的，
+        # 顺序固定，所以这是确定性的，不需要像旧路径那样缓存一份随机索引。
+        # （x_test/y_test 只留给可选的 feature_eval，见 _prepare_feature_data；
+        #  那条路径在 exp3 的全部配置里都是关的。）
 
         print(f"\n[Backdoor] ===== Round {round_idx} hierarchical backdoor eval =====")
 
@@ -146,9 +154,10 @@ class BackdoorCloudServer(CloudServer):
         # ── 任务2：分层 ASR（global/edge/local 三层 + same/diff edge） ────────
         metrics = evaluate_hierarchical_asr(
             self.global_model, self.edge_servers, self._all_clients,
-            xt, yt, self.trigger_fn, self.bd_target,
+            self.test_dataset, self.trigger_fn, self.bd_target,
             self.malicious_ids, fallback_test_ds=self.test_dataset,
             local_model_fn=local_model_fn,
+            asr_max_samples=self.bd_asr_max,
         )
 
         # ── 任务2：特征空间分离度（global + 抽样 1 个良性 local） ─────────────
@@ -177,9 +186,16 @@ class BackdoorCloudServer(CloudServer):
             if benign:
                 c0 = benign[0]
                 lr = float(self.config["training"].get("learning_rate", 0.02))
-                metrics["forgetting_curve"] = evaluate_forgetting_curve(
-                    c0.model, self.forgetting_epochs, c0.dataset,
-                    xt, yt, self.trigger_fn, self.bd_target, lr=lr)
+                # 探针同样用**这个客户端自己**的留出分片。
+                # evaluate_forgetting_curve 还吃 numpy（内部自己调 compute_asr、
+                # 自己做目标类过滤），所以这里摊平一份。
+                fx, fy = dataset_to_numpy(
+                    c0.test_dataset if getattr(c0, "test_dataset", None) is not None
+                    else self.test_dataset, self.bd_asr_max)
+                if fx is not None:
+                    metrics["forgetting_curve"] = evaluate_forgetting_curve(
+                        c0.model, self.forgetting_epochs, c0.dataset,
+                        fx, fy, self.trigger_fn, self.bd_target, lr=lr)
 
         # ── 历史 + 控制台 ─────────────────────────────────────────────────
         self.history["bd_c_acc"].append(metrics["local_acc_mean"])

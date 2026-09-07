@@ -672,24 +672,20 @@ def run_experiment(config_path="config/config.yaml"):
     baked_assignments = None
     edge_fine_classes = None
 
-    # ⚠️ 只把**训练集**切给客户端。官方 test split 必须留在客户端数据之外。
+    # 合并全量数据后分区（PFLlib 标准做法）：确保 per-client train/test 同分布。
     #
-    # 此处曾经是 `x_all = np.concatenate([x_train, x_test])`，注释写着
-    # 「x_test/y_test 保留用于 edge/GM 评估，**不受影响**」—— 那句断言是错的：
-    #   1. `noniid_partition` 里 `np.split(class_indices, cut_points)` 是一个**划分**，
-    #      x_all 的 60000 个 index 每一个都会归属某个 client；
-    #   2. `split_client_train_test` 再把每个 client 的 index 按 1−test_ratio
-    #      划进**训练集**（exp3 是 0.75）；
-    #   3. 而 `BackdoorCloudServer(x_test=x_test, ...)` 又拿同一份 x_test 算
-    #      global/edge/local 六个 ASR 与 global_acc。
-    # 净效果：官方 test set 的 **75%** 被客户端训练过，ASR/MTA 的绝对值被系统性抬高。
-    # 守卫：tests/test_no_test_leakage.py
+    # **合并本身不造成泄漏**，这一点曾经被我们自己误判过一次。关键性质是：
+    # `noniid_partition` 是一个**划分**，x_all 的每个 index 只归属一个客户端；
+    # `split_client_train_test` 再在**每个客户端分片内部**切 train/test。
+    # 于是「所有客户端留出分片的并集」与「所有训练数据的并集」**全局不相交** ——
+    # 这才是真正的留出集，而且它保住了全部 60k 数据和 PFLlib 口径。
     #
-    # per-client train/test 同分布（PFLlib 做法）由 `split_client_train_test` 在
-    # **每个 client 自己的分片内部**切分保证，本来就不依赖这次合并。
-    clients, baked_assignments, edge_fine_classes = build_clients(
-        x_train, y_train, global_model, config
-    )
+    # 真正错过的地方不在这里，而在评估侧：曾经把**原始 x_test 数组**又当成一份
+    # 独立探针拿去算六个 ASR（main.py:706 → backdoor_server.py:121-155）。
+    # 一旦合并，官方 test split 里的图已经分给客户端了，再拿它当探针就等于在
+    # 训练过的图上测攻击成功率。现在 ASR 一律测在留出分片上（见下方 cloud 构造）。
+    x_all = np.concatenate([x_train, x_test], axis=0)
+    y_all = np.concatenate([y_train, y_test], axis=0)
     print(f"[Setup] client pool = train split only ({len(y_train)} samples); "
           f"official test split ({len(y_test)} samples) held out for GM/edge/ASR eval")
 

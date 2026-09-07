@@ -1,42 +1,39 @@
-"""数据划分的确凿证据：官方 test split 到底有没有进客户端训练集。
+"""数据划分与 ASR 探针的证据。
 
-# 这个脚本证明什么
+# 先说清楚什么**不是** bug
 
-Experiment 3 的全部 ASR / MTA 绝对值此前都建立在一个错误的前提上。
-`fedavg/main.py` 在 commit `53a076d` **之前**是这么构造客户端数据池的
-（旧文件的 664-667 行，可用 `git show 53a076d~1:fedavg/main.py` 复核）：
+把 train+test 合并后再逐客户端分区，是 PFLlib 的标准做法，本仓库照做。
+**合并本身不造成任何泄漏**，因为：
 
-    # 合并全量数据后分区：确保 per-client train/test 同分布（PFLlib 标准做法）
-    # x_test/y_test 保留用于 edge/GM 评估，不受影响。      ← 这句断言是错的
-    x_all = np.concatenate([x_train, x_test], axis=0)
-    y_all = np.concatenate([y_train, y_test], axis=0)
-    clients, ... = build_clients(x_all, y_all, ...)
+  1. `noniid_partition` 是一个**划分** —— `np.split` 让 x_all 的每个 index
+     恰好归属一个客户端；
+  2. `split_client_train_test` 再在**每个客户端自己的分片内部**切 train/test。
 
-而同一份 `x_test` 又被交给 `BackdoorCloudServer(x_test=x_test, ...)`
-（`main.py:706` → `server/backdoor_server.py:121-155`）去算 global / edge / local
-六个 ASR 与 `global_acc`。
+⇒ 「所有客户端留出分片的并集」与「所有训练数据的并集」**全局不相交**。
+   这是真正的留出集，而且保住了全部 60k 数据和 PFLlib 口径。
 
-**本脚本调用的是仓库里真实的 `noniid_partition` 与 `split_client_train_test`，
-不是复刻件。** 它把两条路径都跑一遍，数出官方 test set 有多少张落进了客户端的
-**训练**集：
+# 真正错过的地方（评估侧，不是划分侧）
 
-  · legacy 路径：喂 `concat(x_train, x_test)`（复现旧行为，逐字对照上面的引用）
-  · fixed  路径：只喂 `x_train`（当前代码的行为）
+曾经把**原始 `x_test` 数组**又当成一份独立探针去算六个 ASR。合并之后官方
+test split 里的图已经分给客户端了，其中 1−`per_client_test_ratio` 进了训练集，
+再拿它当探针就是在训练过的图上测攻击成功率。
 
-预期：legacy ≈ 75%（= 1 − `per_client_test_ratio`），fixed 恰好 0。
+本脚本用仓库里**真实的** `noniid_partition` / `split_client_train_test`
+把这几件事量出来：
 
-# 为什么 legacy 路径要在脚本里重建
-
-因为修复已经把那两行删掉了。直接 checkout 旧的 `main.py` 会**同时**带回
-未播种的 `random`、填 0 的空组指标、`int()` 截断三个已修问题，比较就不是单变量的。
-在脚本里只重建「合并」这一件事，其余全部走当前代码，才是干净的单变量对照。
+  · 分区是划分吗（每个 index 恰好一次）
+  · 训练池 ∩ 留出池 是不是空（B 方案成立的依据）
+  · 旧探针（官方 x_test）有多少张落进训练池 —— 这是它不能当探针的原因
+  · 其中多少落进**恶意端**的训练分片 —— 那部分是被真的投毒训过的，
+    模型对它们是**记忆**而非泛化，ASR 会被直接抬高
+  · 新探针（留出池）与训练池的交集 —— 必须是 0
 
 # 怎么跑（集群，容器内，**不需要 GPU**）
 
-    apptainer exec <sif> python3 harness/evidence_data_split.py \\
-        --config experiments/attack/hfl-propagation/3c_R5.yaml
+    bash run_evidence.sh                                   # 默认 3c_R5.yaml
+    bash run_evidence.sh experiments/attack/hfl-propagation/4edge_collocated.yaml
 
-退出码 0 = fixed 路径零泄漏且 legacy 路径确实泄漏（两者都符合预期）；1 = 有问题。
+退出码 0 = 全部判据成立。
 """
 
 from __future__ import annotations
@@ -52,37 +49,42 @@ sys.path.insert(0, str(ROOT / "fedavg"))
 import numpy as np                                     # noqa: E402
 import yaml                                            # noqa: E402
 
-from data.dataset import load_cifar10, load_cifar100   # noqa: E402
-from data.partition import (noniid_partition,          # noqa: E402
+from data.clustering import block_assignment            # noqa: E402
+from data.dataset import load_cifar10, load_cifar100    # noqa: E402
+from data.partition import (noniid_partition,           # noqa: E402
                             split_client_train_test)
+from attack.backdoor import resolve_malicious_ids       # noqa: E402
 
 
-def _train_pool(images, labels, n_clients, cfg, alpha, test_ratio):
-    """跑真实的分区 + train/test 切分，返回所有客户端**训练**索引的并集。"""
+def _pools(images, labels, n_clients, cfg, alpha, test_ratio):
+    """跑真实的分区 + 切分，返回 (每客户端训练索引, 训练池, 留出池, 全部索引)。"""
     _, client_indices = noniid_partition(images, labels, n_clients, cfg, alpha=alpha)
     _, train_indices, _ = split_client_train_test(
         images, labels, client_indices, cfg, test_ratio=test_ratio)
-    pool = set()
+    all_idx = set()
+    for idx in client_indices:
+        all_idx |= set(np.asarray(idx).tolist())
+    train_pool = set()
+    per_client_train = []
     for idx in train_indices:
-        pool |= set(np.asarray(idx).tolist())
-    return pool, client_indices
+        cur = set(np.asarray(idx).tolist())
+        per_client_train.append(cur)
+        train_pool |= cur
+    return per_client_train, train_pool, all_idx - train_pool, all_idx
 
 
-def _current_main_has_no_merge() -> bool:
-    """断言当前 main.py 里确实没有把 x_test 并进池子的写法。
-
-    否则本脚本的 "fixed" 一列描述的就不是当前代码。
-    """
-    tree = ast.parse((ROOT / "fedavg" / "main.py").read_text(encoding="utf-8"))
-    for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef) and node.name == "run_experiment":
+def _asr_probe_is_heldout() -> bool:
+    """AST：`_backdoor_eval` 传给 ASR 的是留出集，不是 x_test 派生的数组。"""
+    src = (ROOT / "fedavg" / "server" / "backdoor_server.py").read_text(encoding="utf-8")
+    for node in ast.walk(ast.parse(src)):
+        if isinstance(node, ast.FunctionDef) and node.name == "_backdoor_eval":
             for n in ast.walk(node):
-                if (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
-                        and n.func.attr == "concatenate"):
-                    if "x_test" in ast.unparse(n) or "y_test" in ast.unparse(n):
-                        return False
-            return True
-    raise SystemExit("main.py 里找不到 run_experiment")
+                if (isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                        and n.func.id == "evaluate_hierarchical_asr"):
+                    args = " ".join(ast.unparse(a) for a in n.args)
+                    return ("self.test_dataset" in args
+                            and "x_test" not in args and "y_test" not in args)
+    return False
 
 
 def main(argv=None) -> int:
@@ -95,6 +97,7 @@ def main(argv=None) -> int:
     cfg = yaml.safe_load(args.config.read_text(encoding="utf-8"))
     seed = int(cfg.get("seed", 42))
     n_clients = int(cfg["federation"]["n_clients"])
+    n_edges = int(cfg["federation"]["n_edges"])
     alpha = float(cfg["federation"].get("alpha", 0.5))
     test_ratio = float(cfg["data"].get("per_client_test_ratio", 0.2))
     dataset = str(cfg["data"]["dataset"]).lower()
@@ -105,78 +108,80 @@ def main(argv=None) -> int:
     y_test = np.asarray(y_test).reshape(-1)
     n_train, n_test = len(y_train), len(y_test)
 
-    print(f"\nconfig            : {args.config.name}")
-    print(f"dataset           : {dataset}  train={n_train}  官方 test={n_test}")
-    print(f"n_clients / alpha : {n_clients} / {alpha}")
-    print(f"per_client_test_ratio : {test_ratio}  → 每个客户端 {1-test_ratio:.0%} 的分片进训练集")
-    print(f"seed              : {seed}")
+    print(f"\nconfig  : {args.config.name}   dataset={dataset}")
+    print(f"          train={n_train}  官方 test={n_test}  n_clients={n_clients}  "
+          f"n_edges={n_edges}  alpha={alpha}  per_client_test_ratio={test_ratio}")
 
-    # 官方 test split 在合并池 x_all 里的 index 就是 [n_train, n_train+n_test)
-    official_test = set(range(n_train, n_train + n_test))
-
-    # ── legacy：复现 commit 53a076d 之前的合并（**只重建这一件事**）────────
+    # PFLlib 口径：合并后分区（当前代码的行为）
     np.random.seed(seed)
     x_all = np.concatenate([x_train, x_test], axis=0)
     y_all = np.concatenate([y_train, y_test], axis=0)
-    legacy_pool, legacy_idx = _train_pool(x_all, y_all, n_clients, cfg, alpha, test_ratio)
-    covered = set()
-    for idx in legacy_idx:
-        covered |= set(np.asarray(idx).tolist())
-    legacy_leak = official_test & legacy_pool
+    per_client_train, train_pool, heldout_pool, all_idx = _pools(
+        x_all, y_all, n_clients, cfg, alpha, test_ratio)
 
-    # ── fixed：当前代码的行为（只喂 x_train）──────────────────────────────
-    np.random.seed(seed)
-    fixed_pool, _ = _train_pool(x_train, y_train, n_clients, cfg, alpha, test_ratio)
-    # fixed 路径的索引空间只有 [0, n_train)，与官方 test 天然不相交；
-    # 这里显式检查越界，等价于"官方 test 一张都没进来"。
-    fixed_leak = {i for i in fixed_pool if i >= n_train}
+    official_test = set(range(n_train, n_train + n_test))   # x_all 里官方 test 的位置
 
-    print("\n" + "=" * 74)
-    print(f"{'':<34}{'legacy（修复前）':>19}{'fixed（当前）':>19}")
-    print("-" * 74)
-    print(f"{'分区覆盖的 index 数':<32}{len(covered):>16}/{n_train+n_test:<8}"
-          f"{len(fixed_pool):>12}/{n_train}")
-    print(f"{'官方 test 进【客户端训练集】':<28}{len(legacy_leak):>16}/{n_test:<8}"
-          f"{len(fixed_leak):>12}/{n_test}")
-    print(f"{'  占官方 test 的比例':<32}{len(legacy_leak)/n_test:>19.1%}"
-          f"{len(fixed_leak)/n_test:>19.1%}")
+    # 恶意端是谁（复刻 main.py 的接线）
+    assign = (block_assignment(list(range(n_clients)), n_edges)
+              if str(cfg["federation"].get("edge_assignment", "random")).lower() == "block"
+              else None)
+    mal_ids = set(int(i) for i in
+                  resolve_malicious_ids(cfg["backdoor"], n_clients,
+                                        assignments=assign, seed=seed))
+    mal_train = set()
+    for cid in mal_ids:
+        mal_train |= per_client_train[cid]
 
-    # ASR 探针：backdoor_server.py:121-131 用 default_rng(seed) 抽 asr_max_samples
-    n_probe = int(cfg["backdoor"].get("asr_max_samples", 0) or 0)
-    if n_probe and n_probe < n_test:
-        pick = np.random.default_rng(seed).choice(n_test, n_probe, replace=False)
-        probe = {int(i) + n_train for i in pick}
-        print(f"{'ASR 探针中被训练过的':<30}{len(probe & legacy_pool):>16}/{n_probe:<8}"
-              f"{len(probe & fixed_leak):>12}/{n_probe}")
-        print(f"{'  占探针的比例':<32}{len(probe & legacy_pool)/n_probe:>19.1%}"
-              f"{len(probe & fixed_leak)/n_probe:>19.1%}")
-    print("=" * 74)
+    print("\n" + "=" * 76)
+    print("【划分侧】合并分区本身有没有问题")
+    print("-" * 76)
+    print(f"  分区覆盖的 index          : {len(all_idx)} / {n_train + n_test}")
+    print(f"  训练池                    : {len(train_pool)}")
+    print(f"  留出池（= 所有留出分片）  : {len(heldout_pool)}")
+    print(f"  训练池 ∩ 留出池           : {len(train_pool & heldout_pool)}   ← 必须是 0")
+
+    old_leak = official_test & train_pool
+    old_leak_mal = official_test & mal_train
+    print("\n【旧探针】官方 x_test 当 ASR 探针会怎样")
+    print("-" * 76)
+    print(f"  官方 test 落进训练池      : {len(old_leak)} / {n_test} "
+          f"= {len(old_leak)/n_test:.1%}")
+    print(f"    其中落进**恶意端**训练分片: {len(old_leak_mal)} / {n_test} "
+          f"= {len(old_leak_mal)/n_test:.1%}")
+    print(f"      → 这部分被真的加过触发器、翻过标签，模型是**记忆**了它们；")
+    print(f"        其余 {len(old_leak)-len(old_leak_mal)} 张是良性端按正确标签训的，")
+    print(f"        方向相反（更难被翻）。净效果需要跑对照实验才知道。")
+
+    print("\n【新探针】留出池当 ASR 探针")
+    print("-" * 76)
+    print(f"  留出池 ∩ 训练池           : {len(heldout_pool & train_pool)}   ← 必须是 0")
+    print(f"  留出池里来自官方 test 的  : {len(heldout_pool & official_test)} "
+          f"（无所谓：它们没被任何客户端训练过）")
+    print("=" * 76)
 
     ok = True
     print("\n判据：")
-    c1 = len(covered) == n_train + n_test
-    print(f"  {'✅' if c1 else '❌'}  分区是穷尽的：喂进去的 {n_train+n_test} 个 index "
-          f"全部归属某个客户端（覆盖 {len(covered)}）")
-    ok &= c1
-    c2 = len(legacy_leak) / n_test > 0.5
-    print(f"  {'✅' if c2 else '❌'}  legacy 路径确实泄漏：{len(legacy_leak)}/{n_test} "
-          f"= {len(legacy_leak)/n_test:.1%}（应 ≈ {1-test_ratio:.0%}）")
-    ok &= c2
-    c3 = len(fixed_leak) == 0
-    print(f"  {'✅' if c3 else '❌'}  fixed 路径零泄漏：{len(fixed_leak)}/{n_test}")
-    ok &= c3
-    c4 = _current_main_has_no_merge()
-    print(f"  {'✅' if c4 else '❌'}  当前 main.py 的 run_experiment 里没有把 "
-          f"x_test 并进池子的 concatenate")
-    ok &= c4
+    for text, cond in [
+        (f"分区是划分：{n_train+n_test} 个 index 全部恰好归属一个客户端",
+         len(all_idx) == n_train + n_test),
+        ("训练池与留出池全局不相交（B 方案成立的依据）",
+         not (train_pool & heldout_pool)),
+        (f"旧探针确有重叠：官方 test 的 {len(old_leak)/n_test:.0%} 被训练过"
+         f"（应 ≈ {1-test_ratio:.0%}）", len(old_leak) / n_test > 0.5),
+        ("恶意端记忆的那部分可量化（> 0 说明确有记忆成分）", len(old_leak_mal) > 0),
+        ("当前代码的 ASR 探针是留出集，不含 x_test", _asr_probe_is_heldout()),
+    ]:
+        print(f"  {'✅' if cond else '❌'}  {text}")
+        ok &= bool(cond)
 
     if not ok:
         print("\n❌ 有判据不成立 —— 见上。")
         return 1
-    print(f"\n✅ 全部成立。修复前官方 test 的 {len(legacy_leak)/n_test:.1%} 被客户端训练过，"
-          f"修复后为 0。\n"
-          f"   注意：这证明的是**泄漏的存在与规模**，不是它把 ASR/MTA 抬高了多少 ——\n"
-          f"   后者要用同一 config 跑 legacy/fixed 两次训练来测。")
+    print("\n✅ 全部成立。结论：**合并分区没问题**（PFLlib 口径，训练/留出全局不相交）；"
+          f"\n   问题只在评估侧曾用官方 x_test 当探针，而它有 {len(old_leak)/n_test:.0%} "
+          f"被训练过、{len(old_leak_mal)/n_test:.1%} 被投毒训练过。现已改为留出集。"
+          "\n   ⚠️ 这证明的是**重叠的存在与规模**，不是它把 ASR 抬高了多少 ——"
+          "\n      净方向需要同一 config 跑新旧两套探针各一次才能定。")
     return 0
 
 
