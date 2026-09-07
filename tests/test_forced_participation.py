@@ -26,6 +26,7 @@ pytest.importorskip("tensorflow")  # attack.backdoor 模块级 import tf
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "fedavg"))
 
 from attack.backdoor import install_forced_participation   # noqa: E402
+from server.participation import edge_quota                # noqa: E402
 
 
 class _Client:
@@ -34,7 +35,18 @@ class _Client:
 
 
 class _Edge:
-    """最小 edge：复刻 EdgeServerBase.select_clients 的抽样公式（int(len·frac) 无放回随机）。"""
+    """
+    最小 edge：抽样名额**直接调用真实实现** `server.participation.edge_quota`，
+    而不是把公式抄一遍。
+
+    这里曾经内联 `max(1, int(len(clients)*frac))`，docstring 写着「复刻
+    EdgeServerBase.select_clients 的抽样公式」—— 后来真实公式改成了全局整数配额
+    （见 tests/test_participation_quota.py），这个桩就悄悄变成了假话。
+    测试桩抄公式迟早会漂，改成调用真函数就不会。
+
+    本文件测的是**强制参与包装器**的语义，不是名额本身，所以走 edge_quota 的
+    回退分支（不传全局 n_clients/n_edges）→ 与本文件原有的数字完全一致。
+    """
     def __init__(self, edge_id, clients, frac, seed=0):
         self.edge_id = edge_id
         self.clients = clients
@@ -42,7 +54,10 @@ class _Edge:
         self.rng = np.random.default_rng([seed, edge_id])
 
     def select_clients(self, round_idx):
-        n_select = max(1, int(len(self.clients) * self._frac))
+        n_select = edge_quota(self.edge_id, round_idx,
+                              n_clients=0, n_edges=0,          # 回退分支：逐 edge 局部公式
+                              client_fraction=self._frac,
+                              n_local_clients=len(self.clients))
         idx = self.rng.choice(len(self.clients), n_select, replace=False)
         return [self.clients[int(i)] for i in idx]
 

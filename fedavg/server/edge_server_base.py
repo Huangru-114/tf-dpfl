@@ -22,6 +22,7 @@ import tensorflow as tf
 from models.model_utils import get_model_bytes
 from aggregation.client_update import as_client_update
 from .robust_aggregation import RobustAggregationMixin
+from .participation import edge_quota
 
 
 class EdgeServerBase(RobustAggregationMixin, ABC):
@@ -95,10 +96,25 @@ class EdgeServerBase(RobustAggregationMixin, ABC):
         新版本里会告警，且索引抽样让选取结果只依赖 (seed, edge_id, 调用次数)，
         与客户端对象的内存布局无关 → 可复现。
         """
-        frac     = self.config["federation"]["client_fraction"]
-        n_select = max(1, int(len(self.clients) * frac))
+        n_select = self._n_select(round_idx)
         idx      = self.rng.choice(len(self.clients), n_select, replace=False)
         return [self.clients[int(i)] for i in idx]
+
+    def _n_select(self, round_idx: int) -> int:
+        """
+        本 edge 本轮的抽样名额 —— 算术在 `server/participation.edge_quota`。
+
+        单独成模块是为了让它**不依赖 TF**、能在本地秒级测到：这条配额决定了
+        Experiment 3 的拓扑轴干不干净（旧实现下 4-edge 的格子少训 20%）。
+        """
+        fed = self.config["federation"]
+        return edge_quota(
+            self.edge_id, round_idx,
+            n_clients=int(fed.get("n_clients", 0) or 0),
+            n_edges=int(fed.get("n_edges", 0) or 0),
+            client_fraction=float(fed["client_fraction"]),
+            n_local_clients=len(self.clients),
+        )
 
     def broadcast_to_clients(self, selected: list, global_weights: list = None,
                              round_idx: int = 0):
