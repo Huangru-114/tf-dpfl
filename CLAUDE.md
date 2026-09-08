@@ -218,6 +218,23 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
   `_backdoor_eval` 在 `super().run_round()` **返回之后**才跑 → 两者要**相加**
   才是一轮的墙钟。标定 (local_epochs, n_rounds, eval_interval) 读的就是这几个数。
   守卫：`tests/test_eval_timing.py`（上游 AST + 下游解析两侧分开测）。
+- **run 块已自描述到「哪一格」的程度**：`[设定]`（`ac797cd`，含 `edge_rounds`）
+  与 `[设定2]`（`<本次>`，含 `malicious_per_edge` / `malicious_placement` /
+  `edge_assignment` / `local_epochs` / `plocal_epochs` / `seed` / 两个
+  `eval_interval`）两条行 → `metrics.json` 的 `run` 块。
+  **`[设定2]` 是独立一行不是扩 `[设定]`**：`RE_SETTINGS` 是全或无的正则，
+  往里加字段一旦格式对不上，原有八个字段会**一起变 None** 而日志毫无异常。
+  守卫：`tests/test_run_self_description.py`（含反向锚点
+  `test_old_log_without_settings2_still_parses_the_first_line`）。
+  > ⚠️ `edge_rounds` 在归档的老 `metrics.json` 里缺失，那是 `ac797cd` **之前**
+  > 跑的文件，**不是现在的 bug** —— 不要再去"修"一遍。
+- **逐 edge 精度已回传**：`server.run_round` 打 `[Acc] Round N | edge0 | em_acc=… |
+  pm_acc=… | n_clients=… | n_samples=…`，`collect_metrics` 出
+  `per_edge_acc_rounds` / `per_edge_acc_final`。此前 `em_accs[]`/`pm_accs[]` 算完
+  **立刻塌成一个加权均值**，于是「被污染的 edge 精度掉了多少」问不了
+  （后门的干净精度代价是逐 edge 的）。未评估轮打 `n/a` 不是 0。
+  聚合表达式一字未改，守卫 `tests/test_per_edge_acc.py::test_aggregate_expressions_are_untouched`。
+  末轮快照取**有 pm_acc 的最后一轮**（直接取 max(round) 会落在 pm 全 None 的轮上）。
 
 **留了接口但没有实现的**（不要以为它们能用）：
 - 主动防御（需要客户端配合的防御）：接口齐了（`BaseDefense.layers` /

@@ -17,6 +17,9 @@ harness/collect_metrics.py  —  把集群 run 的**全量日志**压成一个�
     final                 最后一个后门评估轮的上述指标
     acc_rounds[]          每个**全局轮**的 {round, gm_acc, em_acc, pm_acc}
                           （pm_acc 只在 eval_interval 轮有，其余为 null）
+    per_edge_acc_rounds   逐 edge 精度 {round: [{edge_id, em_acc, pm_acc,
+                          n_clients, n_samples}]} —— 全局均值会摊平「被污染的
+                          edge 精度掉了多少」
     final_acc             最后一轮的 acc + 最终 PM 加权 C-Acc
     admitted[]            鲁棒聚合每次的接纳数 {defense, admitted, total}
     admitted_count_mean   接纳数均值；defense=none 时为 null（本来就没有判决）
@@ -111,6 +114,18 @@ RE_SETTINGS = re.compile(
     r"\[设定\] client_fraction=([\d.]+) \| poison_ratio=([\d.]+) \| "
     r"n_clients=(\d+) \| n_edges=(\d+) \| edge_rounds=(\d+) \| n_malicious=(\d+) \| "
     r"forced_participation=(True|False) \| arch=(\S+)")
+# 第二条自描述行（config_validate.py 的 [设定2]）。**故意与 RE_SETTINGS 分开**：
+# RE_SETTINGS 是全或无的 —— 把新字段塞进去，格式一旦对不上，原有八个字段会
+# 一起变成 None 而日志毫无异常。分成两条，老格式的日志照样解析出前八个。
+RE_SETTINGS2 = re.compile(
+    r"\[设定2\] malicious_per_edge=(\[[\d,]*\]|n/a) \| placement=(\S+) \| "
+    r"edge_assignment=(\S+) \| local_epochs=(\d+) \| plocal_epochs=(\d+) \| "
+    r"seed=(\d+|n/a) \| bd_eval_interval=(\d+|n/a) \| acc_eval_interval=(\d+|n/a)")
+
+# 逐 edge 精度面板（server.py 的 [Acc] 行）。pm_acc 只在 PM 评估轮有，其余是 n/a。
+RE_PER_EDGE_ACC = re.compile(
+    r"\[Acc\] Round (\d+) \| edge(\d+) \| em_acc=([\d.]+|n/a) \| "
+    r"pm_acc=([\d.]+|n/a) \| n_clients=(\d+) \| n_samples=(\d+)")
 
 # ── 失败 / 错误 ─────────────────────────────────────────────────────────────
 RE_CLIENT_FAIL = re.compile(r"\[ERROR\] Client (\d+): (.*)")
@@ -122,11 +137,31 @@ def _int_list(s: str) -> list:
     return [int(x) for x in s.replace(" ", "").split(",") if x != ""]
 
 
+def _opt_str(s: str):
+    """`n/a` → None。**不返回空串** —— 空串会被下游当成「有值但是空的」。"""
+    return None if s == "n/a" else s
+
+
+def _opt_int(s: str):
+    return None if s == "n/a" else int(s)
+
+
+def _opt_int_list(s: str):
+    """`[10,0,0,0]` → [10,0,0,0]；`n/a` → None。
+
+    `n/a`（本 run 不按 edge 布点）与 `[]` 是两件事，不能压成同一个值。
+    """
+    if s == "n/a":
+        return None
+    return _int_list(s.strip("[]"))
+
+
 def _collect_run_info(log_text: str, lines: list) -> dict:
     cfg = RE_CFG_PATH.search(log_text)
     name = RE_RUN_NAME.search(log_text)
     val = RE_VALIDATE.search(log_text)
     setg = RE_SETTINGS.search(log_text)
+    setg2 = RE_SETTINGS2.search(log_text)
 
     mal_ids = []
     m = RE_MAL_RESOLVED.search(log_text)
@@ -156,6 +191,20 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
         "n_malicious":     int(setg.group(6)) if setg else None,
         "forced_participation": (setg.group(7) == "True") if setg else None,
         "arch":            setg.group(8) if setg else None,
+        # ── [设定2]：布点、训练量、评估网格 ──────────────────────────────
+        #   `malicious_per_edge` 是 Experiment 3A 的**自变量本身**；`edge_assignment`
+        #   是把 client_id 映射回 edge 的规则（回程分析要靠它把
+        #   malicious_participation_by_client 聚合到 edge）；两个 eval_interval 决定
+        #   评估网格粗细，下游据此判断「这一格能不能算到阈值的有效轮数」。
+        #   缺 [设定2] 的老日志 → 全是 None（不是 0、不是 []）。
+        "malicious_per_edge": (_opt_int_list(setg2.group(1)) if setg2 else None),
+        "malicious_placement": (_opt_str(setg2.group(2)) if setg2 else None),
+        "edge_assignment":   (_opt_str(setg2.group(3)) if setg2 else None),
+        "local_epochs":      int(setg2.group(4)) if setg2 else None,
+        "plocal_epochs":     int(setg2.group(5)) if setg2 else None,
+        "seed":              (_opt_int(setg2.group(6)) if setg2 else None),
+        "bd_eval_interval":  (_opt_int(setg2.group(7)) if setg2 else None),
+        "acc_eval_interval": (_opt_int(setg2.group(8)) if setg2 else None),
     }
 
 
@@ -235,6 +284,26 @@ def _collect_participation(log_text: str, malicious_ids: list) -> tuple:
             by_client[cid].add(rnd)
     all_rounds = sorted(set().union(*by_client.values()) if by_client else set())
     return all_rounds, {str(k): sorted(v) for k, v in by_client.items()}
+
+
+def _collect_per_edge_acc(log_text: str) -> dict:
+    """逐 edge 精度面板：{round: [ {edge_id, em_acc, pm_acc, n_clients, n_samples} ]}。
+
+    `pm_acc` 只在 PM 评估轮有值，其余轮是 `None`（**不是 0**，陷阱 #13）。
+    """
+    by_round = {}
+    for m in RE_PER_EDGE_ACC.finditer(log_text):
+        rnd = int(m.group(1))
+        by_round.setdefault(rnd, []).append({
+            "edge_id":   int(m.group(2)),
+            "em_acc":    _opt(m.group(3)),
+            "pm_acc":    _opt(m.group(4)),
+            "n_clients": int(m.group(5)),
+            "n_samples": int(m.group(6)),
+        })
+    for rnd in by_round:
+        by_round[rnd].sort(key=lambda d: d["edge_id"])
+    return by_round
 
 
 def _collect_per_edge(log_text: str) -> dict:
@@ -373,6 +442,14 @@ def collect(log_text: str) -> dict:
                       if per_edge_rounds else [])
     drift_rounds = _collect_drift(log_text)
     timing_rounds = _collect_timing(log_text)
+    per_edge_acc_rounds = _collect_per_edge_acc(log_text)
+    # 末轮快照取**有 pm_acc 的最后一轮**：em_acc 每轮都有，pm_acc 只在评估轮有，
+    # 直接取 max(round) 往往落在一个 pm_acc 全是 None 的轮上。
+    _pm_rounds = [r for r, v in per_edge_acc_rounds.items()
+                  if any(e["pm_acc"] is not None for e in v)]
+    per_edge_acc_final = (per_edge_acc_rounds[max(_pm_rounds)] if _pm_rounds
+                          else (per_edge_acc_rounds[max(per_edge_acc_rounds)]
+                                if per_edge_acc_rounds else []))
 
     return {
         "run": run,
@@ -386,6 +463,9 @@ def collect(log_text: str) -> dict:
         "drift_final": drift_rounds[-1] if drift_rounds else None,
         "acc_rounds": acc_rounds,
         "final_acc": final_acc,
+        # 逐 edge 精度（后门的干净精度代价是逐 edge 的，全局均值会把它摊平）
+        "per_edge_acc_rounds": per_edge_acc_rounds,
+        "per_edge_acc_final": per_edge_acc_final,
         # 墙钟拆分（标定用）：round_time 不含后门评估，两者要相加，见 RE_ROUND_TIME
         "timing_rounds": timing_rounds,
         "timing_summary": _timing_summary(acc_rounds, timing_rounds),

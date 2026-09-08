@@ -19,6 +19,17 @@ config 被接受、日志一切正常、跑完 24 小时才发现那一格结果
 """
 
 
+def _compact_list(v) -> str:
+    """把布点向量打成 `[10,0,0,0]`（无空格）—— 正则好写、一行放得下。
+
+    `None` / 空 → `n/a`（**不是 `[]`**）：「本 run 不按 edge 布点」与
+    「按 edge 布点但每个 edge 零个」是两件事，数值上不能长一样（铁律：无定义留空）。
+    """
+    if not v:
+        return "n/a"
+    return "[" + ",".join(str(int(x)) for x in v) + "]"
+
+
 class ConfigError(ValueError):
     """配置不兼容。消息里必须写清楚：哪里不对、合法值是什么、怎么改。"""
 
@@ -242,6 +253,29 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
     if not (0.0 < frac <= 1.0):
         _fail(f"federation.client_fraction={frac} 不在 (0, 1]")
 
+    # ── 4b. 评估网格 ─────────────────────────────────────────────────────
+    #   `backdoor.eval_interval`（backdoor_server.py:45，默认 **50**）与
+    #   `evaluation.eval_interval`（server.py:258，默认 **10**）是**两个独立的键**，
+    #   默认值还不一样。只写一个，ASR 与 PM 精度就落在不同的轮上 —— 于是
+    #   metrics.json 的 `rounds[]`（ASR）与 `acc_rounds[]`（精度）无法逐点配对，
+    #   而日志里没有任何异常。这不是致命错误（有意设成不同密度是合理的），
+    #   所以只警告，不拦。
+    ev_cfg = config.get("evaluation", {}) or {}
+    bd_ev = bd.get("eval_interval", None) if bd_enabled else None
+    acc_ev = ev_cfg.get("eval_interval", None)
+    if bd_enabled and bd_ev is None:
+        warnings.append(
+            "backdoor.eval_interval 未显式设置，回退默认 50 —— 而 "
+            "evaluation.eval_interval 的默认是 10。两者不同会让 ASR 与精度落在不同轮上。")
+    if acc_ev is None:
+        warnings.append(
+            "evaluation.eval_interval 未显式设置，回退默认 10。建议显式写死。")
+    if bd_ev is not None and acc_ev is not None and int(bd_ev) != int(acc_ev):
+        warnings.append(
+            f"backdoor.eval_interval={int(bd_ev)} != evaluation.eval_interval={int(acc_ev)}："
+            f"ASR 与 PM 精度会落在不同的轮上，metrics.json 的 rounds[] 与 acc_rounds[] "
+            f"无法逐点配对。若是有意的（ASR 评估更贵），忽略本条。")
+
     # ── 5. 可复现性 ─────────────────────────────────────────────────────
     if "seed" not in config:
         warnings.append("config 缺 seed，实验不可复现。建议显式写死。")
@@ -266,4 +300,30 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
           f"n_malicious={int(bd.get('n_malicious', 0) or 0) if bd_enabled else 0} | "
           f"forced_participation={bool(bd.get('forced_participation', False)) if bd_enabled else False} | "
           f"arch={config.get('model', {}).get('arch', '?')}")
+
+    # ── 6b. 布点与训练量自描述（[设定2]）──────────────────────────────────
+    #   **为什么另起一行而不是扩 [设定]**：`RE_SETTINGS`（collect_metrics.py:110）
+    #   是一条**全或无**的正则 —— 格式一旦对不上，client_fraction / poison_ratio /
+    #   n_clients / n_edges / edge_rounds / n_malicious / forced_participation / arch
+    #   **八个字段一起变成 None**，而日志毫无异常。扩它等于把八个已经能用的字段押上去。
+    #   独立成行：老格式日志照常解析，新字段解析不出来就单独是 None。
+    #
+    #   记的是此前 metrics.json 里**完全没有**的四类量：
+    #     - `malicious_per_edge` —— Experiment 3A 的**自变量本身**。没有它，
+    #       「这份 json 是哪一格」只能靠文件名，而 metrics.json 必须自证。
+    #     - `edge_assignment` —— 把 client_id 映射到 edge 的规则（block = 连续分块）。
+    #       没有它，回程分析拿 malicious_participation_by_client 聚合到 edge 时
+    #       只能靠「我记得配置是 block」。
+    #     - `local_epochs` / `plocal_epochs` —— Stage B 标定之后会变，变了没法从文件区分。
+    #     - 两个 eval_interval —— 决定评估网格的粗细（R40 最细只能到 40 有效轮）。
+    #       下游要靠它判断「这一格能不能算到阈值的轮数」，粗到一定程度就该拒绝插值。
+    train_cfg = config.get("training", {}) or {}
+    print(f"[设定2] malicious_per_edge={_compact_list(bd.get('malicious_per_edge') if bd_enabled else None)} | "
+          f"placement={str(bd.get('malicious_placement', 'spread')).lower() if bd_enabled else 'n/a'} | "
+          f"edge_assignment={str(fed.get('edge_assignment', 'random')).lower()} | "
+          f"local_epochs={int(train_cfg.get('local_epochs', 0) or 0)} | "
+          f"plocal_epochs={int(train_cfg.get('plocal_epochs', 0) or 0)} | "
+          f"seed={config.get('seed', 'n/a')} | "
+          f"bd_eval_interval={int(bd_ev) if bd_ev is not None else 'n/a'} | "
+          f"acc_eval_interval={int(acc_ev) if acc_ev is not None else 'n/a'}")
     return warnings

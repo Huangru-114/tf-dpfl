@@ -273,9 +273,13 @@ class CloudServer(RobustAggregationMixin):
 
         # Personalized model：每 eval_interval 轮测一次，按样本数加权
         avg_pm_acc = avg_pm_loss = None
+        # 逐 edge 的 PM 精度：edge_id -> (该 edge 内按样本加权的 pm_acc, 客户端数)。
+        # 只是**顺带分组**，下面的全局聚合一字未改（pm_accs/pm_ns 的追加顺序不变）。
+        per_edge_pm = {}
         if do_pm_eval:
             pm_losses, pm_accs, pm_ns = [], [], []
             for edge in self.edge_servers:
+                e_accs, e_ns = [], []
                 for client in edge.clients:
                     c_loss, c_acc = client.evaluate_on(
                         fallback_dataset=self.test_dataset
@@ -283,6 +287,12 @@ class CloudServer(RobustAggregationMixin):
                     pm_losses.append(c_loss)
                     pm_accs.append(c_acc)
                     pm_ns.append(client.n_samples)
+                    e_accs.append(c_acc)
+                    e_ns.append(client.n_samples)
+                e_tot = sum(e_ns)
+                per_edge_pm[edge.edge_id] = (
+                    float(sum(a * n / e_tot for a, n in zip(e_accs, e_ns))) if e_tot else None,
+                    len(edge.clients))
             total_pm_n  = sum(pm_ns)
             avg_pm_acc  = float(sum(a * n / total_pm_n for a, n in zip(pm_accs, pm_ns)))
             avg_pm_loss = float(sum(l * n / total_pm_n for l, n in zip(pm_losses, pm_ns)))
@@ -322,6 +332,23 @@ class CloudServer(RobustAggregationMixin):
             f"loss={global_loss:.4f} | time={elapsed:.1f}s | "
             f"comm={comm_round/1024/1024:.1f}MB "
             f"(total={self.total_comm_bytes/1024/1024:.0f}MB)")
+
+        # ── 逐 edge 精度面板 ────────────────────────────────────────────────
+        #   em_accs / per_edge_pm 上面**已经算出来了**，此前算完就丢，只留一个按样本
+        #   加权的均值 —— 于是「被污染的那个 edge 精度掉了多少」在 metrics.json 里
+        #   根本问不了（后门的干净精度代价是逐 edge 的，均值会把它摊平）。
+        #   格式对齐 backdoor_server 的 `[Backdoor] Round N | edge0 | …`。
+        #   未到 PM 评估轮时打 `n/a` 而**不是 0**（0 会被读成「精度归零」，陷阱 #13）。
+        #   数值锚点：逐 edge 值按 n_samples 加权回去 == 上面的 avg_em_acc / avg_pm_acc，
+        #   tests/test_per_edge_acc.py 断言了这一条。
+        def _f4(v):
+            return "n/a" if v is None else f"{v:.4f}"
+
+        for edge, e_acc, e_n in zip(self.edge_servers, em_accs, em_ns):
+            pm_a, pm_c = per_edge_pm.get(edge.edge_id, (None, len(edge.clients)))
+            print(f"[Acc] Round {round_idx} | edge{edge.edge_id} | "
+                  f"em_acc={_f4(e_acc)} | pm_acc={_f4(pm_a)} | "
+                  f"n_clients={pm_c} | n_samples={e_n}")
         return metrics
 
     def run(self, logger=None):
