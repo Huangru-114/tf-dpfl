@@ -1,0 +1,64 @@
+{
+  "run": {
+    "config_path": null,
+    "run_name": null,
+    "method": null,
+    "defense": null,
+    "attack": null,
+    "n_rounds": null,
+    "malicious_ids": [],
+    "client_fraction": null,
+    "poison_ratio": null,
+    "n_clients": null,
+    "n_edges": null,
+    "edge_rounds": null,
+    "n_malicious": null,
+    "forced_participation": null,
+    "arch": null
+  },
+  "rounds": [],
+  "final": null,
+  "per_edge_rounds": {},
+  "per_edge_final": [],
+  "drift_rounds": [],
+  "drift_final": null,
+  "acc_rounds": [],
+  "final_acc": {
+    "final_pm_weighted": null
+  },
+  "timing_rounds": [],
+  "timing_summary": {
+    "n_rounds_timed": 0,
+    "n_bd_evals": 0,
+    "round_time_total_s": null,
+    "bd_eval_total_s": null,
+    "wall_total_s": null,
+    "bd_eval_fraction": null,
+    "round_time_mean_s": null,
+    "bd_eval_mean_s": null,
+    "bd_phase_mean_s": {
+      "asr": null,
+      "feature": null,
+      "forgetting": null,
+      "drift": null
+    }
+  },
+  "admitted": [],
+  "admitted_count_mean": null,
+  "rejected_ids": [],
+  "malicious_selected_rounds": [],
+  "n_malicious_participations": 0,
+  "malicious_participation_by_client": {},
+  "client_failures": [],
+  "errors": [
+    "Traceback (most recent call last):",
+    "ModuleNotFoundError: No module named 'numpy'"
+  ],
+  "log_tail": [
+    "Traceback (most recent call last):",
+    "  File \"/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tf-dpfl/fedavg/main.py\", line 3, in <module>",
+    "    import numpy as np",
+    "ModuleNotFoundError: No module named 'numpy'"
+  ],
+  "exit_code": 1
+}
