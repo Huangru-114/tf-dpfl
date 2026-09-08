@@ -30,7 +30,7 @@
 #
 # 产出：
 #     experiments/<axis>/<method>/<exp_id>.metrics.json   ← 小，回传 git
-#     ${TFDPFL_LOGDIR:-$ROOT/logs}/smoke_<...>.log   ← 大，留集群
+#     ${TFDPFL_LOGDIR:-<仓库同级>/tfdpfl-logs}/smoke_<...>.log   ← 大，留集群
 #     （不写 /tmp：sbatch 下 /tmp 在计算节点上，作业结束后从登录节点拿不到）
 #
 # 判据由你在 current-focus.md 里事先写死；本脚本只负责「客观、自动、无需人肉判读」。
@@ -50,9 +50,9 @@ source "$ROOT/cluster_env.sh"
 
 OUTDIR="$ROOT/experiments/$AXIS/$METHOD"
 # 大日志（留集群，永不进 git）。与 experiment_tf.sh 同一套约定：写到仓库同级的
-# logs/（仓库内，.gitignore 已忽略），**不要写 /tmp** —— sbatch 下 /tmp 在计算节点上，作业结束后
+# tfdpfl-logs/，**不要写 /tmp** —— sbatch 下 /tmp 在计算节点上，作业结束后
 # 从登录节点根本拿不到，而 Step 1 的判据要 grep 这个日志。
-LOGDIR="${TFDPFL_LOGDIR:-$ROOT/logs}"
+LOGDIR="${TFDPFL_LOGDIR:-$ROOT/../tfdpfl-logs}"
 LOG="$LOGDIR/smoke_${AXIS}_${METHOD}_${ATTACK}_${DEFENSE}${FRAMEWORK:+_$FRAMEWORK}.log"
 
 mkdir -p "$OUTDIR" "$LOGDIR"
@@ -66,20 +66,9 @@ echo "[smoke] axis=$AXIS method=$METHOD attack=$ATTACK defense=$DEFENSE" \
      "framework=${FRAMEWORK:-<yaml 默认>}"
 echo "[smoke] 大日志 -> $LOG （留集群，不进 git）"
 
-# ⚠️ **cwd 放在仓库的上一级**（2026-09-08 实测）：apptainer **只自动挂 $PWD**，
-#    而本仓库的作业要同时够到三处：
-#        $ROOT/experiments/...      配置
-#        $ROOT/logs/...             日志
-#        $ROOT/../data/datasets/    keras 数据缓存（TFDPFL_KERAS_HOME 指向它）
-#    只有把 cwd 放到 $ROOT/.. 才一次覆盖全部。cwd 留在 $ROOT 时，`../data`
-#    在容器里 isdir=False，于是 resolve_keras_home 静默跳过 TFDPFL_KERAS_HOME、
-#    回退到 ~/.keras 的悬空软链，最后 mkdir 撞上容器只读根：
-#        OSError: [Errno 30] Read-only file system: '.../ziangg/data'
-#    所有仓库内路径因此一律写成 "$ROOT/..." 的绝对形式。
-#    `$PY "$ROOT/fedavg/main.py"` 的 sys.path[0] 仍是 $ROOT/fedavg，import 不变。
-cd "$ROOT/.."
+cd "$ROOT/fedavg"
 set +e
-$PY "$ROOT/fedavg/main.py" \
+$PY main.py \
     --config "$ROOT/experiments/smoke-base.yaml" \
     --attack_method "$ATTACK" \
     --defense "$DEFENSE" \
@@ -88,8 +77,8 @@ $PY "$ROOT/fedavg/main.py" \
 RC=${PIPESTATUS[0]}
 set -e
 
-cd "$ROOT/.."
-$PY "$ROOT/harness/collect_metrics.py" "$LOG" -o "$OUTDIR/$EXP_ID.metrics.json"
+cd "$ROOT"
+$PY harness/collect_metrics.py "$LOG" -o "$OUTDIR/$EXP_ID.metrics.json"
 
 echo "[smoke] run exit code = $RC"
 echo "[smoke] 回传这一个文件即可：$OUTDIR/$EXP_ID.metrics.json"

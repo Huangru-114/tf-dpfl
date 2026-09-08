@@ -46,68 +46,52 @@ $PY main.py --config ...
 **每次跑之前扫一眼这行** —— 静默地跑在错误的环境里是最难查的一类问题。
 `TFDPFL_PY` / `TFDPFL_SIF` / `TFDPFL_BIND` 可覆盖。
 
-**⚠️ 容器只自动挂 `$PWD` —— 所以 cwd 必须留在仓库根（2026-09-07 实测）**
+**⚠️ `--bind <仓库上一级>` 是这套设计的地基，不要拆（2026-09-08 定论）**
 
-两件事，别混在一起：
-
-**1. 不要用 `--bind`。** Arrhenius 上实测可用的标准写法没有它：
+`cluster_env.sh` 里的
 
 ```bash
-module load GPU/buildenv-nvhpc/25.9-cu13.0
-apptainer exec --nv /nobackup/.../tensorflow.sif python3 -m 你的模块
+TFDPFL_BIND="${TFDPFL_BIND:-$(cd "$_TFDPFL_ROOT/.." && pwd)}"
+PY="apptainer exec --nv --bind $TFDPFL_BIND $TFDPFL_SIF python3"
 ```
 
-显式 `--bind <仓库上一级>` 在这台机器上**会让容器起不来**，而报错长得像
-「容器里看不到仓库目录」。`cluster_env.sh` 默认不绑；`TFDPFL_BIND=<路径>`
-仍可显式打开，换集群时再说。
+**是 2026-08 全部 Arrhenius run 验证过的**（exp3 的 3C 全批就是这么跑出来的，
+数据提交 `20515a4` 的作者机是 `arrhenius1`）。apptainer 默认只挂 `$PWD` 和
+`$HOME`，而本仓库的作业要跨目录够到三处 —— 绑定仓库上一级**一次覆盖全部**：
 
-**2. 但「只挂 `$PWD`」这条是真的。** 作业脚本一旦 `cd $ROOT/fedavg`，
-兄弟目录 `$ROOT/experiments/` 和上一级的日志目录就都在 `$PWD` 之外 ——
-容器里看不见，报 `FileNotFoundError` 而文件明明在。实测证据：
+| 需要 | 路径 |
+|---|---|
+| 配置（cwd 在 `fedavg/` 时是兄弟目录） | `$ROOT/experiments/...` |
+| 日志 | `$ROOT/../tfdpfl-logs/...` |
+| keras 数据缓存 | `$ROOT/../data/datasets/` |
 
-```
-[Config] loading /nobackup/.../tf-dpfl/experiments/calibration/local_epochs1_seed42.yaml
-FileNotFoundError: ... /experiments/calibration/local_epochs1_seed42.yaml
-```
-（同一个 run 里 `$ROOT/fedavg/main.py` 读得到 —— 它在 `$PWD` **之内**。）
+所以作业脚本一律 `cd "$ROOT/fedavg"` + `$PY main.py`，日志放 `$ROOT/../tfdpfl-logs`。
+**这些都不要"优化"。**
 
-**约定**：所有作业脚本 **`cd "$ROOT/.."`（仓库的上一级）**，仓库内路径一律写成
-`"$ROOT/..."` 的绝对形式。因为作业要同时够到**三处**：
+> ### 2026-09 的三轮误判（写下来免得重演）
+>
+> 起因：`run_calibration.sh` 被加了 `source cluster_env.sh`，于是启动自检
+> **在登录节点** arrhenius1 上跑了。自检当时用 `$PY`，而 `$PY` 带 `--nv` ——
+> 登录节点没有 NVIDIA 驱动，容器根本起不来，自检却报
+> 「✗ 容器里看不到仓库目录」。
+>
+> 那句话把人引向 `--bind`。于是连续三轮拆掉了正确的设计：
+> `--bind` 改成默认不加 → `cd` 从 `fedavg` 挪到仓库根 → 再挪到上一级，
+> 每一轮换一个 `FileNotFoundError`（配置 → 日志 → keras 缓存），
+> 因为每一轮都只补上了 `$PWD` 恰好没盖住的那一块。
+>
+> **8 月之所以没暴露**：`run_exp3.sh` 在登录节点只调 `sbatch`、**不 source**
+> `cluster_env.sh`，自检只在计算节点跑过。
+>
+> 现已修好的是自检本身：它只关心**挂载**，不需要 GPU，所以改用**不带 `--nv`**
+> 的等价命令，并回显 apptainer 原话。守卫：
+> `tests/test_cluster_env_usage.py::test_self_check_does_not_use_nv`
+> 与 `::test_bind_defaults_to_the_repo_parent`（两个反向锚点都实测过）。
+>
+> **教训**：一条自检报出的原因，本身也可能是错的。它说「看不到仓库」之前，
+> 先确认容器起得来 —— 这两件事的修法南辕北辙。
 
-| 需要 | 路径 | 在 `$ROOT` 之内？ |
-|---|---|---|
-| 配置 | `$ROOT/experiments/...` | ✓ |
-| 日志 | `$ROOT/logs/...` | ✓ |
-| keras 数据缓存 | `$ROOT/../data/datasets/` | **✗ 在上一级** |
-
-cwd 停在 `$ROOT` 时第三项看不见，症状很绕：`cluster_env.sh` 在**宿主机**上
-探测到 `data/` 存在才设 `TFDPFL_KERAS_HOME`，而容器里 `os.path.isdir` 为 False
-→ `resolve_keras_home` **静默跳过**这个候选 → 回退到 `~/.keras` 的悬空软链
-→ mkdir 撞上容器只读根：
-
-```
-OSError: [Errno 30] Read-only file system: '/nobackup/.../ziangg/data'
-```
-
-`$PY "$ROOT/fedavg/main.py"` 的 `sys.path[0]` 仍是 `$ROOT/fedavg`，
-`from client.x import` 一行都不用改。日志在 `$ROOT/logs`（`.gitignore` 已忽略）。
-守卫：`tests/test_cluster_env_usage.py` 的 `test_training_runs_from_the_repo_parent`
-/ `test_in_repo_script_paths_are_absolute` / `test_log_dir_defaults_inside_the_repo`。
-
-> 本文件对这一段改过三次：「`--bind` 不能省」→「`--bind` 无关紧要」→
-> 「cwd 放仓库根」。**前三次都不完整**。准确的是：`--bind` 在这台机器上不能用，
-> `$PWD` 之外确实看不见，而作业需要的东西**跨了仓库边界**（数据在上一级），
-> 所以 cwd 必须放在仓库的上一级。
-
-
-**`.sif` 必须写绝对路径**；脚本与数据路径可以相对 —— apptainer 保留 `$PWD`，
-标准示例里的 `--data-root ./data` 就是相对的。
-
-**cwd=仓库根之后的两处遗留**（都不影响当前实验，记录备查）：
-`fedavg/data/partition.py:412` 的 `open("config/config.yaml")` 在
-`if __name__ == "__main__":` 的 demo 块里，作业不走；
-`fedavg/attack/triggers.py` 的 blended 默认图已改为按**包目录**解析，
-不再依赖 cwd。
+**`.sif` 必须写绝对路径**；脚本与数据路径可以相对（`--bind` + `$PWD` 都在）。
 
 **Bad-PFL（torch）用的是另一个容器**：
 `/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/torch_fl.sif`，
@@ -516,27 +500,21 @@ methods-registry.md   所有候选方法的台账 = 研究看板
     之外硬写；另有一条反向自检防止「零个文件全部通过」）。
     **新写作业脚本时从 `run_full.sh` 抄头，不要从 git 历史里翻。**
 
-17. ~~**cwd=fedavg 时容器看不见兄弟目录**~~ ✅ **已修复**（`<本次>`）
-    apptainer **只自动挂 `$PWD`**。全部 5 个作业脚本都 `cd $ROOT/fedavg`
-    再跑 `$PY main.py`，于是 `$ROOT/experiments/` 与上一级的 `tfdpfl-logs/`
-    都在容器视野之外。实测：Stage B 第一格死在
-    `FileNotFoundError: .../experiments/calibration/local_epochs1_seed42.yaml`，
-    紧接着 `collect_metrics.py` 又读不到自己刚写的日志 —— 同一个根因两处爆发。
-    （此前没暴露，是因为 exp3 那批历史 run 跑在 Alvis 的裸 python 下，没进容器。）
-    现：**`cd "$ROOT/.."`** + `$PY "$ROOT/fedavg/main.py"`（`sys.path[0]` 仍是
-    `$ROOT/fedavg`，import 不变），日志默认挪进 `$ROOT/logs`。
-    **注意是上一级不是仓库根** —— 第二次尝试只挪到仓库根，结果 keras 缓存
-    （`$ROOT/../data/datasets`）仍在视野外，`resolve_keras_home` 静默跳过
-    已设置的 `TFDPFL_KERAS_HOME`、回退 `~/.keras` 悬空软链、mkdir 撞只读根，
-    报 `OSError: [Errno 30] Read-only file system`。
-    `resolve_keras_home` 现在会在「设了但 isdir=False」时**明确警告**
-    （静默忽略已设置的环境变量 = 陷阱 #7 同一类）。
-    守卫：`tests/test_cluster_env_usage.py` 的两条新断言，
-    **反向锚点都实测过**（改回 `cd fedavg` / 改回上一级日志 → 立刻红）。
-    ⚠️ 顺带发现本地测试跑批器有**假绿**：参数化用例整组包在一个 try 里，
-    第一个 skip 会让其余用例根本不跑却记成整体 skip。修好后真实计数从
-    「112 passed」变成「166 passed」—— 此前几次汇报的通过数是**少算的**
-    （pass/fail 的判断没错，总数错了）。
+17. **自检的报错本身可能是错的（2026-09，三轮误判）** ⚠️ **教训条目**
+    `cluster_env.sh` 的启动自检当时用 `$PY` 探测「容器能不能看见仓库」，
+    而 `$PY` 带 `--nv`。给 `run_calibration.sh` 加了 `source cluster_env.sh`
+    之后，自检**在登录节点**跑了 —— 那里没有 NVIDIA 驱动，容器根本起不来，
+    自检却报「✗ 容器里看不到仓库目录」。
+    那句话把人引向 `--bind`，于是连续三轮拆掉了 8 月验证过的正确设计
+    （`--bind <仓库上一级>` + `cd $ROOT/fedavg` + 上一级 `tfdpfl-logs`），
+    每轮换一个 `FileNotFoundError`：配置 → 日志 → keras 缓存，
+    因为每轮只补上 `$PWD` 恰好没盖住的那一块。
+    **证据**：`20515a4`（作者机 `arrhenius1`）提交的 3C 全批结果，
+    当时的脚本正是 `--bind` + `cd fedavg`。
+    现已全部回退；自检改用**不带 `--nv`** 的等价命令并回显 apptainer 原话。
+    守卫：`test_bind_defaults_to_the_repo_parent` / `test_self_check_does_not_use_nv`
+    / `test_training_runs_from_fedavg` / `test_log_dir_defaults_beside_the_repo`。
+    **下次先确认容器起得来，再信「看不到仓库」这句话。**
 
 15. **`run_exp3.sh` 按 `exit_code: 0` 跳过已完成格子**
     重跑前必须把旧的 `results/*.metrics.json` 移走，否则**一个 GPU 作业都不会提交**，

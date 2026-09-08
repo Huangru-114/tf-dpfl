@@ -120,25 +120,6 @@ def test_cluster_env_points_at_the_arrhenius_container():
     assert "apptainer exec --nv" in env
 
 
-def test_bind_is_off_by_default():
-    """**默认不加 --bind**，与 Arrhenius 上实测可用的写法一致：
-
-        apptainer exec --nv <abs .sif> python -m <module>
-
-    这台机器的 apptainer 已在系统级把 /nobackup 挂进容器；再显式 --bind
-    反而会失败，且失败信息长得像「容器里看不到仓库目录」。
-    我们一度以为 --bind 是必须的，那条经验在这台机器上不成立。
-    """
-    env = (ROOT / "cluster_env.sh").read_text(encoding="utf-8")
-    assert 'TFDPFL_BIND="${TFDPFL_BIND:-}"' in env, \
-        "TFDPFL_BIND 又有默认值了 —— 默认必须为空（不绑）"
-    assert 'PY="apptainer exec --nv $TFDPFL_SIF python3"' in env, \
-        "缺少不带 --bind 的那条路径"
-    # 但仍要保留显式打开的能力（换集群时可能需要）
-    assert 'if [ -n "$TFDPFL_BIND" ]; then' in env, \
-        "TFDPFL_BIND 设了值时应该仍然生效"
-
-
 @pytest.mark.parametrize("path", JOB_SCRIPTS, ids=lambda p: p.name)
 def test_container_path_is_not_hardcoded_outside_cluster_env(path):
     """新脚本不要再硬写容器路径 —— CLAUDE.md 明确要求收口到 cluster_env.sh。"""
@@ -147,70 +128,65 @@ def test_container_path_is_not_hardcoded_outside_cluster_env(path):
 
 
 # ══════════════════════════════════════════════════════════════════════════
-# cwd 必须留在仓库根：apptainer 只自动挂 $PWD
+# 8 月在 Arrhenius 上跑通的设计：--bind <仓库上一级> 撑起一切
 # ══════════════════════════════════════════════════════════════════════════
-# 认新形式 `$PY "$ROOT/fedavg/main.py"`。第一版还在匹配旧的裸相对路径，
-# 于是这个列表变成空的 —— 靠下面那条反向自检才发现（否则整组测试会
-# 「零个文件全部通过」）。
 TRAIN_SCRIPTS = [p for p in JOB_SCRIPTS
-                 if re.search(r'\$(PY|RUN) "?\$?\{?ROOT\}?/?[\w/]*main\.py', _code(p))
-                 or re.search(r"\$(PY|RUN) (fedavg/)?main\.py", _code(p))]
+                 if re.search(r"\$(PY|RUN) main\.py", _code(p))]
 
 
 def test_there_are_training_scripts_to_check():
+    """反向自检：正则失配时不能退化成「零个文件全部通过」。"""
     assert len(TRAIN_SCRIPTS) >= 4, [p.name for p in TRAIN_SCRIPTS]
 
 
+def test_bind_defaults_to_the_repo_parent():
+    """**`--bind <仓库上一级>` 是这套设计的地基**，不要再拆。
+
+    2026-08 全部 Arrhenius run（含 exp3 的 3C 全批，作者机 arrhenius1）
+    都靠它：`cd $ROOT/fedavg` 能读到兄弟目录 `$ROOT/experiments/`、
+    上一级的 `tfdpfl-logs/`、以及 `$ROOT/../data/datasets`（keras 缓存），
+    全部因为绑定根覆盖了整片。
+
+    2026-09 我们误以为 --bind 无效（真实原因是自检带 `--nv` 在**登录节点**
+    起不来容器），连续三轮把 cwd/日志/路径全改掉，每改一轮换一个
+    FileNotFoundError。见 CLAUDE.md 陷阱 #17。
+    """
+    env = (ROOT / "cluster_env.sh").read_text(encoding="utf-8")
+    assert re.search(r'TFDPFL_BIND="\$\{TFDPFL_BIND:-\$\(cd "\$_TFDPFL_ROOT/\.\." && pwd\)\}"',
+                     env), "TFDPFL_BIND 的默认值不再是仓库上一级"
+    # 必须盯 **$PY 那一行**：自检命令里也有 --bind，泛泛地搜整个文件会被它
+    # 蒙混过去（第一次写就是这样，反向锚点没红才发现）。
+    m = re.search(r'^\s*PY="apptainer exec[^"]*"', env, re.M)
+    assert m, "找不到 $PY 的赋值行"
+    assert "--bind $TFDPFL_BIND" in m.group(0), f"$PY 里没有 --bind：{m.group(0)}"
+    assert "--nv" in m.group(0), f"$PY 里没有 --nv（训练要 GPU）：{m.group(0)}"
+
+
+def test_self_check_does_not_use_nv():
+    """自检只关心**挂载**，不需要 GPU。带 `--nv` 会在登录节点直接失败，
+    并把人引向完全错误的方向（报「看不到仓库目录」，实际是没驱动）。"""
+    env = (ROOT / "cluster_env.sh").read_text(encoding="utf-8")
+    m = re.search(r'_TFDPFL_CHECK="([^"]+)"', env)
+    assert m, "找不到自检用的命令"
+    assert "--nv" not in m.group(1), f"自检还带着 --nv：{m.group(1)}"
+    assert "--bind" in m.group(1), "自检没带 --bind，测不出挂载"
+
+
 @pytest.mark.parametrize("path", TRAIN_SCRIPTS, ids=lambda p: p.name)
-def test_training_runs_from_the_repo_parent(path):
-    """apptainer **只自动挂 $PWD**，而作业要同时够到三处：
-    `$ROOT/experiments/`（配置）、`$ROOT/logs/`（日志）、
-    `$ROOT/../data/datasets/`（keras 缓存，TFDPFL_KERAS_HOME 指向它）。
-    **只有 cwd = $ROOT/.. 才一次覆盖全部。**
-
-    cwd 留在 $ROOT 时，`../data` 在容器里 isdir=False -> resolve_keras_home
-    静默跳过 TFDPFL_KERAS_HOME -> 回退 ~/.keras 悬空软链 -> mkdir 撞只读根：
-        OSError: [Errno 30] Read-only file system: '.../ziangg/data'
-
-    `$PY "$ROOT/fedavg/main.py"` 的 sys.path[0] 仍是 $ROOT/fedavg，import 不变。
-    """
+def test_training_runs_from_fedavg(path):
+    """cwd = `$ROOT/fedavg` 是 8 月验证过的形式（--bind 覆盖了跨目录访问）。"""
     code = _code(path)
-    assert 'cd "$ROOT/fedavg"' not in code, f"{path.name} 还在 cd 进 fedavg"
-    assert re.search(r'^cd "\$ROOT"\s*$', code, re.M) is None, \
-        f"{path.name} 的 cwd 停在仓库根 —— ../data 会看不见"
-    assert re.search(r'^cd "\$ROOT/\.\."\s*$', code, re.M), \
-        f"{path.name} 没有把 cwd 放到仓库上一级"
-    assert re.search(r'\$(PY|RUN) "\$ROOT/fedavg/main\.py"', code), \
-        f"{path.name} 调 main.py 没用 \"$ROOT/...\" 绝对形式（cwd 已不是仓库根）"
+    assert 'cd "$ROOT/fedavg"' in code, f"{path.name} 不再 cd 进 fedavg"
+    assert re.search(r"\$(PY|RUN) main\.py", code), \
+        f"{path.name} 没有以 `$PY main.py` 的形式调用"
 
 
 @pytest.mark.parametrize("path", JOB_SCRIPTS, ids=lambda p: p.name)
-def test_in_repo_script_paths_are_absolute(path):
-    """**只对把 cwd 挪到上一级的脚本**要求绝对路径 —— 仍停在 $ROOT 的
-    （如 run_l1.sh 要 `pytest tests/`）用相对路径是对的。"""
-    code = _code(path)
-    if not re.search(r'^cd "\$ROOT/\.\."\s*$', code, re.M):
-        pytest.skip(f"{path.name} 的 cwd 不在仓库上一级")
-    bad = [ln.strip() for ln in code.splitlines()
-           if re.search(r"\$(PY|RUN) (harness|fedavg)/", ln)]
-    assert not bad, f"{path.name} 还有相对的仓库内路径：{bad}"
-
-
-@pytest.mark.parametrize("path", JOB_SCRIPTS, ids=lambda p: p.name)
-def test_log_dir_defaults_inside_the_repo(path):
-    """日志默认目录必须在 $PWD 之内。放在仓库**上一级**（旧的 tfdpfl-logs）
-    同样在容器视野之外 —— collect_metrics 会读不到自己刚写的日志。
-    `.gitignore` 已忽略 `logs/`，大日志照样不进 git。
-    """
+def test_log_dir_defaults_beside_the_repo(path):
+    """日志在仓库**上一级** `tfdpfl-logs/` —— 大日志天然不在 git 里，
+    而 `--bind <上一级>` 保证容器看得见。"""
     code = _code(path)
     if "LOGDIR=" not in code:
         pytest.skip(f"{path.name} 不写日志")
-    assert "../tfdpfl-logs" not in code, \
-        f"{path.name} 的日志默认在仓库上一级 —— 容器看不见"
-    # 注意默认值里可能有**嵌套** ${...}（experiment_tf.sh 就是
-    # `${TFDPFL_LOGDIR:-${SLURM_SUBMIT_DIR:-$ROOT}/logs}`），所以不能用 [^}]*
-    # —— 第一版就栽在这儿，是正则错不是脚本错。
-    m = re.search(r'LOGDIR="\$\{TFDPFL_LOGDIR:-(.*)\}"', code)
-    assert m, f"{path.name} 没有可识别的 LOGDIR 默认值"
-    assert m.group(1).rstrip("}").endswith("/logs"), \
-        f"{path.name} 的 LOGDIR 默认值不在仓库内：{m.group(1)}"
+    assert "tfdpfl-logs" in code, \
+        f"{path.name} 的日志不在上一级的 tfdpfl-logs（8 月设计）"

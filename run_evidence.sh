@@ -16,9 +16,7 @@
 set -uo pipefail
 
 ROOT="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "$0")" && pwd)}"
-# cwd 放仓库上一级：本脚本要 load_cifar10，需要 $ROOT/../data 可见。
-# 详见 CLAUDE.md 的容器一节 / 陷阱 #17。
-cd "$ROOT/.."
+cd "$ROOT"
 # shellcheck source=cluster_env.sh
 source "$ROOT/cluster_env.sh"
 
@@ -27,7 +25,7 @@ CONFIG="${1:-experiments/attack/hfl-propagation/3c_R5.yaml}"
 echo "== 数据划分证据 =="
 echo "   config = $CONFIG"
 echo
-$PY "$ROOT/harness/evidence_data_split.py" --config "$ROOT/$CONFIG"
+$PY harness/evidence_data_split.py --config "$ROOT/$CONFIG"
 rc=$?
 
 echo
