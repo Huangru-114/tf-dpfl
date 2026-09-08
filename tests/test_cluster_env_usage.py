@@ -149,8 +149,12 @@ def test_container_path_is_not_hardcoded_outside_cluster_env(path):
 # ══════════════════════════════════════════════════════════════════════════
 # cwd 必须留在仓库根：apptainer 只自动挂 $PWD
 # ══════════════════════════════════════════════════════════════════════════
+# 认新形式 `$PY "$ROOT/fedavg/main.py"`。第一版还在匹配旧的裸相对路径，
+# 于是这个列表变成空的 —— 靠下面那条反向自检才发现（否则整组测试会
+# 「零个文件全部通过」）。
 TRAIN_SCRIPTS = [p for p in JOB_SCRIPTS
-                 if re.search(r"\$(PY|RUN) (fedavg/)?main\.py", _code(p))]
+                 if re.search(r'\$(PY|RUN) "?\$?\{?ROOT\}?/?[\w/]*main\.py', _code(p))
+                 or re.search(r"\$(PY|RUN) (fedavg/)?main\.py", _code(p))]
 
 
 def test_there_are_training_scripts_to_check():
@@ -158,18 +162,38 @@ def test_there_are_training_scripts_to_check():
 
 
 @pytest.mark.parametrize("path", TRAIN_SCRIPTS, ids=lambda p: p.name)
-def test_training_runs_from_the_repo_root_not_from_fedavg(path):
-    """apptainer **只自动挂 $PWD**（2026-09 实测）。`cd $ROOT/fedavg` 之后，
-    兄弟目录 `$ROOT/experiments/` 在 $PWD 之外 -> 容器里看不见 ->
-    `FileNotFoundError: .../experiments/calibration/xxx.yaml`，而文件明明在。
+def test_training_runs_from_the_repo_parent(path):
+    """apptainer **只自动挂 $PWD**，而作业要同时够到三处：
+    `$ROOT/experiments/`（配置）、`$ROOT/logs/`（日志）、
+    `$ROOT/../data/datasets/`（keras 缓存，TFDPFL_KERAS_HOME 指向它）。
+    **只有 cwd = $ROOT/.. 才一次覆盖全部。**
 
-    `$PY fedavg/main.py` 的 sys.path[0] 仍是 `fedavg/`，import 一行都不用改。
+    cwd 留在 $ROOT 时，`../data` 在容器里 isdir=False -> resolve_keras_home
+    静默跳过 TFDPFL_KERAS_HOME -> 回退 ~/.keras 悬空软链 -> mkdir 撞只读根：
+        OSError: [Errno 30] Read-only file system: '.../ziangg/data'
+
+    `$PY "$ROOT/fedavg/main.py"` 的 sys.path[0] 仍是 $ROOT/fedavg，import 不变。
     """
     code = _code(path)
-    assert 'cd "$ROOT/fedavg"' not in code, \
-        f"{path.name} 还在 cd 进 fedavg —— 兄弟目录会看不见"
-    assert re.search(r"\$(PY|RUN) fedavg/main\.py", code), \
-        f"{path.name} 没有以 fedavg/main.py 的形式调用"
+    assert 'cd "$ROOT/fedavg"' not in code, f"{path.name} 还在 cd 进 fedavg"
+    assert re.search(r'^cd "\$ROOT"\s*$', code, re.M) is None, \
+        f"{path.name} 的 cwd 停在仓库根 —— ../data 会看不见"
+    assert re.search(r'^cd "\$ROOT/\.\."\s*$', code, re.M), \
+        f"{path.name} 没有把 cwd 放到仓库上一级"
+    assert re.search(r'\$(PY|RUN) "\$ROOT/fedavg/main\.py"', code), \
+        f"{path.name} 调 main.py 没用 \"$ROOT/...\" 绝对形式（cwd 已不是仓库根）"
+
+
+@pytest.mark.parametrize("path", JOB_SCRIPTS, ids=lambda p: p.name)
+def test_in_repo_script_paths_are_absolute(path):
+    """**只对把 cwd 挪到上一级的脚本**要求绝对路径 —— 仍停在 $ROOT 的
+    （如 run_l1.sh 要 `pytest tests/`）用相对路径是对的。"""
+    code = _code(path)
+    if not re.search(r'^cd "\$ROOT/\.\."\s*$', code, re.M):
+        pytest.skip(f"{path.name} 的 cwd 不在仓库上一级")
+    bad = [ln.strip() for ln in code.splitlines()
+           if re.search(r"\$(PY|RUN) (harness|fedavg)/", ln)]
+    assert not bad, f"{path.name} 还有相对的仓库内路径：{bad}"
 
 
 @pytest.mark.parametrize("path", JOB_SCRIPTS, ids=lambda p: p.name)

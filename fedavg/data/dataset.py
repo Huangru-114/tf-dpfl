@@ -108,6 +108,15 @@ def resolve_keras_home(tag: str = "CIFAR") -> str | None:
             os.environ["KERAS_HOME"] = path
             print(f"[Data] {tag}: KERAS_HOME = {path}  (来源: {src})")
             return path
+        if path and src.endswith("KERAS_HOME"):
+            # **设了却看不见** —— 这是最容易误判的一种：cluster_env.sh 在
+            # 宿主机上探测到目录存在才设的这个变量，而容器里 $PWD 之外的路径
+            # isdir 为 False，于是这里静默跳过、回退到 ~/.keras 的悬空软链，
+            # 最后报一句 `Read-only file system` —— 与真实原因（没挂进来）
+            # 完全对不上。设了就必须说一声（陷阱 #7「静默忽略」同一类）。
+            print(f"[Data] {tag}: ⚠️ {src}={path} 已设置，但在当前环境里 "
+                  f"isdir=False（容器里多半是它不在 $PWD 之内），跳过该候选。",
+                  flush=True)
 
     # 走 keras 默认的 ~/.keras —— 检查 datasets 是不是悬空符号链接
     default_dir = os.path.join(os.path.expanduser("~"), ".keras", "datasets")

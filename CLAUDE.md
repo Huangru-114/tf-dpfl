@@ -71,17 +71,34 @@ FileNotFoundError: ... /experiments/calibration/local_epochs1_seed42.yaml
 ```
 （同一个 run 里 `$ROOT/fedavg/main.py` 读得到 —— 它在 `$PWD` **之内**。）
 
-**约定**：所有作业脚本 `cd "$ROOT"`（仓库根）后调 `$PY fedavg/main.py`。
-`python fedavg/main.py` 的 `sys.path[0]` 仍是 `fedavg/`，`from client.x import`
-一行都不用改。日志默认目录也从仓库上一级挪进 `$ROOT/logs`
-（`.gitignore` 已有 `logs/`，大日志照样不进 git）。
-守卫：`tests/test_cluster_env_usage.py` 的
-`test_training_runs_from_the_repo_root_not_from_fedavg` /
-`test_log_dir_defaults_inside_the_repo`。
+**约定**：所有作业脚本 **`cd "$ROOT/.."`（仓库的上一级）**，仓库内路径一律写成
+`"$ROOT/..."` 的绝对形式。因为作业要同时够到**三处**：
 
-> 本文件对这一段改过两次：先写「`--bind` 不能省」，再改成「`--bind` 无关紧要」，
-> 都不准确。**准确的说法是上面两条**：`--bind` 不能用，而 `$PWD` 之外确实看不见，
-> 所以靠把 cwd 放在仓库根来解决。
+| 需要 | 路径 | 在 `$ROOT` 之内？ |
+|---|---|---|
+| 配置 | `$ROOT/experiments/...` | ✓ |
+| 日志 | `$ROOT/logs/...` | ✓ |
+| keras 数据缓存 | `$ROOT/../data/datasets/` | **✗ 在上一级** |
+
+cwd 停在 `$ROOT` 时第三项看不见，症状很绕：`cluster_env.sh` 在**宿主机**上
+探测到 `data/` 存在才设 `TFDPFL_KERAS_HOME`，而容器里 `os.path.isdir` 为 False
+→ `resolve_keras_home` **静默跳过**这个候选 → 回退到 `~/.keras` 的悬空软链
+→ mkdir 撞上容器只读根：
+
+```
+OSError: [Errno 30] Read-only file system: '/nobackup/.../ziangg/data'
+```
+
+`$PY "$ROOT/fedavg/main.py"` 的 `sys.path[0]` 仍是 `$ROOT/fedavg`，
+`from client.x import` 一行都不用改。日志在 `$ROOT/logs`（`.gitignore` 已忽略）。
+守卫：`tests/test_cluster_env_usage.py` 的 `test_training_runs_from_the_repo_parent`
+/ `test_in_repo_script_paths_are_absolute` / `test_log_dir_defaults_inside_the_repo`。
+
+> 本文件对这一段改过三次：「`--bind` 不能省」→「`--bind` 无关紧要」→
+> 「cwd 放仓库根」。**前三次都不完整**。准确的是：`--bind` 在这台机器上不能用，
+> `$PWD` 之外确实看不见，而作业需要的东西**跨了仓库边界**（数据在上一级），
+> 所以 cwd 必须放在仓库的上一级。
+
 
 **`.sif` 必须写绝对路径**；脚本与数据路径可以相对 —— apptainer 保留 `$PWD`，
 标准示例里的 `--data-root ./data` 就是相对的。
@@ -506,8 +523,14 @@ methods-registry.md   所有候选方法的台账 = 研究看板
     `FileNotFoundError: .../experiments/calibration/local_epochs1_seed42.yaml`，
     紧接着 `collect_metrics.py` 又读不到自己刚写的日志 —— 同一个根因两处爆发。
     （此前没暴露，是因为 exp3 那批历史 run 跑在 Alvis 的裸 python 下，没进容器。）
-    现：`cd "$ROOT"` + `$PY fedavg/main.py`（`sys.path[0]` 仍是 `fedavg/`，
-    import 不变），日志默认挪进 `$ROOT/logs`（`.gitignore` 已忽略）。
+    现：**`cd "$ROOT/.."`** + `$PY "$ROOT/fedavg/main.py"`（`sys.path[0]` 仍是
+    `$ROOT/fedavg`，import 不变），日志默认挪进 `$ROOT/logs`。
+    **注意是上一级不是仓库根** —— 第二次尝试只挪到仓库根，结果 keras 缓存
+    （`$ROOT/../data/datasets`）仍在视野外，`resolve_keras_home` 静默跳过
+    已设置的 `TFDPFL_KERAS_HOME`、回退 `~/.keras` 悬空软链、mkdir 撞只读根，
+    报 `OSError: [Errno 30] Read-only file system`。
+    `resolve_keras_home` 现在会在「设了但 isdir=False」时**明确警告**
+    （静默忽略已设置的环境变量 = 陷阱 #7 同一类）。
     守卫：`tests/test_cluster_env_usage.py` 的两条新断言，
     **反向锚点都实测过**（改回 `cd fedavg` / 改回上一级日志 → 立刻红）。
     ⚠️ 顺带发现本地测试跑批器有**假绿**：参数化用例整组包在一个 try 里，

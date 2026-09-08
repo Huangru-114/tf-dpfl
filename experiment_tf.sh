@@ -26,7 +26,7 @@
 set -uo pipefail
 
 ROOT="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "$0")" && pwd)}"
-cd "$ROOT"
+cd "$ROOT/.."
 
 MANIFEST="${MANIFEST:-experiments/matrix/manifest.tsv}"
 LINE="${LINE:-${SLURM_ARRAY_TASK_ID:-1}}"
@@ -94,12 +94,19 @@ if [ -n "${OVERRIDES:-}" ]; then
 fi
 
 # ── 跑（cwd=fedavg，与 import 语义一致）───────────────────────────────────
-# ⚠️ **cwd 必须留在仓库根**（2026-09 实测）：apptainer **只自动挂 $PWD**。
-#    `cd $ROOT/fedavg` 之后，兄弟目录 $ROOT/experiments/ 与上一级的日志目录
-#    都在 $PWD 之外 -> 容器里看不见 -> FileNotFoundError，而文件明明在。
-#    `$PY fedavg/main.py` 的 sys.path[0] 仍是 fedavg/，import 一行都不用改。
-cd "$ROOT"
-$RUN fedavg/main.py \
+# ⚠️ **cwd 放在仓库的上一级**（2026-09-08 实测）：apptainer **只自动挂 $PWD**，
+#    而本仓库的作业要同时够到三处：
+#        $ROOT/experiments/...      配置
+#        $ROOT/logs/...             日志
+#        $ROOT/../data/datasets/    keras 数据缓存（TFDPFL_KERAS_HOME 指向它）
+#    只有把 cwd 放到 $ROOT/.. 才一次覆盖全部。cwd 留在 $ROOT 时，`../data`
+#    在容器里 isdir=False，于是 resolve_keras_home 静默跳过 TFDPFL_KERAS_HOME、
+#    回退到 ~/.keras 的悬空软链，最后 mkdir 撞上容器只读根：
+#        OSError: [Errno 30] Read-only file system: '.../ziangg/data'
+#    所有仓库内路径因此一律写成 "$ROOT/..." 的绝对形式。
+#    `$PY "$ROOT/fedavg/main.py"` 的 sys.path[0] 仍是 $ROOT/fedavg，import 不变。
+cd "$ROOT/.."
+$RUN "$ROOT/fedavg/main.py" \
     --config "$ROOT/$BASE_CONFIG" \
     --attack_method "$ATTACK" \
     --defense "$DEFENSE" \
@@ -109,8 +116,8 @@ $RUN fedavg/main.py \
 RC=$?
 
 # ── 回收：全量日志 → 一个小 json ─────────────────────────────────────────
-cd "$ROOT"
-$RUN harness/collect_metrics.py "$LOG" -o "$METRICS"
+cd "$ROOT/.."
+$RUN "$ROOT/harness/collect_metrics.py" "$LOG" -o "$METRICS"
 CRC=$?
 
 # 把这一格的坐标写进 json，让汇总脚本不用解析文件名

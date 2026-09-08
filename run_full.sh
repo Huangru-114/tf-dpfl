@@ -56,13 +56,20 @@ echo "[full] axis=$AXIS method=$METHOD attack=$ATTACK defense=$DEFENSE" \
      "framework=${FRAMEWORK:-<yaml 默认>} config=$CONFIG_REL"
 echo "[full] 大日志 -> $LOG （留集群，不进 git）"
 
-# ⚠️ **cwd 必须留在仓库根**（2026-09 实测）：apptainer **只自动挂 $PWD**。
-#    `cd $ROOT/fedavg` 之后，兄弟目录 $ROOT/experiments/ 与上一级的日志目录
-#    都在 $PWD 之外 -> 容器里看不见 -> FileNotFoundError，而文件明明在。
-#    `$PY fedavg/main.py` 的 sys.path[0] 仍是 fedavg/，import 一行都不用改。
-cd "$ROOT"
+# ⚠️ **cwd 放在仓库的上一级**（2026-09-08 实测）：apptainer **只自动挂 $PWD**，
+#    而本仓库的作业要同时够到三处：
+#        $ROOT/experiments/...      配置
+#        $ROOT/logs/...             日志
+#        $ROOT/../data/datasets/    keras 数据缓存（TFDPFL_KERAS_HOME 指向它）
+#    只有把 cwd 放到 $ROOT/.. 才一次覆盖全部。cwd 留在 $ROOT 时，`../data`
+#    在容器里 isdir=False，于是 resolve_keras_home 静默跳过 TFDPFL_KERAS_HOME、
+#    回退到 ~/.keras 的悬空软链，最后 mkdir 撞上容器只读根：
+#        OSError: [Errno 30] Read-only file system: '.../ziangg/data'
+#    所有仓库内路径因此一律写成 "$ROOT/..." 的绝对形式。
+#    `$PY "$ROOT/fedavg/main.py"` 的 sys.path[0] 仍是 $ROOT/fedavg，import 不变。
+cd "$ROOT/.."
 set +e
-$PY fedavg/main.py \
+$PY "$ROOT/fedavg/main.py" \
     --config "$CONFIG_ABS" \
     --attack_method "$ATTACK" \
     --defense "$DEFENSE" \
@@ -71,8 +78,8 @@ $PY fedavg/main.py \
 RC=${PIPESTATUS[0]}
 set -e
 
-cd "$ROOT"
-$PY harness/collect_metrics.py "$LOG" -o "$OUTDIR/$EXP_ID.metrics.json"
+cd "$ROOT/.."
+$PY "$ROOT/harness/collect_metrics.py" "$LOG" -o "$OUTDIR/$EXP_ID.metrics.json"
 
 echo "[full] run exit code = $RC"
 echo "[full] 回传这一个文件即可：$OUTDIR/$EXP_ID.metrics.json"
