@@ -536,3 +536,39 @@ methods-registry.md   所有候选方法的台账 = 研究看板
 15. **`run_exp3.sh` 按 `exit_code: 0` 跳过已完成格子**
     重跑前必须把旧的 `results/*.metrics.json` 移走，否则**一个 GPU 作业都不会提交**，
     而输出显示「已完成=N」，看起来一切正常。这类失败最难发现。
+
+18. ~~**回退一段代码时删多了 → `build_clients` 成了没有调用者的死函数**~~
+    ✅ **已修复**（`<本次>`）
+    `a723a22`（方案 B 回退，撤销上一版对「合并 train+test」的误删）把
+
+    ```python
+    clients, baked_assignments, edge_fine_classes = build_clients(x_train, y_train, ...)
+    ```
+
+    连同它上面那段注释**整个 hunk** 换成了两行 `np.concatenate` —— 合并加回来了，
+    `build_clients` 的调用没加回来。净效果：`build_clients` 全仓库无调用者，
+    `x_all/y_all` 算完没人用，`clients` 从未绑定，`baked_assignments` /
+    `edge_fine_classes` 恒为 `None`（superclass 分区那条路径连带失效）。
+    集群上炸在 `main.py:695` 的 `NameError: name 'clients' is not defined`，
+    **与 config / attack / framework 无关，任何格子都跑不起来**。
+    现场特征：日志有 `[Setup] Building clients...`，但**没有**紧随其后的
+    `[Setup] N clients built` —— 后者才是 `build_clients` 真的跑过的证据。
+    顺带修掉：`[Setup] client pool = train split only (50000 samples)` 那行是
+    方案 A 时期的文案，代码早已改回合并 60k，日志与行为**相反**（陷阱 #7/#14 同类）。
+
+    **为什么 L1 全绿还是炸了**：`test_no_test_leakage.py::test_merge_is_kept_because_it_is_not_the_bug`
+    只断言 `run_experiment` 里还有 `np.concatenate([x_train, x_test])` ——
+    这句话在那份炸掉的代码上**照样成立**。而 `fedavg/` 绝大多数模块 import TF，
+    本地跑不起来，于是这个 NameError 只能等 GPU 排到、跑到第 695 行才暴露。
+    守卫：`tests/test_main_names_are_bound.py` —— 纯 stdlib AST 作用域分析，
+    扫全部 `fedavg/**/*.py`，断言函数体里读取的每个名字都在「函数内某处被绑定 ∪
+    模块级 ∪ builtins」里。反向锚点已实测：对**改动前**的 `main.py` 精确报出
+    `('run_experiment', 'clients', 695)`，改动后为空。
+    > 该扫描顺带查出三个**没有任何人 import 的死文件**（`client/Client_BadPFL.py`
+    > 语法都不过、`data/partition_pfedme.py` 少 import `make_client_dataset`、
+    > `data/clustering_pfedme.py` 少 import `_print_assignment`），记在测试的
+    > `DEAD_FILES` 白名单里，并配 `test_dead_files_are_still_dead` 守着
+    > 「它们必须仍然没人 import」。**要用其中任何一个，先把里面的未定义名修掉。**
+
+    **教训**：改「一段」代码时，被删的和被加的**不是同一件事**也会落在同一个 hunk 里。
+    回退前先问：这个 hunk 里除了我要撤的那句，还顺带带走了什么。

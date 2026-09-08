@@ -686,8 +686,12 @@ def run_experiment(config_path="config/config.yaml"):
     # 训练过的图上测攻击成功率。现在 ASR 一律测在留出分片上（见下方 cloud 构造）。
     x_all = np.concatenate([x_train, x_test], axis=0)
     y_all = np.concatenate([y_train, y_test], axis=0)
-    print(f"[Setup] client pool = train split only ({len(y_train)} samples); "
-          f"official test split ({len(y_test)} samples) held out for GM/edge/ASR eval")
+    clients, baked_assignments, edge_fine_classes = build_clients(
+        x_all, y_all, global_model, config
+    )
+    print(f"[Setup] client pool = train+test merged ({len(y_all)} samples), "
+          f"每客户端分片内部再按 data.per_client_test_ratio 切 train/test；"
+          f"三层 ASR 与 pm_acc 都测在这些留出分片上")
 
     # 把 clients 分组给 Edge Server
     print("[Setup] Building edge servers...")
