@@ -36,7 +36,7 @@ OUTDIR="$ROOT/$REL/results"
 mkdir -p "$OUTDIR"
 
 EPOCHS="${EPOCHS:-1 3 5}"
-SEEDS="${SEEDS:-42 43}"
+SEEDS="${SEEDS:-42}"
 
 DRY=0; FORCE=0; STATUS=0
 for a in "$@"; do case "$a" in

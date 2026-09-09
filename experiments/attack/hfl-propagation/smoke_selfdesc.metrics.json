@@ -5,8 +5,11 @@
     "method": "hier_fedrep",
     "defense": "none",
     "attack": "badpfl",
-    "n_rounds": null,
-    "malicious_ids": [],
+    "n_rounds": 5,
+    "malicious_ids": [
+      0,
+      9
+    ],
     "client_fraction": 1.0,
     "poison_ratio": 0.5,
     "n_clients": 10,
@@ -24,86 +27,456 @@
     "bd_eval_interval": 1,
     "acc_eval_interval": 1
   },
-  "rounds": [],
-  "final": null,
-  "per_edge_rounds": {},
-  "per_edge_final": [],
+  "rounds": [
+    {
+      "round": 1,
+      "global_asr": 0.058,
+      "edge_asr": 0.117,
+      "local_benign_asr": 0.201,
+      "same_edge_asr": 0.525,
+      "diff_edge_asr": 0.006,
+      "local_malicious_asr": 0.993
+    },
+    {
+      "round": 2,
+      "global_asr": 0.032,
+      "edge_asr": 0.058,
+      "local_benign_asr": 0.212,
+      "same_edge_asr": 0.427,
+      "diff_edge_asr": 0.083,
+      "local_malicious_asr": 0.946
+    },
+    {
+      "round": 3,
+      "global_asr": 0.045,
+      "edge_asr": 0.05,
+      "local_benign_asr": 0.219,
+      "same_edge_asr": 0.415,
+      "diff_edge_asr": 0.102,
+      "local_malicious_asr": 0.93
+    },
+    {
+      "round": 4,
+      "global_asr": 0.069,
+      "edge_asr": 0.08,
+      "local_benign_asr": 0.225,
+      "same_edge_asr": 0.395,
+      "diff_edge_asr": 0.122,
+      "local_malicious_asr": 0.925
+    },
+    {
+      "round": 5,
+      "global_asr": 0.099,
+      "edge_asr": 0.087,
+      "local_benign_asr": 0.233,
+      "same_edge_asr": 0.421,
+      "diff_edge_asr": 0.12,
+      "local_malicious_asr": 0.948
+    }
+  ],
+  "final": {
+    "round": 5,
+    "global_asr": 0.099,
+    "edge_asr": 0.087,
+    "local_benign_asr": 0.233,
+    "same_edge_asr": 0.421,
+    "diff_edge_asr": 0.12,
+    "local_malicious_asr": 0.948
+  },
+  "per_edge_rounds": {
+    "1": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.0,
+        "client_benign": 0.006,
+        "client_malicious": null,
+        "n_benign": 5,
+        "n_malicious": 0,
+        "has_malicious": false
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.234,
+        "client_benign": 0.525,
+        "client_malicious": 0.993,
+        "n_benign": 3,
+        "n_malicious": 2,
+        "has_malicious": true
+      }
+    ],
+    "2": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.005,
+        "client_benign": 0.083,
+        "client_malicious": null,
+        "n_benign": 5,
+        "n_malicious": 0,
+        "has_malicious": false
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.11,
+        "client_benign": 0.427,
+        "client_malicious": 0.946,
+        "n_benign": 3,
+        "n_malicious": 2,
+        "has_malicious": true
+      }
+    ],
+    "3": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.017,
+        "client_benign": 0.102,
+        "client_malicious": null,
+        "n_benign": 5,
+        "n_malicious": 0,
+        "has_malicious": false
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.083,
+        "client_benign": 0.415,
+        "client_malicious": 0.93,
+        "n_benign": 3,
+        "n_malicious": 2,
+        "has_malicious": true
+      }
+    ],
+    "4": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.037,
+        "client_benign": 0.122,
+        "client_malicious": null,
+        "n_benign": 5,
+        "n_malicious": 0,
+        "has_malicious": false
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.123,
+        "client_benign": 0.395,
+        "client_malicious": 0.925,
+        "n_benign": 3,
+        "n_malicious": 2,
+        "has_malicious": true
+      }
+    ],
+    "5": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.072,
+        "client_benign": 0.12,
+        "client_malicious": null,
+        "n_benign": 5,
+        "n_malicious": 0,
+        "has_malicious": false
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.102,
+        "client_benign": 0.421,
+        "client_malicious": 0.948,
+        "n_benign": 3,
+        "n_malicious": 2,
+        "has_malicious": true
+      }
+    ]
+  },
+  "per_edge_final": [
+    {
+      "edge_id": 0,
+      "edge_asr": 0.072,
+      "client_benign": 0.12,
+      "client_malicious": null,
+      "n_benign": 5,
+      "n_malicious": 0,
+      "has_malicious": false
+    },
+    {
+      "edge_id": 1,
+      "edge_asr": 0.102,
+      "client_benign": 0.421,
+      "client_malicious": 0.948,
+      "n_benign": 3,
+      "n_malicious": 2,
+      "has_malicious": true
+    }
+  ],
   "drift_rounds": [],
   "drift_final": null,
-  "acc_rounds": [],
+  "acc_rounds": [
+    {
+      "round": 1,
+      "gm_acc": 0.3267,
+      "em_acc": 0.3702,
+      "pm_acc": 0.4098,
+      "round_time": 66.2
+    },
+    {
+      "round": 2,
+      "gm_acc": 0.3678,
+      "em_acc": 0.403,
+      "pm_acc": 0.5323,
+      "round_time": 49.4
+    },
+    {
+      "round": 3,
+      "gm_acc": 0.3952,
+      "em_acc": 0.4162,
+      "pm_acc": 0.5856,
+      "round_time": 50.2
+    },
+    {
+      "round": 4,
+      "gm_acc": 0.405,
+      "em_acc": 0.4225,
+      "pm_acc": 0.6165,
+      "round_time": 49.9
+    },
+    {
+      "round": 5,
+      "gm_acc": 0.4183,
+      "em_acc": 0.4273,
+      "pm_acc": 0.6352,
+      "round_time": 50.0
+    }
+  ],
   "final_acc": {
-    "final_pm_weighted": null
+    "round": 5,
+    "gm_acc": 0.4183,
+    "em_acc": 0.4273,
+    "pm_acc": 0.6352,
+    "round_time": 50.0,
+    "final_pm_weighted": 0.6352
   },
-  "per_edge_acc_rounds": {},
-  "per_edge_acc_final": [],
-  "timing_rounds": [],
+  "per_edge_acc_rounds": {
+    "1": [
+      {
+        "edge_id": 0,
+        "em_acc": 0.3867,
+        "pm_acc": 0.4944,
+        "n_clients": 5,
+        "n_samples": 23993
+      },
+      {
+        "edge_id": 1,
+        "em_acc": 0.3514,
+        "pm_acc": 0.3131,
+        "n_clients": 5,
+        "n_samples": 21011
+      }
+    ],
+    "2": [
+      {
+        "edge_id": 0,
+        "em_acc": 0.4105,
+        "pm_acc": 0.576,
+        "n_clients": 5,
+        "n_samples": 23993
+      },
+      {
+        "edge_id": 1,
+        "em_acc": 0.3944,
+        "pm_acc": 0.4825,
+        "n_clients": 5,
+        "n_samples": 21011
+      }
+    ],
+    "3": [
+      {
+        "edge_id": 0,
+        "em_acc": 0.4199,
+        "pm_acc": 0.6116,
+        "n_clients": 5,
+        "n_samples": 23993
+      },
+      {
+        "edge_id": 1,
+        "em_acc": 0.4121,
+        "pm_acc": 0.5559,
+        "n_clients": 5,
+        "n_samples": 21011
+      }
+    ],
+    "4": [
+      {
+        "edge_id": 0,
+        "em_acc": 0.4146,
+        "pm_acc": 0.6299,
+        "n_clients": 5,
+        "n_samples": 23993
+      },
+      {
+        "edge_id": 1,
+        "em_acc": 0.4315,
+        "pm_acc": 0.6012,
+        "n_clients": 5,
+        "n_samples": 21011
+      }
+    ],
+    "5": [
+      {
+        "edge_id": 0,
+        "em_acc": 0.4125,
+        "pm_acc": 0.6439,
+        "n_clients": 5,
+        "n_samples": 23993
+      },
+      {
+        "edge_id": 1,
+        "em_acc": 0.4442,
+        "pm_acc": 0.6252,
+        "n_clients": 5,
+        "n_samples": 21011
+      }
+    ]
+  },
+  "per_edge_acc_final": [
+    {
+      "edge_id": 0,
+      "em_acc": 0.4125,
+      "pm_acc": 0.6439,
+      "n_clients": 5,
+      "n_samples": 23993
+    },
+    {
+      "edge_id": 1,
+      "em_acc": 0.4442,
+      "pm_acc": 0.6252,
+      "n_clients": 5,
+      "n_samples": 21011
+    }
+  ],
+  "timing_rounds": [
+    {
+      "round": 1,
+      "asr_s": 17.8,
+      "feature_s": null,
+      "forgetting_s": 0.0,
+      "drift_s": null,
+      "total_s": 17.9
+    },
+    {
+      "round": 2,
+      "asr_s": 10.7,
+      "feature_s": null,
+      "forgetting_s": 0.0,
+      "drift_s": null,
+      "total_s": 10.7
+    },
+    {
+      "round": 3,
+      "asr_s": 6.3,
+      "feature_s": null,
+      "forgetting_s": 0.0,
+      "drift_s": null,
+      "total_s": 6.3
+    },
+    {
+      "round": 4,
+      "asr_s": 6.5,
+      "feature_s": null,
+      "forgetting_s": 0.0,
+      "drift_s": null,
+      "total_s": 6.5
+    },
+    {
+      "round": 5,
+      "asr_s": 6.2,
+      "feature_s": null,
+      "forgetting_s": 0.0,
+      "drift_s": null,
+      "total_s": 6.3
+    }
+  ],
   "timing_summary": {
-    "n_rounds_timed": 0,
-    "n_bd_evals": 0,
-    "round_time_total_s": null,
-    "bd_eval_total_s": null,
-    "wall_total_s": null,
-    "bd_eval_fraction": null,
-    "round_time_mean_s": null,
-    "bd_eval_mean_s": null,
+    "n_rounds_timed": 5,
+    "n_bd_evals": 5,
+    "round_time_total_s": 265.7,
+    "bd_eval_total_s": 47.7,
+    "wall_total_s": 313.4,
+    "bd_eval_fraction": 0.1522,
+    "round_time_mean_s": 53.14,
+    "bd_eval_mean_s": 9.54,
     "bd_phase_mean_s": {
-      "asr": null,
+      "asr": 9.5,
       "feature": null,
-      "forgetting": null,
+      "forgetting": 0.0,
       "drift": null
     }
   },
   "admitted": [],
   "admitted_count_mean": null,
   "rejected_ids": [],
-  "malicious_selected_rounds": [],
-  "n_malicious_participations": 0,
-  "malicious_participation_by_client": {},
-  "client_failures": [],
-  "errors": [
-    "Traceback (most recent call last):",
-    "NameError: name 'clients' is not defined. Did you mean: 'client'?"
+  "malicious_selected_rounds": [
+    1,
+    2,
+    3,
+    4,
+    5
   ],
+  "n_malicious_participations": 5,
+  "malicious_participation_by_client": {
+    "0": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "9": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ]
+  },
+  "client_failures": [],
+  "errors": [],
   "log_tail": [
-    "[Data] CIFAR-10: KERAS_HOME = /nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/data  (来源: TFDPFL_KERAS_HOME)",
-    "[Setup] Building global model...",
-    "Model: \"fedavg_cnn\"",
-    "_________________________________________________________________",
-    " Layer (type)                Output Shape              Param #   ",
-    "=================================================================",
-    " input_1 (InputLayer)        [(None, 32, 32, 3)]       0         ",
-    "                                                                 ",
-    " conv2d (Conv2D)             (None, 28, 28, 32)        2432      ",
-    "                                                                 ",
-    " max_pooling2d (MaxPooling2  (None, 14, 14, 32)        0         ",
-    " D)                                                              ",
-    "                                                                 ",
-    " conv2d_1 (Conv2D)           (None, 10, 10, 64)        51264     ",
-    "                                                                 ",
-    " max_pooling2d_1 (MaxPoolin  (None, 5, 5, 64)          0         ",
-    " g2D)                                                            ",
-    "                                                                 ",
-    " flatten (Flatten)           (None, 1600)              0         ",
-    "                                                                 ",
-    " dense (Dense)               (None, 512)               819712    ",
-    "                                                                 ",
-    " representation (Dense)      (None, 64)                32832     ",
-    "                                                                 ",
-    " dense_1 (Dense)             (None, 10)                650       ",
-    "                                                                 ",
-    "=================================================================",
-    "Total params: 906890 (3.46 MB)",
-    "Trainable params: 906890 (3.46 MB)",
-    "Non-trainable params: 0 (0.00 Byte)",
-    "_________________________________________________________________",
-    "[Setup] Building clients...",
-    "[Setup] client pool = train split only (50000 samples); official test split (10000 samples) held out for GM/edge/ASR eval",
-    "[Setup] Building edge servers...",
-    "Traceback (most recent call last):",
-    "  File \"/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tf-dpfl/fedavg/main.py\", line 960, in <module>",
-    "    run_experiment()",
-    "  File \"/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tf-dpfl/fedavg/main.py\", line 695, in run_experiment",
-    "    clients, global_model, config,",
-    "NameError: name 'clients' is not defined. Did you mean: 'client'?"
+    "",
+    "[ Per-Class Report ]",
+    "              precision    recall  f1-score   support",
+    "",
+    "           0     0.6934    0.6658    0.6793      1532",
+    "           1     0.7502    0.7436    0.7469      1478",
+    "           2     0.5405    0.5026    0.5209      1528",
+    "           3     0.5597    0.5524    0.5560      1528",
+    "           4     0.6236    0.5574    0.5887      1471",
+    "           5     0.5702    0.5333    0.5511      1485",
+    "           6     0.6333    0.6854    0.6583      1494",
+    "           7     0.7065    0.6165    0.6584      1507",
+    "           8     0.7062    0.7076    0.7069      1491",
+    "           9     0.5867    0.7922    0.6741      1482",
+    "",
+    "    accuracy                         0.6352     14996",
+    "   macro avg     0.6370    0.6357    0.6341     14996",
+    "weighted avg     0.6368    0.6352    0.6337     14996",
+    "",
+    "[ F1 Score ]",
+    "  Macro    F1 : 0.6341",
+    "  Weighted F1 : 0.6337",
+    "",
+    "[ AUC (OvR) ]",
+    "  Macro    AUC : 0.9392",
+    "  Weighted AUC : 0.9391",
+    "",
+    "[ Confusion Matrix ] (shape: (10, 10))",
+    "[[1020   68   68   33   30    8   27   37  150   91]",
+    " [  70 1099    3    8   16   11   33   19   91  128]",
+    " [  73   13  768   49  148   62  176   76   27  136]",
+    " [  31   27   54  844   54  309   83   59   36   31]",
+    " [  81   13  172   55  820   45   95  111    9   70]",
+    " [   6   29  144  285   27  792   81   41   14   66]",
+    " [  14   23  104  118   76   40 1024   26    4   65]",
+    " [  39   22   51   70  118   99   48  929   29  102]",
+    " [ 110   93   29   26    2   12   14   12 1055  138]",
+    " [  27   78   28   20   24   11   36    5   79 1174]]",
+    "============================================================",
+    "  Report saved to report_PM_hier_fedavg_fedrep_noniid_badpfl_seed42.txt"
   ]
 }
