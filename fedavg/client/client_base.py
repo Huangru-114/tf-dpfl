@@ -79,6 +79,20 @@ class FLClientBase(ABC):
         # 服务器下发的额外载荷（主动防御用），由 set_control 填。
         self._control: dict = {}
 
+        # ── 攻击时间窗（Neurotoxin 式持久性协议）────────────────────────────
+        # `backdoor.attack_stop_round` = T：恶意客户端在**第 T 个 global(cloud)
+        # round 及之后**停止投毒，之后只观察后门衰减（edge 模型会不会成为
+        # 后门的蓄水池）。None = 从不停止 → 与加这条之前的行为逐字节一致。
+        #
+        # ⚠️ 闸门用 self._attack_active，**不要**去翻 self.is_malicious ——
+        # 后者同时是身份标记，malicious_participation_by_client 的统计、
+        # 逐 edge 的 same/diff-edge 分组、build_eval_trigger 挑生成器都依赖它。
+        # 把它改成 False 会让「攻击者退出」看起来像「这一格压根没有恶意端」。
+        _stop = (config or {}).get("backdoor", {}).get("attack_stop_round", None)
+        self._attack_stop_round = None if _stop is None else int(_stop)
+        # 本轮攻击是否生效。由 on_round_start 每轮刷新，攻击 mixin 的闸门读它。
+        self._attack_active = False
+
     # ══════════════════════════════════════════════════════════════════════
     # 权重管理
     # ══════════════════════════════════════════════════════════════════════
@@ -158,8 +172,29 @@ class FLClientBase(ABC):
         """
         self._control = dict(control or {})
 
+    def attacking(self, round_idx: int) -> bool:
+        """
+        本轮该客户端是否投毒 = **是恶意端** 且 **还没到退出轮**。
+
+        `round_idx` 是 global(cloud) round —— `EdgeServerBase._collect_updates_*`
+        把 `global_round_idx` 传给 `client.local_train(round_idx)`，方法类再原样
+        转给 `on_round_start`。edge round 在这个粒度下不可见，退出轮因此以
+        cloud round 计（与 `attack_freq_Q` / `eval_interval` 同一把尺）。
+        """
+        if not self.is_malicious:
+            return False
+        stop = self._attack_stop_round
+        return stop is None or int(round_idx) < int(stop)
+
     def on_round_start(self, round_idx: int):
-        """本地训练开始前（已收到 edge 权重、尚未训练）。默认无操作。"""
+        """
+        本地训练开始前（已收到 edge 权重、尚未训练）。
+
+        基类只做一件事：刷新本轮的攻击时间窗。攻击 mixin 必须先调
+        `super().on_round_start(round_idx)` 再读 `self._attack_active`
+        —— 三个 mixin 都是这么写的，守卫见 tests/test_attack_window.py。
+        """
+        self._attack_active = self.attacking(round_idx)
 
     def on_batch(self, x, y):
         """

@@ -83,8 +83,24 @@ def test_settings2_line_is_printed_with_every_field():
     assert ln is not None, "validate_config 没有打印 [设定2] 行"
     for field in ("malicious_per_edge=[10,0,0,0]", "placement=by_edge",
                   "edge_assignment=block", "local_epochs=3", "plocal_epochs=1",
-                  "seed=42", "bd_eval_interval=2", "acc_eval_interval=2"):
+                  "seed=42", "bd_eval_interval=2", "acc_eval_interval=2",
+                  "attack_stop_round=n/a"):
         assert field in ln, f"[设定2] 缺 {field}\n  实际: {ln}"
+
+
+def test_attack_stop_round_is_reported_when_set():
+    """持久性格必须自证退出轮 —— 否则衰减段是从哪一轮开始的事后无法判读。"""
+    cfg = _cfg(backdoor={"malicious_strategy": "badpfl", "attack_stop_round": 40},
+               federation={"n_rounds": 80})
+    ln = _line(_stdout_of(cfg), "[设定2]")
+    assert "attack_stop_round=40" in ln, ln
+
+
+def test_never_stopping_prints_na_not_zero():
+    """`n/a`（一直投到跑完）与 `0`（一轮都不投）语义相反，不能长一样。"""
+    ln = _line(_stdout_of(_cfg()), "[设定2]")
+    assert "attack_stop_round=n/a" in ln
+    assert "attack_stop_round=0" not in ln
 
 
 def test_settings_line_is_untouched():
@@ -165,6 +181,32 @@ def test_collect_parses_settings2_into_the_run_block():
     assert run["seed"] == 42
     assert run["bd_eval_interval"] == 2
     assert run["acc_eval_interval"] == 2
+
+
+def test_settings2_without_attack_stop_round_still_parses():
+    """**加字段时同一个坑的第二次**（collect_metrics.py 的 RE_SETTINGS2 注释指向这条）。
+
+    `attack_stop_round` 是后加的，所以在正则里是**可选组**：`a66da67`~`<本次>`
+    之间跑的日志有 [设定2] 但没有这个字段。它们的原有八个字段**必须照常解析**，
+    新字段是 None。写成必需组的话，这八个会一起变 None 而日志毫无异常。
+    """
+    run = collect(_log(_SETTINGS, _SETTINGS2))["run"]        # _SETTINGS2 不含新字段
+    assert run["local_epochs"] == 3 and run["seed"] == 42    # 老字段没塌
+    assert run["malicious_per_edge"] == [10, 0, 0, 0]
+    assert run["attack_stop_round"] is None                  # 新字段留空
+
+
+def test_attack_stop_round_round_trips():
+    run = collect(_log(_SETTINGS, _SETTINGS2 + " | attack_stop_round=40"))["run"]
+    assert run["attack_stop_round"] == 40
+    assert run["acc_eval_interval"] == 2                     # 前八个字段不受影响
+
+
+def test_attack_stop_round_na_is_none_not_zero():
+    """`n/a` = 从不停止。读成 0 会被下游当成「第 0 轮就退出」，方向正好相反。"""
+    run = collect(_log(_SETTINGS, _SETTINGS2 + " | attack_stop_round=n/a"))["run"]
+    assert run["attack_stop_round"] is None
+    assert run["attack_stop_round"] != 0
 
 
 def test_old_log_without_settings2_still_parses_the_first_line():

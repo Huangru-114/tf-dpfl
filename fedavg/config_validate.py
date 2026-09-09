@@ -30,6 +30,16 @@ def _compact_list(v) -> str:
     return "[" + ",".join(str(int(x)) for x in v) + "]"
 
 
+def _stop_round_str(bd: dict) -> str:
+    """攻击退出轮 → `n/a`（从不停止 / 无攻击）或十进制轮号。
+
+    与 `_compact_list` 同一条铁律：「从不停止」不能打成 `0` ——
+    `0` 在语义上是「一轮都不投毒」，与「一直投到跑完」正好相反。
+    """
+    v = (bd or {}).get("attack_stop_round", None)
+    return "n/a" if v is None else str(int(v))
+
+
 class ConfigError(ValueError):
     """配置不兼容。消息里必须写清楚：哪里不对、合法值是什么、怎么改。"""
 
@@ -239,6 +249,39 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
                     "malicious_placement=by_edge 建议配 edge_assignment=block（确定性连续分块），"
                     "否则 edge 成员是随机的，布点虽仍精确但不可从 id 直观预期。")
 
+        # ── 攻击时间窗（Neurotoxin 式持久性协议）──────────────────────────
+        #   T = backdoor.attack_stop_round：恶意端在第 T 个 **cloud round** 及之后
+        #   停止投毒，之后只观察衰减。三种写错都会静默变成「从不停止」，
+        #   而日志与正常 run 长得一模一样 —— 全部在这里拦掉。
+        stop_round = bd.get("attack_stop_round", None)
+        if stop_round is not None:
+            n_rounds = int(fed.get("n_rounds", 0) or 0)
+            try:
+                T = int(stop_round)
+            except (TypeError, ValueError):
+                T = None
+                _fail(f"backdoor.attack_stop_round={stop_round!r} 不是整数。"
+                      f"（null = 从不停止）")
+            if T is not None and T <= 0:
+                _fail(f"backdoor.attack_stop_round={T} ≤ 0 —— 恶意端一轮都不投毒，"
+                      f"等价于无攻击对照。要做无攻击对照请用 malicious_per_edge=[0,...]，"
+                      f"别用退出轮伪装。")
+            if T is not None and n_rounds and T >= n_rounds:
+                _fail(f"backdoor.attack_stop_round={T} ≥ federation.n_rounds={n_rounds}"
+                      f" —— 攻击者到跑完都没退出，**静默等于「从不停止」**，"
+                      f"而 metrics.json 会写着有退出轮。持久性格取 n_rounds//2。")
+            # vanilla 的投毒是在 build_clients 里**静态**改数据集的，钩子拦不住它。
+            if T is not None and strategy == "vanilla":
+                _fail("backdoor.attack_stop_round 对 malicious_strategy='vanilla' 无效："
+                      "vanilla 在 build_clients 阶段就把恶意端的数据集**静态**投毒了，"
+                      "时间窗只作用于 on_round_start/on_batch/on_upload 钩子 → 会静默无效。"
+                      "持久性实验请用 neurotoxin / cerp / badpfl。")
+            if T is not None and bool(bd.get("forced_participation", False)):
+                warnings.append(
+                    f"attack_stop_round={T} 同时开着 forced_participation —— 恶意端在 T 之前"
+                    f"每轮被强制选入、之后仍占着名额（补位循环只砍良性端）。"
+                    f"衰减段的参与分布因此与主干格不同，跨格比较前先确认这是有意的。")
+
     elif defense != "none":
         warnings.append(
             f"backdoor.enabled=false 但 defense.name={defense!r}。"
@@ -325,5 +368,6 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
           f"plocal_epochs={int(train_cfg.get('plocal_epochs', 0) or 0)} | "
           f"seed={config.get('seed', 'n/a')} | "
           f"bd_eval_interval={int(bd_ev) if bd_ev is not None else 'n/a'} | "
-          f"acc_eval_interval={int(acc_ev) if acc_ev is not None else 'n/a'}")
+          f"acc_eval_interval={int(acc_ev) if acc_ev is not None else 'n/a'} | "
+          f"attack_stop_round={_stop_round_str(bd if bd_enabled else {})}")
     return warnings

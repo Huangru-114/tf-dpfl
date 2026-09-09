@@ -117,10 +117,16 @@ RE_SETTINGS = re.compile(
 # 第二条自描述行（config_validate.py 的 [设定2]）。**故意与 RE_SETTINGS 分开**：
 # RE_SETTINGS 是全或无的 —— 把新字段塞进去，格式一旦对不上，原有八个字段会
 # 一起变成 None 而日志毫无异常。分成两条，老格式的日志照样解析出前八个。
+#
+# 往 [设定2] 里加字段时同样的道理**又适用一次** —— 所以新字段一律写成
+# **可选组** `(?: \| key=…)?`：加了字段的新日志解析得出来，`a66da67` 之前
+# 的老日志（没有这个字段）原有八个字段照样解析得出来，两边都不塌。
+# 反向锚点：tests/test_run_self_description.py::test_settings2_without_attack_stop_round_still_parses
 RE_SETTINGS2 = re.compile(
     r"\[设定2\] malicious_per_edge=(\[[\d,]*\]|n/a) \| placement=(\S+) \| "
     r"edge_assignment=(\S+) \| local_epochs=(\d+) \| plocal_epochs=(\d+) \| "
-    r"seed=(\d+|n/a) \| bd_eval_interval=(\d+|n/a) \| acc_eval_interval=(\d+|n/a)")
+    r"seed=(\d+|n/a) \| bd_eval_interval=(\d+|n/a) \| acc_eval_interval=(\d+|n/a)"
+    r"(?: \| attack_stop_round=(\d+|n/a))?")
 
 # 逐 edge 精度面板（server.py 的 [Acc] 行）。pm_acc 只在 PM 评估轮有，其余是 n/a。
 RE_PER_EDGE_ACC = re.compile(
@@ -205,6 +211,11 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
         "seed":              (_opt_int(setg2.group(6)) if setg2 else None),
         "bd_eval_interval":  (_opt_int(setg2.group(7)) if setg2 else None),
         "acc_eval_interval": (_opt_int(setg2.group(8)) if setg2 else None),
+        # 攻击退出轮（持久性协议）。三种情况都归到 None：没有 [设定2] 行、
+        # 老格式没有这个字段、以及本 run 从不停止投毒（打的是 n/a）。
+        # 三者都是「这一格没有退出轮」，下游读到 None 就不该去切衰减段。
+        "attack_stop_round": (_opt_int(setg2.group(9)) if setg2 and setg2.group(9)
+                              else None),
     }
 
 

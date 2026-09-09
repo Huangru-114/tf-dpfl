@@ -236,6 +236,20 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
   聚合表达式一字未改，守卫 `tests/test_per_edge_acc.py::test_aggregate_expressions_are_untouched`。
   末轮快照取**有 pm_acc 的最后一轮**（直接取 max(round) 会落在 pm 全 None 的轮上）。
 
+- **攻击时间窗已实现**（Neurotoxin 式持久性协议，`<本次>`）：
+  `backdoor.attack_stop_round: T` → 恶意端在第 T 个 **cloud round 及之后**停止投毒，
+  之后只观察衰减。`null`（默认）= 从不停止，与加它之前逐字节一致。
+  机制：`FLClientBase.attacking(round_idx)` + 基类 `on_round_start` 每轮刷新
+  `self._attack_active`，三个攻击 mixin 的闸门读它。
+  **闸门不是 `is_malicious`** —— 后者同时是身份标记（参与度统计 / 逐 edge 分组 /
+  `build_eval_trigger` 挑生成器都依赖它），翻它会把「攻击者退出」伪装成
+  「这一格没有恶意端」，而那正是「攻击完全失效」的样子。
+  衰减曲线**不需要新指标**：`rounds[]` 本来就是逐轮三层 ASR，T 之后那段就是。
+  ⚠️ **`malicious_strategy: vanilla` 用不了它**（静态投毒数据集，钩子拦不住），
+  `config_validate` 直接拒绝；T ≥ `n_rounds` 与 T ≤ 0 同样拒绝 ——
+  前者静默等于「从不停止」而 metrics.json 却写着有退出轮。
+  守卫：`tests/test_attack_window.py`（含反向锚点：改动前 9 failed / 7 errors）。
+
 **留了接口但没有实现的**（不要以为它们能用）：
 - 主动防御（需要客户端配合的防御）：接口齐了（`BaseDefense.layers` /
   `client_mixin` / `make_control` + 客户端侧 `set_control` / `get_aux`），无任何实现。

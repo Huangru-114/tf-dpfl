@@ -167,7 +167,7 @@ class CerPMixin:
     def on_round_start(self, round_idx: int):
         """触发器细调 + 刷新无毒参考 θ_clean（都在收到的 edge 模型上做）。"""
         super().on_round_start(round_idx)
-        if not self.is_malicious:
+        if not self._attack_active:
             return
         self._atk_finetune_trigger()
         self._atk_update_clean_ref()
@@ -175,7 +175,7 @@ class CerPMixin:
     def on_batch(self, x, y):
         """按 poison_ratio 混合 clean / poisoned（加可训练触发器）。"""
         x, y = super().on_batch(x, y)
-        if not self.is_malicious:
+        if not self._attack_active:
             return x, y
 
         x = tf.convert_to_tensor(x, tf.float32)
@@ -199,7 +199,7 @@ class CerPMixin:
         不因「本轮有没有 peer」而重新 trace。
         """
         extra = super().on_extra_loss()
-        if not self.is_malicious:
+        if not self._attack_active:
             return extra
         tvars = self.model.trainable_variables
         if self._atk_alpha > 0:

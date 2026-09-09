@@ -97,7 +97,7 @@ class NeurotoxinMixin:
     def on_round_start(self, round_idx: int):
         """在收到的 edge 模型上（尚未训练）用干净数据算 benign 梯度掩码。"""
         super().on_round_start(round_idx)
-        self._atk_mask = self._atk_compute_mask() if self.is_malicious else None
+        self._atk_mask = self._atk_compute_mask() if self._attack_active else None
 
     def on_upload(self, upload: list, round_idx: int):
         """
@@ -106,7 +106,7 @@ class NeurotoxinMixin:
         纯函数 —— 只返回新列表，不碰 self.model。
         """
         upload = super().on_upload(upload, round_idx)       # 先走内层（防御 mixin）
-        if not self.is_malicious or self._atk_mask is None:
+        if not self._attack_active or self._atk_mask is None:
             return upload
         ref = self.edge_weights
         if ref is None or len(ref) != len(upload):
