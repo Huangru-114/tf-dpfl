@@ -28,7 +28,7 @@ federation:
   n_clients:        100         # 100 client / 10 恶意（全局 10%），跨所有拓扑格恒定
   n_edges:          2
   edge_rounds:      1           # ← R_edge=1：每个 cloud round 只做 1 个 edge round
-  n_rounds:        200   # 200 × 1 = 200 有效轮
+  n_rounds:         300          # 循环上界 = cap_effective(300) ÷ edge_rounds(1)；实际何时停由 stopping 决定
   partition:        "noniid"
   classes_per_client: 10
   alpha:            0.5
@@ -138,3 +138,15 @@ evaluation:
   test_client_eval:    false
   test_client_ratio:   0.2
   test_finetune_steps: 5
+
+stopping:
+  # 自适应轮数：**只延长，不早停**。地板之前永不停 → 每格都有 ≥150 有效轮的
+  # 轨迹，同轮比较点（第 150 个 cloud round）人人都有。
+  # 参数依据见 experiments/calibration/RESULTS.md 与 server/stopping.py 的 docstring。
+  criteria:        ["thresholds_crossed", "pm_acc_plateau"]
+  floor_effective: 150
+  cap_effective:   300
+  thetas:          [0.25, 0.5, 0.75]
+  debounce:        2          # 连续 2 点 ≥ θ 才算越过（ASR 逐点 σ≈0.09，单点是噪声）
+  pm_window:       10         # 残差 σ≈0.0023 → 斜率 SE≈0.00024
+  pm_slope_tol:    0.0010     # 2edge 实测 +0.00036 判平 / 10edge +0.00229 判未平

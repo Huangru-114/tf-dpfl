@@ -8,17 +8,19 @@ tests/test_exp3_matrix.py  —  Experiment 3 矩阵（T1/T2/T3）的配置不变
 - Stage B 标定 → **MTA 与 `local_epochs` 无关**（0.740/0.739/0.740），而每个 cloud
   round 有约 56 s 固定开销、只有 8.75 s/epoch 是真训练 → `local_epochs=1` 时
   85% 的墙钟花在与训练无关的开销上。**取 ep=5**。
-- 天花板判定 → **ASR 不收敛到内点，而是往 1.0 饱和**（末段仍以 +0.017/轮 在爬）。
-  所以「跑到收敛再比终值」= 保证拿到 null。
-  **主指标改 `T_θ`（首次达到 θ 的 cloud round），终值只作瞬态快照。**
-- 预算 = **200 有效轮**（`n_rounds × edge_rounds`），最慢的 10edge 在此已越过
-  θ=0.75（round 27），`pm_acc` 距渐近 0.001。
+- 天花板判定 → **在 ep=5 下** ASR 不收敛到内点而往 1.0 饱和（末段仍 +0.017/轮）。
+  ⚠️ 这是 ep5 特有的，不是 ASR 的普遍性质 —— ep1 实测第 16 轮就平在 0.660。
+  所以在本操作点上「比终值」分辨力差，**主指标是 `T_θ`**（首次达到 θ 的 cloud round），
+  终值只作瞬态快照。
+- 轮数 = **自适应**：地板 150 有效轮人人必跑，判据未满足才延长到 cap 300。
+  起因是 `n_edges` 影响收敛速度，而它正是本实验的自变量 ——
+  固定轮数下跨拓扑比较其实是在比「谁离收敛更近」。
 
 ## 本文件锁什么
 
-1. **有效轮跨格恒定** —— 它不是自变量。某格偷偷多跑，跨拓扑比较立刻失效，
-   而事后从 metrics.json 分辨不出来（这正是判定 run 栽过的坑：`n_edges`
-   影响收敛速度，等预算下比终值 = 在比「谁离收敛更近」）。
+1. **地板与上限跨格恒定** —— 它们不是自变量。地板保证同轮比较点人人都有，
+   上限保证 censored 可比；某格偷偷调松就会停得早，而事后从 metrics.json
+   分辨不出来。实际停止轮由判据决定，记在 `run.stop_reason` 里。
 2. **评估密度按有效轮对齐** —— 每 5 个有效轮一个点。`eval_interval` 数的是
    cloud round，而有效轮 = cloud × `edge_rounds`，直接写同一个数会让 R40 只拿到
    几个点（`a66da67` 修过一次同样的错）。
@@ -45,7 +47,10 @@ ROOT = Path(__file__).resolve().parent.parent
 EXP3 = ROOT / "experiments" / "attack" / "hfl-propagation"
 sys.path.insert(0, str(ROOT / "fedavg"))
 
-EFFECTIVE_ROUNDS = 200        # n_rounds × edge_rounds，跨格恒定
+# 自适应轮数（只延长不早停）：地板与上限跨格恒定，实际停止轮由判据决定。
+# floor/cap 只能落在 edge_rounds 的整数倍上（一个 cloud round = edge_rounds 个有效轮），
+# 所以按目标值**向上取整到整数倍**——3c_R40 因此是 160/320 而不是 150/300。
+TARGET_FLOOR, TARGET_CAP = 150, 300
 LOCAL_EPOCHS = 5
 EFF_PER_EVAL = 5              # 每 5 个有效轮一个评估点
 
@@ -65,13 +70,44 @@ def test_the_matrix_is_not_empty():
 
 
 @pytest.mark.parametrize("name", CELLS)
-def test_effective_rounds_are_constant(name):
-    """有效轮不是自变量。"""
-    c = cfg(name)["federation"]
-    eff = int(c["n_rounds"]) * int(c["edge_rounds"])
-    assert eff == EFFECTIVE_ROUNDS, (
-        f"{name}: n_rounds={c['n_rounds']} × edge_rounds={c['edge_rounds']} = {eff}"
-        f" ≠ {EFFECTIVE_ROUNDS} —— 预算不齐，跨格比较无效")
+def test_floor_and_cap_are_constant(name):
+    """
+    地板与上限不是自变量。地板保证同轮比较点人人都有；上限保证 censored 可比。
+    只允许因 `edge_rounds` 除不尽而向上取整到整数倍。
+    """
+    import math
+    c = cfg(name)
+    er = int(c["federation"]["edge_rounds"])
+    st = c["stopping"]
+    assert int(st["floor_effective"]) == math.ceil(TARGET_FLOOR / er) * er, (
+        f"{name}: floor_effective={st['floor_effective']}，"
+        f"按 edge_rounds={er} 应为 {math.ceil(TARGET_FLOOR/er)*er}")
+    assert int(st["cap_effective"]) == math.ceil(TARGET_CAP / er) * er, (
+        f"{name}: cap_effective={st['cap_effective']}，"
+        f"按 edge_rounds={er} 应为 {math.ceil(TARGET_CAP/er)*er}")
+
+
+@pytest.mark.parametrize("name", CELLS)
+def test_n_rounds_is_exactly_the_cap(name):
+    """
+    `n_rounds` 是循环上界，必须**正好**等于 cap ÷ edge_rounds。
+    对不上时真正的上限是两者里小的那个，而 metrics.json 写着另一个 ——
+    事后无法判读这一格到底能跑多久（陷阱 #7 同类）。
+    """
+    c = cfg(name)
+    er = int(c["federation"]["edge_rounds"])
+    assert int(c["federation"]["n_rounds"]) * er == int(c["stopping"]["cap_effective"])
+
+
+@pytest.mark.parametrize("name", CELLS)
+def test_stopping_params_are_uniform(name):
+    """判据与探测器参数跨格恒定 —— 它们不是自变量，一格调松了就停得早。"""
+    st = cfg(name)["stopping"]
+    assert list(st["criteria"]) == ["thresholds_crossed", "pm_acc_plateau"]
+    assert [float(t) for t in st["thetas"]] == [0.25, 0.5, 0.75]
+    assert int(st["debounce"]) == 2
+    assert int(st["pm_window"]) == 10
+    assert float(st["pm_slope_tol"]) == 0.0010
 
 
 @pytest.mark.parametrize("name", CELLS)
@@ -110,6 +146,7 @@ def test_enough_eval_points_for_the_tail_statistic(name):
     不能悄悄混进表里被当成同等证据。
     """
     c = cfg(name)
+    # 按 cap 算（最长情形）；实际停得早只会更少，声明的要求不变
     n_pts = int(c["federation"]["n_rounds"]) // int(c["backdoor"]["eval_interval"])
     if n_pts < 12:
         head = (EXP3 / f"{name}.yaml").read_text(encoding="utf-8")[:2000]

@@ -128,6 +128,20 @@ RE_SETTINGS2 = re.compile(
     r"seed=(\d+|n/a) \| bd_eval_interval=(\d+|n/a) \| acc_eval_interval=(\d+|n/a)"
     r"(?: \| attack_stop_round=(\d+|n/a))?")
 
+# 自适应轮数的结束行（server.py 的 run() 打印）。**没有这一行的 run 是跑满的**，
+# 有这一行的是提前结束的 —— 两者的 metrics.json 在别处长得一模一样，
+# 所以 stop_reason 缺失与 "跑满" 必须能区分：解析不到 → None（老日志与固定轮数 run）。
+RE_STOP = re.compile(
+    r"\[Stop\] round=(\d+) \| effective=(\d+) \| reason=(\S+) \| "
+    r"crossed=(\d+)/(\d+) \| pm_slope=([\d.eE+-]+|n/a) \| window=(\d+)")
+
+# 第三条自描述行（config_validate 的 [设定3]）。与 [设定]/[设定2] 一样**独立成行**：
+# 全或无的正则，塞进已有行会让原有字段一起变 None 而日志毫无异常。
+RE_SETTINGS3 = re.compile(
+    r"\[设定3\] stopping=(on|off) \| floor_effective=(\d+|n/a) \| "
+    r"cap_effective=(\d+|n/a) \| criteria=(\S+) \| thetas=(\S+) \| "
+    r"pm_window=(\d+|n/a) \| pm_slope_tol=(\S+)")
+
 # 逐 edge 精度面板（server.py 的 [Acc] 行）。pm_acc 只在 PM 评估轮有，其余是 n/a。
 RE_PER_EDGE_ACC = re.compile(
     r"\[Acc\] Round (\d+) \| edge(\d+) \| em_acc=([\d.]+|n/a) \| "
@@ -168,6 +182,8 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
     val = RE_VALIDATE.search(log_text)
     setg = RE_SETTINGS.search(log_text)
     setg2 = RE_SETTINGS2.search(log_text)
+    setg3 = RE_SETTINGS3.search(log_text)
+    stop  = RE_STOP.search(log_text)
 
     mal_ids = []
     m = RE_MAL_RESOLVED.search(log_text)
@@ -216,6 +232,18 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
         # 三者都是「这一格没有退出轮」，下游读到 None 就不该去切衰减段。
         "attack_stop_round": (_opt_int(setg2.group(9)) if setg2 and setg2.group(9)
                               else None),
+        # ── 自适应轮数：这一格跑到第几轮、为什么停 ──────────────────────
+        #   全 None = 固定轮数（没配 stopping，或老日志）。
+        #   stop_reason='cap_reached' 是 **censored**，不是「收敛在 cap」。
+        "stopping":          ("on" if setg3 and setg3.group(1) == "on" else
+                              ("off" if setg3 else None)),
+        "floor_effective":   (_opt_int(setg3.group(2)) if setg3 else None),
+        "cap_effective":     (_opt_int(setg3.group(3)) if setg3 else None),
+        "stop_criteria":     (_opt_str(setg3.group(4)) if setg3 else None),
+        "stopped_at_round":  (int(stop.group(1)) if stop else None),
+        "stopped_at_effective": (int(stop.group(2)) if stop else None),
+        "stop_reason":       (stop.group(3) if stop else None),
+        "stop_crossed":      (f"{stop.group(4)}/{stop.group(5)}" if stop else None),
     }
 
 

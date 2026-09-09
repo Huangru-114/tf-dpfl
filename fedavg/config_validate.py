@@ -282,6 +282,53 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
                     f"每轮被强制选入、之后仍占着名额（补位循环只砍良性端）。"
                     f"衰减段的参与分布因此与主干格不同，跨格比较前先确认这是有意的。")
 
+    # ── 3b. 自适应轮数（stopping）────────────────────────────────────────
+    #   写错的三种方式都会静默改变实验长度，而日志与正常 run 一模一样：
+    #   floor ≥ cap（永不延长/立刻停）、窗口比总点数还大（判据永远不满足）、
+    #   θ 超出 [0,1]（永远越不过 → 每格都跑到 cap）。全部在这里拦掉。
+    stop_cfg = config.get("stopping") or {}
+    if stop_cfg:
+        from server.stopping import VALID_CRITERIA
+        er = int(fed.get("edge_rounds", 1) or 1)
+        n_rounds = int(fed.get("n_rounds", 0) or 0)
+        floor = int(stop_cfg.get("floor_effective", 0))
+        cap = int(stop_cfg.get("cap_effective", n_rounds * er))
+        bad = [c for c in stop_cfg.get("criteria", VALID_CRITERIA)
+               if c not in VALID_CRITERIA]
+        if bad:
+            _fail(f"未知的 stopping.criteria：{bad}\n"
+                  f"  合法取值：{sorted(VALID_CRITERIA)}")
+        if floor >= cap:
+            _fail(f"stopping.floor_effective={floor} ≥ cap_effective={cap} —— "
+                  f"地板不低于上限，「按需延长」没有余地。")
+        if n_rounds * er != cap:
+            _fail(f"federation.n_rounds × edge_rounds = {n_rounds*er} 与 "
+                  f"stopping.cap_effective = {cap} 不一致。\n"
+                  f"  n_rounds 是循环上界，必须正好等于 cap ÷ edge_rounds，"
+                  f"否则真正的上限是两者里小的那个，而 metrics.json 写着另一个。")
+        if floor % er:
+            warnings.append(
+                f"stopping.floor_effective={floor} 不是 edge_rounds={er} 的整数倍，"
+                f"实际地板会落在 {(floor + er - 1)//er * er} 个有效轮。")
+        thetas = [float(t) for t in stop_cfg.get("thetas", (0.25, 0.5, 0.75))]
+        if any(not (0.0 < t < 1.0) for t in thetas):
+            _fail(f"stopping.thetas={thetas} 含超出 (0,1) 的值 —— "
+                  f"越不过的阈值会让每格都跑满 cap。")
+        W = int(stop_cfg.get("pm_window", 10))
+        if W < 5:
+            _fail(f"stopping.pm_window={W} < 5 —— 斜率的 SE 会大到判据形同虚设。")
+        if float(stop_cfg.get("pm_slope_tol", 0.001)) <= 0:
+            _fail("stopping.pm_slope_tol 必须 > 0。")
+        # bd.eval_interval 在下面第 6 节才取，这里就地读一次（别用还没定义的名字 ——
+        # 陷阱 #18 就是这么来的；守卫 tests/test_main_names_are_bound.py）。
+        _ev = int(bd.get("eval_interval", 0) or 0) if bd_enabled else 0
+        n_points = (cap // er) // _ev if _ev else 0
+        if "pm_acc_plateau" in tuple(stop_cfg.get("criteria", VALID_CRITERIA)) \
+                and n_points and n_points < W:
+            warnings.append(
+                f"本格最多 {n_points} 个评估点 < pm_window={W} —— "
+                f"pm_acc 平台判据永远算不出来，该格会跑满 cap 并报 grid_too_coarse。")
+
     elif defense != "none":
         warnings.append(
             f"backdoor.enabled=false 但 defense.name={defense!r}。"
@@ -370,4 +417,17 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
           f"bd_eval_interval={int(bd_ev) if bd_ev is not None else 'n/a'} | "
           f"acc_eval_interval={int(acc_ev) if acc_ev is not None else 'n/a'} | "
           f"attack_stop_round={_stop_round_str(bd if bd_enabled else {})}")
+
+    # ── 6c. 自适应轮数自描述（[设定3]）──────────────────────────────────
+    #   **又是独立一行**，理由同 [设定2]：全或无的正则，往已有行里加字段一旦
+    #   格式对不上，原有字段会一起变 None 而日志毫无异常。
+    #   停在第 32 轮的 run 与跑满的 run 长得一模一样 —— 没有这一行事后无法判读。
+    _sc = config.get("stopping") or {}
+    print(f"[设定3] stopping={'on' if _sc else 'off'} | "
+          f"floor_effective={_sc.get('floor_effective', 'n/a')} | "
+          f"cap_effective={_sc.get('cap_effective', 'n/a')} | "
+          f"criteria={','.join(_sc.get('criteria', [])) or 'n/a'} | "
+          f"thetas={','.join(str(t) for t in _sc.get('thetas', [])) or 'n/a'} | "
+          f"pm_window={_sc.get('pm_window', 'n/a')} | "
+          f"pm_slope_tol={_sc.get('pm_slope_tol', 'n/a')}")
     return warnings

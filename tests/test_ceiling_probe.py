@@ -56,6 +56,11 @@ from test_calibration import _kv                       # noqa: E402  单一事�
 
 # 相对拓扑锚点，允许差的键 = 标定那四处改动（seed 两边都是 42，不在其中）
 BUDGET_DRIFT = {"n_rounds", "local_epochs", "eval_interval"}
+# 拓扑锚点（10edge_distributed）后来加了 `stopping` 块。本判定 run 是**已经跑完的
+# 固定轮数 run**（结果在 calibration/results/），不能跟着改 —— 否则盘上的
+# 0.862 / 0.712 与配置对不上。锚点独有这几个键是设计如此。
+ANCHOR_ONLY_KEYS = {"criteria", "floor_effective", "cap_effective",
+                    "thetas", "debounce", "pm_window", "pm_slope_tol"}
 # 相对预算锚点，允许差的键 = 拓扑本身
 TOPO_DRIFT = {"n_edges", "malicious_per_edge"}
 
@@ -67,9 +72,11 @@ def test_probe_exists():
 def test_differs_from_topology_anchor_only_in_budget_keys():
     """与 10edge_distributed 相比，只准差预算/epoch/评估密度。"""
     anchor, probe = _kv(TOPO_ANCHOR), _kv(PROBE)
-    assert set(anchor) == set(probe), (
-        f"键集合不同：多 {set(probe) - set(anchor)}，少 {set(anchor) - set(probe)}")
-    drift = {k for k in anchor if anchor[k] != probe[k]}
+    extra = set(probe) - set(anchor)
+    missing = set(anchor) - set(probe) - ANCHOR_ONLY_KEYS
+    assert not extra and not missing, (
+        f"键集合不同：多 {extra}，少 {missing}（锚点独有的 stopping 块不算）")
+    drift = {k for k in anchor if k not in ANCHOR_ONLY_KEYS and anchor[k] != probe[k]}
     assert drift <= BUDGET_DRIFT, (
         f"相对 10edge_distributed 多漂了 {sorted(drift - BUDGET_DRIFT)} —— "
         f"这个 run 的价值全在「只差拓扑」，多一个变量就白跑了")

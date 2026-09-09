@@ -32,6 +32,13 @@ SEEDS = (42, 43)
 # 允许与锚点不同的键。多一个都算漂移。
 ALLOWED_DRIFT = {"seed", "n_rounds", "local_epochs", "eval_interval"}
 
+# 锚点（2edge_distributed）后来加了 `stopping` 块（自适应轮数）。标定这六格是
+# **已经跑完的固定轮数 run**，结果就在 results/ 里 —— 它们**不能**跟着改，
+# 否则盘上的数字与配置对不上。所以锚点独有这几个键是**设计如此**，不是漂移。
+# 反向锚点见 test_calibration_cells_have_no_stopping_block。
+ANCHOR_ONLY_KEYS = {"criteria", "floor_effective", "cap_effective",
+                    "thetas", "debounce", "pm_window", "pm_slope_tol"}
+
 
 def _kv(path: Path) -> dict:
     """把 YAML 压成 {叶子键: 值}，注释与空行剔除。
@@ -68,8 +75,12 @@ def test_all_six_cells_exist():
 def test_cell_differs_from_anchor_only_in_intended_keys(epochs, seed):
     anchor = _kv(ANCHOR)
     cell = _kv(CALIB / f"local_epochs{epochs}_seed{seed}.yaml")
-    assert set(anchor) == set(cell), (
-        f"键集合不同：多 {set(cell) - set(anchor)}，少 {set(anchor) - set(cell)}")
+    extra = set(cell) - set(anchor)
+    missing = set(anchor) - set(cell) - ANCHOR_ONLY_KEYS
+    assert not extra and not missing, (
+        f"键集合不同：多 {extra}，少 {missing}"
+        f"（锚点独有的 stopping 块不算，见 ANCHOR_ONLY_KEYS）")
+    anchor = {k: v for k, v in anchor.items() if k not in ANCHOR_ONLY_KEYS}
     drift = {k for k in anchor if anchor[k] != cell[k]}
     assert drift <= ALLOWED_DRIFT, (
         f"local_epochs{epochs}_seed{seed} 与锚点多漂了 {sorted(drift - ALLOWED_DRIFT)} "
@@ -190,3 +201,17 @@ def test_load_cells_parses_epoch_and_seed_from_filename():
 def test_cell_regex_does_not_match_neighbours():
     assert CELL_RE.search("local_epochs10_seed42.metrics.json")
     assert not CELL_RE.search("2edge_distributed_seed42.metrics.json")
+
+
+def test_calibration_cells_have_no_stopping_block():
+    """
+    反向锚点：标定六格**必须**保持固定轮数（无 `stopping`）。
+    它们的结果已经在 results/ 里 —— 给它们加自适应轮数会让盘上的数字
+    与配置对不上，而 metrics.json 事后分辨不出来跑的是哪一套。
+    """
+    for e in EPOCHS:
+        for sd in SEEDS:
+            txt = (CALIB / f"local_epochs{e}_seed{sd}.yaml").read_text(encoding="utf-8")
+            assert "stopping:" not in txt, (
+                f"local_epochs{e}_seed{sd}.yaml 被加了 stopping 块 —— "
+                f"标定是已完成的固定轮数批次，不能改")

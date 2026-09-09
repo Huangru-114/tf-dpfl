@@ -250,6 +250,23 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
   前者静默等于「从不停止」而 metrics.json 却写着有退出轮。
   守卫：`tests/test_attack_window.py`（含反向锚点：改动前 9 failed / 7 errors）。
 
+- **轮数已自适应**（`<本次>`）：`stopping` 块 → **只延长，不早停**。
+  `floor_effective` 之前永不停（所以同轮比较点人人都有），判据未满足才延长到
+  `cap_effective`。判据两条，参数都从实测噪声标定：
+  `thresholds_crossed`（三层 ASR × θ∈{0.25,0.5,0.75} 全越过，**连续 2 点**才算 ——
+  ASR 逐点 σ≈0.09，单点是噪声）与 `pm_acc_plateau`（末 10 点 OLS 斜率 < 0.0010/轮；
+  残差 σ≈0.0023 → 斜率 SE≈0.00024）。
+  **起因**：`n_edges` 影响收敛速度，而它正是 Experiment 3 的自变量 ——
+  固定轮数下跨拓扑比较其实是在比「谁离收敛更近」（实测 10edge@30 ≈ 2edge@12–18）。
+  三种结束各报各的：`converged` / `cap_reached`（**是 censored**）/
+  `grid_too_coarse`。自描述行 `[Stop]` + `[设定3]` → `run.stop_reason` /
+  `stopped_at_round`（**没有这一行事后无法判读这一格跑了多久**）。
+  > ⚠️ **不能复用 `read_calibration.plateau_round`** —— 它是回溯式的
+  > （「此后再没离开 final ± tol」），跑的时候没有 final。在线判据必须前瞻式。
+  守卫：`tests/test_stopping.py`（含反向锚点：两格真实轨迹回打 round 20 / 28
+  与斜率 0.00036 / 0.00229）。**历史批次（标定六格、天花板判定）刻意不加
+  `stopping`**，它们的结果已在盘上；守卫 `test_calibration_cells_have_no_stopping_block`。
+
 **留了接口但没有实现的**（不要以为它们能用）：
 - 主动防御（需要客户端配合的防御）：接口齐了（`BaseDefense.layers` /
   `client_mixin` / `make_control` + 客户端侧 `set_control` / `get_aux`），无任何实现。

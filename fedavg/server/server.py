@@ -18,6 +18,7 @@ import time
 
 from models.model_utils   import get_model_bytes
 from aggregation.fedavg   import aggregate
+from server.stopping     import StoppingRule
 from aggregation.feddyn   import feddyn_aggregate,   init_h
 from aggregation.scaffold import scaffold_aggregate, init_cv
 from .robust_aggregation  import RobustAggregationMixin
@@ -57,6 +58,14 @@ class CloudServer(RobustAggregationMixin):
 
         print(f"[CloudServer] {len(edge_servers)} edges | "
               f"model: {self.model_bytes / 1024 / 1024:.2f} MB")
+
+        # ── 自适应轮数（地板 + 按需延长；缺省关闭 → 行为与改动前逐字相同）───
+        #   固定轮数下跨拓扑比较其实是在比「谁离收敛更近」——n_edges 影响收敛速度，
+        #   而它正是 Experiment 3 的自变量。见 server/stopping.py 的模块 docstring。
+        _fed = config.get("federation", {}) or {}
+        self.stopper = StoppingRule(config.get("stopping"),
+                                    edge_rounds=int(_fed.get("edge_rounds", 1) or 1),
+                                    n_rounds=int(_fed.get("n_rounds", 0) or 0))
 
         self.history = {
             "round": [], "global_loss": [], "global_acc": [],
@@ -351,11 +360,29 @@ class CloudServer(RobustAggregationMixin):
                   f"n_clients={pm_c} | n_samples={e_n}")
         return metrics
 
+    def _stopping_signals(self, metrics: dict) -> dict:
+        """
+        喂给停止规则的观测。基类只有 `pm_acc`；`BackdoorCloudServer` 覆写它补上三层 ASR。
+
+        值为 `None` 的信号会被规则丢弃而**不是当 0**（陷阱 #13：未评估轮 / 无定义
+        分组返回 None，混进斜率或越阈判定会静默给出错误的停止时机）。
+        """
+        return {"pm_acc": metrics.get("pm_acc")}
+
     def run(self, logger=None):
-        """执行完整实验（n_rounds 轮全局通信）。"""
+        """
+        执行实验。轮数上界是 `federation.n_rounds`；配了 `stopping` 时可提前结束
+        —— 但**永远不会早于 `stopping.floor_effective`**（只延长，不早停）。
+        """
         for r in range(1, self.config["federation"]["n_rounds"] + 1):
             m = self.run_round(r)
             if logger:
                 logger.log_round(r, m)
+            dec = self.stopper.update(r, self._stopping_signals(m))
+            if dec.stop:
+                # 这一行是硬要求：停在第 32 轮的 run 与跑满的 run 长得一模一样。
+                # collect_metrics 解析它进 metrics.json 的 run 块。
+                print(self.stopper.log_line(r, dec))
+                break
         print("\n[Cloud] Training complete.")
         return self.history

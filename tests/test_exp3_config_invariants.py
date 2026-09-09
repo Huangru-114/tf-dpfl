@@ -71,9 +71,19 @@ def test_declared_invariants_are_actually_invariant():
         + "\n拓扑/频率之外的任何差异都会被当成拓扑效应读出来。")
 
 
-EFFECTIVE_ROUNDS = 200
+EFFECTIVE_ROUNDS = 300
 """
-有效轮预算。**2026-09-09 由 400 改为 200**，依据 `experiments/calibration/RESULTS.md`：
+有效轮**上限**（`stopping.cap_effective`）。400 → 200 → 300 的来龙去脉：
+
+  · 400 → 200（`d0619060`）：Stage B 标定 + 天花板判定，见下。
+  · 200 → 300（`<本次>`）：轮数改为**自适应**（地板 150 人人必跑，判据未满足才
+    延长到上限）。起因是 `n_edges` 影响收敛速度，而它正是本实验的自变量 ——
+    固定轮数下跨拓扑比较其实是在比「谁离收敛更近」。
+    **这个数现在是上限不是预算**：实际停在哪一轮由 `stopping` 的判据决定，
+    记在 `run.stop_reason` / `run.stopped_at_round` 里。
+    `edge_rounds` 除不尽时向上取整到整数倍（`3c_R40` 因此是 320）。
+
+原始依据（`experiments/calibration/RESULTS.md`）：
 
   · Stage B 标定：MTA 与 local_epochs 无关，而每 cloud round 有 ~56 s 固定开销、
     只有 8.75 s/epoch 是真训练 → 取 local_epochs=5，同样的墙钟做近 2 倍本地训练。
@@ -87,12 +97,20 @@ EFFECTIVE_ROUNDS = 200
 
 
 def test_effective_budget_is_equal_across_all_cells():
-    """edge_rounds × n_rounds 跨格恒定。等有效预算是跨格比较的前提。"""
+    """
+    edge_rounds × n_rounds = 上限，跨格恒定（`edge_rounds` 除不尽时向上取整）。
+
+    上限相等保证 censored 的格子彼此可比；地板相等保证同轮比较点人人都有
+    （那一条在 tests/test_exp3_matrix.py 里锁）。
+    """
+    import math
     for name, c in _cells().items():
         f = c["federation"]
         prod = f["edge_rounds"] * f["n_rounds"]
-        assert prod == EFFECTIVE_ROUNDS, \
-            f"{name}: edge_rounds×n_rounds = {prod}，应为 {EFFECTIVE_ROUNDS}"
+        want = math.ceil(EFFECTIVE_ROUNDS / f["edge_rounds"]) * f["edge_rounds"]
+        assert prod == want, \
+            f"{name}: edge_rounds×n_rounds = {prod}，按 edge_rounds=" \
+            f"{f['edge_rounds']} 应为 {want}"
 
 
 def test_target_class_is_zero_everywhere():

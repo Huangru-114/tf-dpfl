@@ -15,6 +15,7 @@ import time
 import numpy as np
 
 from server.server import CloudServer
+from server.stopping import ASR_KEYS
 from attack.backdoor_eval import (evaluate_hierarchical_asr,
                                    evaluate_forgetting_curve,
                                    evaluate_feature_separation,
@@ -49,6 +50,7 @@ class BackdoorCloudServer(CloudServer):
         self._all_clients = [c for e in self.edge_servers for c in e.clients]
         self.history.setdefault("bd_c_acc", [])
         self.history.setdefault("bd_asr", [])
+        self._last_bd_metrics = None
 
         # 特征分离度 / 遗忘曲线相关配置
         # 漂移测量（Experiment 3C）：默认关闭，零开销；3C 的 config 打开。
@@ -85,6 +87,21 @@ class BackdoorCloudServer(CloudServer):
         if do_eval:
             self._backdoor_eval(round_idx, anchor=anchor)
         return metrics
+
+    def _stopping_signals(self, metrics: dict) -> dict:
+        """
+        基类的 `pm_acc` 之外，补上三层 ASR —— 判据 A（θ 全越过）读的就是它们。
+
+        `_last_bd_metrics` 只在**后门评估轮**更新；非评估轮沿用上一次会让同一个值
+        被重复喂进序列，把去抖计数和斜率都算错。所以喂完就清空：非评估轮这三项
+        是 `None`，规则会跳过（而不是当 0）。
+        """
+        sig = super()._stopping_signals(metrics)
+        bd = self._last_bd_metrics
+        self._last_bd_metrics = None
+        for k in ASR_KEYS:
+            sig[k] = None if bd is None else bd.get(k)
+        return sig
 
     def _coordinate_cerp_peers(self):
         """收集 CerP 恶意客户端最新权重，互相分发（排除自身），供下一轮 cos 正则使用。"""
@@ -220,6 +237,9 @@ class BackdoorCloudServer(CloudServer):
         # ── 历史 + 控制台 ─────────────────────────────────────────────────
         self.history["bd_c_acc"].append(metrics["local_acc_mean"])
         self.history["bd_asr"].append(metrics["local_asr_benign_mean"])
+        # 供自适应轮数的停止规则读（见 _stopping_signals）。只存最近一次评估的
+        # 三层 ASR —— 规则自己维护序列，这里不做累积。
+        self._last_bd_metrics = metrics
         # 无定义的分组打 "n/a"（不是 0.000）——见 backdoor_eval._mean 的说明。
         # 回程解析器 harness/collect_metrics.py 认这个记号并写成 JSON 的 null。
         def _f3(v):
