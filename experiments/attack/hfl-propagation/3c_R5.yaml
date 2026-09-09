@@ -1,12 +1,14 @@
 # experiments/attack/hfl-propagation/3c_R5.yaml
-#   Experiment 3C —— Hierarchical aggregation frequency。固定拓扑 = 2edge distributed [5,5]
-#   （= exp007 锚点在 R_edge=5），**唯一自变量 = edge_rounds R_edge**，n_rounds 随之调整使
-#   R_edge × R_cloud = 5 × 80 = 400（有效 local budget 恒定）。R_edge=1 ≈ 每轮都 cloud 聚合
-#   （最接近 flat，用户已观察到的稀释一端）；R_edge=20 = 强层级。
-#   判据：MTA(pm_acc) + ASR client/edge/global（per_edge_final）随 R_edge 的曲线。斜率回答
-#   「edge aggregation 是放大器还是稀释器」。⚠️ parameter/representation drift 需另加仪表（未含）。
-#   跑法：CONFIGS="3c_R1 3c_R2 3c_R4 3c_R5 3c_R10 3c_R20" bash …/run_exp3.sh
+#   3C 轴 · edge_rounds=5（= 锚点 + drift 测量）
 #
+#   预算（Stage B 标定 + 天花板判定，见 experiments/calibration/RESULTS.md）：
+#     local_epochs=5 · n_rounds=40 · edge_rounds=5 → 200 有效轮 · eval_interval=1（40 个评估点）
+#   **主指标是 T_θ（首次达到 θ 的 cloud round），不是终值 ASR** —— 无防御下 ASR
+#   往 1.0 饱和，终值在稳态下没有分辨力（RESULTS.md §7）。终值只作为瞬态快照参考。
+#   读数一律取末 10 个评估点的均值：逐点 σ≈0.09，与要测的效应同量级。
+#
+#   跑法：由 run_exp3.sh 自动扫描本目录提交（SEEDS 默认 42 43 44）。
+
 seed: 42
 
 data:
@@ -26,7 +28,7 @@ federation:
   n_clients:        100         # 100 client / 10 恶意（全局 10%），跨所有拓扑格恒定
   n_edges:          2
   edge_rounds:      5           # 3C 自变量：每 global round 的 edge round 数
-  n_rounds:         80          # = 400 / edge_rounds（有效 local budget 恒定）
+  n_rounds:        40   # 40 × 5 = 200 有效轮
   partition:        "noniid"
   classes_per_client: 10
   alpha:            0.5
@@ -35,7 +37,7 @@ federation:
   min_samples:      10
 
 training:
-  local_epochs:   1
+  local_epochs:    5   # Stage B 标定：MTA 与 ep 无关，ep=5 每 GPU-h 训练量最大
   learning_rate:  0.1
   lr_decay:       0.992
   drift_correction: "hier_fedrep"  # 自描述；run 脚本另传 --framework hier_fedavg_fedrep
@@ -101,7 +103,7 @@ backdoor:
   badpfl_gen_steps:   30
   badpfl_gen_lr:      0.01
   badpfl_shared_generator: true   # P4：adversary 持有单一共享生成器（对齐官方 fba.py）
-  eval_interval:  2  # ← 按【有效轮】对齐：eval_interval(cloud) x edge_rounds ≈ 10 个有效轮评一次。
+  eval_interval:   1   # 每 5 个有效轮一个点 → 40 个点
                                 #   原本各格一律 5 个 cloud 轮，而有效轮 = cloud x edge_rounds，
                                 #   于是等预算 400 下 flat 拿到 80 个评估点、R20 只有 4 个、R40 只有 2 个
                                 #   —— 任何「谁涨得快」的轨迹比较在大 R 的格子上根本没有分辨率。
@@ -130,7 +132,7 @@ wandb:
   enabled:  false
 
 evaluation:
-  eval_interval: 2
+  eval_interval:   1   # 每 5 个有效轮一个点 → 40 个点
   final_finetune:       false
   final_finetune_steps: 5
   test_client_eval:    false

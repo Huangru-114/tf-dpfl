@@ -1,11 +1,18 @@
-# experiments/attack/hfl-propagation/4edge_collocated.yaml
-#   3A/3B 拓扑格 · HHI=1.00
+# experiments/attack/hfl-propagation/rho0_2edge_distributed.yaml
+#   **无攻击对照（ρ=0）** · 与 2edge_distributed 只差恶意端个数
 #
 #   预算（Stage B 标定 + 天花板判定，见 experiments/calibration/RESULTS.md）：
 #     local_epochs=5 · n_rounds=40 · edge_rounds=5 → 200 有效轮 · eval_interval=1（40 个评估点）
 #   **主指标是 T_θ（首次达到 θ 的 cloud round），不是终值 ASR** —— 无防御下 ASR
 #   往 1.0 饱和，终值在稳态下没有分辨力（RESULTS.md §7）。终值只作为瞬态快照参考。
 #   读数一律取末 10 个评估点的均值：逐点 σ≈0.09，与要测的效应同量级。
+#
+#   ⚠️ 用 backdoor.enabled=true + malicious_per_edge=[0,0]，**不是** enabled=false ——
+#   后者走朴素 CloudServer，一个 ASR 字段都没有，json 与「跑挂了」长得一样。
+#   本格没有恶意端 → build_eval_trigger 回退到**静态 badnet 触发器**（main.py:171 的
+#   `and mal` 保护），测的是「干净模型在触发器下的误判率」= ASR 的真实下界。
+#   它**不是** badpfl 的 ρ=0 极限（没有生成器），只能当下界引用。
+#   主产出是干净精度代价：pm_acc 与有攻击的格子相减。
 #
 #   跑法：由 run_exp3.sh 自动扫描本目录提交（SEEDS 默认 42 43 44）。
 
@@ -26,7 +33,7 @@ federation:
   badpfl_allow_parallel: false   # 并行收集（提速）；⚠️ eager/@tf.function 并发有污染风险，异常回退串行
   n_workers:        4           # 并行线程数（sbatch -c 4）
   n_clients:        100         # 100 client / 10 恶意（全局 10%），跨所有拓扑格恒定
-  n_edges:          4
+  n_edges:          2
   edge_rounds:      5           # ← 全长：每 global round 5 个 edge round
   n_rounds:        40   # 40 × 5 = 200 有效轮
   partition:        "noniid"
@@ -79,8 +86,8 @@ backdoor:
   poison_ratio:   0.2
   malicious_ids:  [3]             # spread 下被忽略，n_malicious 说了算
   malicious_placement: "by_edge"   # 按 edge 精确布点（Experiment 3A/3B）
-  malicious_per_edge: [10, 0, 0, 0]   # 按 edge id 索引的恶意端个数；sum=10=全局10%
-  n_malicious:    10            # by_edge 下不用它定数量（malicious_per_edge 说了算），保留仅作记录
+  malicious_per_edge: [0, 0]   # ρ=0：一个恶意端都没有
+  n_malicious:     0   # ρ=0 对照
   forced_participation: false   # 默认关闭：所有客户端同概率被抽取（当前实验的正确设定）。
                                 # exp006 的 pm_acc 崩溃即因此前隐式强制参与 + 恶意密集 edge 饿死良性端。
   attack_freq_Q:  1             # 仅 forced_participation=true 时生效

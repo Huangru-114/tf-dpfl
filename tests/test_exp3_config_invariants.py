@@ -71,12 +71,28 @@ def test_declared_invariants_are_actually_invariant():
         + "\n拓扑/频率之外的任何差异都会被当成拓扑效应读出来。")
 
 
+EFFECTIVE_ROUNDS = 200
+"""
+有效轮预算。**2026-09-09 由 400 改为 200**，依据 `experiments/calibration/RESULTS.md`：
+
+  · Stage B 标定：MTA 与 local_epochs 无关，而每 cloud round 有 ~56 s 固定开销、
+    只有 8.75 s/epoch 是真训练 → 取 local_epochs=5，同样的墙钟做近 2 倍本地训练。
+  · 天花板判定：ASR **不收敛到内点，而是往 1.0 饱和**（末段仍 +0.017/轮）。
+    「跑到收敛再比终值」= 保证拿到 null。主指标因此改为 T_θ（首次达到 θ 的轮数），
+    它在瞬态里测 —— 而效应本来就在瞬态里。
+  · 200 有效轮下最慢的 10edge 已越过 θ=0.75（round 27），pm_acc 距渐近 0.001。
+
+改这个数就是改整个矩阵的可比性，改之前先读那份 RESULTS.md。
+"""
+
+
 def test_effective_budget_is_equal_across_all_cells():
-    """edge_rounds × n_rounds = 400。等有效预算是跨格比较的前提。"""
+    """edge_rounds × n_rounds 跨格恒定。等有效预算是跨格比较的前提。"""
     for name, c in _cells().items():
         f = c["federation"]
         prod = f["edge_rounds"] * f["n_rounds"]
-        assert prod == 400, f"{name}: edge_rounds×n_rounds = {prod}，应为 400"
+        assert prod == EFFECTIVE_ROUNDS, \
+            f"{name}: edge_rounds×n_rounds = {prod}，应为 {EFFECTIVE_ROUNDS}"
 
 
 def test_target_class_is_zero_everywhere():
@@ -89,13 +105,41 @@ def test_target_class_is_zero_everywhere():
             f"{name}: target_label={c['backdoor']['target_label']}，应为 0"
 
 
-def test_malicious_count_is_ten_everywhere():
-    """全局恶意端比例恒为 10%，无论怎么布点。"""
+# 恶意端比例是**自变量**的格子。文件名前缀是唯一标记 —— 前缀 `rho`
+# 就是「本格在比例轴上」的声明，其余任何格子改动 n_malicious 都算漂移。
+# （`rho0_` 是 ρ=0 无攻击对照，也在这条豁免里。）
+RATIO_AXIS_PREFIX = "rho"
+
+
+def test_malicious_count_is_ten_everywhere_off_the_ratio_axis():
+    """
+    全局恶意端比例恒为 10%，无论怎么布点 —— **比例轴的格子除外**。
+
+    Tier 3（`rho02_` / `rho05_` / `rho20_`）与 ρ=0 对照（`rho0_`）就是要动这个数，
+    那是它们的自变量。除此之外任何格子的 10 变了都是漂移：
+    「布点」与「比例」缠在一起之后，3A 的结论就不成立了。
+    """
+    checked = 0
     for name, c in _cells().items():
         per_edge = c["backdoor"]["malicious_per_edge"]
-        assert sum(per_edge) == 10, f"{name}: malicious_per_edge={per_edge}，和应为 10"
         assert len(per_edge) == c["federation"]["n_edges"], \
             f"{name}: malicious_per_edge 长度 {len(per_edge)} != n_edges {c['federation']['n_edges']}"
+        assert sum(per_edge) == c["backdoor"]["n_malicious"], \
+            f"{name}: sum({per_edge}) 与 n_malicious={c['backdoor']['n_malicious']} 不一致"
+        if name.startswith(RATIO_AXIS_PREFIX):
+            continue
+        checked += 1
+        assert sum(per_edge) == 10, f"{name}: malicious_per_edge={per_edge}，和应为 10"
+    assert checked >= 10, (
+        f"只检查了 {checked} 格 —— 豁免名单是不是把整张表都放过去了？")
+
+
+def test_the_ratio_axis_actually_varies_the_ratio():
+    """反向锚点：豁免名单里的格子必须**真的**取了不同的值，否则豁免就是白开的口子。"""
+    vals = {n: sum(c["backdoor"]["malicious_per_edge"])
+            for n, c in _cells().items() if n.startswith(RATIO_AXIS_PREFIX)}
+    assert vals, "一个比例轴格子都没有"
+    assert set(vals.values()) >= {0, 2, 5, 20}, f"比例轴取值不全：{vals}"
 
 
 def test_eval_density_is_comparable_in_effective_rounds():
@@ -120,10 +164,28 @@ def test_eval_density_is_comparable_in_effective_rounds():
 
 
 def test_every_cell_has_at_least_ten_eval_points():
-    """少于 10 个点的曲线没法读趋势。"""
+    """
+    少于 10 个点的曲线没法读趋势，也凑不出末 10 点均值（官方统计量）。
+
+    **唯一的豁免**：`eval_interval` 已经是 1、再也调不小了 —— 那是 cloud 轮数
+    下限造成的设计固有稀疏（`edge_rounds` 大 → cloud 轮数少），不是配置错误。
+    这种格子必须在文件头**显式写明** T_θ 不可算，否则它的终值会被当成与其他格
+    同等的证据混进表里。（预算从 400 降到 200 之后，3c_R40 从 10 个点掉到 5 个。）
+    """
+    exempt = []
     for name, c in _cells().items():
         pts = c["federation"]["n_rounds"] // c["backdoor"]["eval_interval"]
-        assert pts >= 10, f"{name}: 只有 {pts} 个评估点"
+        if pts >= 10:
+            continue
+        assert c["backdoor"]["eval_interval"] == 1, (
+            f"{name}: 只有 {pts} 个评估点，而 eval_interval="
+            f"{c['backdoor']['eval_interval']} 还能再调小")
+        head = (CELLS_DIR / f"{name}.yaml").read_text(encoding="utf-8")[:2000]
+        assert "T_θ 不可算" in head, (
+            f"{name} 只有 {pts} 个评估点却没在文件头声明 T_θ 不可算 —— "
+            f"它的终值会被当成与其他格同等的证据")
+        exempt.append(name)
+    assert len(exempt) <= 1, f"豁免的格子太多了：{exempt}。稀疏是个例，不该成为常态"
 
 
 def test_the_frequency_control_cell_exists():

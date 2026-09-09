@@ -1,25 +1,14 @@
 # experiments/attack/hfl-propagation/3c_R1.yaml
-#   Experiment 3C —— Hierarchical aggregation frequency，**R_edge = 1 的极端点**。
+#   3C 轴 · edge_rounds=1（保留 edge 层，cloud 聚合最勤）
 #
-#   ▲ 这一格是把「层级结构本身」与「cloud 聚合频率」分开的**关键对照**，
-#     README 早就设计了它，但 3c_R1.yaml 一直没有被创建，于是这两个变量
-#     在整个 Experiment 3 里始终缠在一起：
+#   预算（Stage B 标定 + 天花板判定，见 experiments/calibration/RESULTS.md）：
+#     local_epochs=5 · n_rounds=200 · edge_rounds=1 → 200 有效轮 · eval_interval=5（40 个评估点）
+#   **主指标是 T_θ（首次达到 θ 的 cloud round），不是终值 ASR** —— 无防御下 ASR
+#   往 1.0 饱和，终值在稳态下没有分辨力（RESULTS.md §7）。终值只作为瞬态快照参考。
+#   读数一律取末 10 个评估点的均值：逐点 σ≈0.09，与要测的效应同量级。
 #
-#         flat_baseline :  n_edges=1  且  edge_rounds=1     ← 同时改了两个变量
-#         3c_R5 (锚点)  :  n_edges=2  且  edge_rounds=5
-#         3c_R1 (本格)  :  n_edges=2  且  edge_rounds=1     ← 只改频率，保留 edge 层
-#
-#     有了本格才能回答：flat 相对层级组的差异，是因为**少了 edge 这一层**，
-#     还是仅仅因为**cloud 聚合得更勤**？
-#       · 3c_R1 ≈ flat  → 差异来自聚合频率，edge 层本身不起作用
-#       · 3c_R1 ≈ 3c_R5 → 差异来自 edge 层结构（3C 已显示 ASR 对 R_edge 不敏感，
-#                          这是先验上更可能的一支，但此前没有对照格可证）
-#
-#   固定拓扑 = 2edge distributed [5,5]（= exp007 锚点在 R_edge=5），
-#   唯一自变量 = edge_rounds R_edge，n_rounds 随之使 R_edge × R_cloud = 1 × 400 = 400
-#   （有效 local budget 与所有其他格恒定）。
-#   跑法：CONFIGS="3c_R1 3c_R2 3c_R4 3c_R5 3c_R10 3c_R20 3c_R40" bash …/run_exp3.sh
-#
+#   跑法：由 run_exp3.sh 自动扫描本目录提交（SEEDS 默认 42 43 44）。
+
 seed: 42
 
 data:
@@ -39,7 +28,7 @@ federation:
   n_clients:        100         # 100 client / 10 恶意（全局 10%），跨所有拓扑格恒定
   n_edges:          2
   edge_rounds:      1           # ← R_edge=1：每个 cloud round 只做 1 个 edge round
-  n_rounds:         400         # ← 1 × 400 = 400 有效轮，与所有其他格等预算
+  n_rounds:        200   # 200 × 1 = 200 有效轮
   partition:        "noniid"
   classes_per_client: 10
   alpha:            0.5
@@ -48,7 +37,7 @@ federation:
   min_samples:      10
 
 training:
-  local_epochs:   1
+  local_epochs:    5   # Stage B 标定：MTA 与 ep 无关，ep=5 每 GPU-h 训练量最大
   learning_rate:  0.1
   lr_decay:       0.992
   drift_correction: "hier_fedrep"  # 自描述；run 脚本另传 --framework hier_fedavg_fedrep
@@ -114,7 +103,7 @@ backdoor:
   badpfl_gen_steps:   30
   badpfl_gen_lr:      0.01
   badpfl_shared_generator: true   # P4：adversary 持有单一共享生成器（对齐官方 fba.py）
-  eval_interval:  10  # ← 1 × 10 = 每 10 个有效轮评一次，与其他格同密度
+  eval_interval:   5   # 每 5 个有效轮一个点 → 40 个点
                                 #   原本各格一律 5 个 cloud 轮，而有效轮 = cloud x edge_rounds，
                                 #   于是等预算 400 下 flat 拿到 80 个评估点、R20 只有 4 个、R40 只有 2 个
                                 #   —— 任何「谁涨得快」的轨迹比较在大 R 的格子上根本没有分辨率。
@@ -143,7 +132,7 @@ wandb:
   enabled:  false
 
 evaluation:
-  eval_interval: 10
+  eval_interval:   5   # 每 5 个有效轮一个点 → 40 个点
   final_finetune:       false
   final_finetune_steps: 5
   test_client_eval:    false
