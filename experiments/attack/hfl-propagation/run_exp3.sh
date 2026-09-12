@@ -32,7 +32,7 @@ mkdir -p "$OUTDIR"
 #   3C：   CONFIGS="3c_R1 3c_R2 3c_R4 3c_R5 3c_R10 3c_R20 3c_R40"
 #   归因对照： CONFIGS="flat_baseline 3c_R1 3c_R5"   ← 分离「层级结构」与「聚合频率」
 CONFIGS="${CONFIGS:-$(cd "$ROOT/$REL" && ls *.yaml 2>/dev/null | sed 's/\.yaml$//' | tr '\n' ' ')}"
-SEEDS="${SEEDS:-42 43 44}"
+SEEDS="${SEEDS:-42}"
 
 DRY=0; FORCE=0; STATUS=0
 for a in "$@"; do case "$a" in

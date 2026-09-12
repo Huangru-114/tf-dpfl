@@ -1,0 +1,842 @@
+{
+  "run": {
+    "config_path": "/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tf-dpfl/experiments/attack/hfl-propagation/3c_R40.yaml",
+    "run_name": "hier_fedavg_fedrep_noniid_badpfl_seed42",
+    "method": "hier_fedrep",
+    "defense": "none",
+    "attack": "badpfl",
+    "n_rounds": 8,
+    "malicious_ids": [
+      5,
+      20,
+      25,
+      39,
+      49,
+      61,
+      68,
+      84,
+      87,
+      98
+    ],
+    "client_fraction": 0.1,
+    "poison_ratio": 0.2,
+    "n_clients": 100,
+    "n_edges": 2,
+    "edge_rounds": 40,
+    "n_malicious": 10,
+    "forced_participation": false,
+    "arch": "resnet10",
+    "malicious_per_edge": [
+      5,
+      5
+    ],
+    "malicious_placement": "by_edge",
+    "edge_assignment": "block",
+    "local_epochs": 5,
+    "plocal_epochs": 1,
+    "seed": 42,
+    "bd_eval_interval": 1,
+    "acc_eval_interval": 1,
+    "attack_stop_round": null,
+    "stopping": "on",
+    "floor_effective": 160,
+    "cap_effective": 320,
+    "stop_criteria": "thresholds_crossed,pm_acc_plateau",
+    "stopped_at_round": 8,
+    "stopped_at_effective": 320,
+    "stop_reason": "grid_too_coarse",
+    "stop_crossed": "9/9"
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "global_asr": 0.866,
+      "edge_asr": 0.66,
+      "local_benign_asr": 0.402,
+      "same_edge_asr": 0.402,
+      "diff_edge_asr": null,
+      "local_malicious_asr": 0.596
+    },
+    {
+      "round": 2,
+      "global_asr": 0.731,
+      "edge_asr": 0.564,
+      "local_benign_asr": 0.614,
+      "same_edge_asr": 0.614,
+      "diff_edge_asr": null,
+      "local_malicious_asr": 0.884
+    },
+    {
+      "round": 3,
+      "global_asr": 0.871,
+      "edge_asr": 0.767,
+      "local_benign_asr": 0.66,
+      "same_edge_asr": 0.66,
+      "diff_edge_asr": null,
+      "local_malicious_asr": 0.911
+    },
+    {
+      "round": 4,
+      "global_asr": 0.91,
+      "edge_asr": 0.834,
+      "local_benign_asr": 0.766,
+      "same_edge_asr": 0.766,
+      "diff_edge_asr": null,
+      "local_malicious_asr": 0.952
+    },
+    {
+      "round": 5,
+      "global_asr": 0.926,
+      "edge_asr": 0.885,
+      "local_benign_asr": 0.794,
+      "same_edge_asr": 0.794,
+      "diff_edge_asr": null,
+      "local_malicious_asr": 0.954
+    },
+    {
+      "round": 6,
+      "global_asr": 0.897,
+      "edge_asr": 0.857,
+      "local_benign_asr": 0.82,
+      "same_edge_asr": 0.82,
+      "diff_edge_asr": null,
+      "local_malicious_asr": 0.962
+    },
+    {
+      "round": 7,
+      "global_asr": 0.913,
+      "edge_asr": 0.879,
+      "local_benign_asr": 0.829,
+      "same_edge_asr": 0.829,
+      "diff_edge_asr": null,
+      "local_malicious_asr": 0.975
+    },
+    {
+      "round": 8,
+      "global_asr": 0.946,
+      "edge_asr": 0.928,
+      "local_benign_asr": 0.869,
+      "same_edge_asr": 0.869,
+      "diff_edge_asr": null,
+      "local_malicious_asr": 0.973
+    }
+  ],
+  "final": {
+    "round": 8,
+    "global_asr": 0.946,
+    "edge_asr": 0.928,
+    "local_benign_asr": 0.869,
+    "same_edge_asr": 0.869,
+    "diff_edge_asr": null,
+    "local_malicious_asr": 0.973
+  },
+  "per_edge_rounds": {
+    "1": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.748,
+        "client_benign": 0.359,
+        "client_malicious": 0.589,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.572,
+        "client_benign": 0.446,
+        "client_malicious": 0.602,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      }
+    ],
+    "2": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.464,
+        "client_benign": 0.58,
+        "client_malicious": 0.845,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.664,
+        "client_benign": 0.647,
+        "client_malicious": 0.923,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      }
+    ],
+    "3": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.67,
+        "client_benign": 0.574,
+        "client_malicious": 0.86,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.864,
+        "client_benign": 0.747,
+        "client_malicious": 0.963,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      }
+    ],
+    "4": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.731,
+        "client_benign": 0.718,
+        "client_malicious": 0.926,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.938,
+        "client_benign": 0.815,
+        "client_malicious": 0.977,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      }
+    ],
+    "5": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.832,
+        "client_benign": 0.793,
+        "client_malicious": 0.943,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.939,
+        "client_benign": 0.796,
+        "client_malicious": 0.966,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      }
+    ],
+    "6": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.829,
+        "client_benign": 0.792,
+        "client_malicious": 0.963,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.886,
+        "client_benign": 0.848,
+        "client_malicious": 0.961,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      }
+    ],
+    "7": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.866,
+        "client_benign": 0.8,
+        "client_malicious": 0.969,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.891,
+        "client_benign": 0.857,
+        "client_malicious": 0.981,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      }
+    ],
+    "8": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.898,
+        "client_benign": 0.829,
+        "client_malicious": 0.96,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.958,
+        "client_benign": 0.908,
+        "client_malicious": 0.986,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      }
+    ]
+  },
+  "per_edge_final": [
+    {
+      "edge_id": 0,
+      "edge_asr": 0.898,
+      "client_benign": 0.829,
+      "client_malicious": 0.96,
+      "n_benign": 45,
+      "n_malicious": 5,
+      "has_malicious": true
+    },
+    {
+      "edge_id": 1,
+      "edge_asr": 0.958,
+      "client_benign": 0.908,
+      "client_malicious": 0.986,
+      "n_benign": 45,
+      "n_malicious": 5,
+      "has_malicious": true
+    }
+  ],
+  "drift_rounds": [
+    {
+      "round": 1,
+      "param_abs": 40.226,
+      "param_rel": 0.4502,
+      "repr_mean": 0.4233,
+      "repr_median": 0.4121,
+      "n_edges": 2
+    },
+    {
+      "round": 2,
+      "param_abs": 11.5831,
+      "param_rel": 0.1378,
+      "repr_mean": 0.1064,
+      "repr_median": 0.1017,
+      "n_edges": 2
+    },
+    {
+      "round": 3,
+      "param_abs": 8.8536,
+      "param_rel": 0.1036,
+      "repr_mean": 0.0455,
+      "repr_median": 0.044,
+      "n_edges": 2
+    },
+    {
+      "round": 4,
+      "param_abs": 7.3602,
+      "param_rel": 0.0853,
+      "repr_mean": 0.033,
+      "repr_median": 0.0315,
+      "n_edges": 2
+    },
+    {
+      "round": 5,
+      "param_abs": 5.8701,
+      "param_rel": 0.0674,
+      "repr_mean": 0.0298,
+      "repr_median": 0.0285,
+      "n_edges": 2
+    },
+    {
+      "round": 6,
+      "param_abs": 4.9786,
+      "param_rel": 0.0569,
+      "repr_mean": 0.0255,
+      "repr_median": 0.0242,
+      "n_edges": 2
+    },
+    {
+      "round": 7,
+      "param_abs": 4.8119,
+      "param_rel": 0.055,
+      "repr_mean": 0.0219,
+      "repr_median": 0.0209,
+      "n_edges": 2
+    },
+    {
+      "round": 8,
+      "param_abs": 4.1344,
+      "param_rel": 0.047,
+      "repr_mean": 0.0231,
+      "repr_median": 0.0219,
+      "n_edges": 2
+    }
+  ],
+  "drift_final": {
+    "round": 8,
+    "param_abs": 4.1344,
+    "param_rel": 0.047,
+    "repr_mean": 0.0231,
+    "repr_median": 0.0219,
+    "n_edges": 2
+  },
+  "acc_rounds": [
+    {
+      "round": 1,
+      "gm_acc": 0.3502,
+      "em_acc": 0.5321,
+      "pm_acc": 0.6517,
+      "round_time": 820.2
+    },
+    {
+      "round": 2,
+      "gm_acc": 0.583,
+      "em_acc": 0.5902,
+      "pm_acc": 0.7007,
+      "round_time": 607.7
+    },
+    {
+      "round": 3,
+      "gm_acc": 0.6158,
+      "em_acc": 0.5931,
+      "pm_acc": 0.7161,
+      "round_time": 634.7
+    },
+    {
+      "round": 4,
+      "gm_acc": 0.6247,
+      "em_acc": 0.6088,
+      "pm_acc": 0.7158,
+      "round_time": 542.9
+    },
+    {
+      "round": 5,
+      "gm_acc": 0.6211,
+      "em_acc": 0.5993,
+      "pm_acc": 0.7206,
+      "round_time": 526.7
+    },
+    {
+      "round": 6,
+      "gm_acc": 0.6322,
+      "em_acc": 0.6118,
+      "pm_acc": 0.7238,
+      "round_time": 536.2
+    },
+    {
+      "round": 7,
+      "gm_acc": 0.6336,
+      "em_acc": 0.6171,
+      "pm_acc": 0.7244,
+      "round_time": 541.4
+    },
+    {
+      "round": 8,
+      "gm_acc": 0.6343,
+      "em_acc": 0.6157,
+      "pm_acc": 0.7231,
+      "round_time": 574.5
+    }
+  ],
+  "final_acc": {
+    "round": 8,
+    "gm_acc": 0.6343,
+    "em_acc": 0.6157,
+    "pm_acc": 0.7231,
+    "round_time": 574.5,
+    "final_pm_weighted": 0.7231
+  },
+  "per_edge_acc_rounds": {
+    "1": [
+      {
+        "edge_id": 0,
+        "em_acc": 0.5388,
+        "pm_acc": 0.6807,
+        "n_clients": 50,
+        "n_samples": 23275
+      },
+      {
+        "edge_id": 1,
+        "em_acc": 0.525,
+        "pm_acc": 0.6207,
+        "n_clients": 50,
+        "n_samples": 21762
+      }
+    ],
+    "2": [
+      {
+        "edge_id": 0,
+        "em_acc": 0.5872,
+        "pm_acc": 0.7004,
+        "n_clients": 50,
+        "n_samples": 23275
+      },
+      {
+        "edge_id": 1,
+        "em_acc": 0.5934,
+        "pm_acc": 0.701,
+        "n_clients": 50,
+        "n_samples": 21762
+      }
+    ],
+    "3": [
+      {
+        "edge_id": 0,
+        "em_acc": 0.5898,
+        "pm_acc": 0.7185,
+        "n_clients": 50,
+        "n_samples": 23275
+      },
+      {
+        "edge_id": 1,
+        "em_acc": 0.5967,
+        "pm_acc": 0.7135,
+        "n_clients": 50,
+        "n_samples": 21762
+      }
+    ],
+    "4": [
+      {
+        "edge_id": 0,
+        "em_acc": 0.6128,
+        "pm_acc": 0.7185,
+        "n_clients": 50,
+        "n_samples": 23275
+      },
+      {
+        "edge_id": 1,
+        "em_acc": 0.6045,
+        "pm_acc": 0.7129,
+        "n_clients": 50,
+        "n_samples": 21762
+      }
+    ],
+    "5": [
+      {
+        "edge_id": 0,
+        "em_acc": 0.5945,
+        "pm_acc": 0.7185,
+        "n_clients": 50,
+        "n_samples": 23275
+      },
+      {
+        "edge_id": 1,
+        "em_acc": 0.6045,
+        "pm_acc": 0.7228,
+        "n_clients": 50,
+        "n_samples": 21762
+      }
+    ],
+    "6": [
+      {
+        "edge_id": 0,
+        "em_acc": 0.6134,
+        "pm_acc": 0.7264,
+        "n_clients": 50,
+        "n_samples": 23275
+      },
+      {
+        "edge_id": 1,
+        "em_acc": 0.6102,
+        "pm_acc": 0.721,
+        "n_clients": 50,
+        "n_samples": 21762
+      }
+    ],
+    "7": [
+      {
+        "edge_id": 0,
+        "em_acc": 0.6187,
+        "pm_acc": 0.7243,
+        "n_clients": 50,
+        "n_samples": 23275
+      },
+      {
+        "edge_id": 1,
+        "em_acc": 0.6154,
+        "pm_acc": 0.7245,
+        "n_clients": 50,
+        "n_samples": 21762
+      }
+    ],
+    "8": [
+      {
+        "edge_id": 0,
+        "em_acc": 0.6199,
+        "pm_acc": 0.7226,
+        "n_clients": 50,
+        "n_samples": 23275
+      },
+      {
+        "edge_id": 1,
+        "em_acc": 0.6113,
+        "pm_acc": 0.7235,
+        "n_clients": 50,
+        "n_samples": 21762
+      }
+    ]
+  },
+  "per_edge_acc_final": [
+    {
+      "edge_id": 0,
+      "em_acc": 0.6199,
+      "pm_acc": 0.7226,
+      "n_clients": 50,
+      "n_samples": 23275
+    },
+    {
+      "edge_id": 1,
+      "em_acc": 0.6113,
+      "pm_acc": 0.7235,
+      "n_clients": 50,
+      "n_samples": 21762
+    }
+  ],
+  "timing_rounds": [
+    {
+      "round": 1,
+      "asr_s": 114.8,
+      "feature_s": null,
+      "forgetting_s": 0.0,
+      "drift_s": 0.2,
+      "total_s": 115.1
+    },
+    {
+      "round": 2,
+      "asr_s": 29.0,
+      "feature_s": null,
+      "forgetting_s": 0.2,
+      "drift_s": 0.2,
+      "total_s": 29.4
+    },
+    {
+      "round": 3,
+      "asr_s": 29.1,
+      "feature_s": null,
+      "forgetting_s": 0.4,
+      "drift_s": 0.2,
+      "total_s": 29.7
+    },
+    {
+      "round": 4,
+      "asr_s": 29.3,
+      "feature_s": null,
+      "forgetting_s": 0.2,
+      "drift_s": 0.2,
+      "total_s": 29.7
+    },
+    {
+      "round": 5,
+      "asr_s": 29.9,
+      "feature_s": null,
+      "forgetting_s": 0.5,
+      "drift_s": 0.2,
+      "total_s": 30.5
+    },
+    {
+      "round": 6,
+      "asr_s": 29.4,
+      "feature_s": null,
+      "forgetting_s": 0.0,
+      "drift_s": 0.2,
+      "total_s": 29.6
+    },
+    {
+      "round": 7,
+      "asr_s": 29.4,
+      "feature_s": null,
+      "forgetting_s": 0.0,
+      "drift_s": 0.2,
+      "total_s": 29.6
+    },
+    {
+      "round": 8,
+      "asr_s": 29.6,
+      "feature_s": null,
+      "forgetting_s": 0.0,
+      "drift_s": 0.2,
+      "total_s": 29.8
+    }
+  ],
+  "timing_summary": {
+    "n_rounds_timed": 8,
+    "n_bd_evals": 8,
+    "round_time_total_s": 4784.3,
+    "bd_eval_total_s": 323.4,
+    "wall_total_s": 5107.7,
+    "bd_eval_fraction": 0.0633,
+    "round_time_mean_s": 598.04,
+    "bd_eval_mean_s": 40.42,
+    "bd_phase_mean_s": {
+      "asr": 40.06,
+      "feature": null,
+      "forgetting": 0.16,
+      "drift": 0.2
+    }
+  },
+  "admitted": [],
+  "admitted_count_mean": null,
+  "rejected_ids": [],
+  "malicious_selected_rounds": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+  ],
+  "n_malicious_participations": 8,
+  "malicious_participation_by_client": {
+    "5": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "20": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "25": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "39": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "49": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "61": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "68": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "84": [
+      2,
+      3,
+      4,
+      5,
+      6,
+      8
+    ],
+    "87": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "98": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ]
+  },
+  "client_failures": [],
+  "errors": [],
+  "log_tail": [
+    "",
+    "[ Per-Class Report ]",
+    "              precision    recall  f1-score   support",
+    "",
+    "           0     0.6702    0.7654    0.7146      1492",
+    "           1     0.8093    0.8201    0.8147      1501",
+    "           2     0.6410    0.6154    0.6280      1477",
+    "           3     0.6259    0.5653    0.5941      1477",
+    "           4     0.7039    0.6593    0.6809      1547",
+    "           5     0.6784    0.6474    0.6625      1489",
+    "           6     0.7266    0.7912    0.7575      1451",
+    "           7     0.7291    0.7529    0.7408      1526",
+    "           8     0.8217    0.8166    0.8191      1450",
+    "           9     0.8144    0.7965    0.8053      1553",
+    "",
+    "    accuracy                         0.7231     14963",
+    "   macro avg     0.7220    0.7230    0.7218     14963",
+    "weighted avg     0.7223    0.7231    0.7219     14963",
+    "",
+    "[ F1 Score ]",
+    "  Macro    F1 : 0.7218",
+    "  Weighted F1 : 0.7219",
+    "",
+    "[ AUC (OvR) ]",
+    "  Macro    AUC : 0.9605",
+    "  Weighted AUC : 0.9605",
+    "",
+    "[ Confusion Matrix ] (shape: (10, 10))",
+    "[[1142   34   75   28   30   16   10   31   88   38]",
+    " [  60 1231   10   13    7    7   17    8   47  101]",
+    " [ 106   27  909   88   95   85   64   66   17   20]",
+    " [  57   21  101  835   83  152  130   45   26   27]",
+    " [  56   12   91   67 1020   63   97  111   14   16]",
+    " [  45   12   73  160   64  964   50  104    4   13]",
+    " [  32   13   59   64   52   39 1148   24   12    8]",
+    " [  55   15   64   44   75   66   26 1149    9   23]",
+    " [  98   39   21   26   13   10   15    8 1184   36]",
+    " [  53  117   15    9   10   19   23   30   40 1237]]",
+    "============================================================",
+    "  Report saved to report_PM_hier_fedavg_fedrep_noniid_badpfl_seed42.txt"
+  ],
+  "exit_code": 0
+}
