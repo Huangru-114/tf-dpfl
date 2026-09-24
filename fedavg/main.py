@@ -1,3 +1,4 @@
+import copy
 import random
 import yaml
 import numpy as np
@@ -39,6 +40,7 @@ from client.client_neurotoxin import NeurotoxinMixin
 from client.client_cerp        import CerPMixin
 from client.client_badpfl      import BadPFLMixin
 from client.compose            import compose_client_class
+from utils.provenance          import config_sha, flat_diff, print_provenance
 
 
 def _select_method_classes(config):
@@ -279,6 +281,11 @@ def load_config(path: str = "config/config.yaml") -> dict:
     with open(cfg_path, "r") as f:
         config = yaml.safe_load(f)
 
+    # 溯源：yaml 原文（声明）的 hash 在任何 CLI 改动之前算；改动本身另记成 cli_overrides。
+    # 6 个 def_* 格子就是 CLI 的 --defense none 静默盖掉了 yaml 的 median（FINDINGS F-001）。
+    declared_config = copy.deepcopy(config)
+    declared_sha = config_sha(declared_config)
+
     # 先应用高层维度（可被后续显式 --override 进一步覆盖）
     config = apply_experiment_args(config, args)
 
@@ -297,6 +304,10 @@ def load_config(path: str = "config/config.yaml") -> dict:
         d[keys[-1]] = value
         print(f"[Config] Override: {key_path} = {value}")
 
+    # 只记录、不拦截：CLI 相对 yaml 改了哪些叶子值（wandb.* 是簿记字段，不算）。
+    cli_overrides = [d for d in flat_diff(declared_config, config)
+                     if not str(d[0]).startswith("wandb.")]
+
     # ── 兼容性校验：挡掉会「静默跑错」的跨轴组合（见 config_validate.py）──
     # 必须在构建任何模型/客户端之前，否则 24 小时后才发现那一格没有意义。
     # strict_orthogonality=true 时把「攻击 × 方法不正交」也升级为错误。
@@ -304,6 +315,9 @@ def load_config(path: str = "config/config.yaml") -> dict:
         config,
         strict_orthogonality=bool(
             (config.get("experiment") or {}).get("strict_orthogonality", False)))
+
+    # [Provenance] 一行：git / 口径版本 / config_sha / run_id / cli_overrides → metrics.json 的 run.provenance
+    print_provenance(config, declared_sha=declared_sha, cli_overrides=cli_overrides)
 
     return config
 

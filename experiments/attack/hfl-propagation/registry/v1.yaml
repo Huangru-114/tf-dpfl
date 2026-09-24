@@ -1,0 +1,69 @@
+# 旧方案（Experiment 3，hfl-propagation）的登记表 —— 口径版本 P1
+#
+# 放在 registry/ 子目录、而不是本目录顶层叫 registry.yaml，是**刻意的**：
+# run_exp3.sh 用 `ls *.yaml` 挑格子、tests/test_exp3_matrix.py 用 glob("*.yaml") 扫格子，
+# 放在顶层会被当成第 26 个实验格提交出去。
+#
+# 这份登记表记录的是**当时的意图**：yaml 本身 + exp3_cell.sbatch 固定传的
+#   --attack_method badpfl   → backdoor.malicious_strategy: badpfl
+#   --framework hier_fedavg_fedrep → training.drift_correction: hier_fedrep
+# **不包括** `--defense none`：那是 bug（FINDINGS F-001），不是意图。于是 6 个 def_*
+# 格子在 `python3 harness/status.py <本文件>` 下会显示 mismatch —— 这正是要它报的。
+#
+# 用法：python3 harness/status.py experiments/attack/hfl-propagation/registry/v1.yaml
+
+study: hfl-propagation
+protocol: P1
+layout: flat
+results_dir: ../results
+run_id_format: "{cell}_seed{seed}"
+intended_cli:
+  backdoor.malicious_strategy: badpfl
+  training.drift_correction: hier_fedrep
+
+groups:
+  topology:
+    purpose: "3A/3B：恶意端空间分布 × edge 数"
+    seeds: [42]
+    cells:
+      - {config: ../2edge_collocated.yaml}
+      - {config: ../2edge_distributed.yaml}
+      - {config: ../4edge_collocated.yaml}
+      - {config: ../4edge_distributed.yaml}
+      - {config: ../4edge_mixed.yaml}
+      - {config: ../10edge_collocated.yaml}
+      - {config: ../10edge_distributed.yaml}
+      - {config: ../10edge_mixed.yaml}
+  flat:
+    purpose: "扁平两层基线"
+    seeds: [42]
+    cells:
+      - {config: ../flat_baseline.yaml}
+  freq3c:
+    purpose: "3C：聚合频率 R_edge"
+    seeds: [42]
+    cells:
+      - {config: ../3c_R1.yaml}
+      - {config: ../3c_R5.yaml}
+      - {config: ../3c_R40.yaml}
+  defense:
+    purpose: "防御轴（实际没开防御，F-001）"
+    seeds: [42]
+    cells:
+      - {config: ../def_median_flat_baseline.yaml}
+      - {config: ../def_median_2edge_distributed.yaml}
+      - {config: ../def_median_4edge_distributed.yaml}
+      - {config: ../def_multi_krum_flat_baseline.yaml}
+      - {config: ../def_multi_krum_2edge_distributed.yaml}
+      - {config: ../def_multi_krum_4edge_distributed.yaml}
+  ratio:
+    purpose: "攻击者比例（rho = 恶意端比例，不是投毒率）+ 无攻击对照"
+    seeds: [42]
+    cells:
+      - {config: ../rho0_2edge_distributed.yaml}
+      - {config: ../rho02_2edge_collocated.yaml}
+      - {config: ../rho02_2edge_distributed.yaml}
+      - {config: ../rho05_2edge_collocated.yaml}
+      - {config: ../rho05_2edge_distributed.yaml}
+      - {config: ../rho20_2edge_collocated.yaml}
+      - {config: ../rho20_2edge_distributed.yaml}

@@ -12,6 +12,11 @@ harness/collect_metrics.py  —  把集群 run 的**全量日志**压成一个�
                           defense / attack / n_rounds / malicious_ids。
                           自描述是硬要求 —— `--config` 曾经被静默忽略（见 test_config_cli.py），
                           一份不写明自己跑了哪个配置的 metrics.json 事后无法判读。
+    run.provenance        [Provenance] 行：protocol（口径版本 P0/P1/P2）/ git / branch /
+                          dirty / config_sha（yaml 原文的 hash）/ study / group / run_id /
+                          host / job / start。老日志没有这一行 → None
+    run.cli_overrides     CLI 相对 yaml 改掉的叶子值 [[key, old, new], ...]；老日志 → None
+    schema_version        本文件的结构版本（2 = 有 provenance）
     rounds[]              每个**后门评估轮**的 {round, global_asr, edge_asr,
                           local_benign_asr, same_edge_asr, diff_edge_asr, local_malicious_asr}
     final                 最后一个后门评估轮的上述指标
@@ -41,6 +46,14 @@ import json
 import re
 import sys
 from pathlib import Path
+
+# `[Provenance]` 行的格式只在 fedavg/utils/provenance.py 定义一次（打印与解析同源），
+# 这里借用它的解析器，免得两处格式漂移。那个模块是纯标准库，不 import TF。
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "fedavg"))
+from utils.provenance import parse_provenance   # noqa: E402
+
+# metrics.json 的结构版本。2 = 加了 run.provenance / run.cli_overrides。
+SCHEMA_VERSION = 2
 
 # ── 后门分层评估 ────────────────────────────────────────────────────────────
 # 数值字段一律允许 "n/a"：无定义的分组（如全 distributed 布点下的 diff_edge、
@@ -196,6 +209,15 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
     round_hdrs = [int(x.group(1)) for ln in lines
                   for x in [RE_ROUND_HDR.match(ln.strip())] if x]
 
+    # [Provenance]：取最后一次出现（正常只有一行）。没有这一行的老日志 →
+    # provenance=None、cli_overrides=None（「不知道」，不是「没有覆盖」的 []）。
+    prov = None
+    for ln in lines:
+        p = parse_provenance(ln)
+        if p is not None:
+            prov = p
+    cli_overrides = prov.pop("cli_overrides") if prov is not None else None
+
     return {
         "config_path":   cfg.group(1) if cfg else None,
         "run_name":      name.group(1) if name else None,
@@ -244,6 +266,9 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
         "stopped_at_effective": (int(stop.group(2)) if stop else None),
         "stop_reason":       (stop.group(3) if stop else None),
         "stop_crossed":      (f"{stop.group(4)}/{stop.group(5)}" if stop else None),
+        # ── 溯源：哪份代码、哪份声明配置、CLI 改了什么（FINDINGS F-001 / F-011）──
+        "provenance":        prov,
+        "cli_overrides":     cli_overrides,
     }
 
 
@@ -491,6 +516,7 @@ def collect(log_text: str) -> dict:
                                 if per_edge_acc_rounds else []))
 
     return {
+        "schema_version": SCHEMA_VERSION,
         "run": run,
         "rounds": rounds,
         "final": rounds[-1] if rounds else None,
@@ -538,6 +564,11 @@ def main():
 
     run, f, fa = metrics["run"], metrics["final"], metrics["final_acc"]
     print(f"[collect] {out}  ({out.stat().st_size / 1024:.1f} KB)")
+    prov = run.get("provenance") or {}
+    ov = run.get("cli_overrides")
+    print(f"[collect] provenance: protocol={prov.get('protocol')} git={prov.get('git')} "
+          f"config_sha={prov.get('config_sha')} run_id={prov.get('run_id')} "
+          f"cli_overrides={'n/a' if ov is None else len(ov)}")
     print(f"[collect] run: config={run['config_path']} method={run['method']} "
           f"attack={run['attack']} defense={run['defense']} n_rounds={run['n_rounds']}")
     print(f"[collect] 设定: client_fraction={run['client_fraction']} "
