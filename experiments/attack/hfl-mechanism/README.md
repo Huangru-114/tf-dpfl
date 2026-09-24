@@ -23,4 +23,55 @@ analysis/               runs.csv / series.csv / verdicts.json（脚本生成）
 figures/                生成物（gitignore）；定稿图放 figures/final/
 ```
 
-工作流命令在 S1 完成后补在下面。
+## 工作流
+
+所有 harness 脚本都是纯标准库 + PyYAML（只有画图要 matplotlib），本地和登录节点都能跑。
+
+```bash
+# 0. 看每组有多少 run、还缺什么（审计 / 功能会话）
+python3 harness/registry.py experiments/attack/hfl-mechanism/registry.yaml
+
+# 1. 生成配置（base 在 A4 之后才有；在那之前这一步会明确报错）
+python3 harness/registry.py experiments/attack/hfl-mechanism/registry.yaml --materialize
+
+# 2. 提交（登录节点，纯 bash）。AUDIT.md 未全部关闭时只列清单、不提交
+bash experiments/attack/hfl-mechanism/submit.sh --status
+bash experiments/attack/hfl-mechanism/submit.sh --dry-run
+RUN_GROUPS="G0 G2" bash experiments/attack/hfl-mechanism/submit.sh
+
+# 3. 回传后对账：todo / blocked / failed / mismatch / stale / done + orphan
+python3 harness/status.py experiments/attack/hfl-mechanism/registry.yaml
+
+# 4. 整洁表（按实际因素分组，末 10 点均值，拒绝混合口径版本）
+python3 harness/runs_table.py experiments/attack/hfl-mechanism/results/P2 \
+    --out experiments/attack/hfl-mechanism/analysis
+
+# 5. 预注册判定（PLAN §3）
+python3 harness/verdicts.py experiments/attack/hfl-mechanism/analysis/runs.csv \
+    --out experiments/attack/hfl-mechanism/analysis/verdicts.json
+
+# 6. 出图（组内因素不唯一会被拒绝；--floor 画下限虚线）
+python3 harness/figures.py trajectory --tables experiments/attack/hfl-mechanism/analysis \
+    --metric local_benign_asr --group-by n_edges,edge_rounds \
+    --floor poison_ratio=0 --out experiments/attack/hfl-mechanism/figures/F2.png
+python3 harness/figures.py per-edge --tables experiments/attack/hfl-mechanism/analysis \
+    --run <run> --metric edge.client_benign --out experiments/attack/hfl-mechanism/figures/F3.png
+```
+
+## 旧方案数据（P1）怎么看
+
+旧方案的 26 个 metrics.json 没有 `[Provenance]` 行，口径版本要显式指定：
+
+```bash
+python3 harness/status.py experiments/attack/hfl-propagation/registry/v1.yaml
+python3 harness/runs_table.py experiments/attack/hfl-propagation/results --out <dir> --legacy-protocol P1
+```
+
+P1 只作试点（DECISIONS D-009）：用来估噪声和效应量、提出假设、测试工具，不进结论。
+
+## 规矩
+
+- **数字只从脚本产物来**：FINDINGS / 报告里的数，要能用上面的命令重算出来（陷阱 #14）。
+- **改判定阈值**要在 DECISIONS.md 留一条，不能悄悄改 `harness/verdicts.py`。
+- **结论的状态**：`provisional`（P1 或 seed 不够）→ `confirmed`（P2 + 判定通过）→ 被推翻时改成 `retracted` 并写原因，不删除。
+- **出图**：横轴是有效轮；ASR 图要画下限；图例写 n；图上文字用英文（容器里没有中文字体）。

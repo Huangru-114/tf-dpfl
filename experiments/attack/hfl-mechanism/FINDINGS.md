@@ -23,7 +23,12 @@ F-001 的 6 个格子等于 3 组同配置、同 seed 的重复（恶意端 id �
 | 2edge_distributed | 0.2973 / 0.3285 / 0.3331 | 0.738 / 0.723 / 0.756 |
 | 4edge_distributed | 0.2167 / 0.2201 / 0.2115 | 0.972 / 0.963 / 0.910 |
 
-复核：`python3 harness/runs_table.py experiments/attack/hfl-propagation/results --out <dir>` → `runs.csv` 里同一因素键下的 `replicate` 列。
+按**实际因素**分组后（`harness/runs_table.py`），还多出两组之前没人注意到的同配置同 seed 重复：
+
+- `3c_R5` 与 `2edge_distributed` 的因素完全相同 → 2edge_distributed 实际有 **4** 份：末 10 点 benign ASR 为 0.738 / 0.724 / 0.723 / 0.756；T_0.5 为 46.8 / 46.9 / 43.6 / 48.2 有效轮。
+- `stoptest_10edge` 是 `10edge_distributed` 的第 2 份：末 10 点 benign ASR 为 0.729 / 0.723。
+
+复核：`python3 harness/runs_table.py experiments/attack/hfl-propagation/results --out <dir> --legacy-protocol P1` → `runs.csv` 的 `replicate` / `n_replicates` 列。
 
 影响：按 seed 配对只锁得住划分和布点，锁不住训练轨迹。AUDIT A15。
 

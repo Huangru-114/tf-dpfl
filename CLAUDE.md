@@ -267,6 +267,27 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
   与斜率 0.00036 / 0.00229）。**历史批次（标定六格、天花板判定）刻意不加
   `stopping`**，它们的结果已在盘上；守卫 `test_calibration_cells_have_no_stopping_block`。
 
+- **结果管理：登记表 → 对账 → 整洁表 → 判定 → 出图**（2026-09-24，Exp3 改版 S1）。
+  入口是 `experiments/attack/hfl-mechanism/README.md`。
+  - `[Provenance]` 行（`fedavg/utils/provenance.py`）写进 `run.provenance`：git commit（直接读
+    `.git` 文件）、**口径版本** `PROTOCOL_VERSION`、`config_sha`（yaml 原文的 hash）、
+    run_id/group、`cli_overrides`（CLI 改掉的叶子值，**只记录不拦截**）。
+  - **口径版本 P0/P1/P2 ≠ 训练 epoch**：
+    - P0 = 探针修正前的归档；
+    - P1 = 统一标准后的 seed42 批次，以及 P2 之前的全部 run；
+    - P2 = `AUDIT.md` 全部关闭后的正式批次，**只有 P2 进结论**。
+  - `harness/registry.py`（登记表 = 声明）+ `harness/status.py`（逐格对账：
+    todo / blocked / failed / mismatch / stale / done + orphan）。
+  - `harness/runs_table.py` 按 run 块的**实际**因素分组（不看文件名），终值取末 10 点均值，
+    混合口径版本会被拒绝。
+  - `harness/verdicts.py` 执行 PLAN §3 的预注册判定，seed 不够时输出 `insufficient`。
+  - `harness/figures.py` 按因素出图，组内混格会被拒绝。
+  - 新方案的提交走 `hfl-mechanism/submit.sh`：「完成」= exit_code 为 0 **且** config_sha 一致；
+    审计没关闭就拒绝提交。
+  - 守卫：`test_provenance` / `test_registry` / `test_status` / `test_runs_table` / `test_verdicts` / `test_figures`。
+  - **术语：ρ 有两个意思**。旧方案文件名里的 `rho02/05/20` 指**恶意端比例**（2%/5%/20%）；
+    改版规划与 Bad-PFL 里的 ρ 指**投毒率** `backdoor.poison_ratio`。新文件一律写全名。
+
 **留了接口但没有实现的**（不要以为它们能用）：
 - 主动防御（需要客户端配合的防御）：接口齐了（`BaseDefense.layers` /
   `client_mixin` / `make_control` + 客户端侧 `set_control` / `get_aux`），无任何实现。
@@ -603,3 +624,37 @@ methods-registry.md   所有候选方法的台账 = 研究看板
 
     **教训**：改「一段」代码时，被删的和被加的**不是同一件事**也会落在同一个 hunk 里。
     回退前先问：这个 hunk 里除了我要撤的那句，还顺带带走了什么。
+
+19. **CLI 参数静默盖掉 yaml → 防御轴实际没开**（2026-09-24 发现，**未修**，D-007 另开 S1b）
+    `experiments/attack/hfl-propagation/exp3_cell.sbatch:46` 写死 `--defense none`，
+    `main.py:225-230` 让它覆盖 yaml 的 `defense.name: median / multi_krum`。
+    6 个 `def_*` 格子的 metrics.json 全是 `run.defense="none"`、`admitted=[]` ——
+    文件名说有防御，实际没有，与陷阱 #7 同类。`calib_cell.sbatch` 照抄了同一行。
+    现在的防线：`[Provenance]` 记录 `cli_overrides`；`harness/status.py` 把这类格子标成
+    `mismatch`（`python3 harness/status.py experiments/attack/hfl-propagation/registry/v1.yaml`
+    → 恰好 6 个）；`tests/test_registry.py::test_no_new_job_script_hardcodes_a_defense`
+    禁止新脚本在命令行写死防御。**新写作业脚本只传 `--config`**（见 `hfl-mechanism/cell.sbatch`）。
+
+20. **同一配置、同一 seed，重跑结果不同**（2026-09-24 发现，未修 → AUDIT A15）
+    第 19 条的 6 个格子等于 3 组同配置、同 seed 的重复，第 1 轮就分叉：flat 三次的第 1 轮
+    gm_acc 为 0.1144 / 0.1116 / 0.1122，末 10 点 benign ASR 为 0.755 / 0.696 / 0.685。
+    `3c_R5` 与 `2edge_distributed` 因素完全相同，实际是第 4 份重复（0.738 / 0.724 / 0.723 / 0.756）。
+    **所以「固定 seed」只锁住了划分与布点，锁不住训练轨迹**；按 seed 配对的设计要按这个噪声算 seed 数。
+    官方 Bad-PFL 设了 `cudnn.deterministic`（`utils.py:8-13`），这里要试 `enable_op_determinism()`。
+
+21. **学习率按 cloud round 衰减 → flat 与 HFL 的 LR 日程不同**（未修 → AUDIT A08 / DECISIONS D-010）
+    `client_base.py:117-126`：`lr0·0.992^cloud_round`。同样 200 有效轮，末端 lr：flat 0.020、
+    R_edge=5 0.073、R_edge=40 0.096。flat vs HFL、R_edge 扫描都混进了这个差别。
+    官方 Bad-PFL 是**常数** lr=0.1（`main.py:57`），怎么改在 A2 审计里定。
+
+22. **与官方 Bad-PFL 实现的差异**（2026-09-24 初查 16 条，**全部未关闭**）
+    清单、双方行号与处理状态见 `experiments/attack/hfl-mechanism/AUDIT.md`。影响最大的几条：
+    - 评估时的 ξ 算在**受害者**模型上（白盒），官方算在攻击者模型上（`fba.py:53,64`）；
+    - 本地训练量：5 个 epoch vs 官方 15 步；
+    - ASR 只数非目标类，官方不过滤；
+    - 聚合按样本加权，官方不加权；
+    - 生成器用干净数据训练，官方用已投毒的数据；
+    - 数据增强只采一次就被缓存冻结。
+
+    `experiments/METRICS.md` 里「ξ 用的是 mal[0] 的模型」这句与两边都不符；它与 Bad-PFL 库双份同步，改时两库一起改。
+    **`AUDIT.md` 全部关闭之前，不跑任何 P2 run**（D-006）；`submit.sh` 与 `status.py` 会按这一条拦截。

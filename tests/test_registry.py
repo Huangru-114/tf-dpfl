@@ -160,6 +160,33 @@ def test_materialize_writes_configs_whose_sha_main_py_would_reproduce(tmp_path):
     assert idx["GA__e2__s42"]["metrics"].endswith("results/P2/GA/GA__e2__s42.metrics.json")
 
 
+def test_materialize_with_nothing_eligible_errors_and_writes_nothing(tmp_path):
+    d = _synthetic(tmp_path, available=())         # GA 只要 audit，但我们只要 GB（缺 S9）
+    reg = R.Registry(d / "registry.yaml")
+    with pytest.raises(R.RegistryError, match="GB 缺 S9"):
+        R.materialize(reg, groups=["GB"])
+    assert not reg.configs_dir.exists()
+
+
+def test_materialize_real_v2_registry_refuses_cleanly(tmp_path, monkeypatch):
+    """真实登记表现在一个组都生成不了（功能会话都没做），而且不能在仓库里留下半截 INDEX。"""
+    reg = R.Registry(V2)
+    monkeypatch.setattr(reg, "configs_dir", tmp_path / "configs")
+    with pytest.raises(R.RegistryError, match="不写 INDEX.tsv"):
+        R.materialize(reg)
+    assert not (tmp_path / "configs").exists()
+
+
+def test_eligible_group_with_undecided_base_errors(tmp_path):
+    d = _synthetic(tmp_path)
+    text = (d / "registry.yaml").read_text().replace("base: base.yaml", "base: null")
+    (d / "registry.yaml").write_text(text)
+    reg = R.Registry(d / "registry.yaml")
+    with pytest.raises(R.RegistryError, match="A4"):
+        R.materialize(reg)
+    assert not reg.configs_dir.exists()
+
+
 def test_slug_rejects_double_underscore():
     with pytest.raises(R.RegistryError):
         R._slug("a__b")

@@ -307,15 +307,22 @@ def materialize(reg: Registry, groups=None) -> list:
     """
     if reg.layout != "nested":
         raise RegistryError("materialize 只用于 nested 布局（新方案）；旧方案的配置已经是现成 yaml")
-    reg.configs_dir.mkdir(parents=True, exist_ok=True)
-    rows = []
+    eligible, skipped = [], {}
     for run in reg.runs():
         if groups and run["group"] not in groups:
             continue
         missing = [t for t in reg.unmet_requires(run["group"]) if not t.startswith("audit")]
         if missing:
+            skipped[run["group"]] = missing
             continue
-        cfg = reg.declared_config(run)
+        eligible.append(run)
+    if not eligible:
+        why = "; ".join(f"{g} 缺 {', '.join(m)}" for g, m in skipped.items()) or "没有匹配的组"
+        raise RegistryError(f"没有可以生成配置的组（{why}）—— 不写 INDEX.tsv")
+    configs = [(run, reg.declared_config(run)) for run in eligible]   # base 未定会在这里报错
+    reg.configs_dir.mkdir(parents=True, exist_ok=True)
+    rows = []
+    for run, cfg in configs:
         path = reg.config_path(run)
         path.write_text(_GENERATED_HEADER + yaml.safe_dump(cfg, sort_keys=False,
                                                           allow_unicode=True),
@@ -352,7 +359,11 @@ def main(argv=None):
     args = ap.parse_args(argv)
     reg = Registry(args.registry)
     if args.materialize:
-        rows = materialize(reg, groups=args.group)
+        try:
+            rows = materialize(reg, groups=args.group)
+        except RegistryError as e:
+            print(f"[registry] 未生成：{e}")
+            return 2
         print(f"[registry] 写出 {len(rows)} 个配置 → {reg.configs_dir}")
         return 0
     runs = reg.runs()

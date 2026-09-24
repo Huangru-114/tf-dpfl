@@ -1,3 +1,9 @@
+> ## ⛔ 旧方案，已冻结（2026-09-24）
+> 改版实验 3 的唯一入口是 `experiments/attack/hfl-mechanism/`（PLAN / AUDIT / DECISIONS / FINDINGS）。
+> 本目录只作参照：配置与 `results/`（P1 试点批次，seed42）保持原样，**不进结论**（DECISIONS D-009）。
+> 逐格对账：`python3 harness/status.py experiments/attack/hfl-propagation/registry/v1.yaml`
+> （6 个 `def_*` 会显示 mismatch —— 它们实际没开防御，CLAUDE.md 陷阱 #19）。
+
 # Experiment 3A/3B —— 恶意客户端空间分布 × edge 粒度（config 集）
 
 层级结构如何改变后门传播。**跨所有格恒定的不变量**（对齐 exp007）：
