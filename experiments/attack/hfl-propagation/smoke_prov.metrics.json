@@ -1,0 +1,517 @@
+{
+  "schema_version": 2,
+  "run": {
+    "config_path": "/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tf-dpfl/experiments/smoke-base.yaml",
+    "run_name": "hier_fedavg_fedrep_noniid_badpfl_seed42",
+    "method": "hier_fedrep",
+    "defense": "none",
+    "attack": "badpfl",
+    "n_rounds": 5,
+    "malicious_ids": [
+      0,
+      9
+    ],
+    "client_fraction": 1.0,
+    "poison_ratio": 0.5,
+    "n_clients": 10,
+    "n_edges": 2,
+    "edge_rounds": 2,
+    "n_malicious": 2,
+    "forced_participation": false,
+    "arch": "fedavg_cnn",
+    "malicious_per_edge": null,
+    "malicious_placement": "spread",
+    "edge_assignment": "random",
+    "local_epochs": 1,
+    "plocal_epochs": 1,
+    "seed": 42,
+    "bd_eval_interval": 1,
+    "acc_eval_interval": 1,
+    "attack_stop_round": null,
+    "stopping": "off",
+    "floor_effective": null,
+    "cap_effective": null,
+    "stop_criteria": null,
+    "stopped_at_round": null,
+    "stopped_at_effective": null,
+    "stop_reason": null,
+    "stop_crossed": null,
+    "provenance": {
+      "protocol": "P1",
+      "git": "76c72a752f82",
+      "branch": "claude/federated-learning-experiment-review-pt5j1b",
+      "dirty": "0",
+      "config_sha": "2be16d22e944",
+      "study": null,
+      "group": null,
+      "run_id": null,
+      "host": "n26",
+      "job": "2984665",
+      "start": "2026-09-25T11:13:23Z"
+    },
+    "cli_overrides": [
+      [
+        "backdoor.malicious_strategy",
+        "vanilla",
+        "badpfl"
+      ],
+      [
+        "training.drift_correction",
+        "hierfedavg",
+        "hier_fedrep"
+      ]
+    ]
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "global_asr": 0.091,
+      "edge_asr": 0.154,
+      "local_benign_asr": 0.205,
+      "same_edge_asr": 0.536,
+      "diff_edge_asr": 0.006,
+      "local_malicious_asr": 0.996
+    },
+    {
+      "round": 2,
+      "global_asr": 0.043,
+      "edge_asr": 0.061,
+      "local_benign_asr": 0.211,
+      "same_edge_asr": 0.419,
+      "diff_edge_asr": 0.087,
+      "local_malicious_asr": 0.928
+    },
+    {
+      "round": 3,
+      "global_asr": 0.046,
+      "edge_asr": 0.044,
+      "local_benign_asr": 0.218,
+      "same_edge_asr": 0.407,
+      "diff_edge_asr": 0.104,
+      "local_malicious_asr": 0.923
+    },
+    {
+      "round": 4,
+      "global_asr": 0.064,
+      "edge_asr": 0.075,
+      "local_benign_asr": 0.218,
+      "same_edge_asr": 0.384,
+      "diff_edge_asr": 0.118,
+      "local_malicious_asr": 0.916
+    },
+    {
+      "round": 5,
+      "global_asr": 0.094,
+      "edge_asr": 0.084,
+      "local_benign_asr": 0.223,
+      "same_edge_asr": 0.402,
+      "diff_edge_asr": 0.116,
+      "local_malicious_asr": 0.93
+    }
+  ],
+  "final": {
+    "round": 5,
+    "global_asr": 0.094,
+    "edge_asr": 0.084,
+    "local_benign_asr": 0.223,
+    "same_edge_asr": 0.402,
+    "diff_edge_asr": 0.116,
+    "local_malicious_asr": 0.93
+  },
+  "per_edge_rounds": {
+    "1": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.0,
+        "client_benign": 0.006,
+        "client_malicious": null,
+        "n_benign": 5,
+        "n_malicious": 0,
+        "has_malicious": false
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.308,
+        "client_benign": 0.536,
+        "client_malicious": 0.996,
+        "n_benign": 3,
+        "n_malicious": 2,
+        "has_malicious": true
+      }
+    ],
+    "2": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.006,
+        "client_benign": 0.087,
+        "client_malicious": null,
+        "n_benign": 5,
+        "n_malicious": 0,
+        "has_malicious": false
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.116,
+        "client_benign": 0.419,
+        "client_malicious": 0.928,
+        "n_benign": 3,
+        "n_malicious": 2,
+        "has_malicious": true
+      }
+    ],
+    "3": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.024,
+        "client_benign": 0.104,
+        "client_malicious": null,
+        "n_benign": 5,
+        "n_malicious": 0,
+        "has_malicious": false
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.066,
+        "client_benign": 0.407,
+        "client_malicious": 0.923,
+        "n_benign": 3,
+        "n_malicious": 2,
+        "has_malicious": true
+      }
+    ],
+    "4": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.032,
+        "client_benign": 0.118,
+        "client_malicious": null,
+        "n_benign": 5,
+        "n_malicious": 0,
+        "has_malicious": false
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.119,
+        "client_benign": 0.384,
+        "client_malicious": 0.916,
+        "n_benign": 3,
+        "n_malicious": 2,
+        "has_malicious": true
+      }
+    ],
+    "5": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.084,
+        "client_benign": 0.116,
+        "client_malicious": null,
+        "n_benign": 5,
+        "n_malicious": 0,
+        "has_malicious": false
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.084,
+        "client_benign": 0.402,
+        "client_malicious": 0.93,
+        "n_benign": 3,
+        "n_malicious": 2,
+        "has_malicious": true
+      }
+    ]
+  },
+  "per_edge_final": [
+    {
+      "edge_id": 0,
+      "edge_asr": 0.084,
+      "client_benign": 0.116,
+      "client_malicious": null,
+      "n_benign": 5,
+      "n_malicious": 0,
+      "has_malicious": false
+    },
+    {
+      "edge_id": 1,
+      "edge_asr": 0.084,
+      "client_benign": 0.402,
+      "client_malicious": 0.93,
+      "n_benign": 3,
+      "n_malicious": 2,
+      "has_malicious": true
+    }
+  ],
+  "drift_rounds": [],
+  "drift_final": null,
+  "acc_rounds": [
+    {
+      "round": 1,
+      "gm_acc": 0.3342,
+      "em_acc": 0.3773,
+      "pm_acc": 0.4072,
+      "round_time": 57.6
+    },
+    {
+      "round": 2,
+      "gm_acc": 0.3693,
+      "em_acc": 0.4088,
+      "pm_acc": 0.5304,
+      "round_time": 43.0
+    },
+    {
+      "round": 3,
+      "gm_acc": 0.3962,
+      "em_acc": 0.4207,
+      "pm_acc": 0.583,
+      "round_time": 43.9
+    },
+    {
+      "round": 4,
+      "gm_acc": 0.4052,
+      "em_acc": 0.4256,
+      "pm_acc": 0.6148,
+      "round_time": 43.7
+    },
+    {
+      "round": 5,
+      "gm_acc": 0.4178,
+      "em_acc": 0.4289,
+      "pm_acc": 0.6343,
+      "round_time": 43.8
+    }
+  ],
+  "final_acc": {
+    "round": 5,
+    "gm_acc": 0.4178,
+    "em_acc": 0.4289,
+    "pm_acc": 0.6343,
+    "round_time": 43.8,
+    "final_pm_weighted": 0.6343
+  },
+  "per_edge_acc_rounds": {
+    "1": [
+      {
+        "edge_id": 0,
+        "em_acc": 0.3902,
+        "pm_acc": 0.4932,
+        "n_clients": 5,
+        "n_samples": 23993
+      },
+      {
+        "edge_id": 1,
+        "em_acc": 0.3625,
+        "pm_acc": 0.3091,
+        "n_clients": 5,
+        "n_samples": 21011
+      }
+    ],
+    "2": [
+      {
+        "edge_id": 0,
+        "em_acc": 0.4146,
+        "pm_acc": 0.5764,
+        "n_clients": 5,
+        "n_samples": 23993
+      },
+      {
+        "edge_id": 1,
+        "em_acc": 0.4022,
+        "pm_acc": 0.4779,
+        "n_clients": 5,
+        "n_samples": 21011
+      }
+    ],
+    "3": [
+      {
+        "edge_id": 0,
+        "em_acc": 0.426,
+        "pm_acc": 0.6119,
+        "n_clients": 5,
+        "n_samples": 23993
+      },
+      {
+        "edge_id": 1,
+        "em_acc": 0.4147,
+        "pm_acc": 0.5501,
+        "n_clients": 5,
+        "n_samples": 21011
+      }
+    ],
+    "4": [
+      {
+        "edge_id": 0,
+        "em_acc": 0.4108,
+        "pm_acc": 0.6333,
+        "n_clients": 5,
+        "n_samples": 23993
+      },
+      {
+        "edge_id": 1,
+        "em_acc": 0.4427,
+        "pm_acc": 0.5936,
+        "n_clients": 5,
+        "n_samples": 21011
+      }
+    ],
+    "5": [
+      {
+        "edge_id": 0,
+        "em_acc": 0.4093,
+        "pm_acc": 0.6468,
+        "n_clients": 5,
+        "n_samples": 23993
+      },
+      {
+        "edge_id": 1,
+        "em_acc": 0.4514,
+        "pm_acc": 0.6201,
+        "n_clients": 5,
+        "n_samples": 21011
+      }
+    ]
+  },
+  "per_edge_acc_final": [
+    {
+      "edge_id": 0,
+      "em_acc": 0.4093,
+      "pm_acc": 0.6468,
+      "n_clients": 5,
+      "n_samples": 23993
+    },
+    {
+      "edge_id": 1,
+      "em_acc": 0.4514,
+      "pm_acc": 0.6201,
+      "n_clients": 5,
+      "n_samples": 21011
+    }
+  ],
+  "timing_rounds": [
+    {
+      "round": 1,
+      "asr_s": 16.7,
+      "feature_s": null,
+      "forgetting_s": 0.0,
+      "drift_s": null,
+      "total_s": 16.7
+    },
+    {
+      "round": 2,
+      "asr_s": 8.9,
+      "feature_s": null,
+      "forgetting_s": 0.0,
+      "drift_s": null,
+      "total_s": 8.9
+    },
+    {
+      "round": 3,
+      "asr_s": 5.5,
+      "feature_s": null,
+      "forgetting_s": 0.0,
+      "drift_s": null,
+      "total_s": 5.5
+    },
+    {
+      "round": 4,
+      "asr_s": 5.5,
+      "feature_s": null,
+      "forgetting_s": 0.0,
+      "drift_s": null,
+      "total_s": 5.5
+    },
+    {
+      "round": 5,
+      "asr_s": 5.4,
+      "feature_s": null,
+      "forgetting_s": 0.0,
+      "drift_s": null,
+      "total_s": 5.5
+    }
+  ],
+  "timing_summary": {
+    "n_rounds_timed": 5,
+    "n_bd_evals": 5,
+    "round_time_total_s": 232.0,
+    "bd_eval_total_s": 42.1,
+    "wall_total_s": 274.1,
+    "bd_eval_fraction": 0.1536,
+    "round_time_mean_s": 46.4,
+    "bd_eval_mean_s": 8.42,
+    "bd_phase_mean_s": {
+      "asr": 8.4,
+      "feature": null,
+      "forgetting": 0.0,
+      "drift": null
+    }
+  },
+  "admitted": [],
+  "admitted_count_mean": null,
+  "rejected_ids": [],
+  "malicious_selected_rounds": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "n_malicious_participations": 5,
+  "malicious_participation_by_client": {
+    "0": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "9": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ]
+  },
+  "client_failures": [],
+  "errors": [],
+  "log_tail": [
+    "",
+    "[ Per-Class Report ]",
+    "              precision    recall  f1-score   support",
+    "",
+    "           0     0.6986    0.6671    0.6825      1532",
+    "           1     0.7509    0.7442    0.7475      1478",
+    "           2     0.5381    0.5079    0.5226      1528",
+    "           3     0.5539    0.5582    0.5561      1528",
+    "           4     0.6365    0.5500    0.5901      1471",
+    "           5     0.5767    0.5293    0.5520      1485",
+    "           6     0.6468    0.6827    0.6643      1494",
+    "           7     0.7155    0.6158    0.6619      1507",
+    "           8     0.7075    0.6975    0.7025      1491",
+    "           9     0.5588    0.7949    0.6563      1482",
+    "",
+    "    accuracy                         0.6343     14996",
+    "   macro avg     0.6383    0.6348    0.6336     14996",
+    "weighted avg     0.6381    0.6343    0.6332     14996",
+    "",
+    "[ F1 Score ]",
+    "  Macro    F1 : 0.6336",
+    "  Weighted F1 : 0.6332",
+    "",
+    "[ AUC (OvR) ]",
+    "  Macro    AUC : 0.9386",
+    "  Weighted AUC : 0.9385",
+    "",
+    "[ Confusion Matrix ] (shape: (10, 10))",
+    "[[1022   70   69   30   34    7   22   40  138  100]",
+    " [  72 1100    2   11   15   10   29   17   91  131]",
+    " [  71   12  776   51  135   60  171   72   28  152]",
+    " [  31   26   58  853   50  299   79   54   39   39]",
+    " [  77   14  182   52  809   46   92  108    9   82]",
+    " [   7   26  136  296   26  786   77   39   15   77]",
+    " [  15   24  109  119   63   37 1020   28    7   72]",
+    " [  34   26   54   77  113   97   37  928   26  115]",
+    " [ 108   93   25   29    2    9   16    7 1040  162]",
+    " [  26   74   31   22   24   12   34    4   77 1178]]",
+    "============================================================",
+    "  Report saved to report_PM_hier_fedavg_fedrep_noniid_badpfl_seed42.txt"
+  ]
+}
