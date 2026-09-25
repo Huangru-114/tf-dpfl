@@ -655,6 +655,7 @@ methods-registry.md   所有候选方法的台账 = 研究看板
     - 聚合按样本加权，官方不加权；
     - 生成器用干净数据训练，官方用已投毒的数据；
     - 数据增强只采一次就被缓存冻结。
+    - FedRep：本仓库 head 1 epoch（lr 0.005）+ body 5 epoch；**已定对齐论文**（D-012：各 15 步、lr 同为 0.1）。
 
     `experiments/METRICS.md` 里「ξ 用的是 mal[0] 的模型」这句与两边都不符；它与 Bad-PFL 库双份同步，改时两库一起改。
     **`AUDIT.md` 全部关闭之前，不跑任何 P2 run**（D-006）；`submit.sh` 与 `status.py` 会按这一条拦截。

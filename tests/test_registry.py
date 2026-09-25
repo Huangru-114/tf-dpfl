@@ -83,7 +83,9 @@ def test_real_audit_parses_and_is_open():
     rows = R.audit_rows(MECH / "AUDIT.md")
     assert set(rows.values()) <= set(R.AUDIT_STATUSES)
     assert rows["A02"] == "align"                  # D-004
-    assert {f"A{i:02d}" for i in range(1, 22)} | {f"D{i:02d}" for i in range(1, 7)} == set(rows)
+    # 加行时要同步改这里 —— 故意的：AUDIT 的行只增不删，行数变化应当是一次有意识的提交。
+    assert {f"A{i:02d}" for i in range(1, 24)} | {f"D{i:02d}" for i in range(1, 7)} == set(rows)
+    assert rows["A12"] == "align" and rows["A19"] == "done"   # D-012
     assert R.audit_open_rows(MECH / "AUDIT.md")    # 现在理应没关
 
 

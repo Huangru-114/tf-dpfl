@@ -16,3 +16,5 @@
 | D-009 | 2026-09-24 | P1 批次（`d8c8d0b`，seed42）定为试点：不进入结论，只用于噪声/效应量估计、提出假设、工具测试 | 它带着 AUDIT A01–A12 的全部差异，且只有 1 个 seed | 生效 |
 | D-010 | 2026-09-24 | LR 日程**重新决定**，放到 A2 审计会话 | 官方 `main.py:57` 是常数 lr=0.1，没有调度器（AUDIT A08） | 待决（A2） |
 | D-011 | 2026-09-24 | 口径版本的名字用 P0/P1/P2，不叫 epoch | 避免与训练的 `local_epochs` 混淆 | 生效 |
+| D-012 | 2026-09-25 | **FedRep 与 Bad-PFL 论文保持一致**：head、body 各 SGD lr=0.1、batch 32、15 步，不单独设 head lr。原作者实现（Collins）与 PFLlib 只作旁证 | 论文 p.13 附录 A：「we use the same training configuration as that of the local models to train personalized models」；三种实现的差异见 FINDINGS F-016 | 生效（A4 实现；「head 是哪几层、BN 算不算 body」在 A3 定） |
+| D-013 | 2026-09-25 | Bad-PFL 论文 PDF 不入库（10.5 MB，超过单文件 10 MB 红线）；引用一律写「论文 p.N」 | CLAUDE.md 红线 | 生效 |

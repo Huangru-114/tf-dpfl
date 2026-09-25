@@ -7,6 +7,7 @@
 >
 > **状态取值**（反引号里的词是机器读取的）：
 > `open` 未决定 · `align` 已决定对齐、待实现 · `deviate` 有意偏离（理由见「决定」列）· `done` 已对齐且有测试
+> （第二节「还没查的」里，`done` = 已经查完、结论已转进对应的 A 行）
 
 ## 参考源（逐字读过的）
 
@@ -15,14 +16,15 @@
 | Bad-PFL 官方 | `github.com/fmy266/Bad-PFL`，main 分支 | `raw.githubusercontent.com`，2026-09-24 | `fba.py` etag `d65deddbd62a…` |
 | 读过的文件 | `fba.py` `client.py` `server.py` `main.py` `fl_process.py` `utils.py` `generator.py` `pfl.py` | — | — |
 | **没读的** | `resnet.py`(152 行) `trigger.py` `event_emitter.py` | — | 见 A17/A18 |
-| FedRep 官方 | `lgcollins/FedRep`：raw 路径 master/main 都返回 **404** | — | 见 A19 |
-| Bad-PFL 论文 | ICLR 2025 —— 本环境访问不了 arxiv / openreview | — | 见 A20 |
+| FedRep 原作者 | `github.com/LittleStory233/FedRep`（README 写明为 Collins 等人 ICML'21 官方代码；`lgcollins/FedRep` 的 raw 路径 404）；读过 `models/Update.py`、`utils/options.py`、`main_fedrep.py` | raw，2026-09-25 | — |
+| Bad-PFL 论文 | ICLR 2025 正文 + 附录（28 页，用户 2026-09-25 提供的 PDF；**未入库**，10.5 MB 超过单文件红线）。引用写成「论文 p.N」 | 用户上传 | — |
+| PFLlib（旁证） | `github.com/TsingZ0/PFLlib`：`system/flcore/clients/clientrep.py`、`servers/serverrep.py`、`serverbase.py`、`main.py` | raw，2026-09-25 | — |
 
 TF 侧行号基于 `df015b2`。
 
 ---
 
-## 一、已找到的差异（2026-09-24 初查，A01–A16）
+## 一、已找到的差异（2026-09-24 初查 A01–A16；2026-09-25 读论文后加 A22–A23）
 
 | ID | 项 | 官方（出处） | tf-dpfl（出处） | 状态 | 决定 / 理由 | 怎么验证 |
 |---|---|---|---|---|---|---|
@@ -31,27 +33,29 @@ TF 侧行号基于 `df015b2`。
 | A03 | 投毒量 | `fba.py:48` 逐样本伯努利 `rand() <= ρ` | `client_badpfl.py:146` `k = int(round(n·ρ))`，每 batch 恰好 k 个 | `open` | 建议对齐（用客户端自己的 seeded rng） | L1：大样本下投毒比例 → ρ；ρ=0 时 0 个 |
 | A04 | 生成器训练数据 | `fba.py:36` `client.fetch_data()`；`client.py:124-125` `PoisonClient.fetch_data` 返回 `poison_func(...)` → **按 ρ 已投毒**、标签为 target | `main.py:495-512` 动态投毒保留干净 ds；`client_badpfl.py:100` 用 `self.dataset` 干净批次 | `open` | 建议对齐。这同时复现 ρ=1 时 PGD 推离 target、生成器推向 target 的抵消（FINDINGS F-013） | L1：生成器训练批次中被投毒的比例 = ρ |
 | A05 | BN 训练/推理模式 | 生成器**从不** `.eval()`（一直用 batch 统计）；训练期投毒 PGD 在 `local_update` 的 `train()` 模式下（`client.py:35`，`fba.py:53`）；生成器训练期间模型在 `eval()`（`fba.py:32`） | 生成器与 FGSM 都 `training=False`（`client_badpfl.py:89,95`） | `open` | 逐项对齐或写理由 | L1：各调用点的 training 标志与官方一致 |
-| A06 | ASR 定义 | `main.py:131` + `utils.py:29-48`：**不过滤**，目标类样本也计入 | `backdoor_eval.py:54`、`:71-97` `_collect_eligible` 只数非目标类 | `open` | 建议两列都报，主指标待定（METRICS.md 记过两者约差 10 个点） | L1：构造含目标类的探针，两个定义各得解析值 |
+| A06 | ASR 定义 | `main.py:127-134` + `utils.py:29-48`：**不过滤**，目标类样本也计入；对**全部**客户端（含 10 个恶意端）的 `local_model` 求均值，只在训练结束时评一次。论文 p.7：「ASR over triggered samples for clients' personalized models on their test sets」 | `backdoor_eval.py:54`、`:71-97` `_collect_eligible` 只数非目标类；良性端与恶意端分开报 | `open` | 建议过滤与不过滤两列都报、全体与仅良性两列都报；主指标待定（METRICS.md 记过过滤前后约差 10 个点） | L1：构造含目标类的探针，各定义各得解析值 |
 | A07 | 聚合权重 | `server.py:4-10` `agg_avg`：**不加权**平均 | edge：`aggregation/fedavg.py:17-27` 按参与客户端样本数加权；cloud：`server.py:179-195` → 同一函数，按 `edge.n_samples`（**全部成员**样本数，不只是参与者）加权 | `open` | 待定。flat 下与官方不同；HFL 下 cloud 权重的定义本身要决定 | L1：flat 配置下与不加权平均逐元素相等（若对齐） |
-| A08 | 学习率 | `main.py:57` `SGD(lr=0.1)`，**无调度器** | `client_base.py:117-126` `lr0·0.992^cloud_round` | `open` | **重新决定**（D-005 已作废）。建议常数（对齐官方，flat/HFL 混淆一并消失） | L1：flat 与 R_edge=5 在同一有效轮上 lr 相同 |
-| A09 | 本地训练量 | `main.py:32` + `fl_process.py:29-30`：每轮 **15 步** × batch 32 | `training.local_epochs: 5`（完整 epoch） | `open` | 待定。标定：ep1 下 ASR 停在 0.66、ep5 下趋向 1.0 —— **影响最大的一条** | L1：每轮 SGD 步数 = 配置值 |
+| A08 | 学习率 | `main.py:57` `SGD(lr=0.1)`，**无调度器**；论文 p.7「SGD with a learning rate of 0.1」，未提衰减 | `client_base.py:117-126` `lr0·0.992^cloud_round` | `open` | **重新决定**（D-005 已作废）。建议常数 0.1（对齐官方与论文，flat/HFL 的混淆一并消失） | L1：flat 与 R_edge=5 在同一有效轮上 lr 相同 |
+| A09 | 本地训练量 | `main.py:32` + `fl_process.py:29-30`：每轮 **15 步** × batch 32；论文 p.7「batch size of 32 for 15 steps (roughly one epoch)」 | `training.local_epochs: 5`（完整 epoch） | `open` | 待定。标定：ep1 下 ASR 停在 0.66、ep5 下趋向 1.0 —— **影响最大的一条** | L1：每轮 SGD 步数 = 配置值 |
 | A10 | 预处理 / 增强 | `main.py:58` 只有 `ToTensor()`：不标准化、不增强 | `dataset.py:168` 标准化；`partition.py:38-40` 翻转+裁剪；但 `hier_fedrep.py:64` `self._batch_list = list(self.dataset)` 只缓存一次 → **增强只采一次就冻结** | `open` | 建议对齐（去掉增强），至少不要半开半关 | L1：两个 epoch 的同一 batch 是否相同与配置一致 |
 | A11 | 数据划分 | `main.py:60-83` + `utils.py:51-85`：train/test **各自** Dirichlet(0.5)、共享类先验、每客户端**等大小** | 合并 60k（`main.py:687`）→ 逐类 Dirichlet、客户端**不等大** → 客户端内切 25% test | `open` | HFL 需要新划分（S3）→ 部分 `deviate`；客户端等大小可对齐 | L1：各客户端样本数 |
-| A12 | PFL 方法 | 上游 `pfl.py:3-24` **只有 FedBN**（BN 层不聚合不下发），没有 FedRep | FedRep：head = 最后一层 Dense，BN 进聚合，`head_lr_rep=0.005`，`plocal_epochs=1` / `local_epochs=5` | `open` | 先找参考实现（A19）。`hier_fedrep.py:21-22` docstring 写「head 多步、body 少步」，与配置 1<5 **相反** | 待 A19 |
+| A12 | FedRep 本地训练 | 上游代码只有 FedBN（`pfl.py:3-24`）。**论文 p.13 附录 A**：「For the PFL methods, we use the same training configuration as that of the local models to train personalized models」→ head 与 body **各** SGD lr=0.1、batch 32、15 步（p.7） | `client/hier_fedrep.py`：先 head `plocal_epochs=1`（lr `head_lr_rep=0.005`）后 body `local_epochs=5`（lr 0.1·0.992^r）；head = 最后一层 Dense，BN 进聚合 | `align` | **D-012：对齐 Bad-PFL 论文**：head、body 各 15 步，lr 同为 0.1，batch 32，去掉单独的 head lr。原作者（4:1、momentum 0.5、wd 1e-4、lr 0.01）与 PFLlib（1:1、lr 0.005、batch 10）只作旁证，见 FINDINGS F-016。「head = 哪几层、BN 算不算 body」论文没写，在 A3 定 | L1：一次本地训练中 head 与 body 的步数都 = 15、lr 相同 |
 | A13 | 数值精度 | `client.py:59` `autocast` 混合精度 | fp32 | `open` | 建议 `deviate`（数值更稳），写理由 | — |
-| A14 | 生成器结构 | `generator.py:6-40`：Conv k4 s2 **p1** + BN（带 bias） | `models/autoencoder.py:31-43`：`padding="same"`、`use_bias=False` | `open` | 陷阱 #6：padding 在 stride>1 时不一定等价 | L1：同权重下与 torch 参考输出数值等价（需要一次集群或离线核对） |
+| A14 | 生成器结构 | `generator.py:6-40`：Conv k4 s2 **p1** + BN（带 bias）；论文 p.14 表 5 与正文：「kernel size of 4, a stride of 2, and padding of 1」 | `models/autoencoder.py:31-43`：`padding="same"`、`use_bias=False` | `open` | 陷阱 #6：padding 在 stride>1 时不一定等价 | L1：同权重下与 torch 参考输出数值等价（需要一次集群或离线核对） |
 | A15 | 确定性 | `utils.py:8-13` `cudnn.deterministic=True` | 实测同 seed 重跑第 1 轮即分叉（FINDINGS F-002） | `open` | 试 `tf.config.experimental.enable_op_determinism()` | 集群：同 seed 两次 run 逐轮相等 |
 | A16 | 死配置 | 无 label smoothing | `training.label_smoothing: 0.1` 在配置里，代码不读 | `open` | 建议从配置删除，避免误导 | grep 守卫 |
+| A22 | 目标标签 | 论文 p.7「The target label y_t is randomly generated」；官方代码 `main.py:36` 默认 `--ba_target_label 0` | 所有配置 `backdoor.target_label: 0` | `open` | 固定 0 与官方代码一致、与论文不一致；待定 | — |
+| A23 | 训练轮数 | 论文 p.7：1000 轮；官方代码 `main.py:23` 默认 `--total_round 300` | 标定后：有效轮 floor 150 / cap 300 | `open` | A09 改成 15 步后收敛速度会变，预算在 A4 重新标定 | 标定 run |
 
 ## 二、还没查的（每一项都是 `open`，查完才能关）
 
-| ID | 项 | 需要什么 | 状态 |
-|---|---|---|---|
-| A17 | ResNet-10 逐层对比（`resnet.py` 152 行 vs `models/resnet.py`） | 直接读 raw | `open` |
-| A18 | `trigger.py`、`event_emitter.py` 是否影响攻击/评估流程 | 直接读 raw | `open` |
-| A19 | FedRep 参考实现：你 fork 里加的 `--pfl fedrep` 分支，或 Collins 官方代码的正确地址 | **需要你提供** | `open` |
-| A20 | 论文正文超参（轮数、本地步数、FedRep 设置、ASR 定义） | **需要你提供 PDF** | `open` |
-| A21 | HFL 的形式化（Liu et al. HierFAVG：edge/cloud 聚合权重、κ₁/κ₂） | 文献 | `open` |
+| ID | 项 | 需要什么 / 查到了什么 | 状态 | 去向 |
+|---|---|---|---|---|
+| A17 | ResNet-10 逐层对比（`resnet.py` 152 行 vs `models/resnet.py`） | 直接读 raw | `open` | — |
+| A18 | `trigger.py`、`event_emitter.py` 是否影响攻击/评估流程 | 直接读 raw | `open` | — |
+| A19 | FedRep 参考实现 | 已定：**以 Bad-PFL 论文附录 A 为准**（D-012）；原作者与 PFLlib 已读，差异记在 F-016 | `done` | 参考源问题已结，实现差异转到 A12 |
+| A20 | 论文正文超参 | 已读（p.7 §4.1、p.13–14 附录 A）：100 客户端、**1000 轮**、10 个恶意端、每轮 10%、Dirichlet 0.5、SGD lr 0.1、batch 32、15 步、投毒率 0.2、ε=σ=4/255、生成器 Adam 0.01 × 30 步、**目标标签随机生成**；MultiKrum f=1 选 5 个。与本仓库不同的项拆到 A06/A08/A09/A12/A22/A23 | `open` | 在 A2 把每一项核对进对应行后关闭 |
+| A21 | HFL 的形式化（Liu et al. HierFAVG：edge/cloud 聚合权重、κ₁/κ₂） | 文献 | `open` | — |
 
 ## 三、有意偏离登记（HFL 特有，官方没有对应物）
 
@@ -68,7 +72,7 @@ TF 侧行号基于 `df015b2`。
 
 ## 四、流程
 
-1. **A1**（攻击：A01–A06、A14）→ **A2**（训练协议：A07–A11、A13、A15、A16）→ **A3**（FedRep / ResNet / 论文：A12、A17–A21）→ D01–D06 签字。
+1. **A1**（攻击：A01–A06、A14）→ **A2**（训练协议：A07–A11、A13、A15、A16、A20、A22、A23）→ **A3**（FedRep / ResNet / HFL：A12 的实现细节、A17、A18、A21）→ D01–D06 签字。
 2. 每个审计会话按 CLAUDE.md 的格式出语义 diff 表：论文公式 | 官方实现 | 本仓库实现 | 差异 | 怎么验证。你**逐行**拍板，结论写回本表的「状态」和「决定」两列，并在 DECISIONS.md 记一条。
 3. **A4** 按拍板改代码，每个 `align` 配 L1 测试 → 状态改 `done`；口径版本升 P2（`fedavg/utils/provenance.py`）；2 个 smoke run 复核标定。
 4. 本表全部关闭 → `status` 解除 blocked → 开跑 P2。

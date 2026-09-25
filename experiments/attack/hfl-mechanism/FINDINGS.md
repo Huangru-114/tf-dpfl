@@ -109,3 +109,24 @@ F-001 的 6 个格子等于 3 组同配置、同 seed 的重复（恶意端 id �
 - **N-002**：`grid_too_coarse` 有两处含义：
   - 停轮规则（`server/stopping.py:116-117`）：评估点凑不齐 `pm_window=10` 个。3c_R40 只有 8 个点，所以一直跑到上限。
   - T_θ（`harness/analyze_exp3.py:71,314`）：少于 4 个点就不插值。
+
+## 2026-09-25（读 Bad-PFL 论文与两份 FedRep 实现）
+
+### F-016 `confirmed` —— 三份 FedRep「实现」彼此都不一样，本仓库又和它们都不一样
+
+| 项 | 原作者（`LittleStory233/FedRep`） | PFLlib（`TsingZ0/PFLlib`） | Bad-PFL 论文 | 本仓库（TF，改前） |
+|---|---|---|---|---|
+| head : body 训练量 | 4 : 1 epoch（`options.py` `local_ep=5`、`local_rep_ep=1`；`Update.py:591`） | 1 : 1 epoch（`plocal_epochs=1`、`local_epochs=1`） | 各 15 步（p.7 + p.13） | 1 : 5 epoch |
+| 优化器 | 一个 SGD，momentum 0.5，weight decay 1e-4（`Update.py:557-563`） | 两个普通 SGD（`clientrep.py:11-20`） | SGD | 两个普通 SGD |
+| lr | 0.01（两者相同） | 0.005（相同） | 0.1（相同） | body 0.1，head 0.005 |
+| lr 衰减 | 无（`lr_decay=1.0`） | 默认关（`learning_rate_decay=False`） | 未提 | 0.992 / 云轮 |
+| batch | 10 | 10 | 32 | 32 |
+
+用户判断「PFLlib 与原作者不一样」属实。决定（D-012）：对齐 Bad-PFL 论文。AUDIT A12 → `align`。
+
+### F-017 `confirmed` —— 论文正文超参与本仓库的差异（AUDIT A20 / A22 / A23）
+
+- 论文 p.7：100 客户端、**1000 轮**、10 个恶意端、每轮 10%、Dirichlet 0.5、SGD lr 0.1、batch 32、15 步（约一个 epoch）、投毒率 0.2、ε=σ=4/255、生成器 Adam 0.01 × 30 步、**目标标签随机生成**。
+- 本仓库：约 200 有效轮（floor 150 / cap 300）、`local_epochs: 5`、LR 按云轮衰减、目标标签固定为 0。
+- 顺带（不属于实验 3，与陷阱 #4 有关）：论文 p.13 附录 A 写 Neurotoxin 更新的是**底部 10%** 的坐标（「We choose to update the bottom 10%…」）；
+  MultiKrum 取 f=1、选 5 个客户端聚合（p.14）。

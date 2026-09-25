@@ -114,8 +114,8 @@ P1 的用途（FINDINGS F-002/F-008/F-009）：同 seed 噪声的实测、效应
 | **S1**（2026-09-24） | 结果管理 + 分析底座；本计划、AUDIT、DECISIONS、FINDINGS 入库 | — |
 | S1b | 修 `exp3_cell.sbatch` 写死的 `--defense none` + 守卫（只有你还要旧方案的防御格时才需要） | — |
 | **A1** | 审计：攻击（A01–A06、A14） | 你逐行拍板 |
-| **A2** | 审计：训练协议（A07–A11、A13、A15、A16），含 LR 重新决定 | 你逐行拍板 |
-| **A3** | 审计：FedRep / ResNet-10 / 论文（A12、A17–A21）+ D01–D06 签字 | 需要你提供 FedRep 参考实现与论文 PDF |
+| **A2** | 审计：训练协议（A07–A11、A13、A15、A16、A20、A22、A23），含 LR 重新决定 | 你逐行拍板 |
+| **A3** | 审计：FedRep 实现细节（A12，已定对齐论文：D-012）/ ResNet-10（A17）/ A18 / HFL 形式化（A21）+ D01–D06 签字 | 论文 PDF 需重新上传（D-013） |
 | **A4** | 按拍板改代码 + L1 测试；`PROTOCOL_VERSION` 升 P2；2 个 smoke 复核标定 | AUDIT 全部关闭 |
 | S3 | 划分：C1–C4 比例表、层级 Dirichlet、H_inter/H_intra（打 `[Data]` 行）、edge 干净集（500/edge）、划分 seed 分离 | → G0 / G3 |
 | S4 | ρ=0 影子攻击者 L1、ξ-only 下限、`attack_start_round` | → G0 / G5 |
