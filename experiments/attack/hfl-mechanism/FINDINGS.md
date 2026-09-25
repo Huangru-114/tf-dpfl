@@ -66,6 +66,7 @@ F-001 的 6 个格子等于 3 组同配置、同 seed 的重复（恶意端 id �
 - 末 10 点 benign ASR 约 0.97 / 0.94，高于 2edge 的 0.74 和 10edge 的 0.73。
 - 在 3 次同 seed 重复里都出现（0.972 / 0.963 / 0.910），所以不是训练噪声。
 - 候选解释是 seed42 的划分 × 布点，**没有证据**。只作假设，由 P2 检验。
+- 2026-09-25 补充（F-028）：4edge 三格的恶意端**数据占比**（0.127–0.142）高于 2edge / 10edge / flat（0.092–0.114），是一个候选协变量；但 4edge_collocated 占比同为 0.128，benign ASR 却只有 0.715 → 1 个 seed 分不开，仍是假设。
 
 ### F-009 `provisional` —— P1 中 flat 并不比 HFL 快
 
@@ -190,3 +191,101 @@ batch = 32（全部 exp3 配置），`k = int(round(32·ρ))`：
 
 - **N-003**：D-021 规定只在 body 阶段投毒之后，3.2 的「ρ=1 时私有 head 吸收后门」里 head 不再直接看到投毒样本。head 只在干净数据上训，body 阶段 head 冻结。
   原文 §3.2 的假设（「私有头甚至 bias 就能实现一律预测 y_t」）在这个设定下的机制要重新表述，在 S6 / G4 之前与用户确认。
+
+## 2026-09-25（A2 审计会话：训练协议）
+
+### F-024 `confirmed` —— 官方代码自身不可复现：只播了 torch
+
+- 官方 `utils.py:8-13` `set_random_seed` 只调 `torch.manual_seed` / `cuda.manual_seed_all`，并设 `cudnn.deterministic=True`。
+- 划分用的是未播种的 numpy：`main.py:67` `np.random.dirichlet`，`utils.py:65,71,74` `np.random.randint / uniform`。
+- 客户端顺序用的是未播种的 python `random`：`main.py:12,95` `from random import shuffle` → `shuffle(clients)`，决定谁排在哪、最后一个恶意端是谁（A02）。
+- 结论：官方每次运行的划分与客户端顺序都不同。AUDIT A15 原来只写了「官方 cudnn.deterministic」，只说了一半。本仓库三处都播了（`main.py:325-339`），在划分上比官方严格。
+
+### F-025 `confirmed` —— FedRep 客户端的取数被缓存冻结：3.2% 的训练样本从未参与训练
+
+- `client/hier_fedrep.py:65` 在构造时执行 `self._batch_list = list(self.dataset)`：tf.data 的洗牌 + 增强 + 分批只走一遍。
+- `:173-177` `_shuffled_batches` 每个 epoch 只打乱 **batch 的顺序**，并丢掉 `x.shape[0] != batch_size` 的那一批 —— 永远是同一个尾批。
+- 后果：增强冻结（F-014）；batch 的组成冻结；同一批 `n mod 32` 个样本从头到尾没被训练过。
+- 数值（seed42，P1 划分）：1453 / 45037 = **3.2%** 的训练样本从未参与训练，单个客户端最高 19.5%。
+- 复核：按 `main.py` 的 RNG 调用顺序重放划分，只需要标签。10 个 block edge 的样本和 `[5112, 4722, 4309, 4001, 5131, 3435, 4350, 4904, 4046, 5027]` 与 P1 `10edge_distributed_seed42.metrics.json` 的 `per_edge_acc_final[*].n_samples` **逐个相等**，说明重放是精确的：
+
+```python
+import numpy as np
+np.random.seed(42)                        # main.set_seed；load_cifar10 / build_model 不消耗 numpy RNG
+labels = np.repeat(np.arange(10), 6000)   # 合并后的 60k；shuffle 消耗的 RNG 只取决于长度
+ci = [[] for _ in range(100)]
+for c in range(10):                       # data/partition.py:161-170
+    ix = np.where(labels == c)[0]; np.random.shuffle(ix)
+    p = np.random.dirichlet(np.ones(100) * 0.5)
+    for k, s in enumerate(np.split(ix, (np.cumsum(p) * len(ix)).astype(int)[:-1])): ci[k].extend(s)
+n_train = []
+for ind in ci:                            # data/partition.py:59-62，test_ratio=0.25
+    n = len(ind); nt = max(1, int(n * 0.25)); np.random.permutation(n); n_train.append(n - nt)
+n_train = np.array(n_train)               # min 133 / median 401 / max 909，CV 0.40
+print((n_train % 32).sum() / n_train.sum())   # 0.0323
+```
+
+### F-026 `confirmed` —— G4「FedRep vs FedAvg」混入了数据流差异
+
+- FedAvg 客户端（`client/client_fedavg.py:44`）每个 epoch 都 `for x, y in self.dataset` 重新读 tf.data：重新洗牌、重新增强，并且训练尾批（不 drop）。
+- FedRep 客户端走 F-025 的冻结缓存。
+- 所以 G4（3.2 的 FedRep ↔ FedAvg 对照）里两边的差别不只是方法。
+- Bad-PFL 生成器训练（`client/client_badpfl.py:100`）又是第三种：每轮重读一遍 tf.data，按 `step % len(batches)` 循环取批。
+- 修复：D-026（AUDIT A25）。
+
+### F-027 `confirmed` —— 标准化开关与 Bad-PFL 的 ε 换算绑在一起
+
+- `client/client_badpfl.py:53-56`：`_atk_eps_norm = ε / CIFAR10_STD`，无条件执行。
+- 若数据管线关掉标准化而这里不改，[0,1] 空间里的 ξ 预算会放大 1/std 倍：三个通道分别 = 4.05 / 4.11 / 3.82。
+- `attack/triggers.py:25-37` 的 BadNet 触发器也是按标准化空间算的像素值（F-006 的静态回退会用到）。
+- 影响：G7（官方预处理对比，D-025）必须先让这两处跟随开关。
+
+### F-028 `provisional` —— 客户端大小不等 → 名义 10% 的恶意端，数据占比随布点在 0.092–0.142 之间变化
+
+- 数据：seed42 的重放大小（F-025）× P1 各格 `run.malicious_ids`。
+- 恶意端数据占比（10 个恶意端 / 全部训练数据）与末 10 点 benign ASR：
+
+| 格子 | 数据占比 | benign ASR |
+|---|---|---|
+| flat_baseline | 0.092 | 0.755 |
+| 2edge_distributed | 0.094 | 0.738 |
+| 10edge_distributed | 0.094 | 0.729 |
+| 2edge_collocated | 0.106 | 0.889 |
+| 10edge_mixed | 0.109 | 0.715 |
+| 10edge_collocated | 0.114 | 0.829 |
+| 4edge_distributed | 0.127 | 0.972 |
+| 4edge_collocated | 0.128 | 0.715 |
+| 4edge_mixed | 0.142 | 0.935 |
+
+- 三个 distributed 格子里，占比最高的 4edge（0.127）正是 ASR 异常高的那格（F-008）。但 4edge_collocated 占比相同，ASR 却只有 0.715。
+- 只有 1 个 seed，**不能**说占比解释了 F-008。能确定的只有一点：大小不等给布点这个自变量附带了一个没被控制的协变量。
+- 样本加权聚合 + 按 epoch 训练会让大客户端的权重更大、本地步数也更多，两条机制都成立；数值影响**无证据**。
+- 处理：D-027（S3 的新划分要求客户端等大小）。
+
+### F-029 `confirmed` —— 总本地训练量已与论文相当；差别在每次聚合间的步数，不在训练总量
+
+- 论文 p.7：1000 轮、每轮 10%、每轮 15 步（≈ 1 epoch）→ 每个客户端约 1000 × 0.1 × 15 = 1500 步 ≈ **100 epoch**。p.18：约 500 轮时模型与攻击都收敛 → ≈ 50 epoch。
+- P1（ep5）：有效轮 floor 150 / cap 300 × 0.1 × 5 epoch → 每个客户端约 **75–150 epoch**。
+- 差别在 τ（两次聚合之间的本地步数：约 68 vs 15）和通信轮数（约 200 vs 1000）。
+- **撤回**：A2 会话第一版建议（只在对话里给出、未入库）说「A09 影响最大、对齐 15 步后预算约 ×3」。那一版只比了每轮步数，没有比总量。
+
+### F-030 `confirmed`（来历）/ 无记录（取值）—— 0.992 与 head 0.005 的来历
+
+- `9d303262`（2026-06-12）：把按 optimizer step 衰减改为按轮衰减 `lr0·0.992^round`。修的是 FedRep head 每轮约 25 次衰减、第约 20 轮 head lr≈0 被冻死、PM acc 卡在 60%。
+- `27d7d0dc`（同日）：加 `head_lr_rep=0.005`。修的是 head 与 backbone 同 lr（当时 base lr 0.02）时，30 轮后 PM loss 回升。
+- 修复的动机在 commit message 里有记录；**0.992 与 0.005 这两个值是怎么选的，仓库里没有扫参数据**。当时的 base lr 是 0.02，不是现在的 0.1。
+
+### F-031 `confirmed` —— 论文原文核对（A2 会话，用户重新上传的 PDF）
+
+- p.7：FL 设定「Following existing studies (Zhuang et al., 2024)」 —— 训练超参是继承来的，不属于攻击本身（D-022）。
+- p.8：「the FedAvg aggregator, where each client's contribution is treated equally during aggregation」（A07）。
+- p.18：「when the training round reaches 500, both the models and the attack methods converge」（A09 / A23）。
+- 论文**没有**提到数据增强、标准化、LR 衰减。
+- p.14：Dirichlet 0.5 下「average standard deviation for the clients is … 60.88」。官方划分函数重放 5 个 seed 得 54.4–55.6，本仓库方案（训练部分）得 51.7–54.1。两种方案同一量级，这个数分辨不出来。
+- 同样 5 个 seed：客户端平均标签熵，官方 1.75–1.77 nats、本仓库 1.65–1.68；最大类占比 0.35–0.37 vs 0.37–0.39；客户端大小的 CV 是 0 vs 0.41–0.49。**差别主要在大小**（A11 → D-027）。
+
+### F-032 `confirmed` —— 官方的事件系统与网格触发器不在执行路径上（A18 的预读，行状态留给 A3）
+
+- `fl_process.py` 的 6 处 `fl_event_emitter.emit(...)` 在 11 个官方文件里**没有任何** `.on(...)` / 装饰器注册 → 全部是空操作。
+- `main.py:11` import 了 `grid_trigger_adder`，但全仓库没有调用（`--ba our` 只走 `use_our_attack`）。
+- 复核：在官方仓库执行 `grep -n "fl_event_emitter\|\.on(\|grid_trigger_adder" *.py`。

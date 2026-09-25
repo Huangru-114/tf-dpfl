@@ -84,12 +84,20 @@ def test_real_audit_parses_and_is_open():
     assert set(rows.values()) <= set(R.AUDIT_STATUSES)
     assert rows["A02"] == "align"                  # D-004
     # 加行时要同步改这里 —— 故意的：AUDIT 的行只增不删，行数变化应当是一次有意识的提交。
-    assert {f"A{i:02d}" for i in range(1, 25)} | {f"D{i:02d}" for i in range(1, 7)} == set(rows)
-    assert rows["A12"] == "align" and rows["A19"] == "done"   # D-012
+    assert {f"A{i:02d}" for i in range(1, 26)} | {f"D{i:02d}" for i in range(1, 7)} == set(rows)
+    assert rows["A19"] == "done"
     # A1 会话（2026-09-25）的逐行拍板：D-014 … D-021
     assert {k: rows[k] for k in ("A01", "A03", "A05", "A06", "A14", "A24")} == \
         dict.fromkeys(("A01", "A03", "A05", "A06", "A14", "A24"), "align")
     assert rows["A04"] == "deviate"                # D-017：对齐论文 Eq.7，偏离官方代码
+    # A2 会话（2026-09-25）的逐行拍板：D-022 … D-029。
+    # 训练协议保留调过参的现状（deviate）；A08 等可行性实验（D-029）通过才关。
+    assert {k: rows[k] for k in ("A07", "A09", "A10", "A11", "A12", "A13", "A23")} == \
+        dict.fromkeys(("A07", "A09", "A10", "A11", "A12", "A13", "A23"), "deviate")
+    assert rows["A12"] == "deviate"                # D-024 取代 D-012（原为 align）
+    assert {k: rows[k] for k in ("A15", "A16", "A22", "A25")} == \
+        dict.fromkeys(("A15", "A16", "A22", "A25"), "align")
+    assert rows["A08"] == "open" and rows["A20"] == "done"    # D-023：候选方案待 D-029
     assert R.audit_open_rows(MECH / "AUDIT.md")    # 现在理应没关
 
 

@@ -640,22 +640,26 @@ methods-registry.md   所有候选方法的台账 = 研究看板
     gm_acc 为 0.1144 / 0.1116 / 0.1122，末 10 点 benign ASR 为 0.755 / 0.696 / 0.685。
     `3c_R5` 与 `2edge_distributed` 因素完全相同，实际是第 4 份重复（0.738 / 0.724 / 0.723 / 0.756）。
     **所以「固定 seed」只锁住了划分与布点，锁不住训练轨迹**；按 seed 配对的设计要按这个噪声算 seed 数。
-    官方 Bad-PFL 设了 `cudnn.deterministic`（`utils.py:8-13`），这里要试 `enable_op_determinism()`。
+    官方 Bad-PFL 设了 `cudnn.deterministic`（`utils.py:8-13`），但**只播了 torch**：划分与客户端顺序每次都不同（FINDINGS F-024）。
+    A2 定为 D-028：打开 `enable_op_determinism()`，加 `[Checksum]` 行验收（A4 实现）。
 
 21. **学习率按 cloud round 衰减 → flat 与 HFL 的 LR 日程不同**（未修 → AUDIT A08 / DECISIONS D-010）
     `client_base.py:117-126`：`lr0·0.992^cloud_round`。同样 200 有效轮，末端 lr：flat 0.020、
     R_edge=5 0.073、R_edge=40 0.096。flat vs HFL、R_edge 扫描都混进了这个差别。
-    官方 Bad-PFL 是**常数** lr=0.1（`main.py:57`），怎么改在 A2 审计里定。
+    官方 Bad-PFL 是**常数** lr=0.1（`main.py:57`）。A2 定为 D-023：**保留**调过参的 0.992 与 head 0.005（来历见 F-030），
+    改成**按有效轮衰减**，flat 逐字节不变；要先过 D-029 可行性实验。
 
-22. **与官方 Bad-PFL 实现的差异**（2026-09-24 初查 16 条，**全部未关闭**）
+22. **与官方 Bad-PFL 实现的差异**（2026-09-24 初查 16 条；A1 / A2 已逐行拍板，**AUDIT 仍未全部关闭**）
     清单、双方行号与处理状态见 `experiments/attack/hfl-mechanism/AUDIT.md`。影响最大的几条：
     - 评估时的 ξ 算在**受害者**模型上（白盒），官方算在攻击者模型上（`fba.py:53,64`）；
-    - 本地训练量：5 个 epoch vs 官方 15 步；
+    - 本地训练量：5 个 epoch vs 官方 15 步 —— **保留**（D-024：总本地训练量已与论文相当，F-029）；
     - ASR 只数非目标类，官方不过滤；
-    - 聚合按样本加权，官方不加权；
+    - 聚合按样本加权，官方不加权 —— **保留**（D-027）；真正的问题是客户端不等大，S3 要求等大小（F-028）；
     - 生成器用干净数据训练，官方用已投毒的数据；
-    - 数据增强只采一次就被缓存冻结。
-    - FedRep：本仓库 head 1 epoch（lr 0.005）+ body 5 epoch；**已定对齐论文**（D-012：各 15 步、lr 同为 0.1）。
+    - 数据增强只采一次就被缓存冻结，batch 组成也冻结，seed42 下 3.2% 的样本从未参与训练 —— **要修**（D-026，AUDIT A25）。
+    - FedRep：本仓库 head 1 epoch（lr 0.005）+ body 5 epoch —— **维持**（D-024 取代了 D-012 的「各 15 步、lr 同为 0.1」）。
+
+    A2 的原则（D-022）：攻击定义必须对齐；训练协议不为对齐而对齐，改调过参的值要先做可行性实验。
 
     `experiments/METRICS.md` 里「ξ 用的是 mal[0] 的模型」这句与两边都不符；它与 Bad-PFL 库双份同步，改时两库一起改。
     **`AUDIT.md` 全部关闭之前，不跑任何 P2 run**（D-006）；`submit.sh` 与 `status.py` 会按这一条拦截。
