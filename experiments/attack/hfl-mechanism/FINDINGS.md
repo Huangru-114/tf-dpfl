@@ -130,3 +130,63 @@ F-001 的 6 个格子等于 3 组同配置、同 seed 的重复（恶意端 id �
 - 本仓库：约 200 有效轮（floor 150 / cap 300）、`local_epochs: 5`、LR 按云轮衰减、目标标签固定为 0。
 - 顺带（不属于实验 3，与陷阱 #4 有关）：论文 p.13 附录 A 写 Neurotoxin 更新的是**底部 10%** 的坐标（「We choose to update the bottom 10%…」）；
   MultiKrum 取 f=1、选 5 个客户端聚合（p.14）。
+
+## 2026-09-25（A1 审计会话：攻击部分）
+
+### F-018 `confirmed` —— 集群上 `[Provenance]` 行拿得到 git commit
+
+- 复核文件：`experiments/attack/hfl-propagation/smoke_prov.metrics.json`（`317fbb5`，作者机 `arrhenius1`；命令 `sbatch run_smoke.sh attack hfl-propagation badpfl none smoke_prov hier_fedavg_fedrep`）。
+- `run.provenance`：`git=76c72a752f82`（= 交接提交 `76c72a7`）、`dirty=0`、`branch=claude/federated-learning-experiment-review-pt5j1b`、`host=n26`（计算节点）、`job=2984665`、`protocol=P1`、`config_sha=2be16d22e944`。
+- `run.cli_overrides` 记下了两条：`backdoor.malicious_strategy` vanilla→badpfl、`training.drift_correction` hierfedavg→hier_fedrep。
+- `errors=[]`、`client_failures=[]`，5 轮跑完。`exit_code=null` 是预期的：`run_smoke.sh` 不注入它，只有 `cell.sbatch` / `exp3_cell.sbatch` 注入。
+- 结论：`.git` 在 `--bind <仓库上一级>` 范围内，容器里读得到。S1 挂着的「集群核对」关闭。
+
+### F-019 `confirmed` —— 论文与官方代码有三处不一致，逐条选了一边
+
+| AUDIT | 论文 | 官方代码 | 用户选择 |
+|---|---|---|---|
+| A01 ξ | p.6 Eq.6：在 x 处 FGSM σ·sign(∇ₓL) | `fba.py:6-22`：随机起点 + 在起点处求梯度 + 投影 + clamp 的单步 PGD | 代码（D-014） |
+| A04 生成器数据 | p.6 Eq.7：干净 (x, y) | `fba.py:36` + `client.py:124-125`：按 ρ 已投毒的批次 | 论文（D-017） |
+| A14 生成器末层 | p.14 表 5：ConvT + BN + Tanh | `generator.py:33-34`：ConvT + Tanh，无 BN | 代码（D-020） |
+
+- A01 的量级差异（numpy 模拟 10⁶ 个像素，内点、不触发 [0,1] clamp）：官方 ξ 有 49.96% 的像素 \|ξ\|=ε，均值 \|ξ\|/ε = 0.7497；FGSM 为 100% / 1.0。
+  推导：u∼U(−ε,ε)、sign=+1 时 ξ = min(u+ε, ε)，u≥0 取 ε、u<0 取 U[0,ε)。
+- 没有「论文与代码冲突时统一以谁为准」的总规则，逐条决定。
+
+### F-020 `confirmed` —— 「每 batch 恰好 round(nρ) 个」的取整偏差
+
+batch = 32（全部 exp3 配置），`k = int(round(32·ρ))`：
+
+| ρ | k | 实际比例 | 相对偏差 |
+|---|---|---|---|
+| 0.02 | 1 | 0.0312 | +56.2% |
+| 0.05 | 2 | 0.0625 | +25.0% |
+| 0.2 | 6 | 0.1875 | −6.3% |
+| 0.25 / 0.5 / 1.0 | 8 / 16 / 32 | 与 ρ 相同 | 0 |
+
+- 影响：P1 的全部 ρ=0.2 格子实际投毒率是 0.1875。决定改伯努利（D-016）。
+
+### F-021 `confirmed`（机制）/ 无数值证据（效果）—— TF 生成器的 BN「按 batch 统计优化、按 moving stats 使用」
+
+- 训练：`client_badpfl.py:109` `training=True`。使用：`:95` `training=False`，投毒和评估都走这里。
+- Keras BN 默认 momentum 0.99：首次训 30 步后，moving stats 里仍有 0.99³⁰ = 74% 是初值（均值 0、方差 1）；torch 默认 momentum 0.1 下为 0.9³⁰ = 4%。
+- 官方的生成器从不 `.eval()`，三处都用 batch 统计，没有这个失配。
+- 失配对 ASR 的数值影响**没有证据**。已决定对齐（D-018）。
+
+### F-022 `confirmed` —— 官方 `PMClient` / `PMPoisonClient` 是死代码
+
+- `client.py:86-137` 定义了它们（`PMPoisonClient.fetch_data` 会让 local 与 personalized 两步都投毒）。
+- 但 `main.py:6` 只 `from client import BasicClient, PoisonClient`，`main.py:89-94` 也只实例化这两个类。官方实际执行的只有 FedBN（`pfl.py`）单模型，没有单独的个性化训练阶段。
+- 本会话一度把 `PMPoisonClient` 当成「官方两阶段都投毒」的证据，用户指出后撤回。任何「官方 PFL 两阶段怎么做」的说法都没有官方执行代码作证据。
+- 复核：`grep -n 'PMPoisonClient\|PMClient' *.py`（官方仓库）只命中 `client.py` 的定义处。
+
+### F-023 `confirmed` —— smoke-base 的 `spread` 布点在 `edge_assignment: random` 下没有跨 edge 分散
+
+- smoke 的恶意端是 {0, 9}，两个都在 edge 1（`per_edge_final`：edge0 `n_malicious=0`，edge1 `n_malicious=2`）。
+- 原因：非 baked 分区下，`resolve_malicious_ids` 在 random 分配**之前**被调用，`assignments=None` → 走等距 id 回退（`attack/backdoor.py:69-72`）；之后 random 分配把两个都放进了同一个 edge。
+- 只影响 smoke-base（exp3 用 `by_edge` + `block`）。smoke 里的 same/diff edge 数字不代表 distributed 布点。
+
+### 设计备注
+
+- **N-003**：D-021 规定只在 body 阶段投毒之后，3.2 的「ρ=1 时私有 head 吸收后门」里 head 不再直接看到投毒样本。head 只在干净数据上训，body 阶段 head 冻结。
+  原文 §3.2 的假设（「私有头甚至 bias 就能实现一律预测 y_t」）在这个设定下的机制要重新表述，在 S6 / G4 之前与用户确认。
