@@ -423,3 +423,25 @@ for R in (5, 10, 20):
 - 执行路径上的钩子是另一套 `register_func`：`fba.py:62`（生成器训练挂在本地训练前）、`pfl.py:23-24`（FedBN），A1 / A2 已覆盖。
 - 残余：官方仓库的文件列表取自 A2（本会话列不了目录）。
 - 复核：在官方仓库执行 `grep -n "fl_event_emitter\|\.on(\|grid_trigger_adder\|register_func" *.py`。
+
+## 2026-09-26（A4 实现会话）
+
+### F-041 `confirmed` —— 6 条需要 TF 的 L1 自攻击时间窗（`c7a06c49`）起一直是红的
+
+- 本会话在 scratch 里装了 TF 2.15.1 CPU 的 venv，在 A3 的最后一个提交 `f110c881` 上跑 `run_l1.sh`：**8 failed** / 910 passed / 17 skipped / 3 xfailed。CLAUDE.md 写的集群预期是 2 条红（陷阱 #4 的 Neurotoxin）。
+- 多出来的 6 条：`test_badpfl_trigger.py` ×2（`test_poison_batch_count_and_labels`、`test_poison_selection_is_reproducible`）、`test_client_hooks.py` ×4（`test_on_upload_is_pure` ×2、两条 mask 投影）。
+- 原因：攻击时间窗之后，攻击 mixin 的闸门读 `_attack_active`（由 `on_round_start` 刷新）；这几条测试直接调 `on_batch` / `on_upload`，从不调 `on_round_start` → 钩子原样返回 → 断言失败。代码本身没错，是测试没打开闸门。
+- 修正：两个测试的 `_client` 辅助函数里显式 `c._attack_active = True`（A4 的 C2 提交）。修正后 TF venv 只剩陷阱 #4 的 2 条红。
+- 教训：「集群上 L1 应为 N 条红」这类数字，多出来的红要逐条认领；本地没有 TF 时这几条一直是 skip，看不到。
+
+### F-042 `confirmed`（CPU）/ 待验证（GPU）—— 模板全开时两次 run 的 `[Checksum]` 逐轮相同
+
+- TF 2.15.1 CPU、随机数据（见 N-005）、smoke 规模的 P2 模板配置（含 body_first、per_epoch、确定性开关），同一配置跑两次：Round 1 `b0bd1f22485a`、Round 2 `24e130d69568`，两次完全相同。
+- 同一环境里，旧 tf.data 管线（并行 `map` 里有带状态的随机增强）在 `enable_op_determinism()` 下照常迭代、不报错。
+- **GPU 上是否成立没有证据**：cuDNN 的确定性算子、容器里的 TF 版本都没验证。A15 仍是 `align`，由 pilot 的 DET 组（GPU、同配置两次、前 5 轮）关闭。
+
+### 设计备注
+
+- **N-004**：静态触发器（BadNet / Blended / DBA）在 `dataset: cifar100` 时仍用 CIFAR-10 的标准化常数（F-027 提过的约 8% 偏差）。A4 的规矩是开关之外逐字节不变，所以只在 `attack/triggers.py:trigger_space` 里写明、没有改。`data.normalize: false`（G7）时触发器已正确回到 [0,1] 口径。实验 3 只用 CIFAR-10 与 Bad-PFL，不受影响。
+- **N-005**：本环境拿不到 CIFAR-10（`www.cs.toronto.edu` 被网络策略 403）。本地端到端接线 smoke 的做法：一个很短的驱动脚本把 `tf.keras.datasets.cifar10.load_data` 换成同形状的随机 uint8 数组（3000 / 600 张），`sys.argv = ["main.py", "--config", cfg]` 后调 `main.run_experiment(cfg)`，cwd = `fedavg/`。A4 用它跑了模板全关与模板全开 + body_first 两次（20 客户端、2 edge、R=2、2 个云轮），都跑完、`client_failures` 为空、`collect_metrics` 能解析全部新行；交错执行的顺序在日志里可见。数字没有意义，只证明接线。CPU 上模板全开时每轮后门评估约 28 s（fresh + 陈旧 + 白盒三套）。
+

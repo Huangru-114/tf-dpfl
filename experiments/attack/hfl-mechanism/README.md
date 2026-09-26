@@ -58,6 +58,21 @@ python3 harness/figures.py per-edge --tables experiments/attack/hfl-mechanism/an
     --run <run> --metric edge.client_benign --out experiments/attack/hfl-mechanism/figures/F3.png
 ```
 
+## A4 的可行性 pilot（P1 口径，不进 P2）
+
+`pilot/registry.yaml` 登记了 6 个 run（D-029 / D-031 / A15 的确定性对，D-042）。它不受 D-006 的
+审计门槛约束，所以有自己的提交脚本：
+
+```bash
+python3 harness/registry.py experiments/attack/hfl-mechanism/pilot/registry.yaml --materialize   # 已生成、已入库
+bash experiments/attack/hfl-mechanism/pilot/submit_pilot.sh --dry-run
+bash experiments/attack/hfl-mechanism/pilot/submit_pilot.sh
+python3 harness/pilot_a4.py experiments/attack/hfl-mechanism/pilot/registry.yaml --json <out>   # 预注册判定
+```
+
+P2 = 基配置 `base.yaml` + overlays 里的「P2 对齐」模板 `fedavg/config/alignment_p2.yaml`（每个
+AUDIT 对齐项一个开关，默认旧行为；D-039）。`meta.protocol: P2` 的配置少开一项会被拒绝启动。
+
 ## 旧方案数据（P1）怎么看
 
 旧方案的 26 个 metrics.json 没有 `[Provenance]` 行，口径版本要显式指定：

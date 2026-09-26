@@ -37,8 +37,9 @@ def test_v2_group_sizes_match_plan():
     sizes = {}
     for r in runs:
         sizes[r["group"]] = sizes.get(r["group"], 0) + 1
-    assert sizes == {"G0": 15, "G1": 24, "G2": 55, "G3": 21, "G4": 12, "G5": 15, "G6": 9}
-    assert len({r["run_id"] for r in runs}) == len(runs) == 151
+    assert sizes == {"G0": 15, "G1": 24, "G2": 55, "G3": 21, "G4": 12, "G5": 15, "G6": 9,
+                     "G7": 6}                    # G7：A4 登记（D-025 预处理对比）
+    assert len({r["run_id"] for r in runs}) == len(runs) == 157
 
 
 def test_v2_run_ids_and_factor_settings():
@@ -51,11 +52,42 @@ def test_v2_run_ids_and_factor_settings():
                                             "federation.edge_rounds": 1}
 
 
-def test_v2_base_is_not_decided_yet_so_config_cannot_be_generated():
+def test_v2_base_is_decided_in_a4_and_carries_the_p2_template():
+    """A4 定了 base：P1 锚点格去掉死配置 + overlays 叠上「P2 对齐」模板。"""
+    import alignment as AL
+    from config_validate import validate_config
     reg = R.Registry(V2)
-    assert reg.base is None
+    assert reg.base == "base.yaml"
+    assert [Path(o).name for o in reg.overlays] == ["alignment_p2.yaml"]
+    for run in (r for r in reg.runs() if r["group"] == "G7"):
+        cfg = reg.declared_config(run)
+        assert cfg["meta"]["protocol"] == "P2" and AL.template_state(cfg) == "p2"
+        assert "label_smoothing" not in cfg["training"]               # A16 / D-028
+        assert cfg["backdoor"]["target_label"] == 0                    # A22 / D-028
+        assert cfg["backdoor"]["malicious_strategy"] == "badpfl"       # cell.sbatch 不传 CLI
+        validate_config(cfg)                                           # P2 核对模板：通过
+    off = next(r for r in reg.runs() if r["run_id"] == "G7__official__s42")
+    cfg = reg.declared_config(off)
+    assert cfg["data"]["normalize"] is False and cfg["data"]["augment"] is False
+
+
+def test_base_null_is_still_refused_with_a_pointer_to_a4(tmp_path):
+    """base 没定时 materialize 拒绝，报错里指向 A4（harness/registry.py 的文案）。"""
+    d = tmp_path
+    (d / "reg.yaml").write_text(yaml.safe_dump({
+        "study": "t", "protocol": "P2", "base": None,
+        "groups": {"G": {"seeds": [1], "cells": [{"cell": "c"}]}}}))
+    reg = R.Registry(d / "reg.yaml")
     with pytest.raises(R.RegistryError, match="A4"):
         reg.declared_config(reg.runs()[0])
+
+
+def test_label_smoothing_is_read_nowhere_in_fedavg():
+    """A16：将来谁实现了 label_smoothing，这条先红 —— 旧配置里的 0.1 不会悄悄生效。"""
+    pat = re.compile(r"""["']label_smoothing["']""")
+    hits = [p for p in (ROOT / "fedavg").rglob("*.py")
+            if pat.search(p.read_text(encoding="utf-8", errors="replace"))]
+    assert hits == []
 
 
 def test_v2_every_group_is_gated_by_the_audit():
@@ -82,31 +114,26 @@ def test_v1_registry_is_not_picked_up_as_a_cell():
 def test_real_audit_parses_and_is_open():
     rows = R.audit_rows(MECH / "AUDIT.md")
     assert set(rows.values()) <= set(R.AUDIT_STATUSES)
-    assert rows["A02"] == "align"                  # D-004
     # 加行时要同步改这里 —— 故意的：AUDIT 的行只增不删，行数变化应当是一次有意识的提交。
     assert {f"A{i:02d}" for i in range(1, 30)} | {f"D{i:02d}" for i in range(1, 7)} == set(rows)
     assert rows["A19"] == "done"
-    # A1 会话（2026-09-25）的逐行拍板：D-014 … D-021
-    assert {k: rows[k] for k in ("A01", "A03", "A05", "A06", "A14", "A24")} == \
-        dict.fromkeys(("A01", "A03", "A05", "A06", "A14", "A24"), "align")
     assert rows["A04"] == "deviate"                # D-017：对齐论文 Eq.7，偏离官方代码
-    # A2 会话（2026-09-25）的逐行拍板：D-022 … D-029。
-    # 训练协议保留调过参的现状（deviate）；A08 等可行性实验（D-029）通过才关。
+    # A2 会话（2026-09-25）：训练协议保留调过参的现状（deviate）
     assert {k: rows[k] for k in ("A07", "A09", "A10", "A11", "A12", "A13", "A23")} == \
         dict.fromkeys(("A07", "A09", "A10", "A11", "A12", "A13", "A23"), "deviate")
-    assert rows["A12"] == "deviate"                # D-024 取代 D-012（原为 align）
-    assert {k: rows[k] for k in ("A15", "A16", "A22", "A25")} == \
-        dict.fromkeys(("A15", "A16", "A22", "A25"), "align")
-    assert rows["A08"] == "open" and rows["A20"] == "done"    # D-023：候选方案待 D-029
-    # A3 会话（2026-09-25/26）的逐行拍板：D-030 … D-038。
-    assert rows["A17"] == "done" and rows["A18"] == "done"    # D-035
-    assert rows["A21"] == "deviate"                           # D-035：HierFAVG 形式化
-    assert rows["A26"] == "open"                              # D-031：FedRep 训练顺序待 pilot
-    assert {k: rows[k] for k in ("A27", "A28", "A29", "D01", "D02")} == \
-        dict.fromkeys(("A27", "A28", "A29", "D01", "D02"), "align")   # D-032 / D-033 / D-034 / D-036
+    assert rows["A20"] == "done"
+    # A3 会话（2026-09-25/26）：D-035 / D-037
+    assert rows["A17"] == "done" and rows["A18"] == "done" and rows["A21"] == "deviate"
     assert {k: rows[k] for k in ("D03", "D04", "D05", "D06")} == \
-        dict.fromkeys(("D03", "D04", "D05", "D06"), "deviate")         # D-037：签字
-    assert R.audit_open_rows(MECH / "AUDIT.md")    # 现在理应没关
+        dict.fromkeys(("D03", "D04", "D05", "D06"), "deviate")
+    # A4 会话（2026-09-26）：按拍板实现为开关 + L1 → done
+    a4_done = ("A01", "A02", "A03", "A05", "A06", "A14", "A16", "A22", "A24",
+               "A27", "A28", "A29", "D01", "D02")
+    assert {k: rows[k] for k in a4_done} == dict.fromkeys(a4_done, "done")
+    # 还要等集群：A15 等 pilot 的 GPU 确定性对，A25 等 D-029；A08 / A26 由 pilot 判定
+    assert rows["A15"] == "align" and rows["A25"] == "align"
+    assert rows["A08"] == "open" and rows["A26"] == "open"
+    assert R.audit_open_rows(MECH / "AUDIT.md") == ["A08", "A15", "A25", "A26"]
 
 
 def _audit(tmp_path, rows):
@@ -190,13 +217,15 @@ def test_materialize_with_nothing_eligible_errors_and_writes_nothing(tmp_path):
     assert not reg.configs_dir.exists()
 
 
-def test_materialize_real_v2_registry_refuses_cleanly(tmp_path, monkeypatch):
-    """真实登记表现在一个组都生成不了（功能会话都没做），而且不能在仓库里留下半截 INDEX。"""
+def test_materialize_real_v2_registry_only_g7_is_generable(tmp_path, monkeypatch):
+    """A4 定了 base 之后：只有不依赖功能会话的 G7 能生成配置（审计门槛只在 submit.sh 拦）；
+    其余组缺 S3–S8，一个都不生成。写到临时目录，不在仓库里留 INDEX。"""
     reg = R.Registry(V2)
     monkeypatch.setattr(reg, "configs_dir", tmp_path / "configs")
+    rows = R.materialize(reg)
+    assert sorted(r["group"] for r in rows) == ["G7"] * 6
     with pytest.raises(R.RegistryError, match="不写 INDEX.tsv"):
-        R.materialize(reg)
-    assert not (tmp_path / "configs").exists()
+        R.materialize(reg, groups=["G0", "G2"])
 
 
 def test_eligible_group_with_undecided_base_errors(tmp_path):

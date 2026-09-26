@@ -1,0 +1,154 @@
+# experiments/attack/hfl-mechanism/base.yaml  —  改版实验 3 的 P2 基配置（A4 会话，2026-09-26）
+#
+#   = P1 锚点格 hfl-propagation/2edge_distributed.yaml（2 edge、distributed、R_edge=5、ep5、
+#     floor 150 / cap 300 有效轮），只改三处：
+#       · 删 training.label_smoothing（A16 / D-028：代码从来不读它的死配置）
+#       · backdoor.malicious_strategy 显式写 badpfl（P1 靠 run_exp3.sh 的 CLI 传；
+#         新方案的 cell.sbatch 不传任何覆盖，见 F-001）
+#       · 去掉 drift_correction 行尾那句「run 脚本另传 --framework」的注释
+#   backdoor.target_label 保持 0（A22 / D-028）。
+#
+#   **对齐开关不写在这里**：登记表用 overlays 把 fedavg/config/alignment_p2.yaml 叠上来
+#   （registry.yaml），P2 = 模板全开，config_validate 对 meta.protocol=P2 逐键核对。
+#   各组 / 格子的 set 再叠在它上面（拓扑、R_edge、布点等由功能会话 S3–S6 填）。
+#
+#   不要手改 configs/ 下生成的完整配置；改这里或登记表之后重新 materialize。
+
+seed: 42
+
+data:
+  dataset:        "cifar10"
+  img_size:       32
+  batch_size:     32
+  shuffle_buffer: 2000
+  num_classes:    10
+  per_client_test_ratio: 0.25
+
+federation:
+  edge_assignment:  "block"     # 确定性连续分块：E0=前 N 个 id …（by_edge 布点前提）
+  client_fraction:  0.1
+  warmup_rounds:    0
+  badpfl_allow_parallel: false   # 并行收集（提速）；⚠️ eager/@tf.function 并发有污染风险，异常回退串行
+  n_workers:        4           # 并行线程数（sbatch -c 4）
+  n_clients:        100         # 100 client / 10 恶意（全局 10%），跨所有拓扑格恒定
+  n_edges:          2
+  edge_rounds:      5           # ← 全长：每 global round 5 个 edge round
+  n_rounds:         60          # 循环上界 = cap_effective(300) ÷ edge_rounds(5)；实际何时停由 stopping 决定
+  partition:        "noniid"
+  classes_per_client: 10
+  alpha:            0.5
+  inter_edge:       {type: "dirichlet", alpha: 0.5}
+  intra_edge:       {type: "pathological", classes_per_client: 2}
+  min_samples:      10
+
+training:
+  local_epochs:    5   # Stage B 标定：MTA 与 ep 无关，ep=5 每 GPU-h 训练量最大
+  learning_rate:  0.1
+  lr_decay:       0.992
+  drift_correction: "hier_fedrep"
+  proximal_ref:     "edge"
+  mu:               1.0
+  mu_edge:          0.1
+  mu_global:        0.01
+  alpha_feddyn:     0.1
+  alpha_feddyn_global: 0.02
+  lambda_pfedme:    35.0
+  beta_pfedme:      1.0
+  pfedme_warm_start: false
+  lambda1_hier:     15.0
+  lambda2_hier:     15.0
+  beta_hier:        1.0
+  personal_lr_pfedme: 0.01
+  moreau_lr_pfedme:   0.005
+  mu_pfedme:          0.001
+  inner_steps_hier: 5
+  alpha_inner:      0.01
+  beta_outer:   0.01
+  plocal_epochs:    1          # 与 exp001 一致（隔离「训练长度」这一个变量）
+  head_lr_rep:      0.005
+  lambda_ditto:     0.1
+  ditto_pers_epochs: 1
+
+model:
+  arch: "resnet10"     # P1 值；模板 overlay 改成 resnet10_torch（A29 / D-034）
+  rep_dim: 64
+
+backdoor:
+  enabled:        true
+  trigger:        "badnet"
+  malicious_strategy: "badpfl"    # 显式写死：cell.sbatch 不传任何 CLI 覆盖（F-001）
+  target_label:   0              # ← CIFAR-10 class 0 = airplane。与 Bad-PFL 库
+                                #   （main.py --ba_target_label 默认 0）统一，两库结果才能同框讨论。
+                                #   本轴是 all-to-one、无 source class 限制：任何非目标类样本都可被投毒。
+  poison_ratio:   0.2
+  malicious_ids:  [3]             # spread 下被忽略，n_malicious 说了算
+  malicious_placement: "by_edge"   # 按 edge 精确布点（Experiment 3A/3B）
+  malicious_per_edge: [5, 5]   # 按 edge id 索引的恶意端个数；sum=10=全局10%
+  n_malicious:    10            # by_edge 下不用它定数量（malicious_per_edge 说了算），保留仅作记录
+  forced_participation: false   # 默认关闭：所有客户端同概率被抽取（当前实验的正确设定）。
+                                # exp006 的 pm_acc 崩溃即因此前隐式强制参与 + 恶意密集 edge 饿死良性端。
+  attack_freq_Q:  1             # 仅 forced_participation=true 时生效
+  badnet_size:    3
+  badnet_value:   1.0
+  blended_alpha:  0.2
+  blended_image:  "attack/triggers/hello_kitty.png"
+  dba_patterns:
+    - [[0,0],[0,1],[0,2],[0,3],[0,4],[0,5]]
+    - [[0,9],[0,10],[0,11],[0,12],[0,13],[0,14]]
+  neurotoxin_mask_ratio:   0.05
+  neurotoxin_mask_batches: 0
+  cerp_alpha:         0.0001
+  cerp_beta:          0.0001
+  cerp_trigger_lr:    0.1
+  cerp_trigger_phi:   10.0
+  cerp_trigger_steps: 1
+  badpfl_epsilon:     0.01569
+  badpfl_sigma:       0.01569
+  badpfl_gen_steps:   30
+  badpfl_gen_lr:      0.01
+  badpfl_shared_generator: true   # P4：adversary 持有单一共享生成器（对齐官方 fba.py）
+  eval_interval:   1   # 每 5 个有效轮一个点 → 40 个点
+                                #   原本各格一律 5 个 cloud 轮，而有效轮 = cloud x edge_rounds，
+                                #   于是等预算 400 下 flat 拿到 80 个评估点、R20 只有 4 个、R40 只有 2 个
+                                #   —— 任何「谁涨得快」的轨迹比较在大 R 的格子上根本没有分辨率。
+  asr_max_samples: 2000           # ← ASR 子采样，限评估开销
+  verbose_clients: false
+  feature_eval:          false
+  feature_eval_samples:  200
+  feature_clean_per_class: 50
+  forgetting_epochs:     0
+
+defense:
+  name:   "none"                  # 由 --defense 覆盖
+  params:
+    trim_ratio:      0.1
+    num_malicious:   0
+    noise_scale:     0.001
+    num_projections: 5
+    subspace_dim:    10000
+    filter_mult:     1.0
+    st_epochs:       10
+    st_lr:           0.0
+
+wandb:
+  enabled:  false
+
+evaluation:
+  eval_interval:   1   # 每 5 个有效轮一个点 → 40 个点
+  final_finetune:       false
+  final_finetune_steps: 5
+  test_client_eval:    false
+  test_client_ratio:   0.2
+  test_finetune_steps: 5
+
+stopping:
+  # 自适应轮数：**只延长，不早停**。地板之前永不停 → 每格都有 ≥150 有效轮的
+  # 轨迹，同轮比较点（第 30 个 cloud round）人人都有。
+  # 参数依据见 experiments/calibration/RESULTS.md 与 server/stopping.py 的 docstring。
+  criteria:        ["thresholds_crossed", "pm_acc_plateau"]
+  floor_effective: 150
+  cap_effective:   300
+  thetas:          [0.25, 0.5, 0.75]
+  debounce:        2          # 连续 2 点 ≥ θ 才算越过（ASR 逐点 σ≈0.09，单点是噪声）
+  pm_window:       10         # 残差 σ≈0.0023 → 斜率 SE≈0.00024
+  pm_slope_tol:    0.0010     # 2edge 实测 +0.00036 判平 / 10edge +0.00229 判未平

@@ -65,7 +65,7 @@ def test_v1_old_files_are_done_but_unverified():
 
 def test_v2_everything_is_blocked_right_now():
     rep = S.classify(R.Registry(V2))
-    assert rep["counts"]["blocked"] == 151
+    assert rep["counts"]["blocked"] == 157          # A4 加了 G7（6 个 run）
     assert all("audit(" in r["detail"] for r in rep["runs"])
 
 

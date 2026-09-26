@@ -1,0 +1,61 @@
+# 可行性 pilot 登记表 —— 口径版本 P1（**不进 P2**，所以不受 D-006 的审计门槛约束）
+#
+# 三组，都在 A4（2026-09-26）登记，预注册判据先定后跑，由 harness/pilot_a4.py 判定：
+#
+#   D029  可行性实验（DECISIONS D-029，范围经 D-038 扩大）：完整 P2 代码路径
+#         （模板全开：A08 + A25 + A27 + A29 …，2edge 那格同时带上 D01 / D02；
+#         用户在 A4 拍板「pilot 跑完整 P2 代码路径」），flat + 2edge_distributed，seed42 各 1。
+#         判据：stop_reason=converged，且**陈旧 PM 列** pm_acc_stale 末 10 点均值
+#         ≥ P1 同 seed 重复的最小值 − 0.006（flat ≥ 0.7367、2edge ≥ 0.7297）；ASR 只记录。
+#         通过 → A08 改 deviate、A25 改 done；没通过 → 逐个开关消融、回审计。
+#   A26   FedRep 训练顺序对照（D-031）：同上两格 × body_first；head_first 臂 = D029 的两个 run。
+#         判据：两格都满足 fresh-PM 的 pm_acc 末 10 点均值之差的绝对值 ≤ 0.006，
+#         且 local_benign_asr 之差的绝对值 ≤ 0.07 → 维持 head_first，A26 改 deviate；
+#         否则带回审计由用户定。
+#   DET   A15 的验收（D-028）：同一配置跑两次（2edge_distributed、5 个云轮、不停轮），
+#         [Checksum] 前 5 轮逐轮相同 → A15 改 done。
+#
+# 基配置 = P1 锚点格原文件（hfl-propagation/2edge_distributed.yaml，冻结、不改）+ 对齐模板；
+# flat 格只改与 P1 flat_baseline.yaml 不同的那几个键（守卫 tests/test_pilot_a4.py）。
+# 提交：bash experiments/attack/hfl-mechanism/pilot/submit_pilot.sh（不是上一级的 submit.sh）。
+
+study: hfl-mechanism-pilot
+protocol: P1
+layout: nested
+results_dir: results
+configs_dir: configs
+base: ../../hfl-propagation/2edge_distributed.yaml
+overlays:
+  - ../../../../fedavg/config/alignment_p2.yaml
+available: []
+
+groups:
+  D029:
+    purpose: "D-029 / D-038 可行性：完整 P2 代码路径，head_first（也是 A26 的 head_first 臂）"
+    seeds: [42]
+    set: {backdoor.malicious_strategy: badpfl}
+    cells:
+      - cell: flat
+        set: {federation.n_edges: 1, federation.edge_rounds: 1, federation.n_rounds: 300,
+              backdoor.malicious_per_edge: [10], backdoor.eval_interval: 5,
+              evaluation.eval_interval: 5}
+      - {cell: 2edge_distributed}
+
+  A26:
+    purpose: "D-031：FedRep 训练顺序 body_first 对照（先 body 后 head）"
+    seeds: [42]
+    set: {backdoor.malicious_strategy: badpfl, training.fedrep_order: body_first}
+    cells:
+      - cell: flat
+        set: {federation.n_edges: 1, federation.edge_rounds: 1, federation.n_rounds: 300,
+              backdoor.malicious_per_edge: [10], backdoor.eval_interval: 5,
+              evaluation.eval_interval: 5}
+      - {cell: 2edge_distributed}
+
+  DET:
+    purpose: "A15 / D-028：同一配置两次，[Checksum] 前 5 轮逐轮相同"
+    seeds: [42]
+    set: {backdoor.malicious_strategy: badpfl, federation.n_rounds: 5, stopping: {}}
+    cells:
+      - {cell: rep1}
+      - {cell: rep2}

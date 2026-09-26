@@ -288,6 +288,24 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
   - **术语：ρ 有两个意思**。旧方案文件名里的 `rho02/05/20` 指**恶意端比例**（2%/5%/20%）；
     改版规划与 Bad-PFL 里的 ρ 指**投毒率** `backdoor.poison_ratio`。新文件一律写全名。
 
+- **对齐开关 + 「P2 对齐」模板**（2026-09-26，Exp3 改版 A4；DECISIONS D-039）。
+  AUDIT 的每个对齐项是一个配置开关，**不写 = 旧行为**（冻结配置逐字节不变）。
+  - 开关表 `fedavg/alignment.py`（不 import TF）；代码里**只经 `get_switch(config, "键")` 读**，
+    默认值只在那里定义一次。模板 `fedavg/config/alignment_p2.yaml` = 全部 P2 值。
+  - P2 = 模板全开：登记表 `overlays:` 把模板叠到 base 上；`config_validate` 对
+    `meta.protocol: P2` 逐键核对，少开一项拒绝启动。消融登记在 pilot 表（P1 口径）。
+  - 自描述 `[设定4]`（template=p2/legacy/mixed + 每个开关）、`[设定5]`（评估用的固定攻击者）；
+    副列 `[ASR4]` `[ASRwb]` `[Stale]` `[StaleASR]`、每轮 `[Checksum]` —— 都是 key=value 行
+    （`fedavg/utils/kvline.py`，逐字段解析），`collect_metrics` schema 3。
+  - **新增开关**：先登记到 `alignment.py` 与模板，接好线；守卫 `tests/test_alignment_switches.py`
+    （模板键集、P2 值 ≠ 旧值、每个键真的被读到）。
+  - 评估的 PM：`CloudServer.main_pm(c)` 是 pm_acc 与 ASR 共用的**唯一**入口（D-033：同一个模型）。
+  - 取数：`data.batch_pipeline: per_epoch` 下 FedAvg / FedRep / Bad-PFL 生成器都走
+    `FLClientBase.epoch_batches`（每 epoch 重洗、drop_last、重增强）；**只接了 Bad-PFL**，
+    静态投毒 + per_epoch 被 `config_validate` 拒绝（会绕过投毒数据集）。
+  - L1 基线（A4 结束时）：本地无 TF 全绿；有 TF 时只有陷阱 #4 的 2 条红
+    （另外 6 条自攻击时间窗起的假红已修，FINDINGS F-041）。
+
 **留了接口但没有实现的**（不要以为它们能用）：
 - 主动防御（需要客户端配合的防御）：接口齐了（`BaseDefense.layers` /
   `client_mixin` / `make_control` + 客户端侧 `set_control` / `get_aux`），无任何实现。

@@ -121,7 +121,7 @@ P1 的用途（FINDINGS F-002/F-008/F-009）：同 seed 噪声的实测、效应
 | **A1** | 审计：攻击（A01–A06、A14） | 你逐行拍板 |
 | **A2**（2026-09-25） | 审计：训练协议（A07–A11、A13、A15、A16、A20、A22、A23，新增 A25）。原则 D-022：攻击定义必须对齐，训练协议不为对齐而对齐；决定 D-022 … D-029 | 已拍板；A08 待 D-029 |
 | **A3**（2026-09-25/26） | 审计：FedRep 实现细节 / ResNet-10 / A18 / HFL 形式化 + D01–D06 签字。决定 D-030 … D-038：head = 末层 Dense（D-030）；FedRep 训练顺序两种都跑 pilot（A26，D-031）；BN γ/β 共享、统计量私有（A27，D-032）；主 ASR 与 pm_acc 同模型、都用 fresh-PM（A28，D-033）；ResNet-10 三项对齐（A29，D-034）；A17 / A18 `done`、A21 `deviate`（D-035）；D01 交错执行、D02 按有效轮轮转（D-036）；D03–D06 签字（D-037）；D-029 扩大范围（D-038） | 已拍板；A26 待 pilot |
-| **A4**（实现会话；≠ AUDIT 行 A04） | 按拍板改代码 + L1 测试（A1–A3 的全部 `align` 行，含 A26 的顺序开关、A27 统计量私有、A28 fresh-PM、A29 `resnet10_torch`、D01 交错执行、D02 按有效轮轮转）；跑 D-029 可行性实验（D-038：A08 + A25 + A27 + A29 一起开，2edge 那格带上 D01 / D02），通过后 A08 → `deviate`；同批跑 A26 的 2 个 body_first run，按 D-031 的判据关 A26；登记 G7；`PROTOCOL_VERSION` 升 P2；2 个 smoke 复核标定 | AUDIT 全部关闭（A08 由 D-029、A26 由 pilot 关闭） |
+| **A4**（实现会话；≠ AUDIT 行 A04；2026-09-26 代码 + L1 完成，pilot 待集群） | 按拍板改代码 + L1 测试（D-039：每行一个开关、默认旧行为，对齐项收成一套模板 `fedavg/config/alignment_p2.yaml`）（A1–A3 的全部 `align` 行，含 A26 的顺序开关、A27 统计量私有、A28 fresh-PM、A29 `resnet10_torch`、D01 交错执行、D02 按有效轮轮转）；跑 D-029 可行性实验（D-038：A08 + A25 + A27 + A29 一起开，2edge 那格带上 D01 / D02），通过后 A08 → `deviate`；同批跑 A26 的 2 个 body_first run，按 D-031 的判据关 A26；登记 G7；`PROTOCOL_VERSION` 升 P2；2 个 smoke 复核标定 | AUDIT 全部关闭（A08 由 D-029、A26 由 pilot 关闭） |
 | S3 | 划分：C1–C4 比例表、层级 Dirichlet、H_inter/H_intra（打 `[Data]` 行）、edge 干净集（500/edge）、划分 seed 分离。**硬要求：客户端等大小**（D-027，F-028） | → G0 / G3 |
 | S4 | ρ=0 影子攻击者 L1、ξ-only 下限、`attack_start_round` | → G0 / G5 |
 | S5 | 逐 edge 轮评估（fresh-PM 已在 A4 实现，D-033） | → G1 / G2 |

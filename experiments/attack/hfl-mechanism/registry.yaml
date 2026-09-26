@@ -3,11 +3,12 @@
 # 这是 PLAN.md §4 的机器可读版本。`python3 harness/status.py <本文件>` 逐格对账；
 # `python3 harness/registry.py <本文件>` 列出每组 run 数与还缺什么。
 #
-# 现在（S1，2026-09-24）每个组都是 blocked，这是**预期状态**：
-#   · base: null —— 基配置要等对齐审计（AUDIT.md）改完代码后才能定（A4）
+# 现在每个组都是 blocked，这是**预期状态**：
+#   · base（A4 定）= base.yaml（P1 锚点格 2edge_distributed，去掉死配置）+ overlays 里的
+#     「P2 对齐」模板 fedavg/config/alignment_p2.yaml。P2 = 模板全开（config_validate 核对）
+#   · requires: [audit] → AUDIT.md 还有未关闭的行（A08 / A26 等 pilot，A15 / A25 等集群复核）
 #   · 各组的 `set:` 大多还是空的：因素的 label 已定，对应哪个配置键要等功能会话
 #     （S3 划分 / S4 下限与时间窗 / S5 逐 edge 轮评估 / S6 更新日志）实现后再填
-#   · requires: [audit] → AUDIT.md 还有未关闭的行
 # 功能会话完成时，把它的 token 加进 `available`，并补上对应组的 `set:`。
 
 study: hfl-mechanism
@@ -15,7 +16,9 @@ protocol: P2
 layout: nested
 results_dir: results
 configs_dir: configs
-base: null            # A4 之后定（PLAN §5）
+base: base.yaml       # A4（2026-09-26）
+overlays:
+  - ../../../fedavg/config/alignment_p2.yaml   # 「P2 对齐」模板：每个对齐开关都打开
 audit: AUDIT.md
 available: []         # 已完成的功能会话，如 [S3, S4]
 
@@ -111,3 +114,12 @@ groups:
         - {label: a}
         - {label: b}
         - {label: c}
+
+  G7:
+    purpose: "预处理对比（D-025）：主协议（标准化 + 增强）vs 官方预处理（不标准化、不增强），同 seed 配对。检验「官方设定降低了攻击难度」"
+    requires: [audit]
+    seeds: [42, 43, 44]
+    factors:
+      preproc:
+        - {label: std}
+        - {label: official, set: {data.normalize: false, data.augment: false}}
