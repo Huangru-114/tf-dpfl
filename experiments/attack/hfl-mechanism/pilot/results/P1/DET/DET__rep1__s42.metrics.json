@@ -6,7 +6,7 @@
     "method": "hier_fedrep",
     "defense": "none",
     "attack": "badpfl",
-    "n_rounds": 1,
+    "n_rounds": 5,
     "malicious_ids": [
       5,
       20,
@@ -49,16 +49,16 @@
     "stop_crossed": null,
     "provenance": {
       "protocol": "P1",
-      "git": "e820c00451d0",
+      "git": "299afe692ae6",
       "branch": "claude/federated-learning-experiment-review-pt5j1b",
       "dirty": "0",
       "config_sha": "9b368f7c35bd",
       "study": "hfl-mechanism-pilot",
       "group": "DET",
       "run_id": "DET__rep1__s42",
-      "host": "n185",
-      "job": "3027660",
-      "start": "2026-09-26T09:50:49Z"
+      "host": "n553",
+      "job": "3043736",
+      "start": "2026-09-26T19:32:58Z"
     },
     "cli_overrides": [],
     "alignment": {
@@ -85,44 +85,356 @@
     "eval_attacker": 61,
     "eval_attacker_edge": 1
   },
-  "rounds": [],
-  "final": null,
-  "per_edge_rounds": {},
-  "per_edge_final": [],
+  "rounds": [
+    {
+      "round": 1,
+      "global_asr": 0.122,
+      "edge_asr": 0.14,
+      "local_benign_asr": 0.12,
+      "same_edge_asr": 0.12,
+      "diff_edge_asr": null,
+      "local_malicious_asr": 0.102,
+      "local_benign_asr_unfiltered": 0.16,
+      "local_all_asr": 0.1178,
+      "local_all_asr_unfiltered": 0.1575,
+      "global_asr_unfiltered": 0.167,
+      "local_benign_asr_whitebox": 0.1224,
+      "local_benign_asr_stale": 0.0205,
+      "local_malicious_asr_stale": 0.0125
+    },
+    {
+      "round": 2,
+      "global_asr": 0.08,
+      "edge_asr": 0.124,
+      "local_benign_asr": 0.151,
+      "same_edge_asr": 0.151,
+      "diff_edge_asr": null,
+      "local_malicious_asr": 0.139,
+      "local_benign_asr_unfiltered": 0.1838,
+      "local_all_asr": 0.1501,
+      "local_all_asr_unfiltered": 0.1826,
+      "global_asr_unfiltered": 0.114,
+      "local_benign_asr_whitebox": 0.1511,
+      "local_benign_asr_stale": 0.046,
+      "local_malicious_asr_stale": 0.0415
+    },
+    {
+      "round": 3,
+      "global_asr": 0.106,
+      "edge_asr": 0.115,
+      "local_benign_asr": 0.137,
+      "same_edge_asr": 0.137,
+      "diff_edge_asr": null,
+      "local_malicious_asr": 0.159,
+      "local_benign_asr_unfiltered": 0.1734,
+      "local_all_asr": 0.1389,
+      "local_all_asr_unfiltered": 0.1762,
+      "global_asr_unfiltered": 0.143,
+      "local_benign_asr_whitebox": 0.1295,
+      "local_benign_asr_stale": 0.0831,
+      "local_malicious_asr_stale": 0.0934
+    },
+    {
+      "round": 4,
+      "global_asr": 0.282,
+      "edge_asr": 0.364,
+      "local_benign_asr": 0.428,
+      "same_edge_asr": 0.428,
+      "diff_edge_asr": null,
+      "local_malicious_asr": 0.521,
+      "local_benign_asr_unfiltered": 0.4582,
+      "local_all_asr": 0.4374,
+      "local_all_asr_unfiltered": 0.4678,
+      "global_asr_unfiltered": 0.325,
+      "local_benign_asr_whitebox": 0.4235,
+      "local_benign_asr_stale": 0.1415,
+      "local_malicious_asr_stale": 0.1254
+    },
+    {
+      "round": 5,
+      "global_asr": 0.389,
+      "edge_asr": 0.492,
+      "local_benign_asr": 0.393,
+      "same_edge_asr": 0.393,
+      "diff_edge_asr": null,
+      "local_malicious_asr": 0.429,
+      "local_benign_asr_unfiltered": 0.4043,
+      "local_all_asr": 0.397,
+      "local_all_asr_unfiltered": 0.4066,
+      "global_asr_unfiltered": 0.4135,
+      "local_benign_asr_whitebox": 0.3899,
+      "local_benign_asr_stale": 0.2403,
+      "local_malicious_asr_stale": 0.3476
+    }
+  ],
+  "final": {
+    "round": 5,
+    "global_asr": 0.389,
+    "edge_asr": 0.492,
+    "local_benign_asr": 0.393,
+    "same_edge_asr": 0.393,
+    "diff_edge_asr": null,
+    "local_malicious_asr": 0.429,
+    "local_benign_asr_unfiltered": 0.4043,
+    "local_all_asr": 0.397,
+    "local_all_asr_unfiltered": 0.4066,
+    "global_asr_unfiltered": 0.4135,
+    "local_benign_asr_whitebox": 0.3899,
+    "local_benign_asr_stale": 0.2403,
+    "local_malicious_asr_stale": 0.3476
+  },
+  "per_edge_rounds": {
+    "1": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.039,
+        "client_benign": 0.041,
+        "client_malicious": 0.022,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.242,
+        "client_benign": 0.198,
+        "client_malicious": 0.182,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      }
+    ],
+    "2": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.177,
+        "client_benign": 0.227,
+        "client_malicious": 0.183,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.071,
+        "client_benign": 0.076,
+        "client_malicious": 0.095,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      }
+    ],
+    "3": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.155,
+        "client_benign": 0.193,
+        "client_malicious": 0.209,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.074,
+        "client_benign": 0.081,
+        "client_malicious": 0.109,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      }
+    ],
+    "4": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.536,
+        "client_benign": 0.531,
+        "client_malicious": 0.561,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.193,
+        "client_benign": 0.325,
+        "client_malicious": 0.482,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      }
+    ],
+    "5": [
+      {
+        "edge_id": 0,
+        "edge_asr": 0.056,
+        "client_benign": 0.044,
+        "client_malicious": 0.014,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      },
+      {
+        "edge_id": 1,
+        "edge_asr": 0.928,
+        "client_benign": 0.743,
+        "client_malicious": 0.843,
+        "n_benign": 45,
+        "n_malicious": 5,
+        "has_malicious": true
+      }
+    ]
+  },
+  "per_edge_final": [
+    {
+      "edge_id": 0,
+      "edge_asr": 0.056,
+      "client_benign": 0.044,
+      "client_malicious": 0.014,
+      "n_benign": 45,
+      "n_malicious": 5,
+      "has_malicious": true
+    },
+    {
+      "edge_id": 1,
+      "edge_asr": 0.928,
+      "client_benign": 0.743,
+      "client_malicious": 0.843,
+      "n_benign": 45,
+      "n_malicious": 5,
+      "has_malicious": true
+    }
+  ],
   "drift_rounds": [],
   "drift_final": null,
   "acc_rounds": [
     {
       "round": 1,
-      "gm_acc": 0.4186,
-      "em_acc": 0.4796,
-      "pm_acc": 0.4801,
-      "round_time": 155.0,
-      "pm_acc_stale": 0.2611
+      "gm_acc": 0.4353,
+      "em_acc": 0.4761,
+      "pm_acc": 0.4919,
+      "round_time": 236.3,
+      "pm_acc_stale": 0.2744
+    },
+    {
+      "round": 2,
+      "gm_acc": 0.587,
+      "em_acc": 0.5715,
+      "pm_acc": 0.5425,
+      "round_time": 199.7,
+      "pm_acc_stale": 0.455
+    },
+    {
+      "round": 3,
+      "gm_acc": 0.6626,
+      "em_acc": 0.6314,
+      "pm_acc": 0.5839,
+      "round_time": 133.3,
+      "pm_acc_stale": 0.5486
+    },
+    {
+      "round": 4,
+      "gm_acc": 0.6833,
+      "em_acc": 0.657,
+      "pm_acc": 0.6147,
+      "round_time": 126.2,
+      "pm_acc_stale": 0.6351
+    },
+    {
+      "round": 5,
+      "gm_acc": 0.7148,
+      "em_acc": 0.6818,
+      "pm_acc": 0.6634,
+      "round_time": 130.1,
+      "pm_acc_stale": 0.6977
     }
   ],
   "final_acc": {
-    "round": 1,
-    "gm_acc": 0.4186,
-    "em_acc": 0.4796,
-    "pm_acc": 0.4801,
-    "round_time": 155.0,
-    "pm_acc_stale": 0.2611,
-    "final_pm_weighted": null
+    "round": 5,
+    "gm_acc": 0.7148,
+    "em_acc": 0.6818,
+    "pm_acc": 0.6634,
+    "round_time": 130.1,
+    "pm_acc_stale": 0.6977,
+    "final_pm_weighted": 0.6978
   },
   "per_edge_acc_rounds": {
     "1": [
       {
         "edge_id": 0,
-        "em_acc": 0.4608,
-        "pm_acc": 0.4608,
+        "em_acc": 0.4683,
+        "pm_acc": 0.4834,
         "n_clients": 50,
         "n_samples": 23275
       },
       {
         "edge_id": 1,
-        "em_acc": 0.4997,
-        "pm_acc": 0.5007,
+        "em_acc": 0.4844,
+        "pm_acc": 0.5011,
+        "n_clients": 50,
+        "n_samples": 21762
+      }
+    ],
+    "2": [
+      {
+        "edge_id": 0,
+        "em_acc": 0.5722,
+        "pm_acc": 0.5315,
+        "n_clients": 50,
+        "n_samples": 23275
+      },
+      {
+        "edge_id": 1,
+        "em_acc": 0.5709,
+        "pm_acc": 0.5542,
+        "n_clients": 50,
+        "n_samples": 21762
+      }
+    ],
+    "3": [
+      {
+        "edge_id": 0,
+        "em_acc": 0.6341,
+        "pm_acc": 0.6049,
+        "n_clients": 50,
+        "n_samples": 23275
+      },
+      {
+        "edge_id": 1,
+        "em_acc": 0.6284,
+        "pm_acc": 0.5615,
+        "n_clients": 50,
+        "n_samples": 21762
+      }
+    ],
+    "4": [
+      {
+        "edge_id": 0,
+        "em_acc": 0.6693,
+        "pm_acc": 0.6352,
+        "n_clients": 50,
+        "n_samples": 23275
+      },
+      {
+        "edge_id": 1,
+        "em_acc": 0.6439,
+        "pm_acc": 0.5928,
+        "n_clients": 50,
+        "n_samples": 21762
+      }
+    ],
+    "5": [
+      {
+        "edge_id": 0,
+        "em_acc": 0.6672,
+        "pm_acc": 0.6378,
+        "n_clients": 50,
+        "n_samples": 23275
+      },
+      {
+        "edge_id": 1,
+        "em_acc": 0.6974,
+        "pm_acc": 0.6908,
         "n_clients": 50,
         "n_samples": 21762
       }
@@ -131,166 +443,192 @@
   "per_edge_acc_final": [
     {
       "edge_id": 0,
-      "em_acc": 0.4608,
-      "pm_acc": 0.4608,
+      "em_acc": 0.6672,
+      "pm_acc": 0.6378,
       "n_clients": 50,
       "n_samples": 23275
     },
     {
       "edge_id": 1,
-      "em_acc": 0.4997,
-      "pm_acc": 0.5007,
+      "em_acc": 0.6974,
+      "pm_acc": 0.6908,
       "n_clients": 50,
       "n_samples": 21762
     }
   ],
-  "timing_rounds": [],
+  "timing_rounds": [
+    {
+      "round": 1,
+      "asr_s": 77.1,
+      "feature_s": null,
+      "forgetting_s": 0.0,
+      "drift_s": null,
+      "total_s": 77.2
+    },
+    {
+      "round": 2,
+      "asr_s": 73.7,
+      "feature_s": null,
+      "forgetting_s": 0.0,
+      "drift_s": null,
+      "total_s": 74.1
+    },
+    {
+      "round": 3,
+      "asr_s": 74.8,
+      "feature_s": null,
+      "forgetting_s": 0.0,
+      "drift_s": null,
+      "total_s": 74.8
+    },
+    {
+      "round": 4,
+      "asr_s": 75.3,
+      "feature_s": null,
+      "forgetting_s": 0.0,
+      "drift_s": null,
+      "total_s": 75.4
+    },
+    {
+      "round": 5,
+      "asr_s": 75.7,
+      "feature_s": null,
+      "forgetting_s": 0.0,
+      "drift_s": null,
+      "total_s": 75.8
+    }
+  ],
   "checksums": [
     {
       "round": 1,
-      "global": "956479ead511"
+      "global": "d259128657fd"
+    },
+    {
+      "round": 2,
+      "global": "b44e7042af4f"
+    },
+    {
+      "round": 3,
+      "global": "181adcfd7f95"
+    },
+    {
+      "round": 4,
+      "global": "773e061e5fbc"
+    },
+    {
+      "round": 5,
+      "global": "931d1867fbac"
     }
   ],
   "timing_summary": {
-    "n_rounds_timed": 1,
-    "n_bd_evals": 0,
-    "round_time_total_s": 155.0,
-    "bd_eval_total_s": null,
-    "wall_total_s": null,
-    "bd_eval_fraction": null,
-    "round_time_mean_s": 155.0,
-    "bd_eval_mean_s": null,
+    "n_rounds_timed": 5,
+    "n_bd_evals": 5,
+    "round_time_total_s": 825.6,
+    "bd_eval_total_s": 377.3,
+    "wall_total_s": 1202.9,
+    "bd_eval_fraction": 0.3137,
+    "round_time_mean_s": 165.12,
+    "bd_eval_mean_s": 75.46,
     "bd_phase_mean_s": {
-      "asr": null,
+      "asr": 75.32,
       "feature": null,
-      "forgetting": null,
+      "forgetting": 0.0,
       "drift": null
     }
   },
   "admitted": [],
   "admitted_count_mean": null,
   "rejected_ids": [],
-  "malicious_selected_rounds": [],
-  "n_malicious_participations": 0,
+  "malicious_selected_rounds": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "n_malicious_participations": 5,
   "malicious_participation_by_client": {
-    "5": [],
-    "20": [],
-    "25": [],
-    "39": [],
-    "49": [],
-    "61": [],
-    "68": [],
+    "5": [
+      3
+    ],
+    "20": [
+      2,
+      3,
+      4
+    ],
+    "25": [
+      1
+    ],
+    "39": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "49": [
+      1
+    ],
+    "61": [
+      2,
+      3,
+      5
+    ],
+    "68": [
+      1,
+      2
+    ],
     "84": [],
-    "87": [],
-    "98": []
+    "87": [
+      1,
+      5
+    ],
+    "98": [
+      5
+    ]
   },
-  "client_failures": [
-    {
-      "client_id": 49,
-      "error": "{{function_node __wrapped__FusedBatchNormGradV3_device_/job:localhost/replica:0/task:0/device:GPU:0}} A deterministic GPU implementation of fused batch-norm backprop, when training is disabled, is not"
-    },
-    {
-      "client_id": 87,
-      "error": "{{function_node __wrapped__FusedBatchNormGradV3_device_/job:localhost/replica:0/task:0/device:GPU:0}} A deterministic GPU implementation of fused batch-norm backprop, when training is disabled, is not"
-    },
-    {
-      "client_id": 87,
-      "error": "{{function_node __wrapped__FusedBatchNormGradV3_device_/job:localhost/replica:0/task:0/device:GPU:0}} A deterministic GPU implementation of fused batch-norm backprop, when training is disabled, is not"
-    },
-    {
-      "client_id": 25,
-      "error": "{{function_node __wrapped__FusedBatchNormGradV3_device_/job:localhost/replica:0/task:0/device:GPU:0}} A deterministic GPU implementation of fused batch-norm backprop, when training is disabled, is not"
-    },
-    {
-      "client_id": 39,
-      "error": "{{function_node __wrapped__FusedBatchNormGradV3_device_/job:localhost/replica:0/task:0/device:GPU:0}} A deterministic GPU implementation of fused batch-norm backprop, when training is disabled, is not"
-    },
-    {
-      "client_id": 68,
-      "error": "{{function_node __wrapped__FusedBatchNormGradV3_device_/job:localhost/replica:0/task:0/device:GPU:0}} A deterministic GPU implementation of fused batch-norm backprop, when training is disabled, is not"
-    },
-    {
-      "edge_id": 0,
-      "dropped": [
-        49
-      ]
-    },
-    {
-      "edge_id": 1,
-      "dropped": [
-        87
-      ]
-    },
-    {
-      "edge_id": 1,
-      "dropped": [
-        87
-      ]
-    },
-    {
-      "edge_id": 0,
-      "dropped": [
-        25
-      ]
-    },
-    {
-      "edge_id": 0,
-      "dropped": [
-        39
-      ]
-    },
-    {
-      "edge_id": 1,
-      "dropped": [
-        68
-      ]
-    }
-  ],
-  "errors": [
-    "Traceback (most recent call last):",
-    "tensorflow.python.framework.errors_impl.UnimplementedError: {{function_node __wrapped__FusedBatchNormGradV3_device_/job:localhost/replica:0/task:0/device:GPU:0}} A deterministic GPU implementation of fused batch-norm backprop, when training is disabled, is not currently available. [Op:FusedBatchNormGradV3] name:"
-  ],
+  "client_failures": [],
+  "errors": [],
   "log_tail": [
-    "Traceback (most recent call last):",
-    "  File \"/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tf-dpfl/fedavg/main.py\", line 1019, in <module>",
-    "    run_experiment()",
-    "  File \"/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tf-dpfl/fedavg/main.py\", line 825, in run_experiment",
-    "    history = cloud.run(logger=logger)",
-    "  File \"/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tf-dpfl/fedavg/server/server.py\", line 469, in run",
-    "    m = self.run_round(r)",
-    "  File \"/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tf-dpfl/fedavg/server/backdoor_server.py\", line 99, in run_round",
-    "    self._backdoor_eval(round_idx, anchor=anchor)",
-    "  File \"/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tf-dpfl/fedavg/server/backdoor_server.py\", line 266, in _backdoor_eval",
-    "    metrics = evaluate_hierarchical_asr(",
-    "  File \"/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tf-dpfl/fedavg/attack/backdoor_eval.py\", line 279, in evaluate_hierarchical_asr",
-    "    global_asr, global_asr_unf = _asr(global_model, global_test_ds)",
-    "  File \"/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tf-dpfl/fedavg/attack/backdoor_eval.py\", line 275, in _asr",
-    "    cnt = compute_asr_four_way(model, ds, trigger_fn, target_label,",
-    "  File \"/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tf-dpfl/fedavg/attack/backdoor_eval.py\", line 161, in compute_asr_four_way",
-    "    xp = trigger_fn(model, X, Y)",
-    "  File \"/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tf-dpfl/fedavg/server/backdoor_server.py\", line 133, in trig",
-    "    return x + att.eval_xi(xi_model, x, y, rng=rng) + att.eval_delta(x)",
-    "  File \"/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tf-dpfl/fedavg/client/client_badpfl.py\", line 284, in eval_xi",
-    "    return self._atk_xi(model, x_tf, y, training=False, rng=r).numpy()",
-    "  File \"/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tf-dpfl/fedavg/client/client_badpfl.py\", line 153, in _atk_xi",
-    "    return self._atk_pgd_noise(model, x, y, training=training, rng=rng)",
-    "  File \"/nobackup/proj/disk/naiss2025-22-1095/personal/ziangg/tf-dpfl/fedavg/client/client_badpfl.py\", line 145, in _atk_pgd_noise",
-    "    g = tape.gradient(loss, x0)",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/eager/backprop.py\", line 1066, in gradient",
-    "    flat_grad = imperative_grad.imperative_grad(",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/eager/imperative_grad.py\", line 67, in imperative_grad",
-    "    return pywrap_tfe.TFE_Py_TapeGradient(",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/eager/backprop.py\", line 148, in _gradient_function",
-    "    return grad_fn(mock_op, *out_grads)",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/ops/nn_grad.py\", line 949, in _FusedBatchNormV3Grad",
-    "    return _BaseFusedBatchNormGrad(op, 2, *grad)",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/ops/nn_grad.py\", line 929, in _BaseFusedBatchNormGrad",
-    "    dx, dscale, doffset, _, _ = grad_fun(**args)",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/ops/gen_nn_ops.py\", line 4925, in fused_batch_norm_grad_v3",
-    "    _ops.raise_from_not_ok_status(e, name)",
-    "  File \"/usr/local/lib/python3.10/dist-packages/tensorflow/python/framework/ops.py\", line 5883, in raise_from_not_ok_status",
-    "    raise core._status_to_exception(e) from None  # pylint: disable=protected-access",
-    "tensorflow.python.framework.errors_impl.UnimplementedError: {{function_node __wrapped__FusedBatchNormGradV3_device_/job:localhost/replica:0/task:0/device:GPU:0}} A deterministic GPU implementation of fused batch-norm backprop, when training is disabled, is not currently available. [Op:FusedBatchNormGradV3] name: "
+    "",
+    "[ Per-Class Report ]",
+    "              precision    recall  f1-score   support",
+    "",
+    "           0     0.7778    0.7178    0.7466      1492",
+    "           1     0.8186    0.7575    0.7869      1501",
+    "           2     0.6572    0.5775    0.6148      1477",
+    "           3     0.6817    0.5525    0.6103      1477",
+    "           4     0.7254    0.7001    0.7125      1547",
+    "           5     0.4723    0.7038    0.5653      1489",
+    "           6     0.6750    0.7257    0.6994      1451",
+    "           7     0.7667    0.7149    0.7399      1526",
+    "           8     0.7836    0.7469    0.7648      1450",
+    "           9     0.7422    0.7766    0.7590      1553",
+    "",
+    "    accuracy                         0.6978     14963",
+    "   macro avg     0.7100    0.6973    0.6999     14963",
+    "weighted avg     0.7104    0.6978    0.7004     14963",
+    "",
+    "[ F1 Score ]",
+    "  Macro    F1 : 0.6999",
+    "  Weighted F1 : 0.7004",
+    "",
+    "[ AUC (OvR) ]",
+    "  Macro    AUC : 0.9562",
+    "  Weighted AUC : 0.9562",
+    "",
+    "[ Confusion Matrix ] (shape: (10, 10))",
+    "[[1071   48   61   18   20   97   13   20   93   51]",
+    " [  21 1137   15    2    4  110   35    7   46  124]",
+    " [  69   13  853   68   80  194   85   56   33   26]",
+    " [  24   16  116  816   77  196  113   49   32   38]",
+    " [  18   10   75   55 1083   71   84  111   20   20]",
+    " [  23    9   55  121   78 1048   55   52    8   40]",
+    " [  17    9   59   57   48  158 1053   16   13   21]",
+    " [  24    7   39   32   86  109   89 1091   10   39]",
+    " [  73   46   16   20    7  123   15    7 1083   60]",
+    " [  37   94    9    8   10  113   18   14   44 1206]]",
+    "============================================================",
+    "  Report saved to report_PM_hier_fedrep.txt"
   ],
-  "exit_code": 1
+  "exit_code": 0
 }
