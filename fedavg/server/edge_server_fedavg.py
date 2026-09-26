@@ -19,7 +19,7 @@ class FedAvgEdgeServer(EdgeServerBase):
 
     def run_edge_round(self, global_round_idx: int, edge_round_idx: int):
         """单轮 edge 内部通信：广播 edge 模型 → client 本地训练 → 样本加权 FedAvg。"""
-        selected = self.select_clients(global_round_idx)
+        selected = self.select_clients(global_round_idx, edge_round_idx)
         print(f"  [Edge {self.edge_id}] G{global_round_idx} | E{edge_round_idx} | "
               f"Hier-FedAvg | Selected {len(selected)}/{len(self.clients)}")
 
@@ -31,7 +31,8 @@ class FedAvgEdgeServer(EdgeServerBase):
 
         # 收集 client 本地训练结果
         client_updates = self._collect_updates_parallel(
-            selected, global_round_idx, mode="fedavg")
+            selected, global_round_idx, mode="fedavg",
+            edge_round_idx=edge_round_idx)
 
         # 样本加权 FedAvg 聚合（有防御时走鲁棒聚合）
         new_w = self.robust_mean(client_updates, ref_w)
@@ -44,16 +45,4 @@ class FedAvgEdgeServer(EdgeServerBase):
               f"loss={avg_loss:.4f}")
         return float(avg_loss), avg_time
 
-    def run(self, global_round_idx: int):
-        """执行 edge_rounds 轮 FedAvg 聚合，上传 edge 模型给 cloud。"""
-        edge_rounds = self.config["federation"]["edge_rounds"]
-        round_losses, round_times = [], []
-
-        for er in range(1, edge_rounds + 1):
-            loss, t = self.run_edge_round(global_round_idx, er)
-            round_losses.append(loss)
-            round_times.append(t)
-
-        comm = 2 * self.model_bytes * len(self.clients) * edge_rounds
-        return (self.model.get_weights(), self.n_samples,
-                float(np.mean(round_losses)), float(np.mean(round_times)), comm)
+    # run() 由基类实现（EdgeServerBase.run → cloud_upload，D01 的两种调度共用）。

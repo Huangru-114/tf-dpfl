@@ -22,7 +22,8 @@ import tensorflow as tf
 from models.model_utils import get_model_bytes
 from aggregation.client_update import as_client_update
 from .robust_aggregation import RobustAggregationMixin
-from .participation import edge_quota
+from .participation import edge_quota, round_index
+from alignment import get_switch
 
 
 class EdgeServerBase(RobustAggregationMixin, ABC):
@@ -42,6 +43,11 @@ class EdgeServerBase(RobustAggregationMixin, ABC):
         # ── 独立播种的 RNG：客户端选取必须可复现，否则矩阵里同一格重跑对不上。
         # 每个 edge 一条独立流（seed, edge_id），互不干扰全局 np.random。
         self.rng = np.random.default_rng([int(config.get("seed", 42)), int(edge_id)])
+
+        # ── 轮号轴（A08 lr / D02 配额；不写 = 云轮号，旧行为）──────────────
+        self._edge_rounds = int(config["federation"].get("edge_rounds", 1) or 1)
+        self._lr_axis     = get_switch(config, "training.lr_round_axis")
+        self._quota_axis  = get_switch(config, "federation.quota_round_axis")
 
         # ── 辅助状态 ──────────────────────────────────────────────────────
         self._global_weights_ref    = None   # Cloud 广播的全局权重快照
@@ -88,15 +94,19 @@ class EdgeServerBase(RobustAggregationMixin, ABC):
     # 客户端选取与广播
     # ══════════════════════════════════════════════════════════════════════
 
-    def select_clients(self, round_idx: int) -> list:
+    def select_clients(self, round_idx: int, edge_round_idx: int = None) -> list:
         """
         用本 edge 的 seeded RNG 抽取参与客户端。
 
         用索引抽样（而不是 np.random.choice(self.clients)）：对象数组抽样在 numpy
         新版本里会告警，且索引抽样让选取结果只依赖 (seed, edge_id, 调用次数)，
         与客户端对象的内存布局无关 → 可复现。
+
+        名额按哪个轮号轮转由 federation.quota_round_axis 决定（D02 / D-036）：
+        cloud（旧）= 云轮号；effective = 有效轮（需要 edge_round_idx）。
         """
-        n_select = self._n_select(round_idx)
+        n_select = self._n_select(
+            round_index(round_idx, edge_round_idx, self._edge_rounds, self._quota_axis))
         idx      = self.rng.choice(len(self.clients), n_select, replace=False)
         return [self.clients[int(i)] for i in idx]
 
@@ -155,7 +165,8 @@ class EdgeServerBase(RobustAggregationMixin, ABC):
 
     def _collect_updates_parallel(self, selected: list,
                                   global_round_idx: int,
-                                  mode: str = "fedavg") -> list:
+                                  mode: str = "fedavg",
+                                  edge_round_idx: int = None) -> list:
         """
         并行执行所有选中客户端的本地训练。
 
@@ -180,11 +191,12 @@ class EdgeServerBase(RobustAggregationMixin, ABC):
                 f"meta_grad 模式已随 Hier-PerFedAvg 移除。")
 
         n_workers = self.config["federation"].get("n_workers", 4)
+        lr_idx = self._lr_round(global_round_idx, edge_round_idx)
 
         def run_one(client):
-            # 每轮按 global round 更新学习率（per-round 衰减，对齐 PFLlib）
+            # 每轮更新学习率（per-round 衰减，对齐 PFLlib）；轮号轴见 _lr_round（A08）
             if hasattr(client, "apply_round_lr"):
-                client.apply_round_lr(global_round_idx)
+                client.apply_round_lr(lr_idx)
             return client.local_train(global_round_idx)
 
         with ThreadPoolExecutor(max_workers=n_workers) as executor:
@@ -201,22 +213,33 @@ class EdgeServerBase(RobustAggregationMixin, ABC):
 
     def _collect_updates_serial(self, selected: list,
                                 global_round_idx: int,
-                                mode: str = "fedavg") -> list:
+                                mode: str = "fedavg",
+                                edge_round_idx: int = None) -> list:
         """串行版本。不变量与返回值同 _collect_updates_parallel。"""
         if mode != "fedavg":
             raise ValueError(
                 f"_collect_updates_serial 只支持 mode='fedavg'，收到 {mode!r}。")
 
+        lr_idx = self._lr_round(global_round_idx, edge_round_idx)
         raw = []
         for client in selected:
             try:
                 if hasattr(client, "apply_round_lr"):
-                    client.apply_round_lr(global_round_idx)
+                    client.apply_round_lr(lr_idx)
                 raw.append((client, client.local_train(global_round_idx)))
             except Exception as e:
                 print(f"    [ERROR] Client {client.client_id}: {e}")
                 raw.append((client, None))
         return self._finalize_updates(raw)
+
+    def _lr_round(self, global_round_idx: int, edge_round_idx) -> int:
+        """
+        lr 衰减用的轮号（training.lr_round_axis，A08 / D-023）：
+          cloud（旧）   = 云轮号 g → 同一有效轮上 flat 与 HFL 的 lr 不同（F-003 的混淆）
+          effective     = 有效轮 t_eff = (g−1)·R + er；R=1 时等于 g，flat 逐字节不变
+        攻击时间窗（attacking）仍按云轮，不受这里影响。
+        """
+        return round_index(global_round_idx, edge_round_idx, self._edge_rounds, self._lr_axis)
 
     def _finalize_updates(self, raw: list) -> list:
         """
@@ -289,10 +312,38 @@ class EdgeServerBase(RobustAggregationMixin, ABC):
     # ══════════════════════════════════════════════════════════════════════
 
     @abstractmethod
+    def run_edge_round(self, global_round_idx: int, edge_round_idx: int):
+        """
+        一个 edge 轮：选客户端 → 广播 → 本地训练 → 聚合。返回 (avg_loss, avg_time)。
+
+        实现里 select_clients 与 _collect_updates_* **都必须**传 edge_round_idx
+        （A08 / D02 的有效轮轴要它；守卫 tests/test_schedule_alignment.py）。
+        """
+
+    def upload_weights(self) -> list:
+        """交给 cloud 的权重。默认 = edge 模型；Hier-pFedMe 覆写为 W_n（Algorithm 1 第 19 行）。"""
+        return self.model.get_weights()
+
+    def cloud_upload(self, round_losses: list, round_times: list):
+        """一个云周期的 edge 轮都跑完之后，交给 cloud 的 5 元组（两种调度共用）。"""
+        edge_rounds = self.config["federation"]["edge_rounds"]
+        comm = 2 * self.model_bytes * len(self.clients) * edge_rounds
+        return (self.upload_weights(), self.n_samples,
+                float(np.mean(round_losses)), float(np.mean(round_times)), comm)
+
     def run(self, global_round_idx: int):
         """
-        执行 edge_rounds 轮内部聚合后上传最终权重。
+        顺序调度（federation.edge_schedule=sequential，旧行为）：本 edge 连续跑完
+        edge_rounds 轮再上传。交错调度由 CloudServer.collect_and_aggregate 直接驱动
+        run_edge_round（D01），两者都经 cloud_upload 上传。
 
         Returns:
             (upload_weights, n_samples, avg_loss, avg_time, comm_bytes)
         """
+        edge_rounds = self.config["federation"]["edge_rounds"]
+        round_losses, round_times = [], []
+        for er in range(1, edge_rounds + 1):
+            loss, t = self.run_edge_round(global_round_idx, er)
+            round_losses.append(loss)
+            round_times.append(t)
+        return self.cloud_upload(round_losses, round_times)

@@ -681,6 +681,12 @@ def build_edge_servers(clients, global_model, config,
 def run_experiment(config_path="config/config.yaml"):
     config       = load_config(config_path)
     set_seed(config.get("seed", 42))
+    # A15 / D-028：GPU 算子确定性（为内部效度，比官方更严）。必须在建任何模型之前。
+    # 若容器 TF 有算子不支持（UnimplementedError）或慢得不可接受 → 回审计重议。
+    # 验收：[Checksum] 行在同 seed 两次 run 的前 5 轮逐轮相同。
+    if get_switch(config, "training.deterministic_ops"):
+        tf.config.experimental.enable_op_determinism()
+        print("[Setup] tf.config.experimental.enable_op_determinism() 已开启（A15）")
 
     print("[Setup] Loading dataset...")
     dataset_name = config["data"].get("dataset", "cifar10").lower()

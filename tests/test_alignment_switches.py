@@ -76,11 +76,9 @@ def test_every_switch_has_an_audit_row_in_the_audit_file():
 # ══════════════════════════════════════════════════════════════════════════
 # 3. 每个开关都被代码读到（死开关守卫）
 # ══════════════════════════════════════════════════════════════════════════
-# 按提交逐步接线：这个集合只许变小，最后一个提交之后必须为空。
-NOT_YET_WIRED = {
-    "training.deterministic_ops",
-    "training.lr_round_axis", "federation.edge_schedule", "federation.quota_round_axis",
-}
+# A4 按提交逐步接线时用的「还没接线」清单，只许变小；A4 的 C5 之后已经为空。
+# 以后新增开关：先加进开关表与这里，接好线再删掉 —— 不许长期挂着。
+NOT_YET_WIRED: set = set()
 
 
 def _reads():

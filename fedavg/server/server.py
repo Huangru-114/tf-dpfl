@@ -20,6 +20,8 @@ from models.model_utils   import get_model_bytes, clone_model
 from alignment            import get_switch
 from utils.pm             import compose_pm
 from utils.kvline         import format_kv
+from utils.checksum       import weights_checksum
+from .participation       import edge_schedule_order
 from aggregation.fedavg   import aggregate
 from server.stopping     import StoppingRule
 from aggregation.feddyn   import feddyn_aggregate,   init_h
@@ -226,10 +228,27 @@ class CloudServer(RobustAggregationMixin):
             prev_global_weights : 广播前的全局模型快照（FedDyn anchor）
         """
         edge_updates, comm_ce = [], 0
-        for edge in self.edge_servers:
-            w, n, loss, t, comm = edge.run(round_idx)
-            edge_updates.append((w, n, loss, t))
-            comm_ce += comm
+        if get_switch(self.config, "federation.edge_schedule") == "interleaved":
+            # D01 / D-036：外层 edge 轮、内层 edge（HierFAVG hierfavg.py:299-325）。
+            # 各 edge 的 rng、配额、上传与顺序调度完全相同，只改先后次序（F-038）。
+            R = int(self.config["federation"]["edge_rounds"])
+            by_id = {int(e.edge_id): e for e in self.edge_servers}
+            losses = {eid: [] for eid in by_id}
+            times = {eid: [] for eid in by_id}
+            for eid, er in edge_schedule_order(R, list(by_id), "interleaved"):
+                loss, t = by_id[eid].run_edge_round(round_idx, er)
+                losses[eid].append(loss)
+                times[eid].append(t)
+            for edge in self.edge_servers:
+                eid = int(edge.edge_id)
+                w, n, loss, t, comm = edge.cloud_upload(losses[eid], times[eid])
+                edge_updates.append((w, n, loss, t))
+                comm_ce += comm
+        else:
+            for edge in self.edge_servers:
+                w, n, loss, t, comm = edge.run(round_idx)
+                edge_updates.append((w, n, loss, t))
+                comm_ce += comm
 
         new_w = self._aggregate_global(edge_updates, prev_global_weights)
         self.global_model.set_weights(new_w)
@@ -271,6 +290,10 @@ class CloudServer(RobustAggregationMixin):
 
         # ── Phase 1+2：edge 聚合 + 全局聚合 ──────────────────────────────
         avg_edge_loss, avg_ct, comm_ce = self.collect_and_aggregate(round_idx, prev_gw)
+
+        # A15 的验收行：本轮聚合后的全局权重短哈希（同 seed 两次 run 应逐轮相同）
+        print(f"[Checksum] Round {round_idx} | "
+              f"global={weights_checksum(self.global_model.get_weights())}")
 
         # ── Phase 3：评估 ────────────────────────────────────────────────
 

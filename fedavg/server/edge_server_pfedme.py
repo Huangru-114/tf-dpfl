@@ -63,7 +63,7 @@ class PFedMeEdgeServer(EdgeServerBase):
         eta2 = float(self.config["training"].get("moreau_lr_pfedme", 0.005))
         eta1 = float(self.config["training"].get("eta1_hier", eta2))
 
-        selected = self.select_clients(global_round_idx)
+        selected = self.select_clients(global_round_idx, edge_round_idx)
         print(f"  [Edge {self.edge_id}] G{global_round_idx} | E{edge_round_idx} | "
               f"Hier-pFedMe | Selected {len(selected)}/{len(self.clients)}")
 
@@ -77,8 +77,8 @@ class PFedMeEdgeServer(EdgeServerBase):
 
         # 步骤 2：client 本地训练，收集 Θ_{n,m}^{t,i,R}
         client_updates = self._collect_updates_parallel(
-            selected, global_round_idx, mode="fedavg"
-        )
+            selected, global_round_idx, mode="fedavg",
+            edge_round_idx=edge_round_idx)
 
         # 步骤 3：edge 模型更新（式 7）
         # mean(Θ_{n,m}) − η2·λ1·(θ_n^{t,i} − W_n^{t,i})
@@ -110,21 +110,9 @@ class PFedMeEdgeServer(EdgeServerBase):
     # 主入口
     # ══════════════════════════════════════════════════════════════════════
 
-    def run(self, global_round_idx: int):
+    def upload_weights(self) -> list:
+        """上传 W_n^{t,I}（Algorithm 1 第 19 行），不是 θ_n（edge 模型）。
+
+        run() 由基类实现（EdgeServerBase.run → cloud_upload，D01 的两种调度共用）。
         """
-        执行 edge_rounds 轮 Hier-pFedMe 聚合，上传 W_n^{t,I} 给 Cloud。
-
-        注意：上传的是 W_n（Algorithm 1 第 19 行），不是 θ_n（edge 模型）。
-        """
-        edge_rounds = self.config["federation"]["edge_rounds"]
-        round_losses, round_times = [], []
-
-        for er in range(1, edge_rounds + 1):
-            loss, t = self.run_edge_round(global_round_idx, er)
-            round_losses.append(loss)
-            round_times.append(t)
-
-        comm     = 2 * self.model_bytes * len(self.clients) * edge_rounds
-        upload_w = self.W_n 
-        return (upload_w, self.n_samples,
-                float(np.mean(round_losses)), float(np.mean(round_times)), comm)
+        return self.W_n

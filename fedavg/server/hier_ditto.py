@@ -26,7 +26,7 @@ class HierDittoEdgeServer(EdgeServerBase):
         """单轮 edge 内部通信：FedAvg 聚合 client 共享模型 + Ditto 正则靠近 φ*。"""
         mu_edge = float(self.config["training"].get("mu_edge", 0.1))
 
-        selected = self.select_clients(global_round_idx)
+        selected = self.select_clients(global_round_idx, edge_round_idx)
         print(f"  [Edge {self.edge_id}] G{global_round_idx} | E{edge_round_idx} | "
               f"Hier-Ditto | Selected {len(selected)}/{len(self.clients)}")
 
@@ -37,7 +37,8 @@ class HierDittoEdgeServer(EdgeServerBase):
 
         # 步骤 2：收集 client 上传的共享模型 w_k
         client_updates = self._collect_updates_parallel(
-            selected, global_round_idx, mode="fedavg")
+            selected, global_round_idx, mode="fedavg",
+            edge_round_idx=edge_round_idx)
 
         # 步骤 3：样本加权聚合（有防御走鲁棒聚合）+ Ditto 近端靠近 φ*
         total_n    = sum(n for _, n, *_ in client_updates)
@@ -56,16 +57,4 @@ class HierDittoEdgeServer(EdgeServerBase):
               f"loss={avg_loss:.4f}")
         return float(avg_loss), avg_time
 
-    def run(self, global_round_idx: int):
-        """执行 edge_rounds 轮聚合，上传 edge 模型 φ_e 给 cloud。"""
-        edge_rounds = self.config["federation"]["edge_rounds"]
-        round_losses, round_times = [], []
-
-        for er in range(1, edge_rounds + 1):
-            loss, t = self.run_edge_round(global_round_idx, er)
-            round_losses.append(loss)
-            round_times.append(t)
-
-        comm = 2 * self.model_bytes * len(self.clients) * edge_rounds
-        return (self.model.get_weights(), self.n_samples,
-                float(np.mean(round_losses)), float(np.mean(round_times)), comm)
+    # run() 由基类实现（EdgeServerBase.run → cloud_upload，D01 的两种调度共用）。

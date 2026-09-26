@@ -47,7 +47,7 @@ class HierDittoRepEdgeServer(EdgeServerBase):
         """单轮 edge 内部通信：backbone-only FedAvg + Ditto 正则靠近 φ*。"""
         mu_edge = float(self.config["training"].get("mu_edge", 0.1))
 
-        selected = self.select_clients(global_round_idx)
+        selected = self.select_clients(global_round_idx, edge_round_idx)
         print(f"  [Edge {self.edge_id}] G{global_round_idx} | E{edge_round_idx} | "
               f"{self._method_label} | Selected {len(selected)}/{len(self.clients)}")
 
@@ -58,7 +58,8 @@ class HierDittoRepEdgeServer(EdgeServerBase):
 
         # 步骤 2：收集 client 上传（完整列表，backbone=w_k）
         client_updates = self._collect_updates_parallel(
-            selected, global_round_idx, mode="fedavg")
+            selected, global_round_idx, mode="fedavg",
+            edge_round_idx=edge_round_idx)
 
         # 步骤 3：仅 backbone 索引聚合（有防御走鲁棒聚合）+ Ditto 近端靠近 φ*
         # 与 hier_fedrep 同一套写法：防御对完整权重列表运算，再仅取 backbone
@@ -85,16 +86,4 @@ class HierDittoRepEdgeServer(EdgeServerBase):
     # 主入口
     # ══════════════════════════════════════════════════════════════════════
 
-    def run(self, global_round_idx: int):
-        """执行 edge_rounds 轮聚合，上传 edge 完整权重（backbone=φ_e）给 cloud。"""
-        edge_rounds = self.config["federation"]["edge_rounds"]
-        round_losses, round_times = [], []
-
-        for er in range(1, edge_rounds + 1):
-            loss, t = self.run_edge_round(global_round_idx, er)
-            round_losses.append(loss)
-            round_times.append(t)
-
-        comm = 2 * self.model_bytes * len(self.clients) * edge_rounds
-        return (self.model.get_weights(), self.n_samples,
-                float(np.mean(round_losses)), float(np.mean(round_times)), comm)
+    # run() 由基类实现（EdgeServerBase.run → cloud_upload，D01 的两种调度共用）。

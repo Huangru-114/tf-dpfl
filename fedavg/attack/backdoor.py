@@ -237,8 +237,11 @@ def install_forced_participation(edge_servers, malicious_client, Q: int,
         target_edge._forced_participation = registry
         orig_select = target_edge.select_clients
 
-        def wrapped(round_idx):
-            base = list(orig_select(round_idx))
+        def wrapped(round_idx, edge_round_idx=None):
+            # edge_round_idx 原样转给原 select_clients（D02 有效轮配额要它）；
+            # 强制参与的 Q 调度仍按云轮 round_idx。
+            base = list(orig_select(round_idx) if edge_round_idx is None
+                        else orig_select(round_idx, edge_round_idx))
             r    = int(round_idx)
 
             must_in = [c for c, q in registry.items() if r % int(q) == 0]
