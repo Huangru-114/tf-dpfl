@@ -16,10 +16,8 @@ import os
 import numpy as np
 import tensorflow as tf
 
-# 与 data/dataset.py 中的 CIFAR-10 逐通道标准化常数保持一致（此处本地定义，
-# 避免 import data.dataset 连带引入 tensorflow_datasets 等重依赖）。
-CIFAR10_MEAN = np.array([0.4914, 0.4822, 0.4465], dtype=np.float32)
-CIFAR10_STD  = np.array([0.2470, 0.2435, 0.2616], dtype=np.float32)
+# 常数来自 data/pixel_space.py（纯 numpy，不会连带引入 tensorflow_datasets）。
+from data.pixel_space import CIFAR10_MEAN, CIFAR10_STD, normalizes   # noqa: E402
 
 
 def make_badnet_trigger(mean=CIFAR10_MEAN, std=CIFAR10_STD, size=3, value=1.0):
@@ -91,16 +89,32 @@ def make_dba_global_trigger(all_patterns, mean=CIFAR10_MEAN, std=CIFAR10_STD,
     return make_dba_local_trigger(merged, mean=mean, std=std, value=value)
 
 
-def build_trigger(bd_cfg, img_size=32):
+def trigger_space(config=None):
+    """静态触发器用的 (μ, s)。
+
+    `data.normalize=false`（G7「官方预处理」）→ 模型输入就是 [0,1] 像素 → (0, 1)。
+    其余情况保持历史行为：一律用 CIFAR-10 常数 —— **包括 dataset=cifar100**（那是一个
+    已知的旧偏差，约 8%；改它会改变现有 cifar100 静态触发器配置的数值，A4 的规矩是
+    开关之外逐字节不变，所以只记录、不在这里顺手改）。
+    """
+    if config is not None and not normalizes(config):
+        return np.zeros(3, np.float32), np.ones(3, np.float32)
+    return CIFAR10_MEAN, CIFAR10_STD
+
+
+def build_trigger(bd_cfg, img_size=32, config=None):
     """
     根据 config['backdoor'] 构建**投毒/评估侧静态 trigger 函数** apply(x)。
 
     DBA：返回**全局触发器**（合并所有局部 pattern），用于 ASR 评估；
     各恶意客户端的局部投毒触发器由 attack/backdoor.build_dba_poisoned_datasets 单独构建。
+    `config` 给出时，触发器的像素值跟随 data.normalize（F-027；见 trigger_space）。
     """
+    mean, std = trigger_space(config)
     kind = bd_cfg.get("trigger", "badnet")
     if kind == "badnet":
         return make_badnet_trigger(
+            mean=mean, std=std,
             size=int(bd_cfg.get("badnet_size", 3)),
             value=float(bd_cfg.get("badnet_value", 1.0)),
         )
@@ -117,7 +131,7 @@ def build_trigger(bd_cfg, img_size=32):
                 f"请把 hello-kitty 图片放到该路径，或设置 backdoor.blended_image。"
             )
         return make_blended_trigger(
-            path,
+            path, mean=mean, std=std,
             alpha=float(bd_cfg.get("blended_alpha", 0.2)),
             img_size=int(img_size),
         )
@@ -126,5 +140,5 @@ def build_trigger(bd_cfg, img_size=32):
         if not patterns:
             raise ValueError("trigger='dba' 需要 backdoor.dba_patterns（局部触发器坐标列表）。")
         return make_dba_global_trigger(
-            patterns, value=float(bd_cfg.get("badnet_value", 1.0)))
+            patterns, mean=mean, std=std, value=float(bd_cfg.get("badnet_value", 1.0)))
     raise ValueError(f"Unknown backdoor trigger: {kind!r} (choose 'badnet'/'blended'/'dba')")

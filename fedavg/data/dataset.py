@@ -70,8 +70,9 @@ def augment(image, label):
 #     )
 
 #     return train_ds, test_ds, x_train, y_train
-CIFAR10_MEAN = np.array([0.4914, 0.4822, 0.4465], dtype=np.float32)
-CIFAR10_STD  = np.array([0.2470, 0.2435, 0.2616], dtype=np.float32)
+# 常数只在 data/pixel_space.py 定义一次（ε 换算、触发器、PGD 的 clamp 都问那里）。
+from data.pixel_space import (CIFAR10_MEAN, CIFAR10_STD,          # noqa: E402
+                              CIFAR100_MEAN, CIFAR100_STD, normalize_images)
 
 # Mimer 上 CIFAR 数据集的共享路径（CIFAR-10 和 CIFAR-100 均在此）
 # **注意这是 Chalmers Mimer 的路径**，别的集群上不存在，会走下面的 fallback。
@@ -164,9 +165,9 @@ def load_cifar10(config: dict):
 
     (x_train, y_train), (x_test, y_test) = tf.keras.datasets.cifar10.load_data()
 
-    # 改为逐通道标准化，比单纯 /255 效果更好
-    x_train = (x_train.astype("float32") / 255.0 - CIFAR10_MEAN) / CIFAR10_STD
-    x_test  = (x_test.astype("float32")  / 255.0 - CIFAR10_MEAN) / CIFAR10_STD
+    # 逐通道标准化（data.normalize=false 时只 /255 —— G7「官方预处理」，AUDIT A10）
+    x_train = normalize_images(x_train, config)
+    x_test  = normalize_images(x_test, config)
 
     y_train = y_train.squeeze()
     y_test  = y_test.squeeze()
@@ -201,8 +202,6 @@ def load_cifar10(config: dict):
 # 和 CIFAR-10 使用同一个 Mimer 路径：/mimer/NOBACKUP/Datasets/CIFAR/
 # ══════════════════════════════════════════════════════════════════════════════
 
-CIFAR100_MEAN = np.array([0.5071, 0.4867, 0.4408], dtype=np.float32)
-CIFAR100_STD  = np.array([0.2675, 0.2565, 0.2761], dtype=np.float32)
 
 
 def load_cifar100(config: dict):
@@ -221,8 +220,8 @@ def load_cifar100(config: dict):
     (x_train, y_train), (x_test, y_test) = \
         tf.keras.datasets.cifar100.load_data(label_mode="fine")
 
-    x_train = (x_train.astype("float32") / 255.0 - CIFAR100_MEAN) / CIFAR100_STD
-    x_test  = (x_test.astype("float32")  / 255.0 - CIFAR100_MEAN) / CIFAR100_STD
+    x_train = normalize_images(x_train, config)
+    x_test  = normalize_images(x_test, config)
     y_train = y_train.squeeze()
     y_test  = y_test.squeeze()
 

@@ -75,12 +75,11 @@ def test_every_switch_has_an_audit_row_in_the_audit_file():
 # ══════════════════════════════════════════════════════════════════════════
 # 按提交逐步接线：这个集合只许变小，最后一个提交之后必须为空。
 NOT_YET_WIRED = {
-    "backdoor.badpfl_xi", "backdoor.eval_xi_model", "backdoor.poison_sampling",
-    "backdoor.badpfl_bn_mode", "evaluation.asr_columns", "backdoor.badpfl_generator",
+    "backdoor.eval_xi_model", "evaluation.asr_columns",
     "training.deterministic_ops", "training.fedrep_poison_phases", "data.batch_pipeline",
     "training.fedrep_bn_stats", "evaluation.pm_model", "model.arch",
     "training.lr_round_axis", "federation.edge_schedule", "federation.quota_round_axis",
-    "training.fedrep_order", "data.normalize", "data.augment",
+    "training.fedrep_order",
 }
 
 

@@ -1,6 +1,8 @@
 import numpy as np
 import tensorflow as tf
 
+from alignment import get_switch
+
 
 def extract_numpy(dataset: tf.data.Dataset):
     """
@@ -37,7 +39,9 @@ def make_client_dataset(images_np, labels_np, indices, config, shuffle=True):
     ds = tf.data.Dataset.from_tensor_slices((client_images, client_labels))
     if shuffle:
         ds = ds.shuffle(buffer_size=len(indices))
-        ds = ds.map(_augment, num_parallel_calls=tf.data.AUTOTUNE)
+        # data.augment=false：G7「官方预处理」不增强（AUDIT A10 / D-025）。默认 true = 现行为。
+        if get_switch(config, "data.augment"):
+            ds = ds.map(_augment, num_parallel_calls=tf.data.AUTOTUNE)
     ds = ds.batch(config["data"]["batch_size"]).prefetch(tf.data.AUTOTUNE)
     return ds
  

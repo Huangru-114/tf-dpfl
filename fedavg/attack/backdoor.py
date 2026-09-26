@@ -14,10 +14,10 @@ attack/backdoor.py  –  恶意客户端接入与 fix-frequency 强制参与
 import numpy as np
 import tensorflow as tf
 
-from attack.triggers import make_dba_local_trigger
+from attack.triggers import make_dba_local_trigger, trigger_space
 
 
-def make_dba_local_triggers(bd_cfg: dict, malicious_ids) -> dict:
+def make_dba_local_triggers(bd_cfg: dict, malicious_ids, config=None) -> dict:
     """
     DBA：为每个恶意客户端分配一个**局部**触发器（按 client id 排序的 rank 循环取
     backdoor.dba_patterns）。本地投毒只用自己的局部 pattern；ASR 评估用全局触发器
@@ -30,10 +30,11 @@ def make_dba_local_triggers(bd_cfg: dict, malicious_ids) -> dict:
     if not patterns:
         raise ValueError("trigger='dba' 需要 backdoor.dba_patterns（局部触发器坐标列表）。")
     value = float(bd_cfg.get("badnet_value", 1.0))
+    mean, std = trigger_space(config)          # 跟随 data.normalize（F-027）
     out = {}
     for rank, cid in enumerate(sorted(int(i) for i in malicious_ids)):
         pattern = patterns[rank % len(patterns)]
-        out[cid] = make_dba_local_trigger(pattern, value=value)
+        out[cid] = make_dba_local_trigger(pattern, mean=mean, std=std, value=value)
         print(f"  [DBA] client {cid} ← local pattern #{rank % len(patterns)} "
               f"({len(pattern)} px)")
     return out

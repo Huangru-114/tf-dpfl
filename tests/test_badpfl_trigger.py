@@ -63,6 +63,10 @@ def _client(rng, dataset="cifar10", n=8):
     c = BadPFLFedAvgClient(client_id=0, dataset=ds, model=_model(),
                            config=_config(dataset), n_samples=n)
     c.is_malicious = True
+    # 攻击时间窗（c7a06c49）之后，闸门读 _attack_active（由 on_round_start 刷新）。
+    # 本文件直接调 on_batch，必须显式打开 —— 否则 on_batch 原样返回 numpy，
+    # 这几条断言自那次提交起一直是红的（A4 会话发现并修正）。
+    c._attack_active = True
     return c, x, y
 
 

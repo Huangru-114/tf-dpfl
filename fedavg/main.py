@@ -16,7 +16,7 @@ from data.partition     import (extract_numpy, iid_partition, noniid_partition,
 from data.clustering    import random_assignment, warmup_gradient_assignment, histogram_assignment, semantic_assignment, block_assignment
 from models.cnn         import build_model
 from models.model_utils import clone_model
-from models.autoencoder import build_autoencoder   # P4：共享生成器
+from models.autoencoder import build_generator     # P4：共享生成器（A14：按开关选结构）
 from client.client_pfedme      import PFedMeClient
 from client.client_fedavg       import FedAvgClient
 from client.hier_ditto_rep      import HierDittoRepClient
@@ -459,14 +459,15 @@ def build_clients(images_np, labels_np, global_model, config):
         print(f"[Backdoor] resolved malicious clients "
               f"(placement={bd_cfg.get('malicious_placement', 'spread')}): "
               f"{bd_cfg['malicious_ids']}")
-    bd_trigger    = build_trigger(bd_cfg, img_size=config["data"]["img_size"]) if bd_enabled else None
+    bd_trigger    = (build_trigger(bd_cfg, img_size=config["data"]["img_size"], config=config)
+                     if bd_enabled else None)
     bd_target     = int(bd_cfg.get("target_label", 9))
     bd_poison     = float(bd_cfg.get("poison_ratio", 0.5))
     strategy      = str(bd_cfg.get("malicious_strategy", "vanilla")).lower()
     trigger_kind  = bd_cfg.get("trigger", "badnet")
 
     # DBA：每个恶意客户端分到一个**局部**触发器用于投毒（评估侧用全局触发器）
-    dba_triggers  = (make_dba_local_triggers(bd_cfg, malicious_ids)
+    dba_triggers  = (make_dba_local_triggers(bd_cfg, malicious_ids, config=config)
                      if (bd_enabled and trigger_kind == "dba") else {})
     # 动态投毒策略（Phase 2 CerP/Bad-PFL）：恶意客户端保留 clean 数据，训练时动态投毒
     dynamic_poison = strategy in ("cerp", "badpfl")
@@ -494,7 +495,7 @@ def build_clients(images_np, labels_np, global_model, config):
     shared_gen = shared_opt = None
     if bd_enabled and strategy == "badpfl" and bd_cfg.get("badpfl_shared_generator", False):
         _img = int(config["data"]["img_size"])
-        shared_gen = build_autoencoder(img_size=_img, channels=3)
+        shared_gen = build_generator(config, img_size=_img, channels=3)
         shared_opt = tf.keras.optimizers.Adam(
             learning_rate=float(bd_cfg.get("badpfl_gen_lr", 0.01)))
         print("[Backdoor] P4: single SHARED generator across all malicious clients "
@@ -732,7 +733,8 @@ def run_experiment(config_path="config/config.yaml"):
     if bd_enabled:
         malicious_ids = get_malicious_ids(bd_cfg)
         # 投毒侧静态触发器（badnet/blended，或 DBA 全局触发器）
-        bd_trigger    = build_trigger(bd_cfg, img_size=config["data"]["img_size"])
+        bd_trigger    = build_trigger(bd_cfg, img_size=config["data"]["img_size"],
+                                      config=config)
         # 评估侧 trigger 统一为 (model, x, y)：静态触发器忽略 model/y。
         # CerP/Bad-PFL 动态触发器在此处替换为真正依赖 model/y 的评估触发器。
         eval_trigger  = build_eval_trigger(bd_cfg, bd_trigger, clients, config)

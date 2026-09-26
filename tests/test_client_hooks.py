@@ -74,6 +74,9 @@ def _client(rng, method_cls, with_attack=True):
     c.is_malicious = with_attack
     if with_attack:
         c.set_clean_dataset(ds)
+        # 攻击时间窗（c7a06c49）：闸门读 _attack_active。本文件直接调 on_upload，
+        # 必须显式打开，否则掩码投影是空操作、「返回值确实变了」的断言恒红。
+        c._attack_active = True
     w0 = [w.copy() for w in c.model.get_weights()]
     c.set_weights(global_weights=w0, edge_weights=w0)
     return c
