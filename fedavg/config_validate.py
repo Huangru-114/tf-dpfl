@@ -366,6 +366,41 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
             f"ASR 与 PM 精度会落在不同的轮上，metrics.json 的 rounds[] 与 acc_rounds[] "
             f"无法逐点配对。若是有意的（ASR 评估更贵），忽略本条。")
 
+    # ── 4c. 对齐开关（A4；fedavg/alignment.py + config/alignment_p2.yaml）──
+    #   三种写错都会静默跑错：取值拼错（回退旧行为）、P2 配置少开一项（与其他
+    #   P2 格子不可比）、方法专属开关开在别的方法上（什么也不发生）。
+    from alignment import (invalid_values, p2_mismatches, get_switch,
+                           SWITCHES, EXTRA_SWITCHES, PM_FRESH_METHODS)
+    bad_sw = invalid_values(config)
+    if bad_sw:
+        _fail("对齐开关取值不合法：\n" + "\n".join(
+            f"  {k} = {v!r}，合法取值 {list(c)}" for k, v, c in bad_sw))
+    protocol = str((config.get("meta") or {}).get("protocol", "")).upper()
+    if protocol == "P2":
+        mism = p2_mismatches(config)
+        if mism:
+            _fail("meta.protocol = P2，但以下对齐开关与模板 fedavg/config/alignment_p2.yaml"
+                  " 不一致（P2 = 模板全开）：\n" + "\n".join(
+                      f"  {k}: 模板 {want!r}，实际 {got!r}" for k, want, got in mism)
+                  + "\n  消融请登记在 pilot 表（P1 口径），不要写成 P2。")
+    _strategy = str(bd.get("malicious_strategy", "vanilla")).lower() if bd_enabled else None
+    for sw in SWITCHES + EXTRA_SWITCHES:
+        if sw.scope is None:
+            continue
+        val = get_switch(config, sw.key)
+        if val == sw.legacy:
+            continue
+        if sw.scope == "hier_fedrep" and method != "hier_fedrep":
+            warnings.append(f"{sw.key}={val!r} 只对 hier_fedrep 生效，"
+                            f"当前方法 {method!r} 下无效（AUDIT {sw.row}）。")
+        if sw.scope == "badpfl" and _strategy != "badpfl":
+            warnings.append(f"{sw.key}={val!r} 只对 Bad-PFL 攻击生效，"
+                            f"当前攻击 {_strategy!r} 下无效（AUDIT {sw.row}）。")
+    if get_switch(config, "evaluation.pm_model") == "fresh" and method not in PM_FRESH_METHODS:
+        _fail(f"evaluation.pm_model = 'fresh' 需要方法定义「私有部分」（client.private_state），"
+              f"目前只有 {sorted(PM_FRESH_METHODS)}；{method!r} 没有定义 → "
+              f"fresh-PM 无从组装（AUDIT A28 / D-033）。")
+
     # ── 5. 可复现性 ─────────────────────────────────────────────────────
     if "seed" not in config:
         warnings.append("config 缺 seed，实验不可复现。建议显式写死。")
@@ -430,4 +465,12 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
           f"thetas={','.join(str(t) for t in _sc.get('thetas', [])) or 'n/a'} | "
           f"pm_window={_sc.get('pm_window', 'n/a')} | "
           f"pm_slope_tol={_sc.get('pm_slope_tol', 'n/a')}")
+
+    # ── 6d. 对齐开关自描述（[设定4]）──────────────────────────────────
+    #   又一条**独立**的行，而且按 key=value 逐字段解析（utils/kvline.py）：
+    #   开关会随审计继续增加，全或无的正则扛不住。
+    #   template=p2 / legacy / mixed：一眼看出这一格是 P2、旧协议还是消融。
+    from alignment import describe_fields
+    from utils.kvline import format_kv
+    print(format_kv("[设定4]", describe_fields(config)))
     return warnings

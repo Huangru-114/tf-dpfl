@@ -1,0 +1,44 @@
+# ══════════════════════════════════════════════════════════════════════════
+# alignment_p2.yaml  —  「P2 对齐」配置模板（A4 会话，2026-09-26）
+#
+# 对齐审计（experiments/attack/hfl-mechanism/AUDIT.md）里每个要改代码的行，
+# 在这里各占一个键。**P2 的定义 = 本文件的每一项都打开。**
+#
+#   · 这些键不写时一律是旧行为（fedavg/alignment.py 的 legacy 值）→ 冻结的 P1 配置、
+#     matrix、bad-pfl 目录的配置逐字节不变。
+#   · 登记表用 `overlays:` 把本文件叠到 base 上（harness/registry.py），
+#     materialize 出来的配置里每个键都显式写着。
+#   · `meta.protocol: P2` 的配置由 config_validate 逐键核对本文件，少开一项就拒绝启动。
+#   · 消融（D-038「没通过就逐个开关消融」）= 模板 + 一条 `set` 把某个键改回旧值。
+#
+# 键集合必须与 fedavg/alignment.py 的 SWITCHES 完全一致（tests/test_alignment_switches.py）。
+# 不在这里的两类开关：A26 `training.fedrep_order`（pilot 定）；G7 的 `data.normalize` /
+# `data.augment`（对比组才关）。
+# ══════════════════════════════════════════════════════════════════════════
+
+backdoor:
+  badpfl_xi:         pgd              # A01 / D-014：ξ = 官方单步 PGD（随机起点 → clamp → 起点处求梯度 → 投影 → clamp）
+  eval_xi_model:     fixed_attacker   # A02 / D-015 + D-033：主 ASR 的 ξ 用按 seed 固定选中的一个攻击者（它的 PM）
+  poison_sampling:   bernoulli        # A03 / D-016：逐样本伯努利(ρ)
+  badpfl_bn_mode:    official         # A05 / D-018：投毒 / 评估时生成器用 batch 统计；训练期求 ξ 时 F 用训练模式
+  badpfl_generator:  official         # A14 / D-020：生成器结构、初始化、eps 对齐官方 generator.py；输入反标准化到 [0,1]
+
+evaluation:
+  asr_columns:       four_way         # A06 / D-019：过滤 / 不过滤 × 全体 / 仅良性 四列；主指标 = 过滤 × 仅良性
+  pm_model:          fresh            # A28 / D-033：主 ASR 与主 pm_acc 都在 fresh-PM 上测；陈旧 PM 作副列
+
+training:
+  deterministic_ops:    true          # A15 / D-028：tf.config.experimental.enable_op_determinism()
+  fedrep_poison_phases: body          # A24 / D-021：FedRep 只在 body 阶段投毒
+  fedrep_bn_stats:      private       # A27 / D-032：BN 的 γ/β 共享，moving 统计量私有
+  lr_round_axis:        effective     # A08 / D-023：lr 按有效轮衰减（候选；D-029 通过后 A08 → deviate）
+
+data:
+  batch_pipeline:    per_epoch        # A25 / D-026：每 epoch 重洗 + 重增强、drop_last 且尾批轮换
+
+model:
+  arch:              resnet10_torch   # A29 / D-034：stride-2 padding、BN momentum/eps、初始化对齐 torch
+
+federation:
+  edge_schedule:     interleaved      # D01 / D-036：外层 edge 轮、内层 edge（HierFAVG 官方顺序）
+  quota_round_axis:  effective        # D02 / D-036：参与配额按有效轮 t_eff 轮转

@@ -16,6 +16,8 @@ harness/registry.py  —  实验登记表：**声明**每个 run 应该是什么
     results_dir: results          # 相对登记表所在目录
     configs_dir: configs          # materialize 的输出目录（nested 才用）
     base: base.yaml               # materialize 的基配置；null = 还没定（materialize 拒绝）
+    overlays: [../x/tpl.yaml]     # 可选：按顺序深合并到 base 上（在组/格子的 set 之前）。
+                                  # A4：对齐模板 fedavg/config/alignment_p2.yaml 就是这样叠上去的
     run_id_format: "{group}__{cell}__s{seed}"   # 可选，这是默认值
     audit: AUDIT.md               # requires 里写 audit 时，门槛看这个文件
     available: [S3]               # 已经实现的功能会话；requires 里其余的 token 对它检查
@@ -103,6 +105,16 @@ def set_dotted(d: dict, path: str, value):
     cur[keys[-1]] = value
 
 
+def deep_merge(dst: dict, src: dict) -> dict:
+    """把 src 递归并进 dst（就地）：dict 对 dict 往下合并，其余一律以 src 为准。"""
+    for k, v in src.items():
+        if isinstance(v, dict) and isinstance(dst.get(k), dict):
+            deep_merge(dst[k], v)
+        else:
+            dst[k] = copy.deepcopy(v)
+    return dst
+
+
 def _slug(s) -> str:
     """组名 / 格子名 / 因素 label：只许字母数字 . _ -，且不许出现 `__`
     （默认 run_id 用 `__` 分隔组、格子、seed，出现在名字里就拆不回来了）。"""
@@ -160,6 +172,7 @@ class Registry:
         self.results_dir = (self.dir / raw.get("results_dir", "results")).resolve()
         self.configs_dir = (self.dir / raw.get("configs_dir", "configs")).resolve()
         self.base = raw.get("base")
+        self.overlays = list(raw.get("overlays") or [])
         self.run_id_format = raw.get("run_id_format", DEFAULT_RUN_ID_FORMAT)
         self.audit = (self.dir / raw["audit"]) if raw.get("audit") else None
         self.available = set(raw.get("available") or [])
@@ -256,6 +269,11 @@ class Registry:
                 f"{self.path.name} 的 base 还没定（base: null）—— 按计划在 A4 之后才有；"
                 f"现在不能生成 {run['run_id']} 的配置")
         cfg = copy.deepcopy(yaml.safe_load((self.dir / self.base).read_text(encoding="utf-8")))
+        for ov in self.overlays:
+            path = (self.dir / ov).resolve()
+            if not path.is_file():
+                raise RegistryError(f"{self.path.name} 的 overlay 不存在：{ov}")
+            deep_merge(cfg, yaml.safe_load(path.read_text(encoding="utf-8")) or {})
         for k, v in run["set"].items():
             set_dotted(cfg, k, copy.deepcopy(v))
         cfg["seed"] = run["seed"]

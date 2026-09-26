@@ -51,6 +51,7 @@ from pathlib import Path
 # 这里借用它的解析器，免得两处格式漂移。那个模块是纯标准库，不 import TF。
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "fedavg"))
 from utils.provenance import parse_provenance   # noqa: E402
+from utils.kvline import parse_kv, collect_kv   # noqa: E402
 
 # metrics.json 的结构版本。2 = 加了 run.provenance / run.cli_overrides。
 SCHEMA_VERSION = 2
@@ -218,6 +219,18 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
             prov = p
     cli_overrides = prov.pop("cli_overrides") if prov is not None else None
 
+    # [设定4]（A4 对齐开关）/ [设定5]（评估用的固定攻击者，A02）：key=value 行。
+    # 缺行的老日志 → None（「不知道」，不是「全是旧行为」）。
+    align = None
+    eval_att = None
+    for ln in lines:
+        d = parse_kv(ln, "[设定4]")
+        if d is not None:
+            align = d
+        d = parse_kv(ln, "[设定5]")
+        if d is not None:
+            eval_att = d
+
     return {
         "config_path":   cfg.group(1) if cfg else None,
         "run_name":      name.group(1) if name else None,
@@ -269,6 +282,10 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
         # ── 溯源：哪份代码、哪份声明配置、CLI 改了什么（FINDINGS F-001 / F-011）──
         "provenance":        prov,
         "cli_overrides":     cli_overrides,
+        # ── 对齐开关（A4）：template=p2/legacy/mixed + 每个开关的有效值 ──────
+        "alignment":         align,
+        "eval_attacker":     eval_att.get("eval_attacker") if eval_att else None,
+        "eval_attacker_edge": eval_att.get("eval_attacker_edge") if eval_att else None,
     }
 
 
