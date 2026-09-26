@@ -649,7 +649,7 @@ methods-registry.md   所有候选方法的台账 = 研究看板
     官方 Bad-PFL 是**常数** lr=0.1（`main.py:57`）。A2 定为 D-023：**保留**调过参的 0.992 与 head 0.005（来历见 F-030），
     改成**按有效轮衰减**，flat 逐字节不变；要先过 D-029 可行性实验。
 
-22. **与官方 Bad-PFL 实现的差异**（2026-09-24 初查 16 条；A1 / A2 已逐行拍板，**AUDIT 仍未全部关闭**）
+22. **与官方 Bad-PFL 实现的差异**（2026-09-24 初查 16 条；A1 / A2 / A3 已逐行拍板，**AUDIT 仍未全部关闭**）
     清单、双方行号与处理状态见 `experiments/attack/hfl-mechanism/AUDIT.md`。影响最大的几条：
     - 评估时的 ξ 算在**受害者**模型上（白盒），官方算在攻击者模型上（`fba.py:53,64`）；
     - 本地训练量：5 个 epoch vs 官方 15 步 —— **保留**（D-024：总本地训练量已与论文相当，F-029）；
@@ -660,6 +660,13 @@ methods-registry.md   所有候选方法的台账 = 研究看板
     - FedRep：本仓库 head 1 epoch（lr 0.005）+ body 5 epoch —— **维持**（D-024 取代了 D-012 的「各 15 步、lr 同为 0.1」）。
 
     A2 的原则（D-022）：攻击定义必须对齐；训练协议不为对齐而对齐，改调过参的值要先做可行性实验。
+
+    A3（2026-09-26，D-030 … D-038）的要点：
+    - **主 ASR 与主 pm_acc 必须在同一个个性化模型上测**，两者都改用 fresh-PM（当前 edge body + 自己的 head + 自己的 BN 统计量）；P1 的陈旧 PM 作副列（D-033）。
+    - FedRep 下 BN 的 γ/β 共享、moving 统计量私有（D-032）。这是实现选择，不是 TF / torch 的框架差别（F-036）。
+    - `build_resnet10` 的 stride-2 卷积用 `same`，主路与 shortcut 错位 1 像素，BN 与初始化也是 Keras 默认值（F-033）。A4 新增 `resnet10_torch` 对齐，冻结的 `resnet10` 不动（D-034）。
+    - edge 改为按 edge 轮交错执行（共享生成器在顺序执行下更新次序偏斜，F-038），配额按有效轮轮转（D-036）。
+    - FedRep 训练顺序（先 head 还是先 body）用 pilot 定（D-031）。
 
     `experiments/METRICS.md` 里「ξ 用的是 mal[0] 的模型」这句与两边都不符；它与 Bad-PFL 库双份同步，改时两库一起改。
     **`AUDIT.md` 全部关闭之前，不跑任何 P2 run**（D-006）；`submit.sh` 与 `status.py` 会按这一条拦截。

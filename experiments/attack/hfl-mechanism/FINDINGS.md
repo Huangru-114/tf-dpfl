@@ -289,3 +289,137 @@ print((n_train % 32).sum() / n_train.sum())   # 0.0323
 - `fl_process.py` 的 6 处 `fl_event_emitter.emit(...)` 在 11 个官方文件里**没有任何** `.on(...)` / 装饰器注册 → 全部是空操作。
 - `main.py:11` import 了 `grid_trigger_adder`，但全仓库没有调用（`--ba our` 只走 `use_our_attack`）。
 - 复核：在官方仓库执行 `grep -n "fl_event_emitter\|\.on(\|grid_trigger_adder" *.py`。
+
+## 2026-09-25/26（A3 审计会话：FedRep / ResNet-10 / HFL 形式化）
+
+> 本会话读不到 arXiv / OpenReview / github.com 的 HTML 与 API（网络策略 403）：**HierFAVG 与 FedRep 两篇论文的原文都没读**，下面凡是涉及它们的，都只以官方代码为证。
+
+### F-033 `confirmed` —— TF 的 ResNet-10 与官方结构相同、参数量相同，但 stride-2 卷积错位，BN 与初始化用的是 Keras 默认值
+
+- 探针：TF 2.15.1 CPU（scratch venv，脚本不入库），对象是 `fedavg/models/cnn.py:build_resnet10`：
+  - trainable = **4,903,242**，与官方 `resnet.py` 的 torch 解析值逐项相等；non-trainable（BN 统计量）= 5,760；12 个 BN 层。
+  - BN：momentum 0.99、eps 1e-3（Keras 默认）；官方是 torch 默认 0.1、1e-5。Keras 的 momentum 是旧值的权重 → Keras 0.99 ≡ torch 0.01，Keras 0.9 ≡ torch 0.1。
+  - 初始化：卷积与 Dense 都是 GlorotUniform，Dense 的 bias 为 0；官方是 torch 默认（kaiming_uniform(a=√5)，方差 1/(3·fan_in)，Linear 的 bias ~ U(±1/√fan_in)）。方差之比：3×3 卷积 3.0 倍，Dense 512→10 为 5.9 倍。
+  - stride-2 的 3×3 卷积：`padding="same"` 与 torch 的 `padding=1` 在随机输入上的输出最大差 **32.2**（不等价）。按中心抽头看：`same` 的输出第 5 行对应输入**第 11 行**，`padding=1` 对应**第 10 行**；1×1/s2 的 shortcut 对应第 10 行 → TF 版每个下采样块里，主路与 shortcut 在残差相加时**错位 1 个像素**，torch 版对齐。
+  - 对照：4×4/s2 卷积（A14 的生成器）`same` 与 `padding=1` 的差为 **0**，D-020 的等价论证成立。
+  - 输出层：softmax + `from_logits=False` 的输入梯度与按 logits 解析算出的 CE 梯度逐元素相等（logit 差 5 / 15 / 20 / 40，eager 与 graph 两种模式都是如此；Keras 读的是 `_keras_logits`）→ 这一项确实等价。
+- Keras 自己的 ResNet（`keras/src/applications/resnet.py:356,441`）也在 stride-2 卷积前显式 `ZeroPadding2D((1,1),(1,1))`。
+- 复现（`cwd = fedavg/`，需要 TF）：
+
+```python
+import numpy as np, tensorflow as tf
+from models.cnn import build_resnet10
+m = build_resnet10((32, 32, 3), 10)
+print(sum(int(np.prod(v.shape)) for v in m.trainable_variables))       # 4903242
+print(sum(int(np.prod(v.shape)) for v in m.non_trainable_variables))   # 5760
+imp = np.zeros((1, 32, 32, 1), np.float32); imp[0, 10, 10, 0] = 1
+kc = np.zeros((3, 3, 1, 1), np.float32); kc[1, 1, 0, 0] = 1             # 只留中心抽头
+pad = lambda x: tf.pad(x, [[0, 0], [1, 1], [1, 1], [0, 0]])
+print(np.argwhere(tf.nn.conv2d(imp, kc, 2, "SAME").numpy()[0, :, :, 0]))        # []：SAME 看不到第 10 行
+print(np.argwhere(tf.nn.conv2d(pad(imp), kc, 2, "VALID").numpy()[0, :, :, 0]))  # [[5 5]]：torch 式
+print(np.argwhere(tf.nn.conv2d(imp, np.ones((1, 1, 1, 1), np.float32), 2, "SAME").numpy()[0, :, :, 0]))  # [[5 5]]：shortcut
+```
+
+- 处理：A29 / D-034（三项都对齐，新 arch 名 `resnet10_torch`）。
+
+### F-034 `confirmed` —— AUDIT 的 A17 行写错了文件
+
+- A17 原写「官方 `resnet.py` vs `models/resnet.py`」。实际上 exp3 的 `model.arch: "resnet10"` 走的是 `models/cnn.py:193-218`（`build_model` 的注册表在 `cnn.py:221-235`）。
+- `models/resnet.py` 里是 GroupNorm 版 ResNet-56 / WideResNet / DenseNet，exp3 没用到。
+- 复核：`grep -n "resnet10" fedavg/models/*.py`。
+
+### F-035 `confirmed` —— 四个参考的「个性化模型（PM）」定义各不相同，P1 的定义只有本仓库有
+
+| 参考 | 评估的模型 | 出处 |
+|---|---|---|
+| Bad-PFL 官方（FedBN） | 训练结束时所有端的 `client.local_model` = 最后一次参与、本地训练**之后**的模型（陈旧，BN 本地）；ASR 与 acc 同一模型 | `main.py:128-131`、`client.py:32-41` |
+| FedRep 原作者 | 每轮：`w_locals` = 最后一次参与后的 [w_k, h]；最后一轮：全部客户端在最终 φ 上把 head 训 ≥ 10 epoch 再评估 | `main_fedrep.py:167,174`、`test.py:108-113`；`main_fedrep.py:129-130`、`Update.py:575-600` |
+| PFLlib | 每轮**先把 base 下发给全部客户端再评估** → [当前 φ, 上次的 h, 本地统计量] | `serverrep.py:26-32`、`serverbase.py:103-109`、`clientrep.py:86-88` |
+| TF P1 | [上次参与时收到的 φ_e, 在它上面训的 h, φ_e 的聚合统计量]；ASR 与 pm_acc 都在它上面 | `client/hier_fedrep.py:160-163`；ASR `attack/backdoor_eval.py:257`，pm_acc `server.py` → `client.evaluate_on` |
+
+- P1 已经满足「ASR 与 acc 同模型」，但它的 PM 定义与三个参考都不同。
+- 处理：A28 / D-033（两者都用 fresh-PM，与 PFLlib 一致；陈旧 PM 的两者作副列）。
+
+### F-036 `confirmed`（事实）/ 无数值证据（效果）—— BN 统计量聚不聚合，是接口选择，不是框架差别
+
+| 实现 | 聚合接口 | γ/β | moving 统计量 |
+|---|---|---|---|
+| Bad-PFL 官方 | `state_dict()`（`server.py:4-10`），再由 FedBN 剔掉所有 BN 键（`pfl.py:3-24`） | 本地 | 本地 |
+| PFLlib FedRep | `.parameters()`（`serverbase.py:138-150`，下发 `clientrep.py:86-88`） | 聚合 | **本地**（buffer 不在 parameters 里） |
+| FedRep 原作者 | — | 模型里没有 BN（`Nets.py:62-87`） | — |
+| HierFAVG 官方 | `state_dict()`（`client.py:73`、`average.py:5-14`） | 聚合 | 聚合 |
+| TF P1 | `get_weights()`（`cnn.py:201-202`、`get_base_head_indices`） | 聚合 | 聚合 |
+
+- torch 的 `parameters()` / `state_dict()` 与 Keras 的 `trainable_weights` / `get_weights()` 一一对应，两边都能二选一 → **这不是框架强制的差别**。与框架有关的只有 BN 默认 momentum（F-033），它归 A29。
+- 机制（推断）：TF P1 下 PM 用 edge 聚合的统计量。10 edge 时每 edge 轮只有 1 个参与者（N-001），edge 的统计量约等于上一个参与者的本地统计量（Keras 0.99、约 84 步时本地占 57%）；flat 则是 10 端的混合 → PM 归一化的失配随拓扑变化。
+- P1 数据分不出这个效应。拓扑格末 10 点 pm_acc（10% 恶意端，R_edge=5，flat 为 R=1，含 F-001 的同配置重复）：flat 0.7427–0.7451、2edge 0.7357–0.7446、4edge 0.7357–0.7424、10edge 0.7322–0.7398；最大差 0.013，与同 seed 重复之间的散布（0.003–0.006）同量级到约 2 倍。复现：
+
+```bash
+python3 - <<'EOF'
+import json, glob
+for f in sorted(glob.glob("experiments/attack/hfl-propagation/results/*seed42.metrics.json")):
+    d = json.load(open(f)); pm = [a["pm_acc"] for a in d.get("acc_rounds", []) if a.get("pm_acc") is not None]
+    print(f.split("/")[-1], d["run"].get("n_edges"), round(sum(pm[-10:]) / len(pm[-10:]), 4))
+EOF
+```
+
+- 处理：A27 / D-032（γ/β 共享、统计量私有）。
+
+### F-037 `confirmed` —— HierFAVG 官方代码与 TF 的对照
+
+| 项 | HierFAVG（`LuminLiu/HierFL`） | TF | 结论 |
+|---|---|---|---|
+| edge 聚合权重 | 本 edge 轮**参与者**的样本数（`hierfavg.py:307` 每轮 refresh；`edge.py:46-48,55-63`） | 参与者 n_i（`aggregation/fedavg.py:17-27`） | 一致 |
+| cloud 聚合权重 | edge **全体成员**样本数 `all_trainsample_num`（`cloud.py:25-27,34-37`） | `edge.n_samples` = 全体成员（`edge_server_base.py:36`） | 一致 |
+| κ₂ | `num_edge_aggregation` | `edge_rounds` | 一致 |
+| κ₁ | 每端相同的 `num_local_update` 步 | `local_epochs × 批数`，随客户端大小变 | S3 等大小后每端相同 |
+| 执行顺序 | 外层 edge 轮、内层 edge（`hierfavg.py:299-325`） | 每个 edge 连续跑完 R 轮（`server.py:208-230`） | → D01 改为交错 |
+| 参与 | 每 edge `max(int(n_ℓ·frac),1)`（= 陷阱 #12 的旧公式），按样本数成比例、不放回抽（`hierfavg.py:309-313`） | 全局整数配额（`participation.py`），edge 内均匀抽 | 配额 → D02；抽样 S3 后相同 |
+| 横轴 | `num_comm·κ₂ + num_edgeagg + 1`（`hierfavg.py:334,337`） | 有效轮 | 一致（也支持 D-023 的 t_eff） |
+| LR | 按客户端**自己的参与次数**指数衰减（`client.py:44-50` → `initialize_model.py:42-50`）；frac=1 时等于按 edge 轮衰减 | 按云轮衰减（A08 → D-023 按有效轮） | 旁证，不改 D-023 |
+| BN buffer | 随 `state_dict` 聚合 | 随 `get_weights` 聚合 | → A27 |
+
+- 处理：A21 → `deviate`（D-035）；D01 / D02 → D-036。
+
+### F-038 `confirmed`（机制）/ 无数值证据（效果）—— 共享生成器 × edge 顺序执行 → 更新次序随 edge 编号系统性偏斜
+
+- `badpfl_shared_generator: true`（`main.py:491-499,529-531`，对齐官方 `fba.py:27`）：所有恶意端共用一个生成器；每个恶意端在本地训练前，在自己收到的模型上训它 30 步（`client_badpfl.py:98-117,120-134`）。
+- 现在一个云轮内的执行顺序是 E0 第 1…R 轮 → E1 第 1…R 轮（`server.py:208-230`）。于是：
+  - E1 的攻击者在它自己的第 1 轮，拿到的生成器已经在 E0 第 R 轮的模型上训过；
+  - 云轮末评估 ASR 时，生成器总是刚在最后一个 edge 的模型上训完。
+- 官方是单层联邦：同一轮里被选中的恶意端依次在**同一个**全局模型上训这个生成器，不存在时间错位。
+- 只影响恶意端分布在 2 个以上 edge 的格子（distributed / mixed）；collocated 不受影响。偏差大小没有数值证据。
+- 处理：D01 改为按 edge 轮交错执行（D-036）。生成器仍是同一个对象，不违反共享设定。
+
+### F-039 `confirmed` —— 参与配额按云轮轮转：4 edge 时同一云周期内各 edge 的名额 3 : 2
+
+- `EdgeServerBase.select_clients(global_round_idx)` 把云轮号传给 `edge_quota`（`edge_server_base.py:99-117`），同一云周期内的 R 个 edge 轮拿到的是同一个配额。
+- 4 edge、B=10 时，一个云周期内各 edge 的参与次数：
+
+| R_edge | 现在（按云轮） | 改为按有效轮 |
+|---|---|---|
+| 5 | 15 / 10 / 15 / 10 | 13 / 12 / 13 / 12 |
+| 10 | 30 / 20 / 30 / 20 | 25 / 25 / 25 / 25 |
+| 20 | 60 / 40 / 60 / 40 | 50 / 50 / 50 / 50 |
+
+- 1、2、10 个 edge 时 B=10 能被整除，每轮配额向量恒定 → 两种轮转逐元素相同。G1（4 edge × R {10, 20}）正好受影响。
+- 复现（不需要 TF）：
+
+```bash
+cd fedavg && python3 -c "
+from server.participation import edge_quota
+q = lambda e, t: edge_quota(e, t, n_clients=100, n_edges=4, client_fraction=0.1, n_local_clients=25)
+for R in (5, 10, 20):
+    print(R, [R * q(e, 1) for e in range(4)], [sum(q(e, t) for t in range(1, R + 1)) for e in range(4)])
+"
+```
+
+- 处理：D02 改为按有效轮轮转（D-036）。
+
+### F-040 `confirmed` —— A18 复核：事件系统与网格触发器不影响攻击 / 评估流程（F-032 成立）
+
+- 11 个官方文件里，`fl_event_emitter` 没有任何 `.on(` 或装饰器注册（`event_emitter.py:37` 是装饰器本身的定义）→ `fl_process.py:6,14,22,32,38,41` 的 6 处 `emit` 全是空操作。
+- `grid_trigger_adder`（`trigger.py:4-41`）只在 `main.py:11` 被 import，从未调用；`--ba our` 只走 `use_our_attack`（`main.py:116-117`）。
+- 执行路径上的钩子是另一套 `register_func`：`fba.py:62`（生成器训练挂在本地训练前）、`pfl.py:23-24`（FedBN），A1 / A2 已覆盖。
+- 残余：官方仓库的文件列表取自 A2（本会话列不了目录）。
+- 复核：在官方仓库执行 `grep -n "fl_event_emitter\|\.on(\|grid_trigger_adder\|register_func" *.py`。

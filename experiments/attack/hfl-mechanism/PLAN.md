@@ -43,7 +43,8 @@ P1 的用途（FINDINGS F-002/F-008/F-009）：同 seed 噪声的实测、效应
 3. **同 seed 不可复现**（F-002）。主结论配置 5 个 seed；按 seed 配对只锁得住划分与布点。
 4. **3-C：FedRep 下 edge / global 模型的 head 是初始化 head，`client.model` 是陈旧的**（F-007）。
    - 主曲线用 **fresh-PM ASR** = 当前 edge body ⊕ 每个良性端的私有 head；陈旧 PM 作对照。
-   - 逐 edge 轮评估挂在 `edge.run()` 的循环里就行：一个云周期内各 edge 互相独立。
+   - **A3 推广到全部子实验（D-033）**：主 ASR 与主 pm_acc 必须在同一个个性化模型上测，两者都用 fresh-PM = [当前 edge body, 自己的 head, 自己的 BN 统计量]（统计量私有见 D-032）；陈旧 PM 的两者作副列。实现从 S5 挪到 A4。
+   - ~~逐 edge 轮评估挂在 `edge.run()` 的循环里就行：一个云周期内各 edge 互相独立。~~ **A3 更正**：共享生成器让各 edge 在云周期内**不**独立（F-038）。D-036 改为按 edge 轮交错执行后，逐 edge 轮评估挂在 cloud 驱动的 edge 轮循环里，所有 edge 停在同一有效轮。
 5. **3-D 的样本量**：每 edge 每轮只有 B/n_edges 个更新（AUDIT D02）。
    - 功能分数 s_i 对类别 k 自归一化，不需要同伴。
    - 几何分数的参照 = 本轮下发的 edge 权重，在最近 W 个 edge 轮里滑窗、用 median/MAD。
@@ -66,7 +67,7 @@ P1 的用途（FINDINGS F-002/F-008/F-009）：同 seed 噪声的实测、效应
 | 3.3 收敛门控 | `attack_start_round`；固定长度 run | 缺起始轮 | S4 |
 | 3-A 公平对照 | flat / HFL / R_edge / 参与配额 / T_θ（都已有）；逐 edge 轮评估（高 R） | 大部分已有 | S5 |
 | 3-B 目标类分布 | 固定比例表 C1–C4；层级 Dirichlet p_e~Dir(α_e p)；H_inter/H_intra；逐 edge 下限 | 缺 | S3 |
-| 3-C 锯齿 | 逐 edge 轮评估 + fresh-PM ASR；攻击停止（已有） | 缺 | S5 |
+| 3-C 锯齿 | 逐 edge 轮评估 + fresh-PM ASR；攻击停止（已有） | 缺（fresh-PM 与交错执行在 A4，D-033 / D-036） | A4 + S5 |
 | 3-D 可观测性 | 逐更新几何分数日志；周期性整包转储；离线 c_k（PGD 代价）；edge 干净集 | 缺 | S3 + S6 |
 | 3-E 三层个性化 | `get_base_head_indices` 加第三组；cloud / edge 各自只聚合对应层 | 缺 | S8（可选） |
 
@@ -119,11 +120,11 @@ P1 的用途（FINDINGS F-002/F-008/F-009）：同 seed 噪声的实测、效应
 | S1b | 修 `exp3_cell.sbatch` 写死的 `--defense none` + 守卫（只有你还要旧方案的防御格时才需要） | — |
 | **A1** | 审计：攻击（A01–A06、A14） | 你逐行拍板 |
 | **A2**（2026-09-25） | 审计：训练协议（A07–A11、A13、A15、A16、A20、A22、A23，新增 A25）。原则 D-022：攻击定义必须对齐，训练协议不为对齐而对齐；决定 D-022 … D-029 | 已拍板；A08 待 D-029 |
-| **A3** | 审计：FedRep 实现细节（A12 已由 D-024 定为维持 P1 现状，取代 D-012；剩「head 是哪几层、BN 算不算 body」）/ ResNet-10（A17）/ A18 / HFL 形式化（A21）+ D01–D06 签字 | 论文 PDF 需重新上传（D-013） |
-| **A4**（实现会话；≠ AUDIT 行 A04） | 按拍板改代码 + L1 测试；跑 D-029 可行性实验（A08 按有效轮衰减 + A25 取数修复），通过后 A08 → `deviate`；登记 G7；`PROTOCOL_VERSION` 升 P2；2 个 smoke 复核标定 | AUDIT 全部关闭（A08 由 D-029 关闭） |
+| **A3**（2026-09-25/26） | 审计：FedRep 实现细节 / ResNet-10 / A18 / HFL 形式化 + D01–D06 签字。决定 D-030 … D-038：head = 末层 Dense（D-030）；FedRep 训练顺序两种都跑 pilot（A26，D-031）；BN γ/β 共享、统计量私有（A27，D-032）；主 ASR 与 pm_acc 同模型、都用 fresh-PM（A28，D-033）；ResNet-10 三项对齐（A29，D-034）；A17 / A18 `done`、A21 `deviate`（D-035）；D01 交错执行、D02 按有效轮轮转（D-036）；D03–D06 签字（D-037）；D-029 扩大范围（D-038） | 已拍板；A26 待 pilot |
+| **A4**（实现会话；≠ AUDIT 行 A04） | 按拍板改代码 + L1 测试（A1–A3 的全部 `align` 行，含 A26 的顺序开关、A27 统计量私有、A28 fresh-PM、A29 `resnet10_torch`、D01 交错执行、D02 按有效轮轮转）；跑 D-029 可行性实验（D-038：A08 + A25 + A27 + A29 一起开，2edge 那格带上 D01 / D02），通过后 A08 → `deviate`；同批跑 A26 的 2 个 body_first run，按 D-031 的判据关 A26；登记 G7；`PROTOCOL_VERSION` 升 P2；2 个 smoke 复核标定 | AUDIT 全部关闭（A08 由 D-029、A26 由 pilot 关闭） |
 | S3 | 划分：C1–C4 比例表、层级 Dirichlet、H_inter/H_intra（打 `[Data]` 行）、edge 干净集（500/edge）、划分 seed 分离。**硬要求：客户端等大小**（D-027，F-028） | → G0 / G3 |
 | S4 | ρ=0 影子攻击者 L1、ξ-only 下限、`attack_start_round` | → G0 / G5 |
-| S5 | 逐 edge 轮评估 + fresh-PM ASR | → G1 / G2 |
+| S5 | 逐 edge 轮评估（fresh-PM 已在 A4 实现，D-033） | → G1 / G2 |
 | S6 | 更新日志、几何分数（body-only、滑窗）、周期转储、离线 c_k、恶意端干净精度 | → G1 / G4 |
 | S7 | 各子实验的判定代码补全 + 出图 | — |
 | S8（可选） | 3-E 三层个性化 | → G6 |

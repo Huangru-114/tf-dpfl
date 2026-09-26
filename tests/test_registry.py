@@ -84,7 +84,7 @@ def test_real_audit_parses_and_is_open():
     assert set(rows.values()) <= set(R.AUDIT_STATUSES)
     assert rows["A02"] == "align"                  # D-004
     # 加行时要同步改这里 —— 故意的：AUDIT 的行只增不删，行数变化应当是一次有意识的提交。
-    assert {f"A{i:02d}" for i in range(1, 26)} | {f"D{i:02d}" for i in range(1, 7)} == set(rows)
+    assert {f"A{i:02d}" for i in range(1, 30)} | {f"D{i:02d}" for i in range(1, 7)} == set(rows)
     assert rows["A19"] == "done"
     # A1 会话（2026-09-25）的逐行拍板：D-014 … D-021
     assert {k: rows[k] for k in ("A01", "A03", "A05", "A06", "A14", "A24")} == \
@@ -98,6 +98,14 @@ def test_real_audit_parses_and_is_open():
     assert {k: rows[k] for k in ("A15", "A16", "A22", "A25")} == \
         dict.fromkeys(("A15", "A16", "A22", "A25"), "align")
     assert rows["A08"] == "open" and rows["A20"] == "done"    # D-023：候选方案待 D-029
+    # A3 会话（2026-09-25/26）的逐行拍板：D-030 … D-038。
+    assert rows["A17"] == "done" and rows["A18"] == "done"    # D-035
+    assert rows["A21"] == "deviate"                           # D-035：HierFAVG 形式化
+    assert rows["A26"] == "open"                              # D-031：FedRep 训练顺序待 pilot
+    assert {k: rows[k] for k in ("A27", "A28", "A29", "D01", "D02")} == \
+        dict.fromkeys(("A27", "A28", "A29", "D01", "D02"), "align")   # D-032 / D-033 / D-034 / D-036
+    assert {k: rows[k] for k in ("D03", "D04", "D05", "D06")} == \
+        dict.fromkeys(("D03", "D04", "D05", "D06"), "deviate")         # D-037：签字
     assert R.audit_open_rows(MECH / "AUDIT.md")    # 现在理应没关
 
 
