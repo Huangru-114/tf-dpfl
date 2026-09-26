@@ -533,6 +533,10 @@ def build_clients(images_np, labels_np, global_model, config):
         # Neurotoxin：注入干净数据集（仅用于算 benign 梯度 mask，不参与投毒训练）
         if is_mal and hasattr(client, "set_clean_dataset"):
             client.set_clean_dataset(clean_ds)
+        # A25 per_epoch 管线的数据源（只存全局数组的引用 + 本端训练索引，不复制）。
+        # legacy 管线下不会被读到。静态投毒（vanilla/neurotoxin）与 per_epoch 不兼容，
+        # config_validate 已拒绝 —— 否则恶意端会绕过投毒数据集、静默变成良性端。
+        client.set_train_source(images_np, labels_np, indices)
         if client_test_datasets is not None:
             client.set_test_dataset(client_test_datasets[i])
         # Store training class set for per-edge test dataset construction later.

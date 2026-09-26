@@ -17,6 +17,9 @@ from abc import ABC, abstractmethod
 import numpy as np
 import tensorflow as tf
 
+from alignment import get_switch
+from data.epoch_pipeline import augment_batch, epoch_index_batches
+
 
 class FLClientBase(ABC):
 
@@ -39,6 +42,13 @@ class FLClientBase(ABC):
         # 在线程池里更是不确定 → 「固定种子重跑一致」根本不成立。
         self.rng = np.random.default_rng(
             [int((config or {}).get("seed", 42)), int(client_id)])
+        # 取数（A25 per_epoch 管线）另起一条流：投毒掩码 / PGD 起点噪声的消耗次数
+        # 不能改变数据顺序，反之亦然。
+        self.data_rng = np.random.default_rng(
+            [int((config or {}).get("seed", 42)), int(client_id), 1])
+        # per_epoch 管线的数据源：(全局图像数组的引用, 标签, 本端训练索引)。
+        # 由 main.build_clients 注入；只存引用，不复制数据。
+        self._train_src = None
 
 
 
@@ -124,6 +134,50 @@ class FLClientBase(ABC):
         """
         r = max(0, int(round_idx))
         self.lr_schedule.assign(self.lr0 * (self.lr_gamma ** r))
+
+    # ══════════════════════════════════════════════════════════════════════
+    # 取数（AUDIT A25 / D-026，开关 data.batch_pipeline）
+    # ══════════════════════════════════════════════════════════════════════
+
+    def set_train_source(self, images, labels, indices):
+        """per_epoch 管线的数据源。images/labels 是全局数组（只存引用），indices 是本端训练索引。"""
+        self._train_src = (images, labels, np.asarray(indices))
+
+    def uses_epoch_pipeline(self) -> bool:
+        return get_switch(self.config, "data.batch_pipeline") == "per_epoch"
+
+    def epoch_batches(self):
+        """
+        **一个 epoch** 的训练批（per_epoch 管线；FedAvg、FedRep、Bad-PFL 生成器三处
+        都调它）：每次调用用 data_rng 重洗、`drop_last`（尾批每 epoch 轮换）、
+        重新增强（data.augment）。批大小恒为 data.batch_size。
+        """
+        if self._train_src is None:
+            raise RuntimeError(
+                f"Client {self.client_id}: data.batch_pipeline=per_epoch 需要 "
+                f"set_train_source(...)（main.build_clients 注入）")
+        images, labels, idx = self._train_src
+        bs = int(self.config["data"]["batch_size"])
+        aug = bool(get_switch(self.config, "data.augment"))
+        for b in epoch_index_batches(len(idx), bs, self.data_rng):
+            sel = idx[b]
+            x = images[sel]
+            if aug:
+                x = augment_batch(x, self.data_rng)
+            yield (tf.convert_to_tensor(np.asarray(x, np.float32)),
+                   tf.convert_to_tensor(labels[sel]))
+
+    # ══════════════════════════════════════════════════════════════════════
+    # 个性化模型的「私有部分」（AUDIT A28 / D-033：fresh-PM 的组装）
+    # ══════════════════════════════════════════════════════════════════════
+
+    def private_state(self):
+        """(get_weights 索引列表, 对应的值列表)。fresh-PM = 当前 edge 权重把这些位置换成私有值。
+
+        基类（FedAvg）没有私有部分 → ([], [])，fresh-PM 就是当前 edge 模型（D-033）。
+        FedRep 覆写：head（+ A27 私有时的 BN 统计量）。
+        """
+        return [], []
 
     def set_test_dataset(self, test_dataset: tf.data.Dataset):
         """注入 per-client 同分布测试集（partition 后由 main.py 调用）。"""

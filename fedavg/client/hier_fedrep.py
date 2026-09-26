@@ -21,6 +21,20 @@ client/hier_fedrep.py  –  Hier-FedRep 客户端
   每轮先训 head（冻 backbone，多步 plocal_epochs），再训 backbone（冻 head，
   少步 local_epochs），plocal_epochs > local_epochs。理由：backbone 的梯度方向
   依赖 head 接近最优，head 没收敛会让 backbone 更新有偏。
+
+对齐开关（fedavg/alignment.py；不写 = 旧行为）：
+  training.fedrep_order         head_first（旧 / FedRep 原作者 / PFLlib）
+                                body_first（A26 / D-031，Bad-PFL Alg.1 字面）：先训 body
+                                （head 冻结在上次的私有 head）→ 截取上传 → 在 w_k 上训 head；
+                                陈旧 PM = [w_k, h, s]
+  training.fedrep_poison_phases both（旧，「决策 B」）/ body（A24 / D-021）：head 阶段不走
+                                on_batch → 用干净数据
+  training.fedrep_bn_stats      shared（旧：统计量随 body 聚合、下发覆盖）
+                                private（A27 / D-032，SiloBN 式 = PFLlib 的实际行为）：
+                                γ/β 仍共享；moving 统计量像 head 一样留在本地（首次接收时
+                                采用广播值）；私有统计量 = **head 阶段结束时**的快照；
+                                上传照旧带 body 阶段末的统计量（edge/cloud 只拿它评 EM/GM）
+  data.batch_pipeline           legacy（旧：构造时缓存 batch 列表，F-025）/ per_epoch（A25）
 """
 
 import random
@@ -30,7 +44,8 @@ import numpy as np
 import tensorflow as tf
 
 from .client_base import FLClientBase
-from models.cnn import get_base_head_indices
+from alignment import get_switch
+from models.cnn import get_base_head_indices, get_bn_stat_indices
 
 
 class HierFedRepClient(FLClientBase):
@@ -61,8 +76,15 @@ class HierFedRepClient(FLClientBase):
         # ── 持久状态 ──────────────────────────────────────────────────────
         self._head_weights: list | None = None   # 私有 head（warm-start）
 
-        # ── dataset 缓存 ──────────────────────────────────────────────────
-        self._batch_list = list(self.dataset)
+        # ── 对齐开关 ──────────────────────────────────────────────────────
+        self._order         = get_switch(config, "training.fedrep_order")
+        self._poison_phases = get_switch(config, "training.fedrep_poison_phases")
+        self._bn_private    = get_switch(config, "training.fedrep_bn_stats") == "private"
+        self._stat_w_idx    = get_bn_stat_indices(model) if self._bn_private else []
+        self._stats: list | None = None          # 私有 BN 统计量（A27）
+
+        # ── dataset 缓存（legacy 管线才用；per_epoch 不缓存，F-025）────────
+        self._batch_list = [] if self.uses_epoch_pipeline() else list(self.dataset)
         self._batch_size = config["data"]["batch_size"]
 
         # ── head / backbone 各自的优化器 ─────────────────────────────────
@@ -105,6 +127,13 @@ class HierFedRepClient(FLClientBase):
                 new_w[idx] = self._head_weights[k].copy()
         else:
             self._head_weights = [src[idx].copy() for idx in self._head_w_idx]
+        # A27：统计量私有 —— 首次接收采用广播值，之后一直用自己的
+        if self._bn_private:
+            if self._stats is not None:
+                for k, idx in enumerate(self._stat_w_idx):
+                    new_w[idx] = self._stats[k].copy()
+            else:
+                self._stats = [src[idx].copy() for idx in self._stat_w_idx]
         self.model.set_weights(new_w)
         print(f"  [Client {self.client_id:>2}] Received edge backbone (private head kept).")
 
@@ -131,23 +160,18 @@ class HierFedRepClient(FLClientBase):
         print(f"  [Client {self.client_id:>2}] Hier-FedRep | "
               f"plocal={plocal}, local={local}")
 
-        # set_weights 已把 model 设为 [φ_e backbone, 私有 head]
+        # set_weights 已把 model 设为 [φ_e backbone, 私有 head]（A27 私有时再加私有统计量）
 
         self.on_round_start(round_idx)
 
+        if self._order == "body_first":
+            return self._local_train_body_first(round_idx, plocal, local, losses, t0)
+
         # ── 阶段 1：head 训练（冻 backbone） ──────────────────────────────
-        for _ in range(plocal):
-            for x, y in self._shuffled_batches():
-                x, y = self.on_batch(x, y)
-                self._train_head_step(x, y)
-        self._head_weights = [v.numpy() for v in self._head_tvars]
+        self._head_phase(plocal)
 
         # ── 阶段 2：上传 backbone w_k 训练（冻 head，普通 CE） ─────────────
-        for _ in range(local):
-            for x, y in self._shuffled_batches():
-                x, y = self.on_batch(x, y)
-                loss = self._train_backbone_step(x, y)
-                losses.append(float(loss.numpy()))
+        self._body_phase(local, losses)
         upload_weights = self.model.get_weights()  # backbone=w_k（交 edge 聚合）, head=私有
 
         # ── 个性化模型（供 PM 评估）= [共享表示 φ_e, 私有 head] ──────────────────
@@ -160,6 +184,8 @@ class HierFedRepClient(FLClientBase):
         pm_weights = [w.copy() for w in self.edge_weights]   # φ_e backbone（+ edge head 占位）
         for k, idx in enumerate(self._head_w_idx):
             pm_weights[idx] = self._head_weights[k]
+        for k, idx in enumerate(self._stat_w_idx):           # A27：私有统计量（shared 时为空）
+            pm_weights[idx] = self._stats[k]
         self.model.set_weights(pm_weights)
         # self.model 现停在 [φ_e 共享表示, 私有 head] —— 一致的个性化模型，供 PM 评估 ✓
 
@@ -169,7 +195,69 @@ class HierFedRepClient(FLClientBase):
         upload_weights = self.on_upload(upload_weights, round_idx)
         return upload_weights, self.n_samples, avg, time.time() - t0
 
+    # ── 两个阶段 ───────────────────────────────────────────────────────────
+    def _head_phase(self, epochs: int):
+        """训 head（冻 backbone），结束时快照私有 head（与 A27 私有时的统计量）。
+
+        A24：fedrep_poison_phases=body 时本阶段不走 on_batch —— head 只见干净数据。
+        """
+        poison = self._poison_phases == "both"
+        for _ in range(epochs):
+            for x, y in self._epoch():
+                if poison:
+                    x, y = self.on_batch(x, y)
+                self._train_head_step(x, y)
+        self._head_weights = [v.numpy() for v in self._head_tvars]
+        if self._bn_private:
+            w = self.model.get_weights()
+            self._stats = [w[idx].copy() for idx in self._stat_w_idx]
+
+    def _body_phase(self, epochs: int, losses: list):
+        """训上传 backbone w_k（冻 head）。body 阶段在两种投毒口径下都投毒。"""
+        for _ in range(epochs):
+            for x, y in self._epoch():
+                x, y = self.on_batch(x, y)
+                loss = self._train_backbone_step(x, y)
+                losses.append(float(loss.numpy()))
+
+    def _local_train_body_first(self, round_idx, plocal, local, losses, t0):
+        """
+        A26 / D-031 的 body_first：先训 body（head 冻结在上次的私有 head），
+        **在 head 阶段之前**截取上传（head 阶段会改动 BN 的 moving 统计量），
+        再在刚训完的 w_k 上训 head。陈旧 PM = [w_k, 新 head, 统计量]，即 head 阶段后的 self.model。
+        """
+        self._body_phase(local, losses)
+        upload_weights = self.model.get_weights()
+        self._head_phase(plocal)
+
+        avg = float(np.mean(losses)) if losses else 0.0
+        print(f"  [Client {self.client_id:>2}] Round {round_idx} | "
+              f"Hier-FedRep | loss={avg:.4f}")
+        upload_weights = self.on_upload(upload_weights, round_idx)
+        return upload_weights, self.n_samples, avg, time.time() - t0
+
+    # ── 个性化模型的私有部分（A28：fresh-PM 的组装）─────────────────────────
+    def private_state(self):
+        """head（+ A27 私有时的 BN 统计量）的 get_weights 索引与当前值。
+
+        还没参加过训练的客户端（没有私有 head）→ ([], [])：它的 fresh-PM 就是 edge 模型。
+        """
+        if self._head_weights is None:
+            return [], []
+        idx = list(self._head_w_idx)
+        val = [w for w in self._head_weights]
+        if self._bn_private and self._stats is not None:
+            idx += list(self._stat_w_idx)
+            val += [w for w in self._stats]
+        return idx, val
+
     # ── 数据遍历辅助 ───────────────────────────────────────────────────────
+    def _epoch(self):
+        """一个 epoch 的批：per_epoch → 基类 epoch_batches（A25）；legacy → 缓存 + 打乱顺序。"""
+        if self.uses_epoch_pipeline():
+            return self.epoch_batches()
+        return self._shuffled_batches()
+
     def _shuffled_batches(self):
         """每 epoch 重新 shuffle 并 drop_last（等价 DataLoader(shuffle=True))。"""
         eb = self._batch_list.copy()

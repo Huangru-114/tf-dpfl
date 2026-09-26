@@ -193,7 +193,20 @@ class BadPFLMixin:
     # 生成器训练（分类模型冻结，只更新 generator）
     # ══════════════════════════════════════════════════════════════════════
     def _atk_gen_batches(self):
-        """生成器训练取 `badpfl_gen_steps` 个批（旧行为：读一遍 tf.data 循环取批）。"""
+        """生成器训练取 `badpfl_gen_steps` 个批。
+
+        data.batch_pipeline=per_epoch（A25）：与本地训练走同一个取数函数
+        （`epoch_batches`，一个 epoch 不够就接着下一个 epoch —— 对应官方的持久迭代器
+        client.py:48-57）；legacy：旧行为，读一遍 tf.data 循环取批。
+        """
+        if self.uses_epoch_pipeline():
+            out = []
+            while len(out) < self._atk_gen_steps:
+                got = list(self.epoch_batches())
+                if not got:
+                    break
+                out.extend(got)
+            return out[:self._atk_gen_steps]
         batches = [(x, y) for x, y in self.dataset]
         if not batches:
             return []

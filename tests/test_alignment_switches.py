@@ -35,7 +35,10 @@ P1_CELL = ROOT / "experiments/attack/hfl-propagation/2edge_distributed.yaml"
 
 
 def _p1():
-    return yaml.safe_load(P1_CELL.read_text(encoding="utf-8"))
+    """P1 锚点格，按它实际跑的样子：run_exp3.sh 传 --attack_method badpfl（→ strategy=badpfl）。"""
+    cfg = yaml.safe_load(P1_CELL.read_text(encoding="utf-8"))
+    cfg["backdoor"]["malicious_strategy"] = "badpfl"
+    return cfg
 
 
 def _with_template(cfg):
@@ -76,10 +79,8 @@ def test_every_switch_has_an_audit_row_in_the_audit_file():
 # 按提交逐步接线：这个集合只许变小，最后一个提交之后必须为空。
 NOT_YET_WIRED = {
     "backdoor.eval_xi_model", "evaluation.asr_columns",
-    "training.deterministic_ops", "training.fedrep_poison_phases", "data.batch_pipeline",
-    "training.fedrep_bn_stats", "evaluation.pm_model", "model.arch",
+    "training.deterministic_ops", "evaluation.pm_model",
     "training.lr_round_axis", "federation.edge_schedule", "federation.quota_round_axis",
-    "training.fedrep_order",
 }
 
 
@@ -176,6 +177,15 @@ def test_misspelled_switch_value_is_rejected():
     cfg = _p1()
     cfg["training"]["fedrep_order"] = "bodyfirst"
     with pytest.raises(ConfigError, match="fedrep_order"):
+        validate_config(cfg)
+
+
+def test_per_epoch_pipeline_rejects_static_poisoning():
+    """per_epoch 从原始数组取数，会绕过静态投毒的数据集 → 恶意端静默变良性。"""
+    cfg = _p1()
+    cfg["backdoor"]["malicious_strategy"] = "vanilla"
+    cfg["data"]["batch_pipeline"] = "per_epoch"
+    with pytest.raises(ConfigError, match="per_epoch"):
         validate_config(cfg)
 
 

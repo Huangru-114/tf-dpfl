@@ -39,9 +39,12 @@ class FedAvgClient(FLClientBase):
 
         self.on_round_start(round_idx)
 
+        per_epoch = self.uses_epoch_pipeline()
         for _ in range(epochs):
             bl = []
-            for x, y in self.dataset:
+            # A25：per_epoch → 每 epoch 重洗 + 重增强、drop_last（与 FedRep、生成器同一函数）；
+            # legacy → 旧行为（每 epoch 重读 tf.data，训练尾批）。
+            for x, y in (self.epoch_batches() if per_epoch else self.dataset):
                 x, y = self.on_batch(x, y)
                 bl.append(float(self._train_step(x, y).numpy()))
             if bl:

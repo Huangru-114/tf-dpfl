@@ -396,6 +396,12 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
         if sw.scope == "badpfl" and _strategy != "badpfl":
             warnings.append(f"{sw.key}={val!r} 只对 Bad-PFL 攻击生效，"
                             f"当前攻击 {_strategy!r} 下无效（AUDIT {sw.row}）。")
+    if (get_switch(config, "data.batch_pipeline") == "per_epoch" and bd_enabled
+            and _strategy != "badpfl"):
+        _fail(f"data.batch_pipeline = 'per_epoch' 目前只接了 Bad-PFL 的取数"
+              f"（malicious_strategy={_strategy!r}）：静态投毒（vanilla / neurotoxin）会被"
+              f"per_epoch 绕过（它从原始数组取数，不读 build_poisoned_dataset 替换的数据集）"
+              f" → 恶意端静默变成良性端；CerP 的触发器训练仍读 tf.data（AUDIT A25）。")
     if get_switch(config, "evaluation.pm_model") == "fresh" and method not in PM_FRESH_METHODS:
         _fail(f"evaluation.pm_model = 'fresh' 需要方法定义「私有部分」（client.private_state），"
               f"目前只有 {sorted(PM_FRESH_METHODS)}；{method!r} 没有定义 → "
