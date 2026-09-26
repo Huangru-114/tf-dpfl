@@ -78,8 +78,7 @@ def test_every_switch_has_an_audit_row_in_the_audit_file():
 # ══════════════════════════════════════════════════════════════════════════
 # 按提交逐步接线：这个集合只许变小，最后一个提交之后必须为空。
 NOT_YET_WIRED = {
-    "backdoor.eval_xi_model", "evaluation.asr_columns",
-    "training.deterministic_ops", "evaluation.pm_model",
+    "training.deterministic_ops",
     "training.lr_round_axis", "federation.edge_schedule", "federation.quota_round_axis",
 }
 

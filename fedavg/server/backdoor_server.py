@@ -20,7 +20,10 @@ from attack.backdoor_eval import (evaluate_hierarchical_asr,
                                    evaluate_forgetting_curve,
                                    evaluate_feature_separation,
                                    evaluate_drift,
+                                   evaluate_local_asr,
                                    dataset_to_numpy)
+from alignment import get_switch
+from utils.kvline import format_kv
 from models.cnn import get_base_head_indices
 from defense import create_post_hoc_defense
 from utils.logger import FLLogger
@@ -36,8 +39,16 @@ _PERSONALIZED_METHODS = {
 class BackdoorCloudServer(CloudServer):
 
     def __init__(self, *args, bd_cfg=None, x_test=None, y_test=None,
-                 trigger_fn=None, malicious_ids=None, **kwargs):
+                 trigger_fn=None, malicious_ids=None, eval_attacker=None, **kwargs):
         super().__init__(*args, **kwargs)
+        # ── 评估口径的对齐开关（A02 / A06；A28 的 pm_kind 在 CloudServer 里）────
+        #   eval_xi_model=fixed_attacker：主 ASR 的 ξ 在 setup 时按 seed 固定选中的一个
+        #   攻击者（eval_attacker，main.select_eval_attacker）的 PM 上求（D-015 + D-033），
+        #   δ 用它的生成器（共享时就是那一个）；白盒列（ξ 在受害者上求）另打 [ASRwb]。
+        self.eval_attacker = eval_attacker
+        self.eval_xi_model = get_switch(self.config, "backdoor.eval_xi_model")
+        self.asr_columns = get_switch(self.config, "evaluation.asr_columns")
+        self._seed = int(self.config.get("seed", 42))
         self.bd_cfg = bd_cfg or {}
         self.x_test = x_test
         self.y_test = np.asarray(y_test).reshape(-1) if y_test is not None else None
@@ -102,6 +113,64 @@ class BackdoorCloudServer(CloudServer):
         for k in ASR_KEYS:
             sig[k] = None if bd is None else bd.get(k)
         return sig
+
+    # ══════════════════════════════════════════════════════════════════════
+    # 评估触发器与副列（A02 / A06 / A28）
+    # ══════════════════════════════════════════════════════════════════════
+
+    def _eval_rng(self, round_idx, column):
+        """评估期 PGD 起点噪声：按 (seed, 轮, 列) 键控 —— 不消耗训练流，列之间互不影响。"""
+        return np.random.default_rng([self._seed, 0xE7A1, int(round_idx), int(column)])
+
+    def _attacker_trigger(self, round_idx, column, pm_kind):
+        """ξ 在固定攻击者的 PM（pm_kind）上求，δ 用它的生成器；**忽略**被评估的模型。"""
+        att = self.eval_attacker
+        xi_model = self.pm_model(att, pm_kind, slot="attacker")
+        rng = self._eval_rng(round_idx, column)
+
+        def trig(model, x, y=None):
+            x = np.asarray(x, np.float32)
+            return x + att.eval_xi(xi_model, x, y, rng=rng) + att.eval_delta(x)
+        return trig
+
+    def _side_columns(self, round_idx, metrics, fixed):
+        """
+        副列，各打一条独立的 key=value 行（不扩 [Backdoor] 的正则）：
+          [ASR4]     A06：过滤 / 不过滤 × 仅良性 / 全体（主口径的模型与 ξ）
+          [ASRwb]    A02：白盒 ξ（在受害者自己的 PM 上求）的良性过滤 ASR —— 上界
+          [StaleASR] A28：陈旧 PM（client.model）上的良性 / 恶意过滤 ASR；
+                     ξ 用攻击者**自己的陈旧模型**（受害者与攻击者同一定义，A4 用户拍板）
+        """
+        if self.asr_columns == "four_way":
+            print(format_kv("[ASR4]", {
+                "benign_filtered":   metrics["local_asr_benign_mean"],
+                "benign_unfiltered": metrics["local_asr_benign_unfiltered_mean"],
+                "all_filtered":      metrics["local_asr_mean"],
+                "all_unfiltered":    metrics["local_asr_unfiltered_mean"],
+                "global_unfiltered": metrics["global_asr_unfiltered"],
+            }, round_idx=round_idx))
+        benign = [c for c in self._all_clients if int(c.client_id) not in self.malicious_ids]
+        if fixed:
+            att, rng = self.eval_attacker, self._eval_rng(round_idx, 1)
+            wb = evaluate_local_asr(
+                benign, self.main_pm,
+                lambda model, x, y=None: att.eval_trigger(model, x, y, rng=rng),
+                self.bd_target, self.malicious_ids, fallback_test_ds=self.test_dataset,
+                asr_max_samples=self.bd_asr_max)
+            metrics["local_asr_benign_whitebox"] = wb["benign_mean"]
+            print(format_kv("[ASRwb]", {"local_benign": wb["benign_mean"]},
+                            round_idx=round_idx))
+        if self.pm_kind == "fresh":
+            trig = (self._attacker_trigger(round_idx, 2, "stale") if fixed else self.trigger_fn)
+            st = evaluate_local_asr(
+                self._all_clients, lambda c: c.model, trig, self.bd_target,
+                self.malicious_ids, fallback_test_ds=self.test_dataset,
+                asr_max_samples=self.bd_asr_max)
+            metrics["local_asr_benign_stale"] = st["benign_mean"]
+            metrics["local_asr_malicious_stale"] = st["malicious_mean"]
+            print(format_kv("[StaleASR]", {"local_benign": st["benign_mean"],
+                                           "local_malicious": st["malicious_mean"]},
+                            round_idx=round_idx))
 
     def _coordinate_cerp_peers(self):
         """收集 CerP 恶意客户端最新权重，互相分发（排除自身），供下一轮 cos 正则使用。"""
@@ -173,24 +242,36 @@ class BackdoorCloudServer(CloudServer):
 
         # ── Simple-Tuning 防御：良性 client 本地模型评估前做「重置头 + 干净微调」──
         # （恶意 client 不设防，保持 c.model 原样，仅用于报告 local_asr_malicious）
-        local_model_fn = None
+        # A28：本地模型一律经 main_pm 取（与 pm_acc 同一个入口 → 同一个 PM）；
+        # stale 口径下 main_pm(c) 就是 c.model，与改动前逐字相同。
+        if self.pm_kind == "fresh":
+            self.begin_pm_eval()
+
+        def local_model_fn(c):
+            return self.main_pm(c)
         if self.post_defense is not None:
             def local_model_fn(c):
                 if int(c.client_id) in self.malicious_ids:
-                    return c.model
-                return self.post_defense.tune(c.model, getattr(c, "dataset", None))
+                    return self.main_pm(c)
+                return self.post_defense.tune(self.main_pm(c), getattr(c, "dataset", None))
             print(f"[Defense] applying Simple-Tuning to benign local models "
                   f"before ASR eval (round {round_idx})")
+
+        fixed = (self.eval_xi_model == "fixed_attacker" and self.eval_attacker is not None)
+        main_trigger = (self._attacker_trigger(round_idx, 0, self.pm_kind) if fixed
+                        else self.trigger_fn)
 
         # ── 任务2：分层 ASR（global/edge/local 三层 + same/diff edge） ────────
         _t0 = time.perf_counter()
         metrics = evaluate_hierarchical_asr(
             self.global_model, self.edge_servers, self._all_clients,
-            self.test_dataset, self.trigger_fn, self.bd_target,
+            self.test_dataset, main_trigger, self.bd_target,
             self.malicious_ids, fallback_test_ds=self.test_dataset,
             local_model_fn=local_model_fn,
             asr_max_samples=self.bd_asr_max,
+            asr_columns=self.asr_columns,
         )
+        self._side_columns(round_idx, metrics, fixed)
         t_asr = time.perf_counter() - _t0
 
         # ── 任务2：特征空间分离度（global + 抽样 1 个良性 local） ─────────────

@@ -11,6 +11,7 @@ import numpy as np
 import tensorflow as tf
 
 from attack.drift_metrics import param_drift, repr_shift
+from attack.asr_counting import asr_counts, rates_from_counts   # A06（纯 numpy）
 
 
 def _f3(v):
@@ -147,6 +148,47 @@ def compute_asr_on_dataset(model, ds, trigger_fn, target_label,
     return float(hits / len(Y)), int(len(Y))
 
 
+def compute_asr_four_way(model, ds, trigger_fn, target_label, max_samples=0,
+                         batch_size=256):
+    """
+    A06 口径：探针 = 分片的**前 N 张（全部类别）**，整批加触发器（与官方一样，
+    目标类样本也在批里 —— A05 official 下生成器的 batch 统计因此包含它们），
+    同一次预测上同时数「过滤」与「不过滤」。返回 asr_counts 的 dict；探针为空 → None。
+    """
+    X, Y = dataset_to_numpy(ds, max_samples)
+    if X is None or len(Y) == 0:
+        return None
+    xp = trigger_fn(model, X, Y)
+    preds = []
+    for i in range(0, len(Y), batch_size):
+        preds.append(np.argmax(model(xp[i:i + batch_size], training=False).numpy(), 1))
+    return asr_counts(np.concatenate(preds), Y, target_label)
+
+
+def evaluate_local_asr(clients, model_fn, trigger_fn, target_label, malicious_ids,
+                       fallback_test_ds=None, asr_max_samples=0, batch_size=256):
+    """
+    只算本地（个性化）模型的过滤 ASR：{benign_mean, malicious_mean}。副列用
+    （A02 白盒列、A28 陈旧 PM 列）—— 不需要 global / edge 那两层。
+    model_fn(c) 给出要评估的模型；trigger_fn(model, x, y) 同 compute_asr。
+    """
+    malicious_ids = set(int(i) for i in (malicious_ids or set()))
+    ben, mal = [], []
+    for c in clients:
+        ds = c.test_dataset if getattr(c, "test_dataset", None) is not None \
+            else fallback_test_ds
+        if ds is None:
+            continue
+        asr, _ = compute_asr_on_dataset(model_fn(c), ds, trigger_fn, target_label,
+                                        asr_max_samples, batch_size)
+        (mal if int(c.client_id) in malicious_ids else ben).append(asr)
+
+    def _mean(xs):
+        vals = [v for v in xs if v is not None]
+        return float(np.mean(vals)) if vals else None
+    return {"benign_mean": _mean(ben), "malicious_mean": _mean(mal)}
+
+
 def evaluate_backdoor(clients, x_test, y_test, trigger_fn, target_label,
                       malicious_ids, fallback_test_ds=None, batch_size=256,
                       round_idx=None, verbose=True):
@@ -189,7 +231,7 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
                               global_test_ds, trigger_fn, target_label,
                               malicious_ids, fallback_test_ds=None,
                               batch_size=256, local_model_fn=None,
-                              asr_max_samples=0):
+                              asr_max_samples=0, asr_columns="filtered"):
     """
     分别评估三层模型的 ASR 与干净精度（ACC）。
 
@@ -209,9 +251,12 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
                         与全部训练数据全局不相交，才是真正的留出集。
         asr_max_samples: 每个探针最多取多少合格样本（0 = 全用）。限评估开销。
         malicious_ids : 恶意客户端 id 集合
-        local_model_fn: 可选 callable(client) -> model，对本地模型评估前做变换
-                        （Simple-Tuning 防御：返回重置头+干净微调后的模型）。
+        local_model_fn: 可选 callable(client) -> model，给出要评估的本地模型
+                        （A28 fresh-PM；Simple-Tuning 防御在它外面再包一层）。
                         None 时直接用 client.model。
+        asr_columns   : "filtered"（旧）/ "four_way"（A06 / D-019）。four_way 下探针取
+                        分片前 N 张（全类别），同一次预测上数「过滤 / 不过滤」，
+                        额外返回 local_asr_benign_unfiltered_mean / local_asr_unfiltered_mean。
 
     Returns:
         dict（见 log_round_metrics 使用的全部字段）
@@ -219,9 +264,19 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
     malicious_ids = set(int(i) for i in (malicious_ids or set()))
 
     # ── 全局模型：探针 = 所有客户端留出分片的并集 ─────────────────────────
-    global_asr, _ = compute_asr_on_dataset(
-        global_model, global_test_ds, trigger_fn, target_label,
-        asr_max_samples, batch_size)
+    four = asr_columns == "four_way"
+
+    def _asr(model, ds):
+        """(过滤 ASR, 不过滤 ASR)；filtered 口径下后者恒为 None。"""
+        if not four:
+            a, _ = compute_asr_on_dataset(model, ds, trigger_fn, target_label,
+                                          asr_max_samples, batch_size)
+            return a, None
+        cnt = compute_asr_four_way(model, ds, trigger_fn, target_label,
+                                   asr_max_samples, batch_size)
+        return rates_from_counts(cnt) if cnt is not None else (None, None)
+
+    global_asr, global_asr_unf = _asr(global_model, global_test_ds)
     global_acc = _acc_on_dataset(global_model, global_test_ds)
 
     # ── 边缘模型 ──────────────────────────────────────────────────────────
@@ -230,9 +285,7 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
     for edge in edge_servers:
         # 探针 = 该 edge 下所有客户端留出分片的并集（与 em_acc 同一个集合）
         e_ds = edge.get_test_dataset() or global_test_ds
-        e_asr, _ = compute_asr_on_dataset(
-            edge.model, e_ds, trigger_fn, target_label,
-            asr_max_samples, batch_size)
+        e_asr, _ = _asr(edge.model, e_ds)
         e_acc = _acc_on_dataset(edge.model, e_ds)
         edge_ids.append(int(edge.edge_id))
         edge_asr_per_node.append(e_asr)
@@ -244,6 +297,7 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
 
     # ── 本地（个性化）模型，按群体分组 ────────────────────────────────────
     local_asrs, local_accs = [], []
+    local_unf, benign_unf = [], []
     benign_asrs, malicious_asrs = [], []
     same_edge_asrs, diff_edge_asrs = [], []
     # 逐 edge 分组（Experiment 3：判 amplification / dilution / cross-edge cancellation
@@ -261,14 +315,15 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
         ds = c.test_dataset if getattr(c, "test_dataset", None) is not None \
             else fallback_test_ds
         if ds is None:
-            asr, acc = None, float("nan")
+            asr, asr_unf, acc = None, None, float("nan")
         else:
-            asr, _ = compute_asr_on_dataset(
-                eval_model, ds, trigger_fn, target_label,
-                asr_max_samples, batch_size)
+            asr, asr_unf = _asr(eval_model, ds)
             acc = _acc_on_dataset(eval_model, ds)
         local_asrs.append(asr)
+        local_unf.append(asr_unf)
         local_accs.append(acc)
+        if cid not in malicious_ids:
+            benign_unf.append(asr_unf)
 
         edge_id = int(getattr(c, "assigned_edge", -1))
         if cid in malicious_ids:
@@ -340,6 +395,10 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
         "local_asr_diff_edge":    _mean(diff_edge_asrs),
         "local_acc_mean":         float(np.nanmean(local_accs)) if local_accs else None,
         "per_edge":               per_edge,
+        # A06 / D-019：不过滤口径（four_way 才有；filtered 下为 None）
+        "global_asr_unfiltered":             global_asr_unf,
+        "local_asr_unfiltered_mean":         _mean(local_unf),
+        "local_asr_benign_unfiltered_mean":  _mean(benign_unf),
     }
 
 

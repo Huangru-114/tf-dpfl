@@ -16,7 +16,10 @@ import numpy as np
 import tensorflow as tf
 import time
 
-from models.model_utils   import get_model_bytes
+from models.model_utils   import get_model_bytes, clone_model
+from alignment            import get_switch
+from utils.pm             import compose_pm
+from utils.kvline         import format_kv
 from aggregation.fedavg   import aggregate
 from server.stopping     import StoppingRule
 from aggregation.feddyn   import feddyn_aggregate,   init_h
@@ -66,6 +69,14 @@ class CloudServer(RobustAggregationMixin):
         self.stopper = StoppingRule(config.get("stopping"),
                                     edge_rounds=int(_fed.get("edge_rounds", 1) or 1),
                                     n_rounds=int(_fed.get("n_rounds", 0) or 0))
+
+        # ── 评估用的 PM（A28 / D-033，开关 evaluation.pm_model）──────────────
+        #   stale（旧）：client.model；fresh：[当前 edge body, 自己的私有部分]。
+        #   pm_acc 与 ASR（BackdoorCloudServer）都经 self.main_pm(c) 取模型 → 同一个 PM。
+        self.pm_kind = get_switch(config, "evaluation.pm_model")
+        self._edge_by_id = {int(e.edge_id): e for e in edge_servers}
+        self._pm_scratch = {}          # 组装 fresh-PM 用的草稿模型（受害者 / 攻击者各一个）
+        self._edge_w_cache = None      # 一次评估内 edge 权重不变，缓存一份
 
         self.history = {
             "round": [], "global_loss": [], "global_acc": [],
@@ -249,6 +260,7 @@ class CloudServer(RobustAggregationMixin):
         Phase 3  评估
         """
         t0 = time.time()
+        self._edge_w_cache = None      # 上一轮评估缓存的 edge 权重作废（A28）
 
         # ── Phase 0：anchor 快照 ──────────────────────────────────────────
         # 必须在 broadcast_to_edges() 之前完成深拷贝。
@@ -285,14 +297,25 @@ class CloudServer(RobustAggregationMixin):
         # 逐 edge 的 PM 精度：edge_id -> (该 edge 内按样本加权的 pm_acc, 客户端数)。
         # 只是**顺带分组**，下面的全局聚合一字未改（pm_accs/pm_ns 的追加顺序不变）。
         per_edge_pm = {}
+        stale_accs, stale_ns = [], []
         if do_pm_eval:
+            if self.pm_kind == "fresh":
+                self.begin_pm_eval()
             pm_losses, pm_accs, pm_ns = [], [], []
             for edge in self.edge_servers:
                 e_accs, e_ns = [], []
                 for client in edge.clients:
+                    # A28：主口径的 PM（stale 时就是 client.model，与改动前逐字相同）
                     c_loss, c_acc = client.evaluate_on(
-                        fallback_dataset=self.test_dataset
+                        fallback_dataset=self.test_dataset,
+                        model=self.main_pm(client),
                     )
+                    if self.pm_kind == "fresh":        # 副列：陈旧 PM（P1 口径，D-029 的门槛读它）
+                        _, s_acc = client.evaluate_on(
+                            fallback_dataset=self.test_dataset, model=client.model,
+                            verbose=False)
+                        stale_accs.append(s_acc)
+                        stale_ns.append(client.n_samples)
                     pm_losses.append(c_loss)
                     pm_accs.append(c_acc)
                     pm_ns.append(client.n_samples)
@@ -336,6 +359,12 @@ class CloudServer(RobustAggregationMixin):
             if k in self.history:
                 self.history[k].append(v)
 
+        if stale_ns:
+            _tot = sum(stale_ns)
+            metrics["pm_acc_stale"] = float(sum(a * n / _tot for a, n in zip(stale_accs, stale_ns)))
+            # 独立的 key=value 行（不扩 [Cloud] 的正则）：陈旧 PM 的 pm_acc，按样本加权。
+            print(format_kv("[Stale]", {"pm_acc": metrics["pm_acc_stale"]}, round_idx=round_idx))
+
         pm_str = (f" PM={avg_pm_acc:.4f}" if avg_pm_acc is not None else "")
         print(f"  [Cloud] GM={global_acc:.4f} | EM={avg_em_acc:.4f}{pm_str} | "
             f"loss={global_loss:.4f} | time={elapsed:.1f}s | "
@@ -359,6 +388,45 @@ class CloudServer(RobustAggregationMixin):
                   f"em_acc={_f4(e_acc)} | pm_acc={_f4(pm_a)} | "
                   f"n_clients={pm_c} | n_samples={e_n}")
         return metrics
+
+    # ══════════════════════════════════════════════════════════════════════
+    # 评估用的个性化模型（A28 / D-033）
+    # ══════════════════════════════════════════════════════════════════════
+
+    def begin_pm_eval(self):
+        """一次评估开始：缓存各 edge 当前权重（评估期间 edge 模型不变）。"""
+        self._edge_w_cache = {eid: e.model.get_weights() for eid, e in self._edge_by_id.items()}
+
+    def edge_of(self, client):
+        return self._edge_by_id[int(getattr(client, "assigned_edge"))]
+
+    def pm_model(self, client, kind: str, slot: str = "victim"):
+        """
+        客户端的个性化模型。
+
+        kind="stale" → client.model（上次参与时的状态，P1 口径）
+        kind="fresh" → [所在 edge 的当前权重, client.private_state()]，装进草稿模型 `slot`。
+                       没有私有部分（FedAvg、或还没参加过训练的 FedRep 端）→ 直接用 edge 模型。
+        草稿模型会被下一次同 slot 的调用覆盖 —— 调用方要**用完再取下一个**。
+        """
+        if kind == "stale":
+            return client.model
+        edge = self.edge_of(client)
+        idx, val = client.private_state()
+        if not idx:
+            return edge.model
+        if self._edge_w_cache is None:
+            self.begin_pm_eval()
+        w = compose_pm(self._edge_w_cache[int(edge.edge_id)], val, idx)
+        if slot not in self._pm_scratch:
+            self._pm_scratch[slot] = clone_model(self.global_model)
+        m = self._pm_scratch[slot]
+        m.set_weights(w)
+        return m
+
+    def main_pm(self, client, slot: str = "victim"):
+        """主口径的 PM（pm_acc 与主 ASR 共用这一个入口）。"""
+        return self.pm_model(client, self.pm_kind, slot)
 
     def _stopping_signals(self, metrics: dict) -> dict:
         """

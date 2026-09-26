@@ -54,7 +54,39 @@ from utils.provenance import parse_provenance   # noqa: E402
 from utils.kvline import parse_kv, collect_kv   # noqa: E402
 
 # metrics.json 的结构版本。2 = 加了 run.provenance / run.cli_overrides。
-SCHEMA_VERSION = 2
+# 3 = A4：run.alignment / eval_attacker，rounds[] 的副列（[ASR4] [ASRwb] [StaleASR]），
+#     acc_rounds[].pm_acc_stale（[Stale]）、checksums[]（[Checksum]）。
+SCHEMA_VERSION = 3
+
+# A4 的副列：key=value 行（utils/kvline.py）→ rounds[] / acc_rounds[] 的字段。
+# 缺行（旧口径、或该列本 run 没开）→ null，**不是 0**。
+ROUND_SIDE_COLUMNS = (
+    ("[ASR4]", {"benign_unfiltered": "local_benign_asr_unfiltered",
+                "all_filtered":      "local_all_asr",
+                "all_unfiltered":    "local_all_asr_unfiltered",
+                "global_unfiltered": "global_asr_unfiltered"}),
+    ("[ASRwb]", {"local_benign": "local_benign_asr_whitebox"}),
+    ("[StaleASR]", {"local_benign": "local_benign_asr_stale",
+                    "local_malicious": "local_malicious_asr_stale"}),
+)
+ACC_SIDE_COLUMNS = (
+    ("[Stale]", {"pm_acc": "pm_acc_stale"}),
+)
+
+
+def _merge_side_columns(rows: list, lines: list, spec) -> None:
+    """按 round 把副列并进 rows（就地）。每个副列字段都会出现，缺的是 None。"""
+    by_round = {}
+    for tag, mapping in spec:
+        for d in collect_kv(lines, tag):
+            r = d.get("round")
+            for src, dst in mapping.items():
+                by_round.setdefault(r, {})[dst] = d.get(src)
+    fields = [dst for _, m in spec for dst in m.values()]
+    for row in rows:
+        got = by_round.get(row.get("round"), {})
+        for f in fields:
+            row[f] = got.get(f)
 
 # ── 后门分层评估 ────────────────────────────────────────────────────────────
 # 数值字段一律允许 "n/a"：无定义的分组（如全 distributed 布点下的 diff_edge、
@@ -165,6 +197,7 @@ RE_PER_EDGE_ACC = re.compile(
 RE_CLIENT_FAIL = re.compile(r"\[ERROR\] Client (\d+): (.*)")
 RE_EDGE_DROP = re.compile(r"\[Edge (\d+)\] (\d+) 个客户端本轮失败并被丢弃: \[([\d,\s]*)\]")
 RE_ERR = re.compile(r"^(?:\w+Error|Traceback|tensorflow\.python\.framework\.errors)")
+RE_CHECKSUM = re.compile(r"\[Checksum\] Round (\d+) \| global=([0-9a-f]+)")
 
 
 def _int_list(s: str) -> list:
@@ -501,6 +534,11 @@ def collect(log_text: str) -> dict:
 
     run = _collect_run_info(log_text, lines)
     acc_rounds = _collect_acc(lines)
+    _merge_side_columns(rounds, lines, ROUND_SIDE_COLUMNS)
+    _merge_side_columns(acc_rounds, lines, ACC_SIDE_COLUMNS)
+    # 十六进制串可能长得像数字（全是数字、或形如 1234e5678901），不走 kvline 的类型推断
+    checksums = [{"round": int(m.group(1)), "global": m.group(2)}
+                 for m in RE_CHECKSUM.finditer(log_text)]
 
     final_pm = RE_FINAL_PM.search(log_text)
     final_acc = dict(acc_rounds[-1]) if acc_rounds else {}
@@ -550,6 +588,8 @@ def collect(log_text: str) -> dict:
         "per_edge_acc_final": per_edge_acc_final,
         # 墙钟拆分（标定用）：round_time 不含后门评估，两者要相加，见 RE_ROUND_TIME
         "timing_rounds": timing_rounds,
+        # A15：每轮全局权重的 sha256 前 12 位 —— 同 seed 两次 run 逐轮对得上才算确定性
+        "checksums": checksums,
         "timing_summary": _timing_summary(acc_rounds, timing_rounds),
         "admitted": admitted,
         # 只对有客户端级判决的防御求均值；坐标类（admitted=None）不参与，

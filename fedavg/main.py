@@ -41,6 +41,8 @@ from client.client_cerp        import CerPMixin
 from client.client_badpfl      import BadPFLMixin
 from client.compose            import compose_client_class
 from utils.provenance          import config_sha, flat_diff, print_provenance
+from utils.kvline              import format_kv
+from alignment                 import get_switch
 
 
 def _select_method_classes(config):
@@ -175,6 +177,23 @@ def build_eval_trigger(bd_cfg, static_trigger, clients, config):
         c0 = mal[0]
         return lambda model, x, y=None: c0.eval_trigger(model, x, y)
     return lambda model, x, y=None: static_trigger(x)
+
+
+def select_eval_attacker(clients, malicious_ids, seed):
+    """
+    A02 / D-015：主 ASR 的 ξ 用哪一个攻击者 —— setup 时按 seed 从恶意端里**固定选一个**，
+    全程不变（官方 fba.py:60-64 + main.py:95：shuffle 之后最后一个恶意端 ≈ 开跑时随机选一个）。
+    只在有 eval_xi 的攻击 mixin（Bad-PFL）上有意义；没有恶意端 → None。
+    选取只依赖 (seed, 恶意端 id 集合)，与客户端列表顺序无关。
+    """
+    mal = sorted((c for c in clients
+                  if int(c.client_id) in set(int(i) for i in malicious_ids)
+                  and hasattr(c, "eval_xi")),
+                 key=lambda c: int(c.client_id))
+    if not mal:
+        return None
+    rng = np.random.default_rng([int(seed), 0xA02])
+    return mal[int(rng.integers(len(mal)))]
 
 
 def _set_nested(config: dict, key_path: str, value):
@@ -742,6 +761,15 @@ def run_experiment(config_path="config/config.yaml"):
         # 评估侧 trigger 统一为 (model, x, y)：静态触发器忽略 model/y。
         # CerP/Bad-PFL 动态触发器在此处替换为真正依赖 model/y 的评估触发器。
         eval_trigger  = build_eval_trigger(bd_cfg, bd_trigger, clients, config)
+        # A02：固定的评估攻击者（开关 backdoor.eval_xi_model=fixed_attacker 时才用到，
+        # 但一律选出来并自描述 —— 哪一格用了谁，事后能从 metrics.json 核对）
+        eval_attacker = select_eval_attacker(clients, malicious_ids, config.get("seed", 42))
+        print(format_kv("[设定5]", {
+            "eval_attacker": None if eval_attacker is None else int(eval_attacker.client_id),
+            "eval_attacker_edge": (None if eval_attacker is None
+                                   else int(getattr(eval_attacker, "assigned_edge", -1))),
+            "eval_xi_model": get_switch(config, "backdoor.eval_xi_model"),
+        }))
         cloud = BackdoorCloudServer(
             global_model=global_model,
             edge_servers=edge_servers,
@@ -751,6 +779,7 @@ def run_experiment(config_path="config/config.yaml"):
             x_test=x_test, y_test=y_test,
             trigger_fn=eval_trigger,
             malicious_ids=malicious_ids,
+            eval_attacker=eval_attacker,
         )
         # fix-frequency 强制参与（**默认关闭**）：把恶意客户端每 Q 轮强制选进它所在 edge。
         # ⚠️ 这是「投毒时间模式」实验用的接口，**不是默认行为**。开着它会破坏「所有客户端

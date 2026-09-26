@@ -38,6 +38,14 @@ LAST_K = 10                       # 终值 = 末 LAST_K 个评估点的均值（
 ASR_METRICS = ("global_asr", "edge_asr", "local_benign_asr", "local_malicious_asr",
                "same_edge_asr", "diff_edge_asr")
 ACC_METRICS = ("gm_acc", "em_acc", "pm_acc")
+# A4 副列（collect_metrics schema 3）。老文件里没有 → 末 10 点均值为 None、n = 0。
+#   *_unfiltered / local_all_asr：A06 四列；*_whitebox：A02 白盒上界；
+#   *_stale / pm_acc_stale：A28 的陈旧 PM（D-029 的 pm_acc 门槛读 pm_acc_stale）。
+SIDE_ASR_METRICS = ("local_benign_asr_unfiltered", "local_all_asr",
+                    "local_all_asr_unfiltered", "global_asr_unfiltered",
+                    "local_benign_asr_whitebox", "local_benign_asr_stale",
+                    "local_malicious_asr_stale")
+SIDE_ACC_METRICS = ("pm_acc_stale",)
 T_THETA_METRICS = ("global_asr", "edge_asr", "local_benign_asr")
 
 # 实际因素 = 决定「这是哪一格」的 run 块字段（seed 单独一列，不进因素键）。
@@ -99,13 +107,17 @@ def summarize_run(m: dict, *, name: str, source: str, legacy_protocol=None) -> d
     row["stop_reason"] = run.get("stop_reason")
     row["stopped_at_effective"] = run.get("stopped_at_effective")
 
+    align = run.get("alignment") or {}
+    row["alignment_template"] = align.get("template")      # p2 / legacy / mixed；老文件 None
+    row["fedrep_order"] = align.get("fedrep_order")
+
     rounds = m.get("rounds") or []
-    for mk in ASR_METRICS:
+    for mk in ASR_METRICS + SIDE_ASR_METRICS:
         mean, n = last_k_mean([r.get(mk) for r in rounds])
         row[f"{mk}_last{LAST_K}"] = mean
         row[f"{mk}_n"] = n
     acc = m.get("acc_rounds") or []
-    for mk in ACC_METRICS:
+    for mk in ACC_METRICS + SIDE_ACC_METRICS:
         mean, n = last_k_mean([r.get(mk) for r in acc])
         row[f"{mk}_last{LAST_K}"] = mean
         row[f"{mk}_n"] = n
@@ -131,11 +143,11 @@ def series_rows(m: dict, run_name: str) -> list:
     er = run.get("edge_rounds") or 1
     out = []
     for r in m.get("rounds") or []:
-        for mk in ASR_METRICS:
+        for mk in ASR_METRICS + SIDE_ASR_METRICS:
             if r.get(mk) is not None:
                 out.append((run_name, r["round"] * er, r["round"], -1, mk, r[mk]))
     for r in m.get("acc_rounds") or []:
-        for mk in ACC_METRICS:
+        for mk in ACC_METRICS + SIDE_ACC_METRICS:
             if r.get(mk) is not None:
                 out.append((run_name, r["round"] * er, r["round"], -1, mk, r[mk]))
     for rnd, edges in (m.get("per_edge_rounds") or {}).items():

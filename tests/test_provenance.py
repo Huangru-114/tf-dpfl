@@ -164,7 +164,7 @@ def test_print_provenance_prints_overrides_and_the_line(tmp_path):
 def test_collect_puts_provenance_into_run_block():
     line = P.format_provenance(_fields(cli_overrides=[["defense.name", "median", "none"]]))
     m = collect("[Config] loading x.yaml\n" + line + "\n[Round 1]\n")
-    assert m["schema_version"] == SCHEMA_VERSION == 2
+    assert m["schema_version"] == SCHEMA_VERSION == 3
     prov = m["run"]["provenance"]
     assert prov["run_id"] == "G2__flat__s42" and prov["protocol"] == "P1"
     assert "cli_overrides" not in prov

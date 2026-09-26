@@ -303,13 +303,17 @@ class FLClientBase(ABC):
             tn += x.shape[0]
         return tl / tn, tc / tn
 
-    def evaluate_on(self, fallback_dataset: tf.data.Dataset = None):
+    def evaluate_on(self, fallback_dataset: tf.data.Dataset = None, model=None,
+                    verbose: bool = True):
         """
-        在测试集上评估当前模型，返回 (loss, accuracy)。
+        在测试集上评估模型，返回 (loss, accuracy)。
 
         优先使用 self.test_dataset（per-client 同分布测试集）；
         未注入时退化为 fallback_dataset（全体测试集）。
+        model：缺省 = self.model（陈旧 PM）；A28 的 fresh-PM 由服务器组装后传进来。
+        verbose=False：副列评估不打逐类精度行（日志不翻倍）。
         """
+        model = self.model if model is None else model
         # w = self.model.get_weights()
         # print(
         #     f"[C{self.client_id}] local model [0] mean={np.mean(w[0]):.6f} | "
@@ -335,7 +339,7 @@ class FLClientBase(ABC):
         tl = tc = tn = 0
         all_preds, all_labels = [], []
         for x, y in ds:
-            p   = self.model(x, training=False)
+            p   = model(x, training=False)
             tl += self.loss_fn(y, p).numpy() * x.shape[0]
             tc += np.sum(np.argmax(p.numpy(), 1) == y.numpy())
             tn += x.shape[0]
@@ -350,11 +354,12 @@ class FLClientBase(ABC):
             c: np.mean(all_preds[all_labels == c] == c)
             for c in known_classes
         }
-        print(
-            f"[C{self.client_id}] n={tn} | classes={known_classes} | "
-            f"acc={tc/tn:.4f} | "
-            f"per_class={ {c: f'{a:.2f}' for c, a in per_class_acc.items()} }"
-        )
+        if verbose:
+            print(
+                f"[C{self.client_id}] n={tn} | classes={known_classes} | "
+                f"acc={tc/tn:.4f} | "
+                f"per_class={ {c: f'{a:.2f}' for c, a in per_class_acc.items()} }"
+            )
 
         if tn == 0:
             return 0.0, 0.0
