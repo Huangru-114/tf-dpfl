@@ -111,7 +111,7 @@ def test_v1_registry_is_not_picked_up_as_a_cell():
 
 
 # ── 审计门槛 ─────────────────────────────────────────────────────────────────
-def test_real_audit_parses_and_is_open():
+def test_real_audit_parses_and_is_closed():
     rows = R.audit_rows(MECH / "AUDIT.md")
     assert set(rows.values()) <= set(R.AUDIT_STATUSES)
     # 加行时要同步改这里 —— 故意的：AUDIT 的行只增不删，行数变化应当是一次有意识的提交。
@@ -130,10 +130,11 @@ def test_real_audit_parses_and_is_open():
     a4_done = ("A01", "A02", "A03", "A05", "A06", "A14", "A16", "A22", "A24",
                "A27", "A28", "A29", "D01", "D02")
     assert {k: rows[k] for k in a4_done} == dict.fromkeys(a4_done, "done")
-    # 还要等集群：A15 等 pilot 的 GPU 确定性对，A25 等 D-029；A08 / A26 由 pilot 判定
-    assert rows["A15"] == "align" and rows["A25"] == "align"
-    assert rows["A08"] == "open" and rows["A26"] == "open"
-    assert R.audit_open_rows(MECH / "AUDIT.md") == ["A08", "A15", "A25", "A26"]
+    # A4 收口（2026-09-27，pilot `2853433`）：D-029 pass → A08 deviate、A25 done；
+    # DET pass → A15 done；D-031 different → 用户维持 head_first（D-045）→ A26 deviate
+    assert rows["A15"] == "done" and rows["A25"] == "done"
+    assert rows["A08"] == "deviate" and rows["A26"] == "deviate"
+    assert R.audit_open_rows(MECH / "AUDIT.md") == []
 
 
 def _audit(tmp_path, rows):

@@ -71,7 +71,8 @@ SWITCHES = (
 
 # ── 不进模板、但同样只经 get_switch 读的 ────────────────────────────────────
 EXTRA_SWITCHES = (
-    # A26：两种顺序都跑 pilot（D-031），相同则维持 head_first（→ deviate）
+    # A26：两种顺序都跑了 pilot（D-031）→ 判 different（fresh pm_acc 差约 0.10）；
+    # 用户定维持 head_first（D-045，A26 → deviate）。不进模板：P2 用旧值 head_first
     Switch("training.fedrep_order",        "head_first", None,
            ("head_first", "body_first"),            "A26", "D-031", "hier_fedrep"),
     # G7（D-025）的前提：「官方预处理」= 不标准化、不增强。ε/σ 与静态触发器跟随它（F-027）

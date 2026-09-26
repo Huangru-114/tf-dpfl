@@ -15,7 +15,7 @@ utils/provenance.py  —  每个 run 打一行 `[Provenance]`，说清楚「这�
 口径版本 PROTOCOL_VERSION（**不是训练 epoch**）：
   P0  探针修正之前的归档（hfl-propagation/results/archive-pre-fix/）
   P1  统一标准后的 seed42 批次（d8c8d0b）以及本常量生效后、对齐审计完成前的全部 run
-  P2  AUDIT.md 全部关闭、代码按审计改完之后（A4 会话把这里改成 "P2"）
+  P2  AUDIT.md 全部关闭、代码按审计改完之后（2026-09-27 A4 收口：pilot `2853433` 关掉最后 4 行后改成 "P2"）
 分析工具（harness/runs_table.py）拒绝把不同版本的 run 混在一起。
 
 纯标准库，**不 import TF** —— tests/test_provenance.py 本地秒级。
@@ -32,7 +32,7 @@ import socket
 import subprocess
 from pathlib import Path
 
-PROTOCOL_VERSION = "P1"
+PROTOCOL_VERSION = "P2"
 
 PROVENANCE_TAG = "[Provenance]"
 

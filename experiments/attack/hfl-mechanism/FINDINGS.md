@@ -461,14 +461,42 @@ for R in (5, 10, 20):
 - 复核：在 `e2ee9ca` 上跑 `python3 harness/pilot_a4.py experiments/attack/hfl-mechanism/pilot/registry.yaml` → 旧判定给 D-029 `fail`（原因首条 `exit_code=1`）；D-044 之后给 `invalid`（exit_code + client_failures 两条原因）。
 - 修复：D-043（`fedavg/models/cnn.py:TorchBatchNorm`）。守卫 `tests/test_bn_inference_determinism.py` 测的是**触发条件本身**（CPU 上不会抛，但图里有没有 `is_training=False` 的 fused BN 算子看得见）；反向锚点：冻结的 `resnet10` 在同一探针下有 `FusedBatchNormGradV3(is_training=False)`。另把 GPU 的检查**在 CPU 上模拟出来**（fixture `gpu_determinism_check`：替换梯度注册表里 FusedBatchNorm* 的梯度函数，`is_training=False` 就抛 —— 与 GPU kernel 同一个条件），直接跑 Bad-PFL 的三处调用点（生成器训练、`on_batch`、`eval_trigger`）：原生 BN 在生成器训练处就抛（= pilot 训练侧），`TorchBatchNorm` 三处都过。把 `_torch_bn` 改回原生 BN 时 3 条红（推理梯度图、clone 后的图、三处调用点）。
 - 端到端复现（CPU，N-005 的做法 + 上面的模拟检查）：DET 配置缩到 20 客户端 / 2 edge / R_edge=2 / 2 个云轮，随机数据。原生 BN：`client_failures` = [5, 6, 14, 18]（**恰好是全部 `malicious_ids`**）、`malicious_selected_rounds=[]`、第 1 轮评估处崩 —— 与 pilot 同一形状；`TorchBatchNorm`：跑完，`client_failures` 空、`malicious_selected_rounds=[1, 2]`、2 个评估点、D-044 的闸判有效。这次 run 里被求过梯度的前向算子：AddV2 BiasAdd Conv2D Conv2DBackpropInput DivNoNan FusedBatchNormV3（只剩训练模式）GatherV2 LogSoftmax MatMul Mean Mul Neg Pad ReadVariableOp Relu Select Sub Sum Tanh。
-- **没有证据的部分**：GPU 上这一处修好之后，恶意端 / 评估路径上还有没有别的不支持确定性的算子 —— 这两条路径在 GPU 上一次都没完整跑过。由 DET 组重跑回答（先于 4 个整 run 提交）。
+- **没有证据的部分**：GPU 上这一处修好之后，恶意端 / 评估路径上还有没有别的不支持确定性的算子 —— 这两条路径在 GPU 上一次都没完整跑过。由 DET 组重跑回答（先于 4 个整 run 提交）。**2026-09-27**：第二轮 6 个 run 在 GPU 上全部跑通、全部有效（F-045）。
 
 ### F-044 `provisional` —— GPU 上**良性路径**第 1 轮跨作业、跨节点逐位相同（A15 的部分证据）
 
 - DET rep1（3027660，n185）、DET rep2（3027661，n208）、D029__2edge_distributed（3027657，n208）配置只差 `n_rounds` / `stopping`，第 1 轮 `[Checksum]` 都是 `956479ead511`，gm / em / pm / pm_stale = 0.4186 / 0.4796 / 0.4801 / 0.2611 完全相同，`client_failures` 也逐条相同。
 - 为什么只是 `provisional`：这一轮恶意端全被踢掉（F-043），恶意端路径与评估路径都没参与；且只有 1 轮（A15 的判据是前 5 轮）。**A15 仍是 `align`**。
+- **后续**：第二轮 DET（恶意端与评估都在路径上）前 5 轮逐轮相同 → A15 `done`（F-045）。
 - flat 的 D029 与 A26 第 1 轮 checksum 不同（`0487ed75b1b7` / `ff9377a4acf0`）、2edge 同理 —— 预期内：两组只差 FedRep 训练顺序。
 
 ### 设计备注
 
 - **N-006**：pilot 第一轮的墙钟（无攻击者、没跑到后门评估）：flat ≈ 51 s / 云轮（5 轮均值），2edge ≈ 155 s / 云轮（R_edge=5）。按有效轮 floor 150 / cap 300：flat 约 2.1–4.3 h、2edge 约 1.3–2.6 h，另加恶意端（生成器 30 步 + 逐批 PGD）与后门评估（CPU 上约 28 s / 次，N-005）。在 24 h 的 sbatch 上限内；整 run 的实数看重跑后的 `timing_summary`。
+
+## 2026-09-27（A4 收口：pilot 第二轮）
+
+### F-045 `confirmed` —— pilot 第二轮：6 个 run 全部有效；D-029 `pass`、A15 `pass`、D-031 `different`
+
+- 数据：`pilot/results/P1/*/*.metrics.json`（`2853433`）。全部 `git=299afe692ae6`（含 D-043 的修复）、`exit_code=0`、`client_failures` 空（D-044 的闸判有效）、config_sha 与 `pilot/configs/INDEX.tsv` 逐个一致、`cli_overrides=[]`。
+- 判定（`python3 harness/pilot_a4.py experiments/attack/hfl-mechanism/pilot/registry.yaml`，原样）：
+  - **D-029 `pass`**：陈旧 pm_acc 末 10 点 flat 0.8985（门槛 0.7367）、2edge 0.9093（门槛 0.7297）；两格 `converged`，有效轮 150 / 210。→ A08 `deviate`、A25 `done`。
+  - **A15 `pass`**：DET rep1 / rep2 前 5 轮 `[Checksum]` 逐轮相同（`d259128657fd` `b44e7042af4f` `181adcfd7f95` `773e061e5fbc` `931d1867fbac`），两个作业在不同节点（n553 / n137）；下表所有指标到小数点后 4 位也相同。恶意端（每轮 1 次参与）与后门评估（每轮 1 次）都在路径上 —— F-043 / F-044 的「GPU 待验」由此关闭。→ A15 `done`。
+  - **D-031 `different`**：fresh pm_acc 差 0.0965 / 0.1036（门槛 0.006）；local_benign_asr 差 0.1367 / 0.0774（门槛 0.07）。→ 用户定维持 head_first（D-045），A26 `deviate`。
+
+| run | 作业 / 节点 | stop @ 云轮（有效轮） | pm_acc fresh / 陈旧 | local_benign_asr fresh / 陈旧 / 白盒 | global_asr | 训练 + 评估墙钟 | bd_eval_fraction |
+|---|---|---|---|---|---|---|---|
+| D029__flat | 3043999 / n61 | `converged` @ 150（150） | 0.8880 / 0.8985 | 0.9531 / 0.9515 / 0.9532 | 0.9979 | 5864 + 2240 s | 0.2764 |
+| A26__flat | 3044001 / n135 | `converged` @ 150（150） | 0.7915 / 0.8636 | 0.8164 / 0.5264 / 0.7813 | 0.9048 | 6166 + 2374 s | 0.2779 |
+| D029__2edge_distributed | 3044000 / n105 | `converged` @ 42（210） | 0.8910 / 0.9093 | 0.9141 / 0.9024 / 0.9121 | 0.9993 | 5094 + 3118 s | 0.3797 |
+| A26__2edge_distributed | 3044002 / n174 | `converged` @ 37（185） | 0.7874 / 0.8770 | 0.9915 / 0.9751 / 0.9843 | 0.9987 | 4424 + 2705 s | 0.3794 |
+| DET__rep1 | 3043736 / n553 | 不停轮，5 云轮 | 0.5793 / 0.5222 | 0.2458 / 0.1063 / 0.2433 | 0.1958 | 826 + 377 s | 0.3137 |
+| DET__rep2 | 3043737 / n137 | 不停轮，5 云轮 | 0.5793 / 0.5222 | 0.2458 / 0.1063 / 0.2433 | 0.1958 | 826 + 375 s | 0.3122 |
+
+（末 10 点均值；DET 只有 5 点。复现：上面的 `pilot_a4.py` + `harness/runs_table.py` 的 `last_k_mean`。）
+
+- **D-031 的形状**（head_first → body_first）：gm / em 几乎不变（flat +0.010、2edge ≈ 0）→ 差别在个性化那一侧。fresh pm_acc 掉约 0.10，陈旧 pm_acc 只掉约 0.03：body_first 的 head 是在本端刚训完的 w_k 上训的，陈旧 PM [w_k, h] 是配对的，fresh-PM 却把 h 配到 edge body 上（D-033 的定义）—— 多出来的约 0.07 来自这个失配。**这一拆分是按定义推出来的，没有单独的消融证据。** ASR 两格方向相反（flat −0.137、2edge +0.077），单 seed 下分不清是否噪声。
+- **`dirty=1`（4 个整 run）**：`git_dirty` 只看已跟踪文件；DET 19:32 起跑、约 20 分钟后把 `e2ee9ca` 里已跟踪的 DET metrics.json 覆盖，4 个整 run 19:57:53 起跑 → 推断脏的是结果文件而不是代码（git 与 config_sha 都对得上）。**provenance 不记录脏文件清单，这一条没有直接证据。** 以后每批 run 都会这样（结果写在仓库里）；要区分，得让 `git_dirty` 排除 `*/results/*`。
+- **攻击接近饱和**：head_first 下 global_asr 0.998 / 0.999、fresh local_benign_asr 0.95 / 0.91。P2 口径下 Experiment 3 的跨拓扑比较可能撞天花板 —— 设计 G 组时要考虑（记录，本会话不处理）。
+- **升 P2 之后的口径标签**：`PROTOCOL_VERSION` 是代码版本，此后连冻结的 P1 配置重跑也记 `protocol=P2`；区分配置口径看 `run.alignment.template`（p2 / legacy / mixed）。登记表 `meta.protocol: P2` 的配置由 `config_validate` 逐键核对模板，所以 hfl-mechanism 的 P2 批次不受影响。
+- **标定复核**（D-046：用 D029 两格抵扣原计划的 2 个 smoke）：bd_eval_fraction 0.28（flat）/ 0.38（2edge）；单格墙钟约 2.25 h / 2.3 h（训练 + 评估）；停轮都是 `converged`，没有 `cap_reached`。

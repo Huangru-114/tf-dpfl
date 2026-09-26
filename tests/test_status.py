@@ -63,10 +63,13 @@ def test_v1_old_files_are_done_but_unverified():
     assert done and all(r["verified"] is False for r in done)
 
 
-def test_v2_everything_is_blocked_right_now():
+def test_v2_after_the_audit_only_feature_sessions_block():
+    """AUDIT 全部关闭（2026-09-27，pilot `2853433`）：只要求 audit 的 G7 变 todo，
+    其余 151 个只剩功能会话（S3–S8）的依赖。"""
     rep = S.classify(R.Registry(V2))
-    assert rep["counts"]["blocked"] == 157          # A4 加了 G7（6 个 run）
-    assert all("audit(" in r["detail"] for r in rep["runs"])
+    assert rep["counts"]["blocked"] == 151 and rep["counts"]["todo"] == 6
+    assert {r["group"] for r in rep["runs"] if r["status"] == "todo"} == {"G7"}
+    assert not any("audit" in r["detail"] for r in rep["runs"])
 
 
 def test_main_exit_code_is_nonzero_on_mismatch(capsys):

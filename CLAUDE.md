@@ -305,6 +305,11 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
     静态投毒 + per_epoch 被 `config_validate` 拒绝（会绕过投毒数据集）。
   - L1 基线（A4 结束时）：本地无 TF 全绿；有 TF 时只有陷阱 #4 的 2 条红
     （另外 6 条自攻击时间窗起的假红已修，FINDINGS F-041）。
+  - **A4 收口（2026-09-27）**：pilot 第二轮 D-029 pass、A15 pass、D-031 different → head_first（D-045）；
+    **AUDIT 全部关闭，`PROTOCOL_VERSION = "P2"`**（`fedavg/utils/provenance.py`）。pilot 判定带有效性闸（D-044）。
+    ⚠️ `run.provenance.protocol` 是**代码**版本：此后任何 run（包括重跑冻结的 P1 配置）都记 P2。
+    **这一格是不是 P2 口径的配置**要看 `run.alignment.template == "p2"`（`[设定4]`；runs_table 的
+    `alignment_template` 列）—— 登记表里 `meta.protocol: P2` 的配置由 `config_validate` 逐键核对模板。
 
 **留了接口但没有实现的**（不要以为它们能用）：
 - 主动防御（需要客户端配合的防御）：接口齐了（`BaseDefense.layers` /
@@ -653,21 +658,23 @@ methods-registry.md   所有候选方法的台账 = 研究看板
     → 恰好 6 个）；`tests/test_registry.py::test_no_new_job_script_hardcodes_a_defense`
     禁止新脚本在命令行写死防御。**新写作业脚本只传 `--config`**（见 `hfl-mechanism/cell.sbatch`）。
 
-20. **同一配置、同一 seed，重跑结果不同**（2026-09-24 发现，未修 → AUDIT A15）
+20. ~~**同一配置、同一 seed，重跑结果不同**~~ ✅ **已修**（P2 口径；AUDIT A15 `done`，2026-09-27）
     第 19 条的 6 个格子等于 3 组同配置、同 seed 的重复，第 1 轮就分叉：flat 三次的第 1 轮
     gm_acc 为 0.1144 / 0.1116 / 0.1122，末 10 点 benign ASR 为 0.755 / 0.696 / 0.685。
     `3c_R5` 与 `2edge_distributed` 因素完全相同，实际是第 4 份重复（0.738 / 0.724 / 0.723 / 0.756）。
     **所以「固定 seed」只锁住了划分与布点，锁不住训练轨迹**；按 seed 配对的设计要按这个噪声算 seed 数。
     官方 Bad-PFL 设了 `cudnn.deterministic`（`utils.py:8-13`），但**只播了 torch**：划分与客户端顺序每次都不同（FINDINGS F-024）。
     A2 定为 D-028：打开 `enable_op_determinism()`，加 `[Checksum]` 行验收（A4 实现）。
+    验收：pilot 第二轮 DET 两次 run（不同节点）前 5 轮 checksum 逐轮相同、指标到 4 位小数相同（F-045）。
+    **只对开了 `training.deterministic_ops` 的配置成立**（P2 模板开了；P1 / 冻结配置仍不确定）。
 
-21. **学习率按 cloud round 衰减 → flat 与 HFL 的 LR 日程不同**（未修 → AUDIT A08 / DECISIONS D-010）
+21. ~~**学习率按 cloud round 衰减 → flat 与 HFL 的 LR 日程不同**~~ ✅ **P2 已改按有效轮**（AUDIT A08 `deviate`，D-029 pilot 通过，2026-09-27）
     `client_base.py:117-126`：`lr0·0.992^cloud_round`。同样 200 有效轮，末端 lr：flat 0.020、
     R_edge=5 0.073、R_edge=40 0.096。flat vs HFL、R_edge 扫描都混进了这个差别。
     官方 Bad-PFL 是**常数** lr=0.1（`main.py:57`）。A2 定为 D-023：**保留**调过参的 0.992 与 head 0.005（来历见 F-030），
     改成**按有效轮衰减**，flat 逐字节不变；要先过 D-029 可行性实验。
 
-22. **与官方 Bad-PFL 实现的差异**（2026-09-24 初查 16 条；A1 / A2 / A3 已逐行拍板，**AUDIT 仍未全部关闭**）
+22. **与官方 Bad-PFL 实现的差异**（2026-09-24 初查 16 条；A1 / A2 / A3 逐行拍板，**2026-09-27 AUDIT 全部关闭 → 口径 P2**）
     清单、双方行号与处理状态见 `experiments/attack/hfl-mechanism/AUDIT.md`。影响最大的几条：
     - 评估时的 ξ 算在**受害者**模型上（白盒），官方算在攻击者模型上（`fba.py:53,64`）；
     - 本地训练量：5 个 epoch vs 官方 15 步 —— **保留**（D-024：总本地训练量已与论文相当，F-029）；
@@ -684,13 +691,14 @@ methods-registry.md   所有候选方法的台账 = 研究看板
     - FedRep 下 BN 的 γ/β 共享、moving 统计量私有（D-032）。这是实现选择，不是 TF / torch 的框架差别（F-036）。
     - `build_resnet10` 的 stride-2 卷积用 `same`，主路与 shortcut 错位 1 像素，BN 与初始化也是 Keras 默认值（F-033）。A4 新增 `resnet10_torch` 对齐，冻结的 `resnet10` 不动（D-034）。
     - edge 改为按 edge 轮交错执行（共享生成器在顺序执行下更新次序偏斜，F-038），配额按有效轮轮转（D-036）。
-    - FedRep 训练顺序（先 head 还是先 body）用 pilot 定（D-031）。
+    - FedRep 训练顺序：pilot 判 different（body_first 的 fresh pm_acc 低约 0.10），用户定**维持 head_first**（D-045，A26 `deviate`）。
 
     `experiments/METRICS.md` 里「ξ 用的是 mal[0] 的模型」这句与两边都不符；它与 Bad-PFL 库双份同步，改时两库一起改。
     **`AUDIT.md` 全部关闭之前，不跑任何 P2 run**（D-006）；`submit.sh` 与 `status.py` 会按这一条拦截。
+    **2026-09-27 已全部关闭**（pilot `2853433`，F-045），`PROTOCOL_VERSION = "P2"`；各 G 组现在只等自己的功能会话（S3–S8）。
 
 23. **GPU 确定性 × 在推理模式的 BN 上求梯度 → `UnimplementedError`（CPU 测不出）**
-    ✅ **已修**（2026-09-26，D-043；**GPU 上是否足够待 DET 重跑**）
+    ✅ **已修**（2026-09-26，D-043；**2026-09-27 GPU 上由 pilot 第二轮验证**，6 个 run 全部跑通，F-045）
     `enable_op_determinism()`（A15）下，TF 的 GPU `FusedBatchNormGradV3` 在
     `is_training=False` 时没有确定性实现，直接抛。Bad-PFL 的 PGD ξ、生成器训练（穿过冻结的 F
     回传）、评估侧 ξ 都在推理模式的 F 上求梯度 → exp3 改版的 pilot 第一轮 6 个 run 全崩（F-043）。

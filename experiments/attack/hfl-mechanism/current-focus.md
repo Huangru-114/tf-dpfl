@@ -1,8 +1,8 @@
 # current-focus —— Experiment 3（改版）· 交接
 
 > 本文件是 `CLAUDE.md`「新会话开场第 3 步」要读的那一份。
-> **写于 2026-09-26**（A4 会话结束时），**同日 A4 收口会话更新**：pilot 第一轮全部 `invalid`（F-043），已修（D-043 / D-044），
-> 下一会话 = **读 pilot 第二轮**：先 DET 两个短 run，再 4 个整 run；关最后 4 行、升 P2。
+> **写于 2026-09-27**（A4 收口会话结束时）。**A4 已收口**：AUDIT 全部关闭，口径升 P2。
+> 下一会话 = **用户从下面「下一步」里挑一个功能会话**（本文件不替用户定）。
 
 ## 几套编号（容易混，先看这里）
 
@@ -12,55 +12,38 @@
 | **S1–S8** | 功能会话的名字：S3 新划分、S4 影子攻击者、S5 逐 edge 轮评估、S6 更新日志…… | PLAN §5 |
 | **A01–A29** | `AUDIT.md` 的「对齐差异」行号 | AUDIT 第一、二节 |
 | **D01–D06** | `AUDIT.md` 的「有意偏离登记」行号 | AUDIT 第三节 |
-| **D-001 … D-044** | `DECISIONS.md` 的决策日志（带连字符、三位数），**与登记行 D01–D06 是两套东西** | DECISIONS |
-| **F-001 … F-044 / N-001 … N-006** | `FINDINGS.md` 的证据条目 / 设计备注 | FINDINGS |
+| **D-001 … D-046** | `DECISIONS.md` 的决策日志（带连字符、三位数），**与登记行 D01–D06 是两套东西** | DECISIONS |
+| **F-001 … F-045 / N-001 … N-006** | `FINDINGS.md` 的证据条目 / 设计备注 | FINDINGS |
 | **P0 / P1 / P2** | 数据批次的口径版本；只有 P2 进结论 | PLAN §0 |
 
-## 下一会话唯一要回答的问题
+## A4 收口的结论（2026-09-27）
 
-**pilot 回来之后：D-029 过没过、D-031 的两种顺序是否相同、GPU 上是否确定 —— 据此关掉 AUDIT 最后 4 行，把口径升到 P2。**
+| pilot | 结果 | 去向 |
+|---|---|---|
+| 第一轮 `e2ee9ca` | 6/6 `invalid`：GPU 确定性 × 推理模式 BN 求梯度（F-043） | D-043 `TorchBatchNorm`、D-044 有效性闸 |
+| 第二轮 `2853433` | 6/6 有效；**D-029 `pass`**、**A15 `pass`**、**D-031 `different`**（F-045） | A08 `deviate`、A25 `done`、A15 `done`；A26 由用户定 head_first → `deviate`（D-045） |
 
-### pilot 第一轮（`e2ee9ca`）：全部 `invalid`，四行一行没关
+- **AUDIT 全部关闭**，`fedavg/utils/provenance.py:PROTOCOL_VERSION = "P2"`。标定复核由 D029 两格抵扣（D-046）：
+  bd_eval_fraction 0.28 / 0.38，单格约 2.25–2.3 h，停轮 `converged`。
+- 旁注（F-045）：head_first 下 global_asr ≈ 0.998、fresh local_benign ≈ 0.91–0.95 —— **攻击接近饱和**。
+  终值类比较可能撞天花板；G2 主结论读的是 T_θ（到达阈值的轮数），受影响小一些，但 θ=0.75 附近的分辨率要看实测。
+- `status.py experiments/attack/hfl-mechanism/registry.yaml`：`todo=6`（G7）、`blocked=151`（只剩功能会话依赖）。
 
-- 6 个 run 都死于 `UnimplementedError … fused batch-norm backprop, when training is disabled … [FusedBatchNormGradV3]`：
-  A15 的 `enable_op_determinism()` × Bad-PFL 在推理模式的 F 上求梯度（PGD ξ、生成器训练、评估 ξ）。GPU-only，CPU 测不出（F-043）。
-- 崩之前恶意端已在训练侧抛异常、被吞、被踢出聚合（`client_failures` 全是恶意端 id）→ 那几轮没有攻击者。
-- 部分证据：良性路径第 1 轮在 3 个作业、2 个节点上 checksum 相同（F-044，`provisional`）。
-- 用户拍板：**D-043** 保留确定性，`resnet10_torch` 的 BN 推理模式不走 fused 核（`TorchBatchNorm`）；
-  **D-044** 判定加有效性闸（崩溃或 `client_failures` 非空 → `invalid`）。
-- **没有证据**：GPU 上修这一处够不够、恶意端 / 评估路径上还有没有别的不支持确定性的算子 → 先跑 DET。
+## 下一步（用户挑一个作为下一会话的唯一问题）
 
-## 客观判据
+| 功能会话 | 解锁 | run 数 | 说明 |
+|---|---|---|---|
+| **S5** 逐 edge 轮评估 | **G2**（3-A 结构扫描，**主结论**） | 55 | 单独就能解锁最大、最核心的一组；另是 G1 的三个前提之一 |
+| S3 新划分（C1–C4、层级 Dirichlet） | G3（3-B） | 21 | 另是 G0 / G1 的前提 |
+| S4 影子攻击者 + 攻击起始轮 | G5（3.3） | 15 | 另是 G0 的前提 |
+| S6 更新日志 | G4（3.2） | 12 | 3.2 的假设要先按 N-003 重新表述（用户） |
+| S8 三层个性化 | G6（3-E，可选） | 9 | |
+| —（无需会话） | **G7**（预处理对比，D-025） | 6 | 现在就能跑：先 `harness/registry.py …/registry.yaml --materialize`（只会写出 G7），提交后 `RUN_GROUPS=G7 bash …/submit.sh` |
 
-1. `python3 harness/pilot_a4.py experiments/attack/hfl-mechanism/pilot/registry.yaml --json <out>` 的输出就是判定，**不许手算**。
-   任何一格 `invalid`（D-044）→ 不是结论：看 `reasons` / `errors[]` / `client_failures[]`，修好重跑，不进下面几条。
-   DET 回来时另外手看一眼：`rounds[]` 非空（后门评估真的跑了）、`malicious_selected_rounds` 非空（攻击者真的在训）。
-2. D-029 `pass` → A08 改 `deviate`、A25 改 `done`；`fail` → 逐个开关消融（在 pilot 表里加组：模板 + 一条 `set` 把某个开关改回旧值），回审计。
-3. D-031 `same` → A26 改 `deviate`（维持 head_first）；`different` → 带回来由用户定。
-4. DET `pass` → A15 改 `done`；`fail` → 看第一个分叉轮，回审计（D-028 写了「算子不支持或慢得不可接受就重议」）。
-5. 4 行都关 → `fedavg/utils/provenance.py:PROTOCOL_VERSION = "P2"`；同步 `tests/test_registry.py::test_real_audit_parses_and_is_open`；2 个 smoke 复核标定（见下）；`status.py` 解除 blocked。
+> `materialize` 只写 requires 里功能会话都具备的组，所以 `INDEX.tsv` 里现在只会有 G7，
+> `submit.sh`（只查 AUDIT 门槛）不会误交被功能会话挡住的组。
 
-## 用户要在集群上做的
-
-```bash
-git pull                                   # 本分支：claude/federated-learning-experiment-review-pt5j1b
-bash run_l1.sh 2>&1 | tail -3              # 预期：只有陷阱 #4 的 2 条红（F-041 修掉了另外 6 条）
-# ① 先探路：两个 5 云轮的短作业（训练约 5×155 s + 每轮后门评估，各约半小时内），把恶意端 + 评估路径在 GPU 上完整走一遍
-RUN_GROUPS="DET" bash experiments/attack/hfl-mechanism/pilot/submit_pilot.sh
-# 回传 pilot/results/P1/DET/*.metrics.json（2 个）→ Claude 判 A15 + 查有效性
-# ② DET 有效（不崩、client_failures 空）之后再交剩下 4 个整 run（已完成的自动跳过）
-bash experiments/attack/hfl-mechanism/pilot/submit_pilot.sh --dry-run    # 应列出 4 个 run
-bash experiments/attack/hfl-mechanism/pilot/submit_pilot.sh
-# 回传 experiments/attack/hfl-mechanism/pilot/results/P1/{D029,A26}/*.metrics.json（4 个）
-```
-
-第一轮的 6 个 metrics.json 会被同路径覆盖，原件在 `e2ee9ca`（F-043 引用它）。
-
-预算：D029 + A26 共 4 个整 run（D-029 估 2 个约 2.5 GPU-h），外加 DET 两个 5 云轮的短 run。
-**模板全开时每轮后门评估约是原来的 2–3 倍**（fresh + 陈旧 + 白盒三套，N-005 在 CPU 上量到约 28 s / 轮）；
-`metrics.json` 的 `timing_summary` 会给出实数，4 个整 run 如果超出 sbatch 的 24 h 要先告诉用户。
-
-## A4 做完了什么（2026-09-26）
+## A4 做完了什么（2026-09-26 / 27）
 
 | 提交 | 内容 |
 |---|---|
@@ -69,23 +52,28 @@ bash experiments/attack/hfl-mechanism/pilot/submit_pilot.sh
 | `943bbf9` C3 | A29 `resnet10_torch`、A27 BN 统计量私有、A24 只在 body 投毒、A26 `fedrep_order`、A25 `data/epoch_pipeline.py` |
 | `d08bdea` C4 | A28 fresh-PM（`utils/pm.py`、`CloudServer.main_pm`）、A02 固定攻击者 + `[设定5]`、A06 `[ASR4]`、陈旧列 `[Stale]` / `[StaleASR]`、白盒 `[ASRwb]`；collect_metrics schema 3 |
 | `7e43a42` C5 | A08 / D02 有效轮、D01 交错执行、A15 确定性 + `[Checksum]` |
-| 本提交 C6 | P2 `base.yaml`、登记表 base + overlays + G7、pilot 表 + `submit_pilot.sh` + `harness/pilot_a4.py`、AUDIT / DECISIONS / FINDINGS / CLAUDE.md |
+| `e820c00` C6 | P2 `base.yaml`、登记表 base + overlays + G7、pilot 表 + `submit_pilot.sh` + `harness/pilot_a4.py`、AUDIT / DECISIONS / FINDINGS / CLAUDE.md |
+| `299afe6` 收口 1 | `TorchBatchNorm`（D-043）、pilot 有效性闸（D-044）、`tests/test_bn_inference_determinism.py`（CPU 上模拟 GPU 检查） |
+| 本提交 收口 2 | AUDIT 最后 4 行关闭、`PROTOCOL_VERSION = "P2"`、D-045 / D-046、F-045 |
 
-- AUDIT：`done` 新增 A01 A02 A03 A05 A06 A14 A16 A22 A24 A27 A28 A29 D01 D02；仍开着 **A08（open）A15（align）A25（align）A26（open）**。
-- 本会话的用户拍板：D-039（开关 + 一套模板）、D-040（评估尾块循环补足）、D-041（陈旧列 ξ 用攻击者陈旧模型）、D-042（pilot 完整 P2 代码路径 + DET 组）。
-- L1：本地无 TF 950+ passed；TF 2.15.1 CPU venv 只剩陷阱 #4 的 2 条红。本地接线 smoke（N-005）两种模板状态都跑通。
+- AUDIT：`done` 新增 A01 A02 A03 A05 A06 A14 A16 A22 A24 A27 A28 A29 D01 D02；收口时 A15 A25 `done`、A08 A26 `deviate` → **全部关闭**。
+- 用户拍板：D-039（开关 + 一套模板）、D-040（评估尾块循环补足）、D-041（陈旧列 ξ 用攻击者陈旧模型）、D-042（pilot 完整 P2 代码路径 + DET 组）；收口：D-043 … D-046。
+- L1（收口时）：本地无 TF 974 passed / 33 skipped / 3 xfailed；TF 2.15.1 CPU venv 只剩陷阱 #4 的 2 条红。
 
-## 升 P2 时要一起做的
+## 升 P2 时做了的 / 没做的
 
-- `PROTOCOL_VERSION = "P2"` 之后，`registry.yaml` 的 G7 才能真跑（`materialize` 现在就能生成它的配置，但 `submit.sh` 在 AUDIT 关完之前拒绝提交）。
-- 「2 个 smoke 复核标定」：P2 模板下 flat 与 2edge 各一个短 run，看 `timing_summary` 里 `bd_eval_fraction`、`[Checksum]`、`stop_reason`；评估开销若不可接受，考虑让白盒 / 陈旧副列隔几个评估点才算一次（要写进 DECISIONS）。
-- `experiments/METRICS.md` 里「ξ 用的是 mal[0] 的模型」一句，按 D-015 + D-033 改为「按 seed 固定选的一个恶意端的 fresh-PM」—— 该文件与 Bad-PFL 库双份同步，由用户改（`test_metrics_doc.py` 守着）。
+- 做了：`PROTOCOL_VERSION = "P2"`；`test_registry.py::test_real_audit_parses_and_is_closed`（原 `…_is_open`）断言 `audit_open_rows == []`；
+  `test_status.py::test_v2_after_the_audit_only_feature_sessions_block`（G7 = todo，其余 151 只剩功能会话）。
+- 没做（用户的事）：`experiments/METRICS.md` 里「ξ 用的是 mal[0] 的模型」一句，按 D-015 + D-033 改为「按 seed 固定选的一个恶意端的 fresh-PM」
+  —— 该文件与 Bad-PFL 库双份同步，由用户改（`test_metrics_doc.py` 守着）。
 
 ## 挂着的事（不属于收口，但别忘了）
 
 | 事 | 谁 | 说明 |
 |---|---|---|
 | 合并回 main | 用户决定 | 本分支领先 `origin/main`；**Claude 没有合并** |
+| 攻击接近饱和（F-045） | 用户 | G 组的终值类比较可能撞天花板；设计 / 解读时考虑 |
+| `git_dirty` 排除结果文件 | 需要时 | 结果写在仓库里 → 同批后提交的 run 都会 `dirty=1`，区分不了代码脏还是结果脏（F-045） |
 | 3.2 的假设重新表述 | 用户 | N-003：只在 body 投毒后「私有 head 吸收」的机制要改写；S6 / G4 之前定 |
 | G4 的 FedAvg 一侧 | S6 | fresh-PM 对 FedAvg 就是当前 edge 模型（D-033），`private_state()` 为空 |
 | S1b：修 `exp3_cell.sbatch` 写死的 `--defense none` | 需要时 | D-007 |
@@ -97,9 +85,10 @@ bash experiments/attack/hfl-mechanism/pilot/submit_pilot.sh
 - **P2 配置不能少开一项**：想做消融就登记在 pilot 表（P1 口径），不要在 P2 表里改回旧值（`config_validate` 会拒绝）。
 - **`per_epoch` 管线只接了 Bad-PFL**：静态投毒（vanilla / neurotoxin）会被它绕过，`config_validate` 已拒绝这种组合。
 - **fresh-PM 的草稿模型会被下一次同 slot 调用覆盖**（`CloudServer.pm_model`）：取一个、用完、再取下一个。
-- **pilot 用 `pilot/submit_pilot.sh`，不是上一级的 `submit.sh`**（后者在 AUDIT 关完之前拒绝提交，D-006）。
+- **pilot 用 `pilot/submit_pilot.sh`，不是上一级的 `submit.sh`**。pilot 登记表是 P1 口径：升 P2 之后再重跑 pilot，`status.py` 会把它们标成 `stale`（口径不符）—— 那是对的，pilot 已经判完了。
+- **`run.provenance.protocol` 是代码版本**：此后连冻结的 P1 配置重跑也记 P2；配置是不是 P2 口径看 `run.alignment.template`（p2 / legacy / mixed）。
 - **D-029 的 pm_acc 门槛读 `pm_acc_stale`**（陈旧列，与 P1 同一定义）；主列 `pm_acc` 现在是 fresh-PM，不能拿它比 P1。
-- **AUDIT 的行号只能是 `A##` / `D##`**，每行恰好一个状态词，格子里不写 `|`；`test_real_audit_parses_and_is_open` 写死了各行状态，改状态要同步改它。
+- **AUDIT 的行号只能是 `A##` / `D##`**，每行恰好一个状态词，格子里不写 `|`；`test_real_audit_parses_and_is_closed` 写死了各行状态，改状态要同步改它。
 - **`resnet10` 是冻结配置用的**，P2 写 `resnet10_torch`（模板里已经是）。
 - 旧方案的登记表在 `hfl-propagation/registry/v1.yaml`，不能放到那个目录顶层（`run_exp3.sh` 会把它当格子提交）；`submit.sh` 用 `RUN_GROUPS`，不能叫 `GROUPS`。
 - 用 `git archive` 解到别处跑 L1 时，`test_provenance.py::test_git_commit_matches_git_rev_parse_on_this_repo` 会假红（没有 `.git`）。
