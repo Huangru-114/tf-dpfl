@@ -17,6 +17,12 @@ harness/pilot_a4.py  —  A4 可行性 pilot 的预注册判定（先定后跑�
       单 seed，只分辨得出大差异（D-031 已写明）。
   A15 确定性（D-028）—— DET 组两次 run 的 [Checksum] 前 5 轮逐轮相同 → pass（A15 改 done）。
 
+**有效性闸**（D-044，在上面三个判定之前、不改任何阈值）：exit_code ≠ 0 或 client_failures
+非空 → 该 run 判 `invalid`。起因（FINDINGS F-043）：第一轮 pilot 的恶意端每次都在
+on_round_start 抛异常、被 `_collect_updates_*` 吞掉并踢出聚合 → 整段训练没有攻击者；
+若评估侧没崩，D-029（ASR 不设门槛）会判 pass、D-031 两臂 ASR 都≈0 会判 same。
+崩溃也不再判 `fail`：崩溃不是可行性结论。
+
 纯标准库 + PyYAML，不 import TF。
 """
 
@@ -45,16 +51,39 @@ def _mean10(rows, key):
     return mean, n
 
 
+def invalid_reasons(m: dict) -> list:
+    """这个 run 能不能算数（前提，不是阈值；D-044）。空列表 = 有效。"""
+    reasons = []
+    if m.get("exit_code") not in (0, None):
+        reasons.append(f"exit_code={m.get('exit_code')}（崩溃，看 errors[]）")
+    fails = m.get("client_failures") or []
+    if fails:
+        ids = sorted({f["client_id"] for f in fails if "client_id" in f}
+                     | {i for f in fails for i in f.get("dropped") or []})
+        reasons.append(f"client_failures 非空（{len(fails)} 条，client_id={ids}）："
+                       f"客户端异常被吞、该端被踢出聚合")
+    return reasons
+
+
+def _invalid(extra: dict, **runs) -> dict | None:
+    """runs：{标签: metrics}；多于一个时每条原因前面标上是哪个 run 的。"""
+    tag = len(runs) > 1
+    reasons = [f"{name}: {r}" if tag else r
+               for name, m in runs.items() for r in invalid_reasons(m)]
+    return {**extra, "verdict": "invalid", "reasons": reasons} if reasons else None
+
+
 def judge_d029(m: dict | None, cell: str) -> dict:
     if m is None:
         return {"cell": cell, "verdict": "missing"}
+    bad = _invalid({"cell": cell}, run=m)
+    if bad:
+        return bad
     run = m.get("run") or {}
     pm, n = _mean10(m.get("acc_rounds"), "pm_acc_stale")
     asr, _ = _mean10(m.get("rounds"), "local_benign_asr")
     floor = D029_PM_FLOOR[cell]
     reasons = []
-    if m.get("exit_code") not in (0, None):
-        reasons.append(f"exit_code={m.get('exit_code')}")
     if run.get("stop_reason") != "converged":
         reasons.append(f"stop_reason={run.get('stop_reason')!r}（要求 converged）")
     if pm is None:
@@ -71,6 +100,9 @@ def judge_d029(m: dict | None, cell: str) -> dict:
 def judge_d031(head_first: dict | None, body_first: dict | None, cell: str) -> dict:
     if head_first is None or body_first is None:
         return {"cell": cell, "verdict": "missing"}
+    bad = _invalid({"cell": cell}, head_first=head_first, body_first=body_first)
+    if bad:
+        return bad
     pm_h, _ = _mean10(head_first.get("acc_rounds"), "pm_acc")
     pm_b, _ = _mean10(body_first.get("acc_rounds"), "pm_acc")
     a_h, _ = _mean10(head_first.get("rounds"), "local_benign_asr")
@@ -88,6 +120,9 @@ def judge_d031(head_first: dict | None, body_first: dict | None, cell: str) -> d
 def judge_det(a: dict | None, b: dict | None, k: int = DET_ROUNDS) -> dict:
     if a is None or b is None:
         return {"verdict": "missing"}
+    bad = _invalid({}, rep1=a, rep2=b)
+    if bad:
+        return bad
     ca = {c["round"]: c["global"] for c in a.get("checksums") or []}
     cb = {c["round"]: c["global"] for c in b.get("checksums") or []}
     rounds = list(range(1, k + 1))
@@ -107,6 +142,8 @@ def judge_all(metrics: dict) -> dict:
 
     def _overall(parts, ok):
         vs = [p["verdict"] for p in parts]
+        if "invalid" in vs:
+            return "invalid"
         if "missing" in vs:
             return "missing"
         return ok if all(v == ok for v in vs) else ("fail" if ok == "pass" else "different")
@@ -121,6 +158,7 @@ def judge_all(metrics: dict) -> dict:
             "D-031 same": "维持 head_first，A26 → deviate",
             "D-031 different": "带回审计，由用户定",
             "A15 pass": "A15 → done；fail：看第一个分叉轮，回审计（D-028）",
+            "invalid": "不是结论：看 reasons / errors[] / client_failures[]，修好后重跑（D-044）",
         },
     }
 

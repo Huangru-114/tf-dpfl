@@ -235,14 +235,37 @@ def build_resnet10(input_shape=(32, 32, 3), num_classes=10):
 # 等价、不改的：stem（s1）、[1,1,1,1] 与通道、1×1 shortcut（pad 0）、GAP ≡ avg_pool2d(4)
 # （32×32 输入）、softmax + from_logits=False（输入梯度与 logits-CE 逐元素相等）。
 # **冻结的 build_resnet10 一字不改**（D-003：旧配置要能原样重跑）。
+# BN 另有一处框架层面的改动（不是对齐官方，是 GPU 确定性的前提）：推理模式不走 fused 核，
+# 见 TorchBatchNorm（D-043）。
 
 def _torch_kernel_init():
     return tf.keras.initializers.VarianceScaling(scale=1.0 / 3.0, mode="fan_in",
                                                  distribution="uniform")
 
 
+class TorchBatchNorm(tf.keras.layers.BatchNormalization):
+    """resnet10_torch 的 BN：**推理模式不走 fused 核**（A15 / D-043，FINDINGS F-043）。
+
+    `enable_op_determinism()` 下，GPU 的 `FusedBatchNormGradV3` 在 is_training=False 时
+    没有确定性实现，直接抛 UnimplementedError。Bad-PFL 的 PGD ξ、生成器训练（穿过冻结的 F
+    回传）、评估侧 ξ 都在**推理模式**的 F 上求梯度（A01 / A05 的官方语义）→ pilot 6 个 run 全崩。
+    推理模式改用 `tf.nn.batch_normalization`（逐元素 + 广播，梯度里没有 fused 算子）；
+    训练模式原样交给父类（fused，逐字节不变）。变量由父类 build 创建：名字、顺序、个数都不变
+    → get_weights 索引、FedRep 切分、A27 的统计量索引不受影响。
+    守卫：tests/test_bn_inference_determinism.py（含反向锚点：原生 BN 的图里有 FusedBatchNormGradV3）。
+    """
+
+    def call(self, inputs, training=None, **kwargs):
+        # Keras 2 语义：None → learning phase；trainable=False → 强制推理
+        training = self._get_training_value(training)
+        if training is False:
+            return tf.nn.batch_normalization(inputs, self.moving_mean, self.moving_variance,
+                                             self.beta, self.gamma, self.epsilon)
+        return super().call(inputs, training=training, **kwargs)
+
+
 def _torch_bn(name):
-    return tf.keras.layers.BatchNormalization(momentum=0.9, epsilon=1e-5, name=name)
+    return TorchBatchNorm(momentum=0.9, epsilon=1e-5, name=name)
 
 
 def _resnet_basic_block_torch(x, filters, stride, name):

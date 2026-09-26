@@ -445,3 +445,30 @@ for R in (5, 10, 20):
 - **N-004**：静态触发器（BadNet / Blended / DBA）在 `dataset: cifar100` 时仍用 CIFAR-10 的标准化常数（F-027 提过的约 8% 偏差）。A4 的规矩是开关之外逐字节不变，所以只在 `attack/triggers.py:trigger_space` 里写明、没有改。`data.normalize: false`（G7）时触发器已正确回到 [0,1] 口径。实验 3 只用 CIFAR-10 与 Bad-PFL，不受影响。
 - **N-005**：本环境拿不到 CIFAR-10（`www.cs.toronto.edu` 被网络策略 403）。本地端到端接线 smoke 的做法：一个很短的驱动脚本把 `tf.keras.datasets.cifar10.load_data` 换成同形状的随机 uint8 数组（3000 / 600 张），`sys.argv = ["main.py", "--config", cfg]` 后调 `main.run_experiment(cfg)`，cwd = `fedavg/`。A4 用它跑了模板全关与模板全开 + body_first 两次（20 客户端、2 edge、R=2、2 个云轮），都跑完、`client_failures` 为空、`collect_metrics` 能解析全部新行；交错执行的顺序在日志里可见。数字没有意义，只证明接线。CPU 上模板全开时每轮后门评估约 28 s（fresh + 陈旧 + 白盒三套）。
 
+
+## 2026-09-26（A4 收口：pilot 第一轮）
+
+### F-043 `confirmed` —— pilot 第一轮 6 个 run 全崩于「GPU 确定性 × 推理模式 BN 求梯度」；崩之前恶意端已被静默踢出聚合
+
+- 数据：`pilot/results/P1/*/*.metrics.json`（`e2ee9ca`）。provenance 全部 `git=e820c00451d0`、`dirty=0`，作业 3027656–3027661（n185 / n191 / n208 / n28）—— 代码版本无误。
+- 6 个 run `exit_code=1`，`errors[]` 同一句：`UnimplementedError: A deterministic GPU implementation of fused batch-norm backprop, when training is disabled, is not currently available. [Op:FusedBatchNormGradV3]`。
+- 成因：`training.deterministic_ops: true`（A15，`fedavg/main.py:687` `enable_op_determinism()`）下，TF 的 GPU `FusedBatchNormGradV3` 在 `is_training=False` 时没有确定性实现、直接抛；训练模式有（良性端训练正常）。在**推理模式**的 F 上求梯度的三处都是 A01 / A05 的官方语义：
+  - 训练侧：`client_badpfl.py` `_atk_train_generator` —— PGD ξ（`_atk_xi(self.model, …, training=False)`）与穿过冻结 F 回传到生成器（`self.model(x + xi + delta, training=False)`）；
+  - 评估侧（致命）：`log_tail` 的栈 `backdoor_server.py:266 _backdoor_eval` → `backdoor_eval.py:161 compute_asr_four_way` → `client_badpfl.py:284 eval_xi` → `:145 tape.gradient`。
+- **静默失败**：训练侧的异常被 `_collect_updates_*` 吞掉、该端被踢出聚合（陷阱「跑挂了先看 `client_failures[]`」）。`client_failures` 里的 id —— flat 71；2edge 25 / 39 / 49 / 68 / 87 —— **全在 `malicious_ids` 里**；`malicious_selected_rounds=[]`。即 flat 的 5 个云轮、2edge 的 1 个云轮**没有攻击者**。
+- 判定也瞎：若评估侧不崩，run 会「正常」跑完 —— D-029 对 ASR 不设门槛 → 会判 `pass`；D-031 两臂 ASR 都≈0 → 会判 `same`。→ D-044 的有效性闸。
+- 为什么 A4 没发现：这个检查只在 GPU kernel 里；F-042 的双跑在 CPU 上。
+- 复核：在 `e2ee9ca` 上跑 `python3 harness/pilot_a4.py experiments/attack/hfl-mechanism/pilot/registry.yaml` → 旧判定给 D-029 `fail`（原因首条 `exit_code=1`）；D-044 之后给 `invalid`（exit_code + client_failures 两条原因）。
+- 修复：D-043（`fedavg/models/cnn.py:TorchBatchNorm`）。守卫 `tests/test_bn_inference_determinism.py` 测的是**触发条件本身**（CPU 上不会抛，但图里有没有 `is_training=False` 的 fused BN 算子看得见）；反向锚点：冻结的 `resnet10` 在同一探针下有 `FusedBatchNormGradV3(is_training=False)`。另把 GPU 的检查**在 CPU 上模拟出来**（fixture `gpu_determinism_check`：替换梯度注册表里 FusedBatchNorm* 的梯度函数，`is_training=False` 就抛 —— 与 GPU kernel 同一个条件），直接跑 Bad-PFL 的三处调用点（生成器训练、`on_batch`、`eval_trigger`）：原生 BN 在生成器训练处就抛（= pilot 训练侧），`TorchBatchNorm` 三处都过。把 `_torch_bn` 改回原生 BN 时 3 条红（推理梯度图、clone 后的图、三处调用点）。
+- 端到端复现（CPU，N-005 的做法 + 上面的模拟检查）：DET 配置缩到 20 客户端 / 2 edge / R_edge=2 / 2 个云轮，随机数据。原生 BN：`client_failures` = [5, 6, 14, 18]（**恰好是全部 `malicious_ids`**）、`malicious_selected_rounds=[]`、第 1 轮评估处崩 —— 与 pilot 同一形状；`TorchBatchNorm`：跑完，`client_failures` 空、`malicious_selected_rounds=[1, 2]`、2 个评估点、D-044 的闸判有效。这次 run 里被求过梯度的前向算子：AddV2 BiasAdd Conv2D Conv2DBackpropInput DivNoNan FusedBatchNormV3（只剩训练模式）GatherV2 LogSoftmax MatMul Mean Mul Neg Pad ReadVariableOp Relu Select Sub Sum Tanh。
+- **没有证据的部分**：GPU 上这一处修好之后，恶意端 / 评估路径上还有没有别的不支持确定性的算子 —— 这两条路径在 GPU 上一次都没完整跑过。由 DET 组重跑回答（先于 4 个整 run 提交）。
+
+### F-044 `provisional` —— GPU 上**良性路径**第 1 轮跨作业、跨节点逐位相同（A15 的部分证据）
+
+- DET rep1（3027660，n185）、DET rep2（3027661，n208）、D029__2edge_distributed（3027657，n208）配置只差 `n_rounds` / `stopping`，第 1 轮 `[Checksum]` 都是 `956479ead511`，gm / em / pm / pm_stale = 0.4186 / 0.4796 / 0.4801 / 0.2611 完全相同，`client_failures` 也逐条相同。
+- 为什么只是 `provisional`：这一轮恶意端全被踢掉（F-043），恶意端路径与评估路径都没参与；且只有 1 轮（A15 的判据是前 5 轮）。**A15 仍是 `align`**。
+- flat 的 D029 与 A26 第 1 轮 checksum 不同（`0487ed75b1b7` / `ff9377a4acf0`）、2edge 同理 —— 预期内：两组只差 FedRep 训练顺序。
+
+### 设计备注
+
+- **N-006**：pilot 第一轮的墙钟（无攻击者、没跑到后门评估）：flat ≈ 51 s / 云轮（5 轮均值），2edge ≈ 155 s / 云轮（R_edge=5）。按有效轮 floor 150 / cap 300：flat 约 2.1–4.3 h、2edge 约 1.3–2.6 h，另加恶意端（生成器 30 步 + 逐批 PGD）与后门评估（CPU 上约 28 s / 次，N-005）。在 24 h 的 sbatch 上限内；整 run 的实数看重跑后的 `timing_summary`。

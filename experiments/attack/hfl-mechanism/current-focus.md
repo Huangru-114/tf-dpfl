@@ -1,7 +1,8 @@
 # current-focus —— Experiment 3（改版）· 交接
 
 > 本文件是 `CLAUDE.md`「新会话开场第 3 步」要读的那一份。
-> **写于 2026-09-26**（A4 会话结束时）。下一会话 = **A4 收口**：读 pilot 结果、关最后 4 行、升 P2。
+> **写于 2026-09-26**（A4 会话结束时），**同日 A4 收口会话更新**：pilot 第一轮全部 `invalid`（F-043），已修（D-043 / D-044），
+> 下一会话 = **读 pilot 第二轮**：先 DET 两个短 run，再 4 个整 run；关最后 4 行、升 P2。
 
 ## 几套编号（容易混，先看这里）
 
@@ -11,17 +12,29 @@
 | **S1–S8** | 功能会话的名字：S3 新划分、S4 影子攻击者、S5 逐 edge 轮评估、S6 更新日志…… | PLAN §5 |
 | **A01–A29** | `AUDIT.md` 的「对齐差异」行号 | AUDIT 第一、二节 |
 | **D01–D06** | `AUDIT.md` 的「有意偏离登记」行号 | AUDIT 第三节 |
-| **D-001 … D-042** | `DECISIONS.md` 的决策日志（带连字符、三位数），**与登记行 D01–D06 是两套东西** | DECISIONS |
-| **F-001 … F-042 / N-001 … N-005** | `FINDINGS.md` 的证据条目 / 设计备注 | FINDINGS |
+| **D-001 … D-044** | `DECISIONS.md` 的决策日志（带连字符、三位数），**与登记行 D01–D06 是两套东西** | DECISIONS |
+| **F-001 … F-044 / N-001 … N-006** | `FINDINGS.md` 的证据条目 / 设计备注 | FINDINGS |
 | **P0 / P1 / P2** | 数据批次的口径版本；只有 P2 进结论 | PLAN §0 |
 
 ## 下一会话唯一要回答的问题
 
 **pilot 回来之后：D-029 过没过、D-031 的两种顺序是否相同、GPU 上是否确定 —— 据此关掉 AUDIT 最后 4 行，把口径升到 P2。**
 
+### pilot 第一轮（`e2ee9ca`）：全部 `invalid`，四行一行没关
+
+- 6 个 run 都死于 `UnimplementedError … fused batch-norm backprop, when training is disabled … [FusedBatchNormGradV3]`：
+  A15 的 `enable_op_determinism()` × Bad-PFL 在推理模式的 F 上求梯度（PGD ξ、生成器训练、评估 ξ）。GPU-only，CPU 测不出（F-043）。
+- 崩之前恶意端已在训练侧抛异常、被吞、被踢出聚合（`client_failures` 全是恶意端 id）→ 那几轮没有攻击者。
+- 部分证据：良性路径第 1 轮在 3 个作业、2 个节点上 checksum 相同（F-044，`provisional`）。
+- 用户拍板：**D-043** 保留确定性，`resnet10_torch` 的 BN 推理模式不走 fused 核（`TorchBatchNorm`）；
+  **D-044** 判定加有效性闸（崩溃或 `client_failures` 非空 → `invalid`）。
+- **没有证据**：GPU 上修这一处够不够、恶意端 / 评估路径上还有没有别的不支持确定性的算子 → 先跑 DET。
+
 ## 客观判据
 
 1. `python3 harness/pilot_a4.py experiments/attack/hfl-mechanism/pilot/registry.yaml --json <out>` 的输出就是判定，**不许手算**。
+   任何一格 `invalid`（D-044）→ 不是结论：看 `reasons` / `errors[]` / `client_failures[]`，修好重跑，不进下面几条。
+   DET 回来时另外手看一眼：`rounds[]` 非空（后门评估真的跑了）、`malicious_selected_rounds` 非空（攻击者真的在训）。
 2. D-029 `pass` → A08 改 `deviate`、A25 改 `done`；`fail` → 逐个开关消融（在 pilot 表里加组：模板 + 一条 `set` 把某个开关改回旧值），回审计。
 3. D-031 `same` → A26 改 `deviate`（维持 head_first）；`different` → 带回来由用户定。
 4. DET `pass` → A15 改 `done`；`fail` → 看第一个分叉轮，回审计（D-028 写了「算子不支持或慢得不可接受就重议」）。
@@ -32,10 +45,16 @@
 ```bash
 git pull                                   # 本分支：claude/federated-learning-experiment-review-pt5j1b
 bash run_l1.sh 2>&1 | tail -3              # 预期：只有陷阱 #4 的 2 条红（F-041 修掉了另外 6 条）
-bash experiments/attack/hfl-mechanism/pilot/submit_pilot.sh --dry-run    # 应列出 6 个 run
-bash experiments/attack/hfl-mechanism/pilot/submit_pilot.sh              # 提交
-# 回传 experiments/attack/hfl-mechanism/pilot/results/P1/*/*.metrics.json（6 个）
+# ① 先探路：两个 5 云轮的短作业（训练约 5×155 s + 每轮后门评估，各约半小时内），把恶意端 + 评估路径在 GPU 上完整走一遍
+RUN_GROUPS="DET" bash experiments/attack/hfl-mechanism/pilot/submit_pilot.sh
+# 回传 pilot/results/P1/DET/*.metrics.json（2 个）→ Claude 判 A15 + 查有效性
+# ② DET 有效（不崩、client_failures 空）之后再交剩下 4 个整 run（已完成的自动跳过）
+bash experiments/attack/hfl-mechanism/pilot/submit_pilot.sh --dry-run    # 应列出 4 个 run
+bash experiments/attack/hfl-mechanism/pilot/submit_pilot.sh
+# 回传 experiments/attack/hfl-mechanism/pilot/results/P1/{D029,A26}/*.metrics.json（4 个）
 ```
+
+第一轮的 6 个 metrics.json 会被同路径覆盖，原件在 `e2ee9ca`（F-043 引用它）。
 
 预算：D029 + A26 共 4 个整 run（D-029 估 2 个约 2.5 GPU-h），外加 DET 两个 5 云轮的短 run。
 **模板全开时每轮后门评估约是原来的 2–3 倍**（fresh + 陈旧 + 白盒三套，N-005 在 CPU 上量到约 28 s / 轮）；

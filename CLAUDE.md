@@ -688,3 +688,20 @@ methods-registry.md   所有候选方法的台账 = 研究看板
 
     `experiments/METRICS.md` 里「ξ 用的是 mal[0] 的模型」这句与两边都不符；它与 Bad-PFL 库双份同步，改时两库一起改。
     **`AUDIT.md` 全部关闭之前，不跑任何 P2 run**（D-006）；`submit.sh` 与 `status.py` 会按这一条拦截。
+
+23. **GPU 确定性 × 在推理模式的 BN 上求梯度 → `UnimplementedError`（CPU 测不出）**
+    ✅ **已修**（2026-09-26，D-043；**GPU 上是否足够待 DET 重跑**）
+    `enable_op_determinism()`（A15）下，TF 的 GPU `FusedBatchNormGradV3` 在
+    `is_training=False` 时没有确定性实现，直接抛。Bad-PFL 的 PGD ξ、生成器训练（穿过冻结的 F
+    回传）、评估侧 ξ 都在推理模式的 F 上求梯度 → exp3 改版的 pilot 第一轮 6 个 run 全崩（F-043）。
+    **更糟的是崩之前**：训练侧的异常被 `_collect_updates_*` 吞掉，恶意端被踢出聚合，run 在
+    **没有攻击者**的状态下照常往下跑 —— 只是评估侧恰好也崩了才暴露。
+    这个检查只在 GPU kernel 里，**CPU 上的 L1 / 本地 smoke 永远是绿的**（F-042 就是 CPU 双跑）。
+    现：`resnet10_torch` 的 BN 是 `models/cnn.py:TorchBatchNorm` —— 推理模式用
+    `tf.nn.batch_normalization`，训练模式原样 fused。守卫 `tests/test_bn_inference_determinism.py`
+    测**图里有没有 `is_training=False` 的 fused BN 算子**（CPU 上看得见），反向锚点是冻结的 `resnet10`；
+    fixture `gpu_determinism_check` 把 GPU 的这条检查在 CPU 上模拟出来（改梯度注册表），
+    直接跑 Bad-PFL 的三处调用点 —— 原生 BN 在 CPU 上就复现 pilot 的崩溃。
+    pilot 判定另加有效性闸（D-044）：`client_failures` 非空或崩溃 → `invalid`，不再判 `pass`/`fail`。
+    > **新模型要开确定性**：BN 一律用 `TorchBatchNorm`（或同样的推理路径），并把它加进那个测试。
+    > **任何「GPU 上才会抛」的东西**：先用 `RUN_GROUPS=DET` 这类几分钟的短作业探路，再烧整 run。

@@ -165,3 +165,63 @@ def test_overall_needs_both_cells():
     ms3 = dict(ms)
     ms3.pop(("A26", "flat"))
     assert P.judge_all(ms3)["D-031"]["overall"] == "missing"
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 有效性闸（D-044）：run 能不能算数，在判定之前、不改阈值
+# ══════════════════════════════════════════════════════════════════════════
+# 第一轮 pilot（e2ee9ca）的真实形状：恶意端的异常被吞、被踢出聚合
+_SWALLOWED = [{"client_id": 49, "error": "UnimplementedError ..."},
+              {"edge_id": 0, "dropped": [49]}, {"edge_id": 1, "dropped": [87]}]
+
+
+def _broken(m, *, exit_code=0, failures=None):
+    m = copy.deepcopy(m)
+    m["exit_code"] = exit_code
+    m["client_failures"] = failures or []
+    return m
+
+
+def test_clean_run_has_no_invalid_reasons():
+    assert P.invalid_reasons(_m(pm_stale=0.75)) == []
+    assert P.invalid_reasons(_broken(_m(pm_stale=0.75))) == []        # 空列表 = 有效
+
+
+def test_swallowed_client_failure_makes_d029_invalid_not_pass():
+    """反向锚点：同样的数字，client_failures 为空时 pass —— 闸是唯一的差别。"""
+    good = _m(pm_stale=0.80)
+    assert P.judge_d029(good, "flat")["verdict"] == "pass"
+    r = P.judge_d029(_broken(good, failures=_SWALLOWED), "flat")
+    assert r["verdict"] == "invalid" and "[49, 87]" in r["reasons"][0]
+
+
+def test_crash_is_invalid_not_a_feasibility_fail():
+    r = P.judge_d029(_broken(_m(pm_stale=0.27), exit_code=1), "flat")
+    assert r["verdict"] == "invalid" and "exit_code=1" in r["reasons"][0]
+
+
+def test_d031_is_invalid_if_either_arm_is():
+    h = _m(pm=0.740, asr=0.0)
+    b = _m(pm=0.741, asr=0.0)                      # 没有攻击者：两臂 ASR 都≈0 → 会判 same
+    assert P.judge_d031(h, b, "flat")["verdict"] == "same"
+    r = P.judge_d031(h, _broken(b, failures=_SWALLOWED), "flat")
+    assert r["verdict"] == "invalid" and r["reasons"][0].startswith("body_first: ")
+    assert P.judge_d031(_broken(h, exit_code=1), b, "flat")["verdict"] == "invalid"
+
+
+def test_det_is_invalid_if_either_run_is():
+    ok = [(r, "a" * 12) for r in range(1, 6)]
+    a = _m(checks=ok)
+    assert P.judge_det(a, _broken(a, failures=_SWALLOWED))["verdict"] == "invalid"
+
+
+def test_overall_reports_invalid():
+    good = _m(pm_stale=0.75, pm=0.74, asr=0.7,
+              checks=[(r, "a" * 12) for r in range(1, 6)])
+    ms = {("D029", "flat"): good, ("D029", "2edge_distributed"): good,
+          ("A26", "flat"): good, ("A26", "2edge_distributed"): good,
+          ("DET", "rep1"): good, ("DET", "rep2"): good}
+    ms[("D029", "flat")] = _broken(good, failures=_SWALLOWED)
+    res = P.judge_all(ms)
+    assert res["D-029"]["overall"] == "invalid" and res["D-031"]["overall"] == "invalid"
+    assert res["A15-determinism"]["verdict"] == "pass"
