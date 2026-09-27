@@ -315,12 +315,25 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
     - `hfl-mechanism/pack.sbatch`：一张 GPU 并行 K 个 run（`TF_FORCE_GPU_ALLOW_GROWTH=true`、每个 run 绑自己的核）。
       **先测后用**：`pilot/submit_pack_test.sh` + `harness/pack_test.py`（前 5 轮 checksum 必须等于 DET 第二轮、
       加速比 ≥ 1.5）。**2026-09-27 测完：K=3 加速比 2.86、checksum 全等 → 采用 K=3**（D-048；F-048）；
-      显存峰值 96 GiB 已近满 → 新配置类型先单独交一个 pack 作业看显存。**接入 `submit.sh` 在下一会话**，之前仍一卡一跑。
+      显存峰值 96 GiB 已近满 → 新配置类型先单独交一个 pack 作业看显存。
+    - **已接入提交脚本**（`c88a023`，D-052 / D-053）：`PACK=3 RUN_GROUPS=… bash hfl-mechanism/submit.sh`
+      （`pilot/submit_pilot.sh` 同样；共用 `submit_lib.sh`，纯 bash）。`PACK` 不设 = 一卡一跑，逐字同以前。
+      **核心是不触发 OOM、尽量省机时**：同一包只放同一格子的不同 seed；格子第一次只交 K=2 的探路包、其余 held；
+      回传后按**真实显存峰值**定 K（服务器新打的 `[GPUMem]` = TF 分配器 `get_memory_info` 峰值 → `gpu_mem.peak_mib`；
+      整卡 `memory.used` 在 allow_growth 下含预留块、偏大，F-053）；OOM 过 → 降一档。
+      被 `_collect_updates_*` 吞掉的 OOM 会让 run 照样 exit 0 → `pack.sbatch` 按日志判 OOM、exit_code 记 86。
+      exit 0 但 config_sha 不符 = `stale`，**默认不重交**（`RESUBMIT_STALE=1` 才交）。**交完等回传再跑下一次**（不查队列）。
+      `PACK_MEM_PCT=85` / `PACK_CTX_MIB=1024` **没有证据**，第一批满长包回来后校准。守卫 `tests/test_pack_submit.py`。
     - `[TimingASR] Round N | main=… | whitebox=… | stale=…`（独立 kv 行，**不改 `[Timing]`**）→
       `timing_rounds[].asr_*_s` 与 `timing_summary.asr_split_total_s`。实测白盒 7.2%、陈旧 ASR 7.3% 墙钟（F-051）
-      → D-050：**白盒关、陈旧 ASR 隔点**（陈旧 pm_acc 照旧）—— 已定、**未实现**（下一会话）。
+      → D-050 / D-054：**白盒关、陈旧 ASR 与陈旧 pm_acc 都隔点**（同一批点，共用 `CloudServer._eval_seq`）——
+      **已实现**（`68f865d`）：开关在 `alignment.EXTRA_SWITCHES`（预算旋钮，不进模板），P2 的值在 `hfl-mechanism/base.yaml`。
+      副列终值用 `runs_table.window_mean`（末 10 个评估点窗口），**不要用 `last_k_mean`**（先丢 None 再往回够）。
+      另有 `[TimingAcc]`（GM / EM / PM / 陈旧 PM 分项）→ `timing_summary.acc_split_total_s`。守卫 `tests/test_eval_downsampling.py`。
       **白盒 ≈ 主列是重要发现**（私有 head 挡不住 ξ）；**fresh-PM 会低估干净精度**，10edge 达 0.094（F-051）。
     - G2 先做一致性复测（pilot 表 G2P + `pilot_a4.judge_g2p`）；G4 搁置（`registry.yaml` 的 requires 含 `reformulate-3.2`）。
+    - **G2 与 S5 暂缓**（D-056，规模待用户定；S5 预案 D-055）；**下一会话 = S8 → G6**。
+      停止判据的斜率横轴是云轮号 → flat 比 R5 宽松 5 倍（F-052，代码证据、无数值证据），S5 预案里改。
     - **登记表补 `set:` 时核对三件**：`malicious_per_edge` 长度 = `n_edges`；`n_rounds × edge_rounds ≥ cap_effective`；
       各格评估网格（有效轮）一致 —— G2 当初三件都漏了（F-046）。
 

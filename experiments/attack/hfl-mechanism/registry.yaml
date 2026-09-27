@@ -10,6 +10,10 @@
 #     其余组只等自己的功能会话（S3 划分 / S4 下限与时间窗 / S5 逐 edge 轮评估 / S6 更新日志 / S8）
 #   · 各组因素的 label 已定；**大多数 `set:` 要等功能会话实现后再填**（G2 的布点与轮数 2026-09-27 已补，D-047）
 #   · G4 搁置（D-047）：requires 里的 `reformulate-3.2` 是故意的 —— 等 3.2 按 N-003 重新表述
+#   · G2 暂缓（D-056）：规模待用户定；S5 也暂缓（预案 D-055）。下一会话 = S8 → G6
+#   · 2026-09-27：base.yaml 加了评估降频（D-050 / D-054）→ 所有 P2 组的 config_sha 变了。
+#     已判完的 G7 **还没有**重新 materialize（configs/INDEX.tsv 仍是旧 sha）；下次 materialize 后
+#     G7 显示 stale —— 预期，submit.sh 默认不重交 stale（D-053）
 # 功能会话完成时，把它的 token 加进 `available`，并补上对应组的 `set:`。
 # **补 `set:` 时核对三件**（G2 就是漏了这三件，test_registry 守着）：
 #   malicious_per_edge 的长度 = n_edges；n_rounds × edge_rounds ≥ cap_effective；各格评估网格（有效轮）一致。

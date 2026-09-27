@@ -612,3 +612,38 @@ T50 = 主列（fresh-PM）良性 ASR 首次越过 0.5 的有效轮（每 5 有�
 - 墙钟占比（本次 9 个带 `[TimingASR]` 的 run 加权）：白盒 **7.2%**、陈旧 ASR **7.3%**（每个评估点约 14–15 s，很稳定）；
   陈旧 pm_acc 在精度评估里、未单独计时。K=3 后整个剩余计划估约 125 GPU-h：白盒 ≈ 9 GPU-h、陈旧 ASR ≈ 9 GPU-h（减半省 ≈ 4.6）。
   → D-050：白盒关掉；陈旧 ASR 隔点算；陈旧 pm_acc 照旧。
+
+## 2026-09-27（一卡多跑接入 + 评估降频，`c88a023` / `68f865d`）
+
+### F-052 `confirmed`（代码）/ 无数值证据（影响多大）—— 停止判据的斜率横轴是**云轮号**，判据随 R_edge 变
+
+- `stopping.py:StoppingRule.update(round_idx, …)` 把 `(round_idx, value)` 存进序列，`pm_slope()` 对它做 OLS
+  → 斜率单位是「每云轮」；`CloudServer.run` 每个云轮调一次（`server.py`）。`pm_slope_tol = 0.0010` 于是：
+  | 格 | 评估点间隔（有效轮） | 容差折成「每有效轮」 | 凑满 pm_window=10 点要 |
+  |---|---|---|---|
+  | flat（R=1，eval_interval 5） | 5 | 0.0010 | 50 有效轮 |
+  | R5 | 5 | 0.0002 | 50 |
+  | R10 | 10 | 0.0001 | 100 |
+  | R20 | 20 | 0.00005 | 200 |
+- 即 **flat 比 R5 宽松 5 倍**，R10 / R20 越来越严、且要很久才有 10 个点 —— 跨 R 比较时「跑多久」本身随 R 变。
+- **没有数值证据**说明它实际改变了多少停轮：F-046 的 D029 flat 停 115、2edge 停 210 与它方向一致，但单 seed、混着别的差异。
+- 处理：S5 预案里把横轴改为网格序号（eff / G），R5 逐位不变（D-055）；S5 与 G2 暂缓（D-056），在那之前 G2 的
+  跨 R 结论都受它影响。
+
+### F-053 `confirmed`（代码）/ 无数值证据（差多少）—— 一卡多跑时整卡 `memory.used` 不是每个 run 真正需要的显存
+
+- `pack.sbatch` 设 `TF_FORCE_GPU_ALLOW_GROWTH=true`：TF 的 BFC 分配器按需向驱动要显存、按块增长、用完不还。
+  nvidia-smi 的 `memory.used` 看到的是这些**预留块**之和，而不是分配器里实际在用的字节数。
+- F-048 的「K=3 峰值 96 076 MiB 近满」就是这个读数，而且只来自 5 轮的 DET —— **满长 run 在 K=3 下会不会 OOM，没有证据**。
+- 处理（D-052）：服务器每云轮末打 `[GPUMem]`（`tf.config.experimental.get_memory_info` 的 peak = 分配器实际占用峰值）
+  → `metrics.json` 的 `gpu_mem.peak_mib`；`pack.sbatch` 汇总进 `<tag>.gpu.json` 的 `run_peak_max_mib`（另记整卡容量）；
+  提交脚本按它定 K。没有它时退回「整卡读数 / k」（偏大 → 偏保守）。
+- 另：被 `_collect_updates_*` 吞掉的客户端 OOM 会让 run 照样 exit 0（陷阱 #23 同类）→ `pack.sbatch` 按日志判 OOM、
+  exit_code 记 86（`tests/test_pack_submit.py` 有端到端测试）。
+- 待回收：第一批满长包的 `run_peak_max_mib` vs `mem_max_mib / k` —— 两者差多少，决定 85% / 1 GiB 这两个参数怎么校准。
+
+### 交接更正
+
+- 上一份 current-focus 写「`pilot_a4` 里用到陈旧列的地方同步改」：实查 `pilot_a4` / `g7_posthoc` 只读 `pm_acc_stale`、
+  从不读陈旧 **ASR**。D-054 让陈旧 pm_acc 也隔点之后它们才需要改，已改为按窗口取（`window_mean`）；
+  对现有 pilot / G7 数据（每点都有陈旧值）判定输出与改动前逐字节相同。
