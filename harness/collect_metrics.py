@@ -16,7 +16,8 @@ harness/collect_metrics.py  —  把集群 run 的**全量日志**压成一个�
                           dirty / config_sha（yaml 原文的 hash）/ study / group / run_id /
                           host / job / start。老日志没有这一行 → None
     run.cli_overrides     CLI 相对 yaml 改掉的叶子值 [[key, old, new], ...]；老日志 → None
-    schema_version        本文件的结构版本（2 = 有 provenance）
+    run.edge_shared_blocks  3-E 三层个性化的 k（[设定6]，S8）：0 = FedRep 基线；老日志 → None
+    schema_version        本文件的结构版本（2 = 有 provenance；5 = 有 run.edge_shared_blocks）
     rounds[]              每个**后门评估轮**的 {round, global_asr, edge_asr,
                           local_benign_asr, same_edge_asr, diff_edge_asr, local_malicious_asr}
     final                 最后一个后门评估轮的上述指标
@@ -59,7 +60,8 @@ from utils.kvline import parse_kv, collect_kv   # noqa: E402
 # 4 = 一卡多跑（D-052）：gpu_mem（[GPUMem]，TF 分配器的真实显存峰值）；
 #     评估降频（D-054）：acc_rounds[] 的精度评估分项计时（[TimingAcc]）+ timing_summary.acc_split_total_s。
 #     副列没算的点（白盒关 / 陈旧隔点）照旧是 null。
-SCHEMA_VERSION = 4
+# 5 = S8（3-E 三层个性化）：run.edge_shared_blocks + run.tier_split（[设定6]）。
+SCHEMA_VERSION = 5
 
 # A4 的副列：key=value 行（utils/kvline.py）→ rounds[] / acc_rounds[] 的字段。
 # 缺行（旧口径、或该列本 run 没开）→ null，**不是 0**。
@@ -262,6 +264,7 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
     # 缺行的老日志 → None（「不知道」，不是「全是旧行为」）。
     align = None
     eval_att = None
+    split6 = None
     for ln in lines:
         d = parse_kv(ln, "[设定4]")
         if d is not None:
@@ -269,6 +272,9 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
         d = parse_kv(ln, "[设定5]")
         if d is not None:
             eval_att = d
+        d = parse_kv(ln, "[设定6]")
+        if d is not None:
+            split6 = d
 
     return {
         "config_path":   cfg.group(1) if cfg else None,
@@ -325,6 +331,11 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
         "alignment":         align,
         "eval_attacker":     eval_att.get("eval_attacker") if eval_att else None,
         "eval_attacker_edge": eval_att.get("eval_attacker_edge") if eval_att else None,
+        # ── 3-E 三层个性化（S8，[设定6]，CloudServer 算出索引时打印）──────────
+        #   None = 没有这一行的老日志（「不知道」；实际上 S8 之前的代码也不存在 edge 段）。
+        #   0 = FedRep 基线 (a)；1 / 2 = 末 1 / 2 个残差块只在 edge 内共享 (b) / (c)。
+        "edge_shared_blocks": split6.get("edge_shared_blocks") if split6 else None,
+        "tier_split":        split6,
     }
 
 

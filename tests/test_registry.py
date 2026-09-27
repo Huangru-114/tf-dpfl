@@ -221,13 +221,13 @@ def test_materialize_with_nothing_eligible_errors_and_writes_nothing(tmp_path):
     assert not reg.configs_dir.exists()
 
 
-def test_materialize_real_v2_registry_only_g7_is_generable(tmp_path, monkeypatch):
-    """A4 定了 base 之后：只有不依赖功能会话的 G7 能生成配置（审计门槛只在 submit.sh 拦）；
-    其余组缺 S3–S8，一个都不生成。写到临时目录，不在仓库里留 INDEX。"""
+def test_materialize_real_v2_registry_only_g6_and_g7_are_generable(tmp_path, monkeypatch):
+    """A4 定了 base 之后：不依赖功能会话的 G7、以及 S8 之后的 G6 能生成配置（审计门槛只在
+    submit.sh 拦）；其余组缺 S3–S6，一个都不生成。写到临时目录，不在仓库里留 INDEX。"""
     reg = R.Registry(V2)
     monkeypatch.setattr(reg, "configs_dir", tmp_path / "configs")
     rows = R.materialize(reg)
-    assert sorted(r["group"] for r in rows) == ["G7"] * 6
+    assert sorted(r["group"] for r in rows) == ["G6"] * 9 + ["G7"] * 6
     with pytest.raises(R.RegistryError, match="不写 INDEX.tsv"):
         R.materialize(reg, groups=["G0", "G2"])
 

@@ -332,16 +332,31 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
       另有 `[TimingAcc]`（GM / EM / PM / 陈旧 PM 分项）→ `timing_summary.acc_split_total_s`。守卫 `tests/test_eval_downsampling.py`。
       **白盒 ≈ 主列是重要发现**（私有 head 挡不住 ξ）；**fresh-PM 会低估干净精度**，10edge 达 0.094（F-051）。
     - G2 先做一致性复测（pilot 表 G2P + `pilot_a4.judge_g2p`）；G4 搁置（`registry.yaml` 的 requires 含 `reformulate-3.2`）。
-    - **G2 与 S5 暂缓**（D-056，规模待用户定；S5 预案 D-055）；**下一会话 = S8 → G6**。
+    - **G2 与 S5 暂缓**（D-056，规模待用户定；S5 预案 D-055）。S8 已完成（见下一条），G6 待交。
       停止判据的斜率横轴是云轮号 → flat 比 R5 宽松 5 倍（F-052，代码证据、无数值证据），S5 预案里改。
     - **登记表补 `set:` 时核对三件**：`malicious_per_edge` 长度 = `n_edges`；`n_rounds × edge_rounds ≥ cap_effective`；
       各格评估网格（有效轮）一致 —— G2 当初三件都漏了（F-046）。
+
+- **3-E 三层个性化**（2026-09-27，Exp3 改版 S8；DECISIONS D-057 … D-059）。
+  `federation.edge_shared_blocks ∈ {0,1,2}`（缺省 0 = FedRep 基线，逐字节不变；`[Checksum]` 反向锚点）：
+  ResNet-10 最后 k 个残差块（层名 `stage{i}_`，含 shortcut 与 BN 统计量）是 **edge 段** —— edge 内照常聚合，
+  **不上云**：`CloudServer.aggregate_edges` 把它换回聚合前的值（全局模型里那一段永远是初值），
+  `HierFedRepEdgeServer.set_weights` 不让 cloud 广播覆盖它（首次接收除外）。client 与 fresh-PM 都不用改
+  （edge 模型自带本 edge 的 edge 段）。规则在 `fedavg/utils/tier_split.py`（不 import TF）；
+  `get_base_head_indices(..., edge_shared_blocks=k)` 多返回 `edge_weight_indices` / `cloud_weight_indices`。
+  - 只对 `hier_fedrep` + ResNet-10 开放、与 cloud 层防御互斥（`config_validate` §4e 拒绝）。
+  - 自描述 `[设定6]`（在 CloudServer 算出索引处打）→ `run.edge_shared_blocks`（collect_metrics **schema 5**）；
+    `runs_table` 以它为因素键（0 记 None，与 S8 之前的文件同格）；`status` 对账核对它。
+  - **(b)(c) 下 GM 精度与 global 层 ASR 不可读**（全局模型不完整）→ G6 固定 300 有效轮、停止判据关（D-058）；
+    判定读受害 edge 的原始 benign ASR（D-059，不等 S4）。
+  - 守卫：`tests/test_tier_split.py`（纯 python）+ `tests/test_three_tier_personalization.py`（TF，真跑 cloud/edge/client）。
 
 **留了接口但没有实现的**（不要以为它们能用）：
 - 主动防御（需要客户端配合的防御）：接口齐了（`BaseDefense.layers` /
   `client_mixin` / `make_control` + 客户端侧 `set_control` / `get_aux`），无任何实现。
 - cloud 层防御：`defense.layers` 缺省 `["edge"]`，写成 `[edge, cloud]` 才启用。
-- cloud 层的方法专属聚合：`CloudServer.aggregate_edges` 是空壳，见陷阱 #8。
+- cloud 层的方法专属聚合：`CloudServer.aggregate_edges` 是空壳，见陷阱 #8
+  （唯一的非 FedAvg 行为是 S8 的「edge 段不聚合」，只在 `edge_shared_blocks > 0` 时生效）。
 
 ---
 
@@ -513,6 +528,8 @@ methods-registry.md   所有候选方法的台账 = 研究看板
    是**死配置，读都没读**。
    本会话只把入口收敛到 `CloudServer.aggregate_edges` 并留了防御通道，**未改行为**。
    要动它，先决定这是「有意的设计」还是「没做完」，并把结论写进 `config_validate`。
+   > 2026-09-27（S8，D-057）：`aggregate_edges` 在聚合之后多了一步「edge 段换回聚合前的值」，
+   > 只在 `federation.edge_shared_blocks > 0` 时生效；k=0 路径一字未改。feddyn / hierpfedme / scaffold 仍是注释。
 
 9. **Rep 家族的私有 head 进了防御的距离计算（PFL 轴 × 防御轴的泄漏）**
    `server/hier_fedrep.py` / `hier_ditto_rep.py` 把**完整**权重列表传给 `robust_mean`，

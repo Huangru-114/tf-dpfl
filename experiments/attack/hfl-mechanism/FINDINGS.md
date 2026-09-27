@@ -647,3 +647,26 @@ T50 = 主列（fresh-PM）良性 ASR 首次越过 0.5 的有效轮（每 5 有�
 - 上一份 current-focus 写「`pilot_a4` 里用到陈旧列的地方同步改」：实查 `pilot_a4` / `g7_posthoc` 只读 `pm_acc_stale`、
   从不读陈旧 **ASR**。D-054 让陈旧 pm_acc 也隔点之后它们才需要改，已改为按窗口取（`window_mean`）；
   对现有 pilot / G7 数据（每点都有陈旧值）判定输出与改动前逐字节相同。
+
+## 2026-09-27（S8：3-E 三层个性化）
+
+### F-054 `confirmed`（L1 + CPU 替身）/ GPU 与真实数据无证据 —— S8 的接线：edge 段不上云、不被广播覆盖，k=0 逐字节不变
+
+- **L1**（TF 2.15.1 CPU，`tests/test_three_tier_personalization.py`，真跑 CloudServer + HierFedRepEdgeServer + HierFedRepClient，
+  2 edge × 2 端）：一轮之后全局模型的 edge 段 == 初值（逐位）、cloud 段 == edge 的样本加权均值（逐位）；两个 edge 的 edge 段
+  各自走开；下一次广播后各 edge 的 edge 段 == 广播前自己的值、其余 == 全局；client 与 fresh-PM 的 edge 段来自所在 edge。
+  真 ResNet-10（两个版本）：k=1 恰为 stage4 的 15 个张量、k=2 为 30 个（含 shortcut 与 6k 个 BN 统计量）。
+- **反向锚点**：只去掉 edge 的 `set_weights` 覆写 → 恰好断在「edge0 的 edge 段被 cloud 广播覆盖了」；只去掉 cloud 的复原 →
+  cloud 聚合那条断；三处接线全换回改动前 → 新测试 14 条红。k=0 与不写这个键的 `[Checksum]` 逐轮相同，k=1 不同。
+- **CPU 替身**（N-005 的做法：随机数据；G6 配置缩到 20 端 / 4 edge / [2,0,0,0] / R2 / 2 云轮；**数字没有意义，只证明接线**）：
+  (b) 跑完，`run.edge_shared_blocks=1`、`tier_split.n_edge_tensors=15`（3 676 160 / 4 909 002 个值，约 75% 在 stage4）、
+  `stopping=off`、`alignment.template=p2`、`client_failures=[]`、`malicious_selected_rounds=[2]`；
+  checksum R1 `d30992d5bbe9` / R2 `a0472707fa90`。
+  (a) 同样跑完：`edge_shared_blocks=0`、`n_edge_tensors=0`、`client_failures=[]`、`malicious_selected_rounds=[2]`；
+  checksum R1 `eeaae44b41bd` / R2 `f635462ac051` —— 与 (b) 不同（同 seed、同数据，只差 edge 段是否上云）。
+- 替身 run 的 `errors[]` 里有 5 条 `AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'`：本地 venv 装 wandb
+  时带进了 protobuf 7.x（TF 2.15 要 < 5）；打在 `[Config]` 之前（import 期），换 protobuf 4.25 后 `import main` 不再出现。
+  **不是代码的问题**：集群上已回传的 6 个 G7 run（`results/P2/G7/`）`errors[]` 全为空。
+- **没有证据的**：GPU 上（确定性开关 + (b)(c)）能否跑通、显存与 (a) 是否相同 —— 由 G6 的 K=2 探路包回答；
+  「edge 段是否改变跨 edge 迁移」本身要 G6 的数据（D-059 口径）。
+

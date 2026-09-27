@@ -428,6 +428,32 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
                   f"== evaluation.eval_interval（{_acc_i}）：两个陈旧列共用一个评估点序号，"
                   f"网格不同就隔不到同一批点上（D-054）。")
 
+    # ── 4e. 三层个性化（S8 / 3-E；utils/tier_split.py，D-057）──────────────
+    #   四种写错都是「静默不生效或静默泄漏」：取值拼错（True == 1）、方法不是 FedRep
+    #   （别的 edge server 广播照样整体覆盖 → edge 段每轮被冲掉，而 cloud 那边照样不聚合）、
+    #   arch 没有按块命名的层、cloud 层防御（距离里带着本不上云的 edge 段坐标，陷阱 #9 同类）。
+    from utils.tier_split import (EDGE_SHARED_KEY, TIER_ARCHS, TIER_METHODS,
+                                  edge_shared_blocks)
+    try:
+        _k_edge = edge_shared_blocks(config)
+    except ValueError as e:
+        _fail(str(e))
+    if _k_edge:
+        if method not in TIER_METHODS:
+            _fail(f"{EDGE_SHARED_KEY}={_k_edge} 只在 {sorted(TIER_METHODS)} 下实现"
+                  f"（HierFedRepEdgeServer.set_weights 保留 edge 段）；{method!r} 的 edge server"
+                  f" 会被 cloud 广播整体覆盖 → edge 段每轮被冲掉，三层个性化静默不生效。")
+        _arch = str((config.get("model") or {}).get("arch", ""))
+        if _arch not in TIER_ARCHS:
+            _fail(f"{EDGE_SHARED_KEY}={_k_edge} 按残差块的层名（stage1_…stage4_）切分，"
+                  f"只支持 {sorted(TIER_ARCHS)}；model.arch={_arch!r} 没有这套层名。")
+        if defense in AGGREGATION_DEFENSES and "cloud" in cfg_layers:
+            _fail(f"{EDGE_SHARED_KEY}={_k_edge} 与 cloud 层防御（defense.layers 含 cloud）不能同开："
+                  f"edge 段不上云，但 cloud 的鲁棒聚合会拿它的坐标算距离（陷阱 #9 同类）。")
+        if n_edges <= 1:
+            warnings.append(f"{EDGE_SHARED_KEY}={_k_edge} 而 n_edges={n_edges}：只有一个 edge 时"
+                            f"「edge 内共享」与「上云共享」等价，(a)/(b)/(c) 三臂没有区别。")
+
     # ── 5. 可复现性 ─────────────────────────────────────────────────────
     if "seed" not in config:
         warnings.append("config 缺 seed，实验不可复现。建议显式写死。")

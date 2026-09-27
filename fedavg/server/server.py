@@ -20,6 +20,8 @@ from models.model_utils   import get_model_bytes, clone_model
 from alignment            import get_switch
 from utils.pm             import compose_pm
 from utils.kvline         import format_kv
+from utils                import tier_split
+from models.cnn           import get_base_head_indices
 from utils.checksum       import weights_checksum
 from .participation       import edge_schedule_order
 from aggregation.fedavg   import aggregate
@@ -68,6 +70,16 @@ class CloudServer(RobustAggregationMixin):
 
         self.model_bytes      = get_model_bytes(global_model)
         self.total_comm_bytes = 0
+
+        # ── 3-E 三层个性化（S8 / D-057）：edge 段不上云 ─────────────────────
+        #   k = federation.edge_shared_blocks；k = 0 → 空列表，aggregate_edges 一字不变。
+        #   [设定6] 在这里（真正算出索引的地方）打印，而不是在 config_validate 回显配置。
+        _k = tier_split.edge_shared_blocks(config)
+        self._edge_seg_idx = (
+            get_base_head_indices(global_model, int(config["data"]["num_classes"]), _k)
+            ["edge_weight_indices"] if _k else [])
+        print(format_kv("[设定6]", tier_split.describe(_k, self._edge_seg_idx,
+                                                       global_model.get_weights())))
 
         # ── FedDyn 全局校正状态 h_g ────────────────────────────────────
         # 把 edge server 视为"客户端"，做同级的 FedDyn 去偏校正。
@@ -229,8 +241,17 @@ class CloudServer(RobustAggregationMixin):
         所以 cloud 层的防御拿不到客户端身份，`record_decision` 会把
         last_admitted_ids 记成 edge 的位置索引。真要在 cloud 层做客户端级
         TPR/FPR 统计，需要 edge 往上透传身份 —— 本会话不做。
+
+        3-E（S8 / D-057）：edge_shared_blocks > 0 时 edge 段**不上云** —— 聚合结果里那一段
+        换回聚合前的值，于是全局模型的 edge 段永远是初值（用户拍板 Q4：不聚合，而不是「平均但不下发」）。
+        全局模型因此不完整：G6 不读 GM 精度与 global 层 ASR。cloud 层防御会看到 edge 段坐标，
+        config_validate 拒绝 k > 0 与 cloud 层防御同开。
         """
-        return self.robust_mean(edge_updates, prev_global_weights)
+        new_w = self.robust_mean(edge_updates, prev_global_weights)
+        edge_idx = getattr(self, "_edge_seg_idx", None)
+        if edge_idx:
+            new_w = tier_split.keep_segment(new_w, prev_global_weights, edge_idx)
+        return new_w
 
     def _default_ref_weights(self) -> list:
         """本层聚合前的模型权重（广播点）= 当前全局模型权重。"""

@@ -12,6 +12,12 @@ server/hier_fedrep.py  –  Hier-FedRep 边缘服务器
 head 索引位置全程不参与聚合（保持广播下来的无用值），因为 client 收到后总会用
 私有 head 覆盖。上传给 cloud 的是完整权重列表（长度匹配框架的 FedAvg），head
 位置被平均但永不被使用。
+
+3-E 三层个性化（S8 / D-057，`federation.edge_shared_blocks` = k > 0；见 utils/tier_split.py）：
+最后 k 个残差块是 edge 段 —— 仍在本 edge 内聚合（它属于 base 索引，下面的聚合一字不改），
+但**不上云**：cloud 不聚合它（CloudServer.aggregate_edges），cloud 广播也不覆盖它（set_weights）。
+于是 edge 下发给 client 的 edge 权重自带本 edge 的 edge 段，client 与 fresh-PM 都不用改。
+k = 0 时 edge 段为空，set_weights 与基类逐字节相同。
 """
 
 import numpy as np
@@ -19,6 +25,7 @@ import tensorflow as tf
 
 from .edge_server_base import EdgeServerBase
 from models.cnn import get_base_head_indices
+from utils.tier_split import edge_shared_blocks, keep_segment
 
 
 class HierFedRepEdgeServer(EdgeServerBase):
@@ -31,9 +38,30 @@ class HierFedRepEdgeServer(EdgeServerBase):
 
         # ── backbone / head 切分索引 ─────────────────────────────────────
         num_classes = config["data"]["num_classes"]
-        split = get_base_head_indices(model, num_classes)
+        split = get_base_head_indices(model, num_classes, edge_shared_blocks(config))
         self._base_w_idx = split["base_weight_indices"]
         self._head_w_idx = split["head_weight_indices"]
+        # 3-E：edge 段（edge 内共享、不上云）。空 = FedRep 基线
+        self._edge_seg_idx = split["edge_weight_indices"]
+        self._edge_seg_received = False
+
+    # ══════════════════════════════════════════════════════════════════════
+    # 接收 cloud 广播（3-E：edge 段不被覆盖）
+    # ══════════════════════════════════════════════════════════════════════
+
+    def set_weights(self, global_weights: list):
+        """
+        cloud 广播。k > 0 时保留本 edge 的 edge 段（全局模型里那一段是初值，D-057），
+        **首次接收除外** —— 各 edge 从同一个初值出发（与 client 首次接收 head 同一模式）。
+
+        `_global_weights_ref`（set_global_ref）仍是 cloud 的原样权重：它只作为 global_weights
+        转发给 client，而 FedRep client 训练与评估都只读 edge_weights（client/hier_fedrep.py）。
+        """
+        if self._edge_seg_idx and self._edge_seg_received:
+            global_weights = keep_segment(global_weights, self.model.get_weights(),
+                                          self._edge_seg_idx)
+        super().set_weights(global_weights)
+        self._edge_seg_received = True
 
     # ══════════════════════════════════════════════════════════════════════
     # 边缘轮次

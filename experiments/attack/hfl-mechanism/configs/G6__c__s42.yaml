@@ -15,7 +15,7 @@ federation:
   badpfl_allow_parallel: false
   n_workers: 4
   n_clients: 100
-  n_edges: 2
+  n_edges: 4
   edge_rounds: 5
   n_rounds: 60
   partition: noniid
@@ -30,6 +30,7 @@ federation:
   min_samples: 10
   edge_schedule: interleaved
   quota_round_axis: effective
+  edge_shared_blocks: 2
 training:
   local_epochs: 5
   learning_rate: 0.1
@@ -74,8 +75,10 @@ backdoor:
   - 3
   malicious_placement: by_edge
   malicious_per_edge:
-  - 5
-  - 5
+  - 10
+  - 0
+  - 0
+  - 0
   n_malicious: 10
   forced_participation: false
   attack_freq_Q: 1
@@ -157,21 +160,9 @@ evaluation:
   test_finetune_steps: 5
   asr_columns: four_way
   pm_model: fresh
-stopping:
-  criteria:
-  - thresholds_crossed
-  - pm_acc_plateau
-  floor_effective: 150
-  cap_effective: 300
-  thetas:
-  - 0.25
-  - 0.5
-  - 0.75
-  debounce: 2
-  pm_window: 10
-  pm_slope_tol: 0.001
+stopping: null
 meta:
   study: hfl-mechanism
-  group: G7
-  run_id: G7__std__s42
+  group: G6
+  run_id: G6__c__s42
   protocol: P2

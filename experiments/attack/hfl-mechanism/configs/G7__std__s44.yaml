@@ -147,6 +147,9 @@ wandb:
   enabled: false
 evaluation:
   eval_interval: 1
+  whitebox_asr: false
+  stale_asr_every: 2
+  stale_pm_every: 2
   final_finetune: false
   final_finetune_steps: 5
   test_client_eval: false

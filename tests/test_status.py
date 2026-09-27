@@ -64,14 +64,16 @@ def test_v1_old_files_are_done_but_unverified():
 
 
 def test_v2_after_the_audit_only_feature_sessions_block():
-    """AUDIT 全部关闭（2026-09-27，pilot `2853433`）：只要求 audit 的 G7 变 todo，
-    其余 151 个只剩功能会话（S3–S8）的依赖。"""
+    """AUDIT 全部关闭（2026-09-27，pilot `2853433`）：只要求 audit 的 G7 变 todo；
+    S8 之后（2026-09-27）G6 也不再被挡。其余 142 个只剩功能会话（S3–S6）的依赖。"""
     rep = S.classify(R.Registry(V2))
-    assert rep["counts"]["blocked"] == 151
-    # G7 是唯一不被功能会话挡住的组：结果回来之前是 todo，回来之后是 done（2026-09-27 起，`5edd4df`）
-    assert {r["status"] for r in rep["runs"] if r["group"] == "G7"} <= {"todo", "done"}
-    assert {r["group"] for r in rep["runs"] if r["status"] != "blocked"} == {"G7"}
-    assert rep["counts"]["todo"] + rep["counts"]["done"] == 6
+    assert rep["counts"]["blocked"] == 142
+    # G7：结果回来之前是 todo，回来之后是 done（`5edd4df`）；base.yaml 加了评估降频之后
+    # 重新 materialize → 旧结果的 config_sha 不符 = stale（D-053，默认不重交）
+    assert {r["status"] for r in rep["runs"] if r["group"] == "G7"} <= {"todo", "done", "stale"}
+    assert {r["status"] for r in rep["runs"] if r["group"] == "G6"} <= {"todo", "done", "stale"}
+    assert {r["group"] for r in rep["runs"] if r["status"] != "blocked"} == {"G6", "G7"}
+    assert sum(rep["counts"][k] for k in ("todo", "done", "stale")) == 15
     assert not any("audit" in r["detail"] for r in rep["runs"])
 
 

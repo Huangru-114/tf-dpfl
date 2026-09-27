@@ -68,6 +68,9 @@ EXPECT_KEYS = (
     ("poison_ratio",       "backdoor.poison_ratio"),
     ("malicious_per_edge", "backdoor.malicious_per_edge"),
     ("local_epochs",       "training.local_epochs"),
+    # S8：G6 的三臂靠它区分。声明了就核对 [设定6]（CloudServer 真正算出的 k），
+    # 没声明（其他组）→ None → 不核对。
+    ("edge_shared_blocks", "federation.edge_shared_blocks"),
 )
 
 AUDIT_STATUSES = ("open", "align", "deviate", "done")

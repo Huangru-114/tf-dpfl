@@ -52,7 +52,12 @@ T_THETA_METRICS = ("global_asr", "edge_asr", "local_benign_asr")
 FACTOR_KEYS = ("method", "attack", "defense", "n_clients", "n_edges", "edge_rounds",
                "client_fraction", "poison_ratio", "malicious_per_edge",
                "malicious_placement", "edge_assignment", "local_epochs", "plocal_epochs",
-               "attack_stop_round")
+               "attack_stop_round", "edge_shared_blocks")
+# 因素的缺省值：等于它就记成 None（「这个因素在本 run 不起作用」）。
+#   edge_shared_blocks（S8 / 3-E）：0 = FedRep 基线，与 S8 之前的代码（没有 [设定6] → None）
+#   是同一种 run。不做这一步，老文件与新的 k=0 文件会被拆成两格；而**不加**这个因素键，
+#   G6 的 (a)/(b)/(c) 又会被当成同一格的重复（三臂塌成一格，比较无从谈起）。
+FACTOR_DEFAULTS = {"edge_shared_blocks": 0}
 PROV_KEYS = ("protocol", "git", "config_sha", "study", "group", "run_id")
 
 UNKNOWN_PROTOCOL = "unknown"
@@ -93,12 +98,15 @@ def window_mean(rows, key: str, k: int = LAST_K, anchor: str | None = None):
     return sum(vals) / len(vals), len(vals)
 
 
+def _factor_value(run_block: dict, k: str):
+    v = run_block.get(k)
+    if k in FACTOR_DEFAULTS and v == FACTOR_DEFAULTS[k]:
+        return None
+    return json.dumps(v) if isinstance(v, list) else v
+
+
 def factor_key(run_block: dict) -> tuple:
-    out = []
-    for k in FACTOR_KEYS:
-        v = run_block.get(k)
-        out.append(json.dumps(v) if isinstance(v, list) else v)
-    return tuple(out)
+    return tuple(_factor_value(run_block, k) for k in FACTOR_KEYS)
 
 
 def _fmt_key(key: tuple) -> str:
@@ -116,8 +124,7 @@ def summarize_run(m: dict, *, name: str, source: str, legacy_protocol=None) -> d
     row["protocol"] = prov.get("protocol") or legacy_protocol or UNKNOWN_PROTOCOL
     row["seed"] = run.get("seed")
     for k in FACTOR_KEYS:
-        v = run.get(k)
-        row[k] = json.dumps(v) if isinstance(v, list) else v
+        row[k] = _factor_value(run, k)
     row["hhi"] = hhi(run.get("malicious_per_edge") or [])
     row["factor_key"] = _fmt_key(factor_key(run))
     row["exit_code"] = m.get("exit_code")

@@ -1,79 +1,86 @@
 # current-focus —— Experiment 3（改版）· 交接
 
 > 本文件是 `CLAUDE.md`「新会话开场第 3 步」要读的那一份。
-> **写于 2026-09-27**（一卡多跑接入 + 评估降频会话结束时，`c88a023` / `68f865d`）。
-> **下一会话 = S8（三层个性化 → G6）**（D-056）。G2 与 S5 暂缓；S5 的设计已拍板为预案（D-055）。
+> **写于 2026-09-27**（S8 会话结束时）。
+> **S8（3-E 三层个性化）已完成 → G6 可交**（D-057 … D-059）。**下一会话由用户定**（候选见文末「功能会话一览」）。
+> G2 与 S5 仍暂缓（D-056；S5 预案 D-055）。
 
 ## 几套编号（容易混，先看这里）
 
 | 写法 | 是什么 | 在哪 |
 |---|---|---|
 | **A1–A4** | 审计会话的名字：A1 攻击、A2 训练协议、A3 FedRep / ResNet / HFL、**A4 = 按拍板改代码的实现会话** | PLAN §5 |
-| **S1–S8** | 功能会话的名字：S3 新划分、S4 影子攻击者、S5 逐 edge 轮评估、S6 更新日志、**S8 三层个性化**…… | PLAN §5 |
+| **S1–S8** | 功能会话的名字：S3 新划分、S4 影子攻击者、S5 逐 edge 轮评估、S6 更新日志、S8 三层个性化…… | PLAN §5 |
 | **A01–A29** | `AUDIT.md` 的「对齐差异」行号 | AUDIT 第一、二节 |
 | **D01–D06** | `AUDIT.md` 的「有意偏离登记」行号 | AUDIT 第三节 |
-| **D-001 … D-056** | `DECISIONS.md` 的决策日志（带连字符、三位数），**与登记行 D01–D06 是两套东西** | DECISIONS |
+| **D-001 … D-059** | `DECISIONS.md` 的决策日志（带连字符、三位数），**与登记行 D01–D06 是两套东西** | DECISIONS |
 | **F-001 … F-053 / N-001 … N-006** | `FINDINGS.md` 的证据条目 / 设计备注 | FINDINGS |
 | **P0 / P1 / P2** | 数据批次的口径版本；只有 P2 进结论 | PLAN §0 |
 
-## 本会话做了什么（2026-09-27）
+## 本会话做了什么（2026-09-27，S8）
 
-| 提交 | 内容 | 决定 |
+**问题**：「实现 3-E 三层个性化（cloud 只聚合全局共享段、edge 内共享一段中间层、客户端私有 head），让 G6 能跑。」—— 已回答。
+
+| 改动 | 内容 | 决定 |
 |---|---|---|
-| `c88a023` | **一卡多跑接进** `submit.sh` / `pilot/submit_pilot.sh`（共用 `submit_lib.sh`）：按格子分包、每格先交 K=2 的探路包、之后按**真实显存峰值**定 K、OOM 自动降档；`pack.sbatch` 把被吞掉的 OOM 判成 exit 86；服务器新打 `[GPUMem]`；stale 不重交 | D-052 / D-053 |
-| `68f865d` | **评估降频**：白盒 ASR 关、陈旧 ASR 与陈旧 pm_acc 隔点（同一批点），终值按「末 10 个评估点窗口」；`[TimingAcc]` 分项计时 | D-050 / D-054 |
-| 文档提交（紧随其后） | 文档与交接：D-052 … D-056、F-052 / F-053、PLAN / registry 标注 G2 与 S5 暂缓 | D-055 / D-056 |
+| `fedavg/utils/tier_split.py`（新，不 import TF） | 配置键 `federation.edge_shared_blocks ∈ {0,1,2}` 的读取 / 校验；块 → 层名前缀（`stage4_` / `stage3_`+`stage4_`）；按层名选索引；段复原 `keep_segment`（= `utils/pm.compose_pm`）；`[设定6]` 字段 | D-057 |
+| `models/cnn.py` | `get_base_head_indices(model, n, edge_shared_blocks=0)` 追加 `edge_weight_indices`（⊆ base）/ `cloud_weight_indices`（= base − edge）；前四个键逐字不变；`weight_owner_names` 按变量身份认层 | D-057 |
+| `server/hier_fedrep.py` | `HierFedRepEdgeServer.set_weights`：cloud 广播不覆盖 edge 段（首次接收除外） | D-057 |
+| `server/server.py` | `aggregate_edges`：edge 段不聚合、全局那一段保持初值（Q4）；`__init__` 打 `[设定6]` | D-057 |
+| `config_validate.py` §4e | 拒绝：非法取值（含 bool）、方法 ≠ hier_fedrep、arch ∉ ResNet-10、cloud 层防御；n_edges=1 警告 | D-057 |
+| harness | `collect_metrics`：`[设定6]` → `run.edge_shared_blocks` / `run.tier_split`（**schema 5**）；`runs_table.FACTOR_KEYS` + `FACTOR_DEFAULTS`（0 记 None，老文件与 (a) 同格）；`figures.FACTOR_COLUMNS`；`registry.EXPECT_KEYS`（status 核对 k） | D-057 |
+| `registry.yaml` + `configs/` | `available: [S8]`；G6：4 edge 集中 [10,0,0,0]、R5、n_rounds 60、`stopping: null`、三臂 `edge_shared_blocks` 0/1/2；**已 materialize**（G6 9 个 + G7 6 个重新生成 → G7 = stale，预期） | D-058 |
+| PLAN §3 3-E 行 | 判定改用原始 benign ASR（受害 edge E1–E3，按 seed 配对），不等 S4 | D-059 |
 
-- L1：本地无 TF 1072 passed / 38 skipped / 3 xfailed；TF 2.15.1 CPU venv 只有陷阱 #4 的 2 条红。
-- **反向锚点**：G7 与 pilot 的 `runs_table` / `pilot_a4` / `g7_posthoc` 输出与改动前逐字节相同。
-- **没做**：S5、G2 materialize、G7 重新 materialize（`configs/INDEX.tsv` 仍是旧 sha，G7 仍显示 done）。
+- **L1**（本会话实测，同一环境改动前 → 后）：本地无 TF 1074 → **1115 passed** / 36 → 37 skipped / 3 xfailed（PASS）；
+  TF 2.15.1 CPU venv 1199 → **1253 passed** / 23 skipped / 3 xfailed / **2 failed** —— 红灯前后都只有陷阱 #4 那 2 条。
+- **反向锚点**：只把接线（edge `set_weights` / cloud `aggregate_edges` / `config_validate` §4e）换回改动前 → 新测试 14 条红；
+  只去掉 edge 覆写 → 恰好 `edge0 的 edge 段被 cloud 广播覆盖了` 那条红；只去掉 cloud 复原 → cloud 聚合那条红。
+  k=0 与不写这个键的 `[Checksum]` 逐轮相同，k=1 不同（`test_k0_is_byte_identical_to_not_writing_the_key`）。
+- **L2 替身**（本地 CPU、随机数据，N-005 的做法；只证明接线，数字无意义）：G6 (b)/(a) 缩到 20 端 / 4 edge / R2 / 2 云轮，见下「L2 替身」。
+- **真正的 L2 = 集群交 G6**（用户）：命令见下。
 
-## 下一会话唯一要回答的问题（D-056）
-
-**「实现 S8（3-E 三层个性化：cloud 只聚合全局共享层、edge 内共享一段中间层、客户端私有 head），让 G6 能跑。」**
-
-原文 §8：三种划分（ResNet-10）——(a) FedRep 基线（body 全部云端共享、head 私有）；(b) 最后一个残差块只在 edge 内共享；
-(c) 最后两个残差块只在 edge 内共享。指标：逐 edge 的 benign ASR 与 MTA、跨 edge 迁移的 T50。
-
-**开工前先和用户对齐（按 CLAUDE.md：先出语义 diff 表，用户说「开始改」再动代码）**，下面四件本会话看到了、没有替用户决定：
-
-1. **3-E 的前提被 F-051 动摇了**：原文说「如果 3.2 的私有头吸收成立……」；而 F-051 发现**私有 head 挡不住 ξ**（白盒 ≈ 主列），
-   3.2 本身也等着按 N-003 重新表述（G4 搁置）。S8 照做没问题，但结论怎么读要先说清楚。
-2. **判定用的是 excess ASR = ASR − floor**（PLAN §3），floor 要 S4 / G0（ρ=0 影子攻击者）才有；
-   而 `registry.yaml` 里 G6 的 `requires` 只有 `[audit, S8]`。要么补依赖，要么判定改用原始 ASR —— 由用户定。
-3. **MTA 门槛「≤ 0.02」还是 ⚠待确认**；F-051：fresh-PM 的干净精度定义偏差在 10edge 达 0.094，远大于 0.02
-   → 精度判定至少要同时报陈旧 pm_acc（D-054 后它隔点算，终值窗口约 5 点）。
-4. **陷阱 #8**：cloud 层聚合入口 `CloudServer.aggregate_edges` 现在是「永远朴素 FedAvg」。S8 要 cloud 只聚合共享段、
-   下行广播不覆盖 edge 内共享段 —— 会碰到这里；fresh-PM（D-033）的定义也要随之扩成 [edge 共享段 + 全局段, 私有 head, 私有统计量]。
-
-代码入口（PLAN §2）：`get_base_head_indices` 加第三组；cloud / edge 各自只聚合对应层；登记表 G6 的 `set:` 要补
-（布点 / 轮数 / 评估网格三件，见 registry.yaml 页首）。G6 是 9 个 run。
-
-## 交作业怎么用（本会话接好的）
+## 下一步：交 G6（用户，集群）
 
 ```bash
-bash experiments/attack/hfl-mechanism/submit.sh --status                 # done / stale / todo
+git pull                                                                 # 本分支
+bash experiments/attack/hfl-mechanism/submit.sh --status                 # 应为 todo=9（G6）、stale=6（G7）
 PACK=3 RUN_GROUPS=G6 bash experiments/attack/hfl-mechanism/submit.sh --dry-run
-PACK=3 RUN_GROUPS=G6 bash experiments/attack/hfl-mechanism/submit.sh     # 第一次：每格只交一个 K=2 的探路包
-# 探路包回传后（results/P2/<组>/<组>__<格>__pack-k2-s<seed>.gpu.json）再跑同一条命令 → 按实测峰值定 K
+PACK=3 RUN_GROUPS=G6 bash experiments/attack/hfl-mechanism/submit.sh     # 第一次：每臂只交一个 K=2 的探路包（共 3 个作业）
+# 探路包回传后（results/P2/G6/G6__<臂>__pack-k2-s42.gpu.json）再跑同一条命令 → 按实测峰值定 K，交剩下的 3 个
 ```
 
-- **交完等回传再跑下一次**：脚本不查 SLURM 队列，连着跑两遍会重复提交。
-- 探路包回传后先看 gpu.json 的 `run_peak_max_mib`（真实峰值）与 `mem_max_mib / k`（整卡读数）差多少 ——
-  这是校准 `PACK_MEM_PCT=85` / `PACK_CTX_MIB=1024` 的唯一数据（F-053，**目前没有证据**）。
-- stale（exit 0 但 sha 不符）默认不重交；确实要重跑设 `RESUBMIT_STALE=1`。
-- 下一次 materialize（S8 之后）G7 会显示 stale —— 预期（base.yaml 加了评估降频）。
+- 回传后先看每个 metrics.json：`run.edge_shared_blocks` 与臂一致（0 / 1 / 2；`status.py` 会核对）、`run.tier_split.n_edge_tensors`
+  = 0 / 15 / 30、`client_failures == []`、`run.stopping == "off"` 且跑满 60 个云轮。
+- **G6 不读 GM 精度与 global 层 ASR**（(b)(c) 下全局模型的 edge 段是初值；FedRep 下 head 本来就是初始化 head，F-007）。
+  判定读受害 edge（E1–E3）的 fresh-PM benign ASR（逐 edge 行）与 fresh / 陈旧 pm_acc（D-059）。
+- **没有证据的**：(b)(c) 的显存峰值与 (a) 相同（参数量不变，但未实测）—— 探路包就是为这个。
+- G7 显示 stale 是预期（base.yaml 加了评估降频之后重新 materialize；D-053 默认不重交）。
+
+## L2 替身（本地 CPU，只证明接线；F-054）
+
+N-005 的做法（随机数据），G6 配置缩到 20 端 / 4 edge / [2,0,0,0] / R2 / 2 云轮，驱动脚本在 scratch、不入库。
+
+| 臂 | exit | `run.edge_shared_blocks` | `tier_split.n_edge_tensors` | `client_failures` | 攻击者参与 | checksum R1 / R2 |
+|---|---|---|---|---|---|---|
+| (a) | 0 | 0 | 0 | [] | 第 2 轮 | `eeaae44b41bd` / `f635462ac051` |
+| (b) | 0 | 1 | 15（stage4，约 75% 的值） | [] | 第 2 轮 | `d30992d5bbe9` / `a0472707fa90` |
+
+- 两份 `errors[]` 各有 5 条 `MessageFactory … GetPrototype`：本地 venv 的 protobuf 7.x 与 TF 2.15 不配（import 期，`[Config]` 之前），
+  换 protobuf 4.25 后消失 —— 环境问题，不是代码。集群上已回传的 6 个 G7 run `errors[]` 全为空；G6 回传若不为空，是真问题。
+- (c) 没有在本地跑（与 (b) 同一条代码路径，只差前缀数；索引由 L1 覆盖）。
 
 ## 功能会话一览
 
 | 功能会话 | 解锁 | run 数 | 说明 |
 |---|---|---|---|
-| **S8** 三层个性化 | G6（3-E，可选） | 9 | **下一会话**（D-056）；开工前的四件事见上 |
+| ~~S8~~ 三层个性化 | G6（3-E，可选） | 9 | ✅ 本会话完成；**G6 待交**（上面的命令） |
 | S5 逐 edge 轮评估 | G2（3-A）、G1 的前提之一 | 55 | **暂缓**（D-056）；预案已拍板（D-055）：`eval_grid: 5`、轻评估只算主列并喂停止判据（横轴改网格序号，F-052）、GM / EM 只在网格点上算 |
 | S3 新划分（C1–C4、层级 Dirichlet） | G3（3-B） | 21 | 另是 G0 / G1 的前提 |
-| S4 影子攻击者 + 攻击起始轮 | G5（3.3） | 15 | 另是 G0 的前提；3-E 的 excess ASR 也要它的 floor |
+| S4 影子攻击者 + 攻击起始轮 | G5（3.3） | 15 | 另是 G0 的前提；3-E 若以后要 excess ASR，floor 格（ρ=0 × 三划分）也要它（D-059） |
 | S6 更新日志 | G4（3.2，**搁置**，D-047） | 12 | 3.2 的假设要先按 N-003 重新表述（用户）；F-051「私有 head 挡不住 ξ」是相关证据 |
-| —（无需会话） | **G7**（预处理对比，D-025） | 6 | ✅ 已跑完并判定（`5edd4df`，事后判据「是」，D-049 / F-050） |
+| S7 判定代码 + 出图 | — | — | 3-E 的判定（D-059 口径）属于这里，本会话没写 |
+| —（无需会话） | **G7**（预处理对比，D-025） | 6 | ✅ 已跑完并判定（`5edd4df`，事后判据「是」，D-049 / F-050）；重新 materialize 后显示 stale（预期） |
 
 - G2 的规模还没定（G2P 已回来：`consistent`，F-049）——**由用户定**，定之前不做 S5。
 - 在 S5 之前，G2 的跨 R 比较受 F-052 影响：停止判据的斜率横轴是云轮号，flat 比 R5 宽松 5 倍。
@@ -94,6 +101,10 @@ PACK=3 RUN_GROUPS=G6 bash experiments/attack/hfl-mechanism/submit.sh     # 第�
 | `experiments/METRICS.md`「ξ 用 mal[0]」一句 | 用户 | 与 Bad-PFL 库双份同步（`test_metrics_doc.py` 守着）；按 D-015 + D-033 改 |
 | S1b：修 `exp3_cell.sbatch` 写死的 `--defense none` | 需要时 | D-007 |
 | cifar100 静态触发器的标准化常数 | 需要时 | N-004：只记录，没改 |
+| 交 G6 并回传 | 用户（集群） | 上面「下一步」；探路包先回 |
+| 3-E 的判定代码（D-059 口径） | S7 / 需要时 | 受害 edge 的原始 benign ASR 配对差 + MTA；「三臂 floor 相同」无证据 |
+| 3-E 的 floor 格（ρ=0 × 三划分） | 用户，需要时 | 要 excess ASR 才需要；等 S4；不用重跑 G6（D-059） |
+| MTA 门槛「≤ 0.02」 | 用户 | 仍 ⚠待确认（PLAN §3） |
 
 ## 容易踩的坑
 
@@ -113,6 +124,26 @@ PACK=3 RUN_GROUPS=G6 bash experiments/attack/hfl-mechanism/submit.sh     # 第�
 - **`resnet10` 是冻结配置用的**，P2 写 `resnet10_torch`（模板里已经是）。
 - 旧方案的登记表在 `hfl-propagation/registry/v1.yaml`，不能放到那个目录顶层（`run_exp3.sh` 会把它当格子提交）；`submit.sh` 用 `RUN_GROUPS`，不能叫 `GROUPS`。
 - 用 `git archive` 解到别处跑 L1 时，`test_provenance.py::test_git_commit_matches_git_rev_parse_on_this_repo` 会假红（没有 `.git`）。
+
+- **S8 的键 `federation.edge_shared_blocks` 只对 `hier_fedrep` + ResNet-10（resnet10 / resnet10_torch）开放**：别的方法的 edge server
+  会被 cloud 广播整体覆盖、edge 段每轮被冲掉。要给别的方法开，先在它的 edge server 里覆写 `set_weights` 走 `keep_segment`，
+  再把它加进 `utils/tier_split.TIER_METHODS`（`test_tier_split.py` 守着这张表）。
+- **(b)(c) 下全局模型不完整**（edge 段是初值）：GM 精度、global 层 ASR、以及读它们的停止判据都不能用 → G6 固定长度（D-058）。
+- **`runs_table` 把 `edge_shared_blocks=0` 记成 None**（`FACTOR_DEFAULTS`）：S8 之前的文件没有 `[设定6]`，与 (a) 是同一种 run，要同格。
+- **`[设定6]` 在 `CloudServer.__init__` 里打**（真正算出索引处），不在 `config_validate`；每个 run（含 k=0）都有这一行。
+- **collect_metrics 是 schema 5**（S8：`run.edge_shared_blocks` / `run.tier_split`）。
+
+## 历史：一卡多跑接入 + 评估降频（2026-09-27，S8 之前的一个会话）
+
+| 提交 | 内容 | 决定 |
+|---|---|---|
+| `c88a023` | **一卡多跑接进** `submit.sh` / `pilot/submit_pilot.sh`（共用 `submit_lib.sh`）：按格子分包、每格先交 K=2 的探路包、之后按**真实显存峰值**定 K、OOM 自动降档；`pack.sbatch` 把被吞掉的 OOM 判成 exit 86；服务器新打 `[GPUMem]`；stale 不重交 | D-052 / D-053 |
+| `68f865d` | **评估降频**：白盒 ASR 关、陈旧 ASR 与陈旧 pm_acc 隔点（同一批点），终值按「末 10 个评估点窗口」；`[TimingAcc]` 分项计时 | D-050 / D-054 |
+| 文档提交（紧随其后） | 文档与交接：D-052 … D-056、F-052 / F-053、PLAN / registry 标注 G2 与 S5 暂缓 | D-055 / D-056 |
+
+- L1：本地无 TF 1072 passed / 38 skipped / 3 xfailed；TF 2.15.1 CPU venv 只有陷阱 #4 的 2 条红。
+- **反向锚点**：G7 与 pilot 的 `runs_table` / `pilot_a4` / `g7_posthoc` 输出与改动前逐字节相同。
+- **没做**：S5、G2 materialize、G7 重新 materialize（`configs/INDEX.tsv` 仍是旧 sha，G7 仍显示 done）。
 
 ## 历史：A4（2026-09-26 / 27）
 
@@ -136,6 +167,6 @@ PACK=3 RUN_GROUPS=G6 bash experiments/attack/hfl-mechanism/submit.sh     # 第�
 ## 升 P2 时做了的 / 没做的
 
 - 做了：`PROTOCOL_VERSION = "P2"`；`test_registry.py::test_real_audit_parses_and_is_closed`（原 `…_is_open`）断言 `audit_open_rows == []`；
-  `test_status.py::test_v2_after_the_audit_only_feature_sessions_block`（G7 = todo，其余 151 只剩功能会话）。
+  `test_status.py::test_v2_after_the_audit_only_feature_sessions_block`（G7 = todo，其余 151 只剩功能会话；S8 之后改为 G6 + G7 不被挡、其余 142）。
 - 没做（用户的事）：`experiments/METRICS.md` 里「ξ 用的是 mal[0] 的模型」一句，按 D-015 + D-033 改为「按 seed 固定选的一个恶意端的 fresh-PM」
   —— 该文件与 Bad-PFL 库双份同步，由用户改（`test_metrics_doc.py` 守着）。

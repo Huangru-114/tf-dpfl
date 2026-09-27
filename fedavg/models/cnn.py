@@ -332,7 +332,16 @@ def build_model(input_shape=(32, 32, 3), num_classes=10, arch="cifar_cnn_3conv",
     return registry[arch](input_shape=input_shape, num_classes=num_classes)
 
 
-def get_base_head_indices(model, num_classes):
+def weight_owner_names(model):
+    """get_weights() 每一项所属层的名字（按变量身份映射，不依赖 Keras 版本的变量命名）。"""
+    owner = {}
+    for layer in model.layers:
+        for v in layer.weights:
+            owner.setdefault(id(v), layer.name)
+    return [owner.get(id(v)) for v in model.weights]
+
+
+def get_base_head_indices(model, num_classes, edge_shared_blocks=0):
     """
     FedRep 式 backbone / head 切分（索引方案，不实体化两个子模型）。
 
@@ -353,12 +362,19 @@ def get_base_head_indices(model, num_classes):
         （BN moving_mean/variance 不在其中）。
         因此可用 id() 把 get_weights 索引映射到 trainable 索引。
 
+    第三组（3-E 三层个性化，S8 / D-057；见 utils/tier_split.py）：
+        edge_shared_blocks=k>0 时，最后 k 个残差块（层名 `stage{i}_…`）是 edge 段
+        —— edge 内共享、不上云。它是 base 的子集（client 照样训、照样上传给 edge），
+        cloud 只聚合 base − edge。k=0 时 edge 段为空、cloud 段 = base，前四个键与改动前逐字相同。
+
     Returns:
         {
           "head_weight_indices":    [...],  # get_weights() 中 head 的 2 个索引
           "base_weight_indices":    [...],  # 其余索引
           "head_trainable_indices": [...],  # trainable_variables 中 head 索引
           "base_trainable_indices": [...],  # trainable_variables 中 backbone 索引
+          "edge_weight_indices":    [...],  # base 里的 edge 段（k=0 → []）
+          "cloud_weight_indices":   [...],  # base − edge（k=0 → 等于 base）
         }
     """
     weights = model.get_weights()
@@ -398,11 +414,27 @@ def get_base_head_indices(model, num_classes):
         j for j in range(len(model.trainable_variables)) if j not in head_tv_set
     ]
 
+    # ── 第三组：edge 段（3-E）───────────────────────────────────────────────
+    from utils.tier_split import edge_shared_prefixes, indices_owned_by
+    edge_weight_indices = []
+    if edge_shared_blocks:
+        prefixes = edge_shared_prefixes(edge_shared_blocks)
+        edge_weight_indices = [i for i in indices_owned_by(weight_owner_names(model), prefixes)
+                               if i not in head_weight_set]
+        if not edge_weight_indices:
+            raise ValueError(
+                f"edge_shared_blocks={edge_shared_blocks}：模型 {model.name!r} 里没有名为 "
+                f"{list(prefixes)} 开头的层 —— 只有 ResNet-10（resnet10 / resnet10_torch）按块命名。")
+    edge_set = set(edge_weight_indices)
+    cloud_weight_indices = [i for i in base_weight_indices if i not in edge_set]
+
     return {
         "head_weight_indices":    head_weight_indices,
         "base_weight_indices":    base_weight_indices,
         "head_trainable_indices": head_trainable_indices,
         "base_trainable_indices": base_trainable_indices,
+        "edge_weight_indices":    edge_weight_indices,
+        "cloud_weight_indices":   cloud_weight_indices,
     }
 
 

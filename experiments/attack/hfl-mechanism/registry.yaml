@@ -10,10 +10,10 @@
 #     其余组只等自己的功能会话（S3 划分 / S4 下限与时间窗 / S5 逐 edge 轮评估 / S6 更新日志 / S8）
 #   · 各组因素的 label 已定；**大多数 `set:` 要等功能会话实现后再填**（G2 的布点与轮数 2026-09-27 已补，D-047）
 #   · G4 搁置（D-047）：requires 里的 `reformulate-3.2` 是故意的 —— 等 3.2 按 N-003 重新表述
-#   · G2 暂缓（D-056）：规模待用户定；S5 也暂缓（预案 D-055）。下一会话 = S8 → G6
+#   · G2 暂缓（D-056）：规模待用户定；S5 也暂缓（预案 D-055）
+#   · 2026-09-27 S8 完成（3-E 三层个性化，D-057 … D-059）→ `available: [S8]`，G6 的 set 已补齐，可生成配置
 #   · 2026-09-27：base.yaml 加了评估降频（D-050 / D-054）→ 所有 P2 组的 config_sha 变了。
-#     已判完的 G7 **还没有**重新 materialize（configs/INDEX.tsv 仍是旧 sha）；下次 materialize 后
-#     G7 显示 stale —— 预期，submit.sh 默认不重交 stale（D-053）
+#     S8 会话（2026-09-27）已重新 materialize → 已判完的 G7 显示 stale —— 预期，submit.sh 默认不重交 stale（D-053）
 # 功能会话完成时，把它的 token 加进 `available`，并补上对应组的 `set:`。
 # **补 `set:` 时核对三件**（G2 就是漏了这三件，test_registry 守着）：
 #   malicious_per_edge 的长度 = n_edges；n_rounds × edge_rounds ≥ cap_effective；各格评估网格（有效轮）一致。
@@ -27,7 +27,7 @@ base: base.yaml       # A4（2026-09-26）
 overlays:
   - ../../../fedavg/config/alignment_p2.yaml   # 「P2 对齐」模板：每个对齐开关都打开
 audit: AUDIT.md
-available: []         # 已完成的功能会话，如 [S3, S4]
+available: [S8]       # 已完成的功能会话，如 [S3, S4]
 
 groups:
   G0:
@@ -127,11 +127,19 @@ groups:
     purpose: "3-E（可选）三层个性化：(a) FedRep 基线 / (b) 末 1 块 edge 内共享 / (c) 末 2 块"
     requires: [audit, S8]
     seeds: [42, 43, 44]
+    # S8（2026-09-27）补齐，用户拍板：
+    #   · 4 edge 集中布点 [10,0,0,0]（D-058 / Q1）：E0 放全部攻击者，E1–E3 是干净的受害 edge
+    #     —— 3-E 要测的是后门能不能跨 edge 迁移，base 的 distributed [5,5] 没有干净 edge
+    #   · 固定 300 有效轮、停止判据关（D-058 / Q2）：停止判据读 global_asr，而 (b)(c) 下全局模型缺 edge 段
+    #     （D-057 / Q4：edge 段不上云、全局那一段保持初值）→ 自适应会让三臂的 run 长度因 GM 定义而不同
+    #   · 评估网格 = base 的每个云轮（5 个有效轮）一个点，三臂相同
+    set: {federation.n_edges: 4, federation.n_rounds: 60,
+          backdoor.malicious_per_edge: [10, 0, 0, 0], stopping: null}
     factors:
       split:
-        - {label: a}
-        - {label: b}
-        - {label: c}
+        - {label: a, set: {federation.edge_shared_blocks: 0}}
+        - {label: b, set: {federation.edge_shared_blocks: 1}}
+        - {label: c, set: {federation.edge_shared_blocks: 2}}
 
   G7:
     purpose: "预处理对比（D-025）：主协议（标准化 + 增强）vs 官方预处理（不标准化、不增强），同 seed 配对。检验「官方设定降低了攻击难度」"
