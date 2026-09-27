@@ -13,6 +13,7 @@ BackdoorCloudServer.run_round，断言：
 """
 
 import hashlib
+import re
 
 import numpy as np
 import pytest
@@ -74,8 +75,9 @@ def _model():
     return tf.keras.Model(inp, tf.keras.layers.Dense(NCLS, activation="softmax")(x))
 
 
-def _setup(aligned: bool):
+def _setup(aligned: bool, evaluation: dict | None = None):
     cfg = _cfg(aligned)
+    cfg["evaluation"].update(evaluation or {})
     g = _model()
     Mal = compose_client_class(HierFedRepClient, None, BadPFLMixin)
     shared = build_generator(cfg)
@@ -191,3 +193,24 @@ def test_legacy_config_prints_no_side_columns_and_uses_client_model(monkeypatch,
     assert all(seen.values()) and len(seen) == 6
     for tag in ("[ASR4]", "[ASRwb]", "[StaleASR]", "[Stale]"):
         assert tag not in out
+
+
+def test_downsampled_side_columns_share_the_eval_index(capsys):
+    """D-050 / D-054：白盒关 → 一条 [ASRwb] 都不打；陈旧 ASR 与陈旧 pm_acc 隔点，
+    而且落在**同一批**评估点上（第 0、2 个点算，第 1 个不算）；主列与 [ASR4] 每点照打。"""
+    cfg, cloud, clients, edges = _setup(True, {"whitebox_asr": False, "stale_asr_every": 2,
+                                               "stale_pm_every": 2})
+    per_round = {}
+    for r in (1, 2, 3):
+        cloud.run_round(r)
+        per_round[r] = capsys.readouterr().out
+    for r, out in per_round.items():
+        assert "[ASRwb]" not in out
+        assert "[ASR4]" in out and "[Backdoor] Round" in out
+        assert re.search(rf"\[TimingASR\] Round {r} \| main=[0-9.]+ \| whitebox=n/a", out)
+    for r in (1, 3):
+        assert "[StaleASR]" in per_round[r] and "[Stale]" in per_round[r], r
+        assert re.search(rf"\[TimingAcc\] Round {r} .*pm_stale=[0-9.]+", per_round[r])
+    assert "[StaleASR]" not in per_round[2] and "[Stale]" not in per_round[2]
+    assert re.search(r"\[TimingAcc\] Round 2 .*pm_stale=n/a", per_round[2])
+    assert re.search(r"\[TimingASR\] Round 2 .*stale=n/a", per_round[2])

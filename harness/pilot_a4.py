@@ -44,7 +44,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from registry import Registry          # noqa: E402
-from runs_table import last_k_mean     # noqa: E402
+from runs_table import last_k_mean, window_mean, SIDE_COLUMN_ANCHOR   # noqa: E402
 from analyze_exp3 import first_crossing  # noqa: E402
 
 # ── 预注册阈值（DECISIONS D-029 / D-031 / D-028；改动要在 DECISIONS 留记录）────
@@ -64,6 +64,9 @@ P1_FILES = {"flat": "flat_baseline_seed42.metrics.json",
 
 
 def _mean10(rows, key):
+    # 副列（D-054 起陈旧 pm_acc 隔点算）按「末 10 个评估点窗口」取，不能先丢 None 再往回够
+    if key in SIDE_COLUMN_ANCHOR:
+        return window_mean(rows, key, anchor=SIDE_COLUMN_ANCHOR[key])
     mean, n = last_k_mean([r.get(key) for r in rows or []])
     return mean, n
 

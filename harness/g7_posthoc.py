@@ -28,7 +28,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from analyze_exp3 import first_crossing   # noqa: E402
 from pilot_a4 import invalid_reasons       # noqa: E402
-from runs_table import last_k_mean         # noqa: E402
+from runs_table import last_k_mean, window_mean, SIDE_COLUMN_ANCHOR   # noqa: E402
 
 RESULTS = HERE.parent / "experiments/attack/hfl-mechanism/results/P2/G7"
 SEEDS = (42, 43, 44)
@@ -54,6 +54,8 @@ def earlier(off, std) -> bool:
 
 
 def _last10(rows, key):
+    if key in SIDE_COLUMN_ANCHOR:                  # 陈旧 pm_acc 隔点算之后按窗口取（D-054）
+        return window_mean(rows, key, anchor=SIDE_COLUMN_ANCHOR[key])[0]
     return last_k_mean([r.get(key) for r in rows or []])[0]
 
 

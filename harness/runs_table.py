@@ -74,6 +74,25 @@ def last_k_mean(values, k: int = LAST_K):
     return sum(vals) / len(vals), len(vals)
 
 
+# 副列降频之后（D-050 / D-054）不是每个评估点都有值。last_k_mean 先丢 None 再取末 k 个，
+# 隔点的列就会往回够到约 20 个评估点 —— 终值窗口与主列不同。副列一律用这个：
+SIDE_COLUMN_ANCHOR = {"pm_acc_stale": "pm_acc"}   # acc_rounds[] 每云轮一行，评估点 = pm_acc 有值的行
+
+
+def window_mean(rows, key: str, k: int = LAST_K, anchor: str | None = None):
+    """「末 k 个评估点」窗口内、`key` 有定义的点的均值与点数；一个都没有 → (None, 0)。
+
+    评估点 = rows 的每一行（rounds[] 每行就是一个评估点），或 `anchor` 列 / 本列有值的行
+    （acc_rounds[] 每云轮一行，用 pm_acc 认评估点）。每个点都有值时与 last_k_mean 逐位相同。
+    """
+    pts = [r for r in rows or []
+           if anchor is None or r.get(anchor) is not None or r.get(key) is not None][-k:]
+    vals = [r.get(key) for r in pts if r.get(key) is not None]
+    if not vals:
+        return None, 0
+    return sum(vals) / len(vals), len(vals)
+
+
 def factor_key(run_block: dict) -> tuple:
     out = []
     for k in FACTOR_KEYS:
@@ -112,13 +131,21 @@ def summarize_run(m: dict, *, name: str, source: str, legacy_protocol=None) -> d
     row["fedrep_order"] = align.get("fedrep_order")
 
     rounds = m.get("rounds") or []
-    for mk in ASR_METRICS + SIDE_ASR_METRICS:
+    for mk in ASR_METRICS:
         mean, n = last_k_mean([r.get(mk) for r in rounds])
         row[f"{mk}_last{LAST_K}"] = mean
         row[f"{mk}_n"] = n
+    for mk in SIDE_ASR_METRICS:                       # 副列：末 10 个评估点窗口（D-050）
+        mean, n = window_mean(rounds, mk)
+        row[f"{mk}_last{LAST_K}"] = mean
+        row[f"{mk}_n"] = n
     acc = m.get("acc_rounds") or []
-    for mk in ACC_METRICS + SIDE_ACC_METRICS:
+    for mk in ACC_METRICS:
         mean, n = last_k_mean([r.get(mk) for r in acc])
+        row[f"{mk}_last{LAST_K}"] = mean
+        row[f"{mk}_n"] = n
+    for mk in SIDE_ACC_METRICS:                       # 陈旧 pm_acc：同上（D-054）
+        mean, n = window_mean(acc, mk, anchor=SIDE_COLUMN_ANCHOR.get(mk))
         row[f"{mk}_last{LAST_K}"] = mean
         row[f"{mk}_n"] = n
 

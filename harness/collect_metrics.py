@@ -56,7 +56,9 @@ from utils.kvline import parse_kv, collect_kv   # noqa: E402
 # metrics.json 的结构版本。2 = 加了 run.provenance / run.cli_overrides。
 # 3 = A4：run.alignment / eval_attacker，rounds[] 的副列（[ASR4] [ASRwb] [StaleASR]），
 #     acc_rounds[].pm_acc_stale（[Stale]）、checksums[]（[Checksum]）。
-# 4 = 一卡多跑（D-052）：gpu_mem（[GPUMem]，TF 分配器的真实显存峰值）。
+# 4 = 一卡多跑（D-052）：gpu_mem（[GPUMem]，TF 分配器的真实显存峰值）；
+#     评估降频（D-054）：acc_rounds[] 的精度评估分项计时（[TimingAcc]）+ timing_summary.acc_split_total_s。
+#     副列没算的点（白盒关 / 陈旧隔点）照旧是 null。
 SCHEMA_VERSION = 4
 
 # A4 的副列：key=value 行（utils/kvline.py）→ rounds[] / acc_rounds[] 的字段。
@@ -72,6 +74,9 @@ ROUND_SIDE_COLUMNS = (
 )
 ACC_SIDE_COLUMNS = (
     ("[Stale]", {"pm_acc": "pm_acc_stale"}),
+    # 精度评估的分项耗时（D-054）：GM / EM 每轮都评，PM 只在评估轮评，陈旧 PM 隔点评；没评 → null
+    ("[TimingAcc]", {"gm": "acc_gm_s", "em": "acc_em_s",
+                     "pm": "acc_pm_s", "pm_stale": "acc_pm_stale_s"}),
 )
 
 
@@ -517,6 +522,10 @@ def _timing_summary(acc_rounds: list, timing_rounds: list) -> dict:
         xs = [t.get(key) for t in timing_rounds if t.get(key) is not None]
         return round(sum(xs), 1) if xs else None
 
+    def _acc_total(key):
+        xs = [a.get(key) for a in acc_rounds if a.get(key) is not None]
+        return round(sum(xs), 1) if xs else None
+
     return {
         "n_rounds_timed":        len(rt),
         "n_bd_evals":            len(bd),
@@ -539,6 +548,13 @@ def _timing_summary(acc_rounds: list, timing_rounds: list) -> dict:
             "main":     _total("asr_main_s"),
             "whitebox": _total("asr_whitebox_s"),
             "stale":    _total("asr_stale_s"),
+        },
+        # 精度评估的分项合计（D-054，[TimingAcc]）；在 round_time_total_s 之内；旧日志 → None
+        "acc_split_total_s": {
+            "gm":       _acc_total("acc_gm_s"),
+            "em":       _acc_total("acc_em_s"),
+            "pm":       _acc_total("acc_pm_s"),
+            "pm_stale": _acc_total("acc_pm_stale_s"),
         },
     }
 

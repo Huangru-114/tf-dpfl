@@ -407,6 +407,27 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
               f"目前只有 {sorted(PM_FRESH_METHODS)}；{method!r} 没有定义 → "
               f"fresh-PM 无从组装（AUDIT A28 / D-033）。")
 
+    # ── 4d. 评估降频（D-050 / D-054；开关在 alignment.EXTRA_SWITCHES）──────────
+    #   类型显式查：Python 里 1 == True，choices 挡不住 `whitebox_asr: 1` 这类写法。
+    #   两个 *_every > 1 时，陈旧 ASR 与陈旧 pm_acc 共用一个评估点序号（server._eval_seq）
+    #   → 要求 ASR 与精度落在同一批评估点上，否则「隔点」隔的不是同一批点。
+    _wb = ev_cfg.get("whitebox_asr", None)
+    if _wb is not None and not isinstance(_wb, bool):
+        _fail(f"evaluation.whitebox_asr 必须是 true / false，收到 {_wb!r}")
+    _every = {}
+    for _k in ("stale_asr_every", "stale_pm_every"):
+        _v = ev_cfg.get(_k, None)
+        if _v is not None and (isinstance(_v, bool) or not isinstance(_v, int) or _v < 1):
+            _fail(f"evaluation.{_k} 必须是 ≥ 1 的整数，收到 {_v!r}")
+        _every[_k] = 1 if _v is None else _v
+    if max(_every.values()) > 1 and bd_enabled:
+        _bd_i = int(bd.get("eval_interval", 50))
+        _acc_i = int(ev_cfg.get("eval_interval", 10))
+        if _bd_i != _acc_i:
+            _fail(f"evaluation.stale_*_every > 1 要求 backdoor.eval_interval（{_bd_i}）"
+                  f"== evaluation.eval_interval（{_acc_i}）：两个陈旧列共用一个评估点序号，"
+                  f"网格不同就隔不到同一批点上（D-054）。")
+
     # ── 5. 可复现性 ─────────────────────────────────────────────────────
     if "seed" not in config:
         warnings.append("config 缺 seed，实验不可复现。建议显式写死。")

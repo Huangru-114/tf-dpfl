@@ -12,6 +12,11 @@
 #   （registry.yaml），P2 = 模板全开，config_validate 对 meta.protocol=P2 逐键核对。
 #   各组 / 格子的 set 再叠在它上面（拓扑、R_edge、布点等由功能会话 S3–S6 填）。
 #
+#   2026-09-27 加：评估降频（D-050 / D-054，机时预算，不是对齐项 → 不进模板）：
+#     白盒 ASR 关；陈旧 ASR 与陈旧 pm_acc 隔一个评估点算一次（同一批点）。
+#     改这里会改所有 P2 组的 config_sha：已判完的 G7 下次 materialize 后显示 stale，
+#     submit.sh 默认不重交 stale（D-053）。
+#
 #   不要手改 configs/ 下生成的完整配置；改这里或登记表之后重新 materialize。
 
 seed: 42
@@ -135,6 +140,9 @@ wandb:
 
 evaluation:
   eval_interval:   1   # 每 5 个有效轮一个点 → 40 个点
+  whitebox_asr:    false   # D-050：白盒 ≈ 主列（F-051），关掉省约 7% 墙钟
+  stale_asr_every: 2       # D-050：陈旧 ASR 隔点；终值 = 末 10 个评估点窗口内的点（runs_table.window_mean）
+  stale_pm_every:  2       # D-054：陈旧 pm_acc 同样隔点，与陈旧 ASR 落在同一批点上
   final_finetune:       false
   final_finetune_steps: 5
   test_client_eval:    false

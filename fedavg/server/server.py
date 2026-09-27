@@ -96,6 +96,11 @@ class CloudServer(RobustAggregationMixin):
         #   stale（旧）：client.model；fresh：[当前 edge body, 自己的私有部分]。
         #   pm_acc 与 ASR（BackdoorCloudServer）都经 self.main_pm(c) 取模型 → 同一个 PM。
         self.pm_kind = get_switch(config, "evaluation.pm_model")
+        # 评估降频（D-054）：陈旧 pm_acc 每 stale_pm_every 个评估点算一次。_eval_seq = 当前评估点
+        # 的序号（从 0 起，首点必算）；BackdoorCloudServer 的陈旧 ASR 读同一个序号
+        # → 两个陈旧列落在同一批点上（config_validate 核对两个 eval_interval 相等）。
+        self.stale_pm_every = int(get_switch(config, "evaluation.stale_pm_every"))
+        self._eval_seq = -1
         self._edge_by_id = {int(e.edge_id): e for e in edge_servers}
         self._pm_scratch = {}          # 组装 fresh-PM 用的草稿模型（受害者 / 攻击者各一个）
         self._edge_w_cache = None      # 一次评估内 edge 权重不变，缓存一份
@@ -316,8 +321,10 @@ class CloudServer(RobustAggregationMixin):
               f"global={weights_checksum(self.global_model.get_weights())}")
 
         # ── Phase 3：评估 ────────────────────────────────────────────────
-
+        # 分项计时 → [TimingAcc]（D-054：降频省下多少要量得出来；GM / EM 的单价也是 S5 的依据）
+        _t = time.perf_counter()
         global_loss, global_acc = self.evaluate_global()
+        t_gm = time.perf_counter() - _t
 
         eval_interval = int(self.config.get("evaluation", {}).get("eval_interval", 10))
         n_rounds      = int(self.config["federation"]["n_rounds"])
@@ -325,6 +332,7 @@ class CloudServer(RobustAggregationMixin):
 
 
         # Edge model：每轮都测，使用 per-edge 测试集（若已设置），按样本数加权
+        _t = time.perf_counter()
         em_losses, em_accs, em_ns = [], [], []
         for edge in self.edge_servers:
             e_loss, e_acc = edge.evaluate_on(fallback_dataset=self.test_dataset)
@@ -334,14 +342,21 @@ class CloudServer(RobustAggregationMixin):
         total_em_n  = sum(em_ns)
         avg_em_acc  = float(sum(a * n / total_em_n for a, n in zip(em_accs, em_ns)))
         avg_em_loss = float(sum(l * n / total_em_n for l, n in zip(em_losses, em_ns)))
+        t_em = time.perf_counter() - _t
 
         # Personalized model：每 eval_interval 轮测一次，按样本数加权
         avg_pm_acc = avg_pm_loss = None
+        t_pm = t_pm_stale = None
         # 逐 edge 的 PM 精度：edge_id -> (该 edge 内按样本加权的 pm_acc, 客户端数)。
         # 只是**顺带分组**，下面的全局聚合一字未改（pm_accs/pm_ns 的追加顺序不变）。
         per_edge_pm = {}
         stale_accs, stale_ns = [], []
         if do_pm_eval:
+            self._eval_seq = getattr(self, "_eval_seq", -1) + 1
+            do_stale_pm = (self.pm_kind == "fresh"
+                           and self._side_due(getattr(self, "stale_pm_every", 1)))
+            _t_pm = time.perf_counter()
+            t_pm_stale = 0.0 if do_stale_pm else None
             if self.pm_kind == "fresh":
                 self.begin_pm_eval()
             pm_losses, pm_accs, pm_ns = [], [], []
@@ -353,12 +368,14 @@ class CloudServer(RobustAggregationMixin):
                         fallback_dataset=self.test_dataset,
                         model=self.main_pm(client),
                     )
-                    if self.pm_kind == "fresh":        # 副列：陈旧 PM（P1 口径，D-029 的门槛读它）
+                    if do_stale_pm:                    # 副列：陈旧 PM（P1 口径，D-029 的门槛读它）
+                        _ts = time.perf_counter()
                         _, s_acc = client.evaluate_on(
                             fallback_dataset=self.test_dataset, model=client.model,
                             verbose=False)
                         stale_accs.append(s_acc)
                         stale_ns.append(client.n_samples)
+                        t_pm_stale += time.perf_counter() - _ts
                     pm_losses.append(c_loss)
                     pm_accs.append(c_acc)
                     pm_ns.append(client.n_samples)
@@ -371,6 +388,7 @@ class CloudServer(RobustAggregationMixin):
             total_pm_n  = sum(pm_ns)
             avg_pm_acc  = float(sum(a * n / total_pm_n for a, n in zip(pm_accs, pm_ns)))
             avg_pm_loss = float(sum(l * n / total_pm_n for l, n in zip(pm_losses, pm_ns)))
+            t_pm = time.perf_counter() - _t_pm - (t_pm_stale or 0.0)
 
         comm_ce_total   = 2 * self.model_bytes * len(self.edge_servers)
         comm_round      = comm_ce_total + comm_ce
@@ -413,6 +431,12 @@ class CloudServer(RobustAggregationMixin):
             f"loss={global_loss:.4f} | time={elapsed:.1f}s | "
             f"comm={comm_round/1024/1024:.1f}MB "
             f"(total={self.total_comm_bytes/1024/1024:.0f}MB)")
+        # 独立的 key=value 行，不动 [Cloud]（全或无的正则）。没评的项是 n/a，不是 0。
+        print(format_kv("[TimingAcc]", {
+            "gm": round(t_gm, 2), "em": round(t_em, 2),
+            "pm": None if t_pm is None else round(t_pm, 2),
+            "pm_stale": None if t_pm_stale is None else round(t_pm_stale, 2),
+        }, round_idx=round_idx, digits=2))
 
         # ── 逐 edge 精度面板 ────────────────────────────────────────────────
         #   em_accs / per_edge_pm 上面**已经算出来了**，此前算完就丢，只留一个按样本
@@ -466,6 +490,11 @@ class CloudServer(RobustAggregationMixin):
         m = self._pm_scratch[slot]
         m.set_weights(w)
         return m
+
+    def _side_due(self, every) -> bool:
+        """副列（陈旧 pm_acc / 陈旧 ASR）在当前评估点上要不要算（D-050 / D-054）。"""
+        every = int(every)
+        return every <= 1 or getattr(self, "_eval_seq", 0) % every == 0
 
     def main_pm(self, client, slot: str = "victim"):
         """主口径的 PM（pm_acc 与主 ASR 共用这一个入口）。"""

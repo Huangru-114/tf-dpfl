@@ -48,6 +48,10 @@ class BackdoorCloudServer(CloudServer):
         self.eval_attacker = eval_attacker
         self.eval_xi_model = get_switch(self.config, "backdoor.eval_xi_model")
         self.asr_columns = get_switch(self.config, "evaluation.asr_columns")
+        # 评估降频（D-050）：白盒列可关（白盒 ≈ 主列，F-051）；陈旧 ASR 每 stale_asr_every 个
+        # 评估点算一次，与陈旧 pm_acc 共用 CloudServer._eval_seq（同一批点）。
+        self.whitebox_asr = bool(get_switch(self.config, "evaluation.whitebox_asr"))
+        self.stale_asr_every = int(get_switch(self.config, "evaluation.stale_asr_every"))
         self._seed = int(self.config.get("seed", 42))
         self.bd_cfg = bd_cfg or {}
         self.x_test = x_test
@@ -144,6 +148,9 @@ class BackdoorCloudServer(CloudServer):
         返回两个副列各自的耗时 {"whitebox": s, "stale": s}（没算的记 None），
         由 _backdoor_eval 打进 [TimingASR]（D-047：副列降频之前先量它们占多少）。
         [ASR4] 只是打印主列已算好的数，不单独计时。
+
+        降频（D-050）：evaluation.whitebox_asr=false → 不算白盒；evaluation.stale_asr_every=k
+        → 陈旧 ASR 只在第 0、k、2k… 个评估点算（与陈旧 pm_acc 同一个序号）。没算的列不打行。
         """
         t_side = {"whitebox": None, "stale": None}
         if self.asr_columns == "four_way":
@@ -155,7 +162,7 @@ class BackdoorCloudServer(CloudServer):
                 "global_unfiltered": metrics["global_asr_unfiltered"],
             }, round_idx=round_idx))
         benign = [c for c in self._all_clients if int(c.client_id) not in self.malicious_ids]
-        if fixed:
+        if fixed and getattr(self, "whitebox_asr", True):
             _t0 = time.perf_counter()
             att, rng = self.eval_attacker, self._eval_rng(round_idx, 1)
             wb = evaluate_local_asr(
@@ -167,7 +174,7 @@ class BackdoorCloudServer(CloudServer):
             print(format_kv("[ASRwb]", {"local_benign": wb["benign_mean"]},
                             round_idx=round_idx))
             t_side["whitebox"] = time.perf_counter() - _t0
-        if self.pm_kind == "fresh":
+        if self.pm_kind == "fresh" and self._side_due(getattr(self, "stale_asr_every", 1)):
             _t0 = time.perf_counter()
             trig = (self._attacker_trigger(round_idx, 2, "stale") if fixed else self.trigger_fn)
             st = evaluate_local_asr(

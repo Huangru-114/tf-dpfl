@@ -80,6 +80,16 @@ EXTRA_SWITCHES = (
            (True, False),                           "A10", "D-025", None),
     Switch("data.augment",                 True,         None,
            (True, False),                           "A10", "D-025", None),
+    # 评估降频（机时预算，不是对齐项 → 不进模板；P2 的值写在 hfl-mechanism/base.yaml）。
+    # D-050：白盒 ASR 关（白盒 ≈ 主列，F-051）、陈旧 ASR 隔一个评估点算一次；
+    # D-054：陈旧 pm_acc 也隔点算，与陈旧 ASR 落在同一批评估点上（config_validate 核对两个 interval 相等）。
+    # 类型（bool / 正整数）由 config_validate 显式检查：Python 里 1 == True，choices 挡不住。
+    Switch("evaluation.whitebox_asr",      True,         None,
+           (True, False),                           "A02", "D-050", None),
+    Switch("evaluation.stale_asr_every",   1,            None,
+           (),                                      "A28", "D-050", None),
+    Switch("evaluation.stale_pm_every",    1,            None,
+           (),                                      "A28", "D-054", None),
 )
 
 ALL = {s.key: s for s in SWITCHES + EXTRA_SWITCHES}
