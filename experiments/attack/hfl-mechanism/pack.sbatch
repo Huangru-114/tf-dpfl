@@ -25,6 +25,14 @@
 #      可用核不够 K×4、或没有 taskset → 拒绝启动（不静默降级成「核数随 K 变」）。
 #   3. 后台采样 nvidia-smi（每 15 s），结束时写一个小 JSON（利用率均值 / 峰值、显存峰值、墙钟）
 #      到第一个 run 的 metrics 旁边：<tag>.gpu.json。没有 nvidia-smi 就跳过（本地 CPU 验证）。
+#      D-052 起另记：整卡容量 mem_total_mib；每个 run 的**真实**显存峰值 run_peak_mib（来自日志的
+#      [GPUMem]，TF 分配器实际占用 —— 整卡 memory.used 含按需增长预留的块，偏大）；OOM 的 run。
+#      提交脚本（submit_lib.sh）按这几个数定下一包的 K。
+#   4. OOM 判定（D-052）：日志里出现 ResourceExhaustedError / OOM when allocating /
+#      CUDA_ERROR_OUT_OF_MEMORY 就算 OOM —— **包括被 _collect_updates_* 吞掉的客户端异常**
+#      （run 照样 exit 0，恶意端被踢出聚合，结果无效，陷阱 #23 同类）。这种 run 的 exit_code
+#      记成 OOM_RC（非 0）→「完成 = exit 0 + sha 一致」的判据不用改就会把它当未完成重交。
+#      TF 的「ran out of memory trying to allocate … not a failure」是警告不是失败：只计数，不判 OOM。
 # -c / --mem 可在 sbatch 命令行覆盖（submit_pack_test.sh 用 -c 4K）。
 # ══════════════════════════════════════════════════════════════════════════
 set -uo pipefail
@@ -83,7 +91,7 @@ echo "[pack] tag=$TAG  K=$K  可用核=${#CPUS[@]}  每个 run 绑 ${PER} 核"
 GPU_CSV="$LOGDIR/exp3v2_${TAG}.gpu.csv"
 SMI_PID=""
 if command -v nvidia-smi >/dev/null 2>&1; then
-    nvidia-smi --query-gpu=utilization.gpu,memory.used --format=csv,noheader,nounits \
+    nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total --format=csv,noheader,nounits \
         -l 15 > "$GPU_CSV" 2>/dev/null &
     SMI_PID=$!
 fi
@@ -110,36 +118,70 @@ T_END=$(date +%s)
 
 # ── 逐个收尾：collect_metrics + exit_code + 打包信息（照抄 cell.sbatch）──────
 cd "$ROOT"
+OOM_RC=86                            # OOM 专用退出码（D-052）：非 0 → 提交脚本当未完成
 WORST=0
 for ((i = 0; i < K; i++)); do
     mkdir -p "$(dirname "${METRICS[$i]}")"
     $PY harness/collect_metrics.py "${LOGS[$i]}" -o "${METRICS[$i]}"
-    $PY - "${METRICS[$i]}" "${RCS[$i]}" "$TAG" "$K" "$i" "${SLURM_JOB_ID:-local}" <<'PY'
-import json, sys
+    # 只取最后一行、且必须是整数：容器包装层往 stdout 多打一行也不会把退出码弄坏
+    RC_EFF=$($PY - "${METRICS[$i]}" "${RCS[$i]}" "$TAG" "$K" "$i" "${SLURM_JOB_ID:-local}" \
+             "${LOGS[$i]}" "$OOM_RC" <<'PY' | tail -n 1
+import json, os, re, sys
 p, rc, tag, k, slot, job = sys.argv[1], int(sys.argv[2]), sys.argv[3], int(sys.argv[4]), int(sys.argv[5]), sys.argv[6]
+log, oom_rc = sys.argv[7], int(sys.argv[8])
+text = open(log, errors="replace").read() if os.path.isfile(log) else ""
+oom = bool(re.search(r"ResourceExhaustedError|OOM when allocating|CUDA_ERROR_OUT_OF_MEMORY", text))
+warn = len(re.findall(r"ran out of memory trying to allocate", text))
 d = json.load(open(p))
 d["exit_code"] = rc
-d["pack"] = {"tag": tag, "k": k, "slot": slot, "job": job}
+if oom and rc == 0:
+    d["exit_code"] = oom_rc          # 被吞掉的 OOM：run 退出 0 但结果无效
+d["pack"] = {"tag": tag, "k": k, "slot": slot, "job": job, "oom": oom, "mem_warnings": warn,
+             "peak_mib": (d.get("gpu_mem") or {}).get("peak_mib")}
 json.dump(d, open(p, "w"), indent=2, ensure_ascii=False)
+print(d["exit_code"])
 PY
+)
+    [[ "$RC_EFF" =~ ^[0-9]+$ ]] && RCS[$i]=$RC_EFF
     [ "${RCS[$i]}" -ne 0 ] && WORST=${RCS[$i]}
 done
 
 # ── GPU 汇总（小 JSON，可回传）────────────────────────────────────────────
 GPU_JSON="$(dirname "${METRICS[0]}")/${TAG}.gpu.json"
-$PY - "$GPU_CSV" "$GPU_JSON" "$K" "$((T_END - T_START))" "${RUN_IDS[@]}" <<'PY'
+$PY - "$GPU_CSV" "$GPU_JSON" "$K" "$((T_END - T_START))" "${RUN_IDS[@]}" "${METRICS[@]}" <<'PY'
 import json, os, sys
 csv_path, out, k, wall = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4])
-util, mem = [], []
+runs, metrics = sys.argv[5:5 + k], sys.argv[5 + k:5 + 2 * k]
+util, mem, total = [], [], []
 if os.path.isfile(csv_path):
     for ln in open(csv_path):
         parts = [x.strip() for x in ln.split(",")]
         if len(parts) >= 2 and parts[0].replace(".", "").isdigit():
             util.append(float(parts[0])); mem.append(float(parts[1]))
-json.dump({"k": k, "runs": sys.argv[5:], "wall_s": wall, "n_samples": len(util),
+            if len(parts) >= 3 and parts[2].replace(".", "").isdigit():
+                total.append(float(parts[2]))
+peaks, oom, warn = [], [], 0
+for rid, mp in zip(runs, metrics):
+    try:
+        pk = json.load(open(mp)).get("pack") or {}
+    except (OSError, ValueError):
+        pk = {}
+    peaks.append(pk.get("peak_mib"))
+    if pk.get("oom"):
+        oom.append(rid)
+    warn += int(pk.get("mem_warnings") or 0)
+known = [p for p in peaks if p is not None]
+# 标量键各占一行：submit_lib.sh 是纯 bash，只 grep 标量
+json.dump({"k": k, "runs": runs, "wall_s": wall, "n_samples": len(util),
            "util_mean": round(sum(util) / len(util), 1) if util else None,
            "util_max": max(util) if util else None,
-           "mem_max_mib": max(mem) if mem else None},
+           "mem_max_mib": max(mem) if mem else None,
+           "mem_total_mib": max(total) if total else None,
+           "run_peak_max_mib": max(known) if known else None,
+           "n_oom": len(oom),
+           "n_mem_warnings": warn,
+           "run_peak_mib": peaks,
+           "oom_runs": oom},
           open(out, "w"), indent=2)
 print(f"[pack] GPU 汇总 -> {out}")
 PY

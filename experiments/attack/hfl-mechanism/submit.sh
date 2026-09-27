@@ -6,11 +6,17 @@
 #   bash experiments/attack/hfl-mechanism/submit.sh --dry-run    # 列出会提交什么
 #   bash experiments/attack/hfl-mechanism/submit.sh              # 提交所有未完成的 run
 #   RUN_GROUPS="G0 G2" bash ./submit.sh                         # 只处理这些组（不能叫 GROUPS：那是 bash 的内置变量）
+#   PACK=3 RUN_GROUPS=G6 bash ./submit.sh                       # 一卡多跑（D-048 / D-052，见 submit_lib.sh）
 #
 # 读 configs/INDEX.tsv（harness/registry.py --materialize 生成）。一个 run 算「完成」要同时满足：
 #   1. metrics.json 存在；2. exit_code 为 0；3. 里面的 config_sha 等于 INDEX.tsv 的值。
 # 第 3 条是旧方案 run_exp3.sh 没有的：改了配置而结果还是旧的，旧脚本会照样算「已完成」
-# （陷阱 #15）。这里配置一变 sha 就变，旧结果自动变成待重跑。
+# （陷阱 #15）。配置一变 sha 就变，这样的旧结果标 `stale`（D-053）：不算完成，但**默认不重交**
+# —— 已判完的组不会因为 base.yaml 改了一个评估开关就整组重跑；要重跑设 RESUBMIT_STALE=1。
+#
+# 一卡多跑：PACK=K（缺省 1 = 一卡一跑，与以前逐字相同）。同一个包只放同一格子的不同 seed；
+# 每个格子先交一个 PROBE_K（缺省 2）的探路包，显存数据回来后再按实测峰值定 K；OOM 自动降档。
+# 规则与参数见 submit_lib.sh 的页首。**交完等回传再跑下一次**：脚本不查 SLURM 队列。
 #
 # **门槛**：AUDIT.md 里只要还有 `open` / `align` 的行，就拒绝提交（DECISIONS D-006）。
 # --status 与 --dry-run 照样能看，只是不提交。没有绕过门槛的开关，这是刻意的。
@@ -22,7 +28,10 @@ ROOT="${TFDPFL_ROOT:-$(cd "$HERE/../../.." && pwd)}"
 INDEX="$HERE/configs/INDEX.tsv"
 AUDIT="$HERE/AUDIT.md"
 JOB="$HERE/cell.sbatch"
+PACK_JOB="$HERE/pack.sbatch"
 ONLY_GROUPS="${RUN_GROUPS:-}"
+# shellcheck source=submit_lib.sh
+source "$HERE/submit_lib.sh"
 
 DRY=0; STATUS=0
 for a in "$@"; do case "$a" in
@@ -47,28 +56,42 @@ if [ ! -f "$INDEX" ]; then
     exit 0
 fi
 
-total=0; done_n=0; todo_n=0; queued=0
+SUBMIT_OK=0
+[ "$DRY" -eq 0 ] && [ "$STATUS" -eq 0 ] && [ "$gate_closed" -eq 1 ] && SUBMIT_OK=1
+total=0; done_n=0; todo_n=0; stale_n=0; queued=0
 while IFS=$'\t' read -r run_id group cell seed sha config metrics; do
     [ "$run_id" = "run_id" ] && continue                 # 表头
     if [ -n "$ONLY_GROUPS" ] && [[ " $ONLY_GROUPS " != *" $group "* ]]; then continue; fi
     total=$((total + 1))
     case "$metrics" in /*) m="$metrics" ;; *) m="$ROOT/$metrics" ;; esac
-    if [ -s "$m" ] && grep -q '"exit_code": *0' "$m" && grep -q "\"config_sha\": *\"$sha\"" "$m"; then
+    state=$(run_state "$m" "$sha")
+    if [ "$state" = done ]; then
         done_n=$((done_n + 1))
         [ "$STATUS" -eq 1 ] && echo "  done   $run_id"
         continue
     fi
-    todo_n=$((todo_n + 1))
-    if [ "$STATUS" -eq 1 ]; then echo "  todo   $run_id"; continue; fi
-    if [ "$DRY" -eq 1 ] || [ "$gate_closed" -eq 0 ]; then
+    if [ "$state" = stale ]; then
+        stale_n=$((stale_n + 1))
+        if [ "$STATUS" -eq 1 ]; then echo "  stale  $run_id"; continue; fi
+        [ "$RESUBMIT_STALE" = 1 ] || continue
+    else
+        todo_n=$((todo_n + 1))
+        if [ "$STATUS" -eq 1 ]; then echo "  todo   $run_id"; continue; fi
+    fi
+    if [ "$PACK" -gt 1 ]; then
+        pack_add "$group" "$cell" "$seed" "$config" "$run_id" "$metrics" "$m"; continue
+    fi
+    if [ "$SUBMIT_OK" -eq 0 ]; then
         echo "  would sbatch  $run_id  ($config)"; continue
     fi
     (cd "$ROOT" && sbatch "$JOB" "$config" "$run_id" "$metrics")
     queued=$((queued + 1))
 done < "$INDEX"
+[ "$STATUS" -eq 0 ] && [ "$PACK" -gt 1 ] && pack_flush
 
 echo "──────────────────────────────────────────────"
-echo "run 总数=$total  已完成=$done_n  未完成=$todo_n  本次入队=$queued"
+echo "run 总数=$total  已完成=$done_n  未完成=$todo_n  过期(stale)=$stale_n  本次入队=$queued  held=$held"
+[ "$stale_n" -gt 0 ] && [ "$RESUBMIT_STALE" != 1 ] && echo "(stale 默认不重交；要重跑设 RESUBMIT_STALE=1)"
 [ "$STATUS" -eq 1 ] && echo "(仅状态；未提交)"
 [ "$DRY" -eq 1 ] && echo "(dry-run；未提交)"
 [ "$gate_closed" -eq 0 ] && [ "$STATUS" -eq 0 ] && echo "(审计门槛未过；未提交)"

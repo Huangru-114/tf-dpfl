@@ -29,6 +29,26 @@ from aggregation.scaffold import scaffold_aggregate, init_cv
 from .robust_aggregation  import RobustAggregationMixin
 
 
+def gpu_mem_line(round_idx: int):
+    """`[GPUMem] Round N | peak_mib=… | current_mib=…`；没有 GPU → None（不打这一行）。
+
+    一卡多跑按它定 K（DECISIONS D-052）：`get_memory_info` 报的是 TF 分配器**实际占用**的峰值，
+    不是 nvidia-smi 的 memory.used —— 开了 TF_FORCE_GPU_ALLOW_GROWTH 后分配器按块预留，
+    整卡 memory.used 会大于 run 真正需要的量，拿它推 K 不可靠。峰值是进程启动以来的累计值。
+    只写日志，不碰训练。
+    """
+    if not tf.config.list_physical_devices("GPU"):
+        return None
+    try:
+        info = tf.config.experimental.get_memory_info("GPU:0")
+    except (ValueError, RuntimeError):
+        return None
+    mib = 1024.0 * 1024.0
+    return format_kv("[GPUMem]", {"peak_mib": round(info["peak"] / mib, 1),
+                                  "current_mib": round(info["current"] / mib, 1)},
+                     round_idx=round_idx, digits=1)
+
+
 class CloudServer(RobustAggregationMixin):
     def __init__(self, global_model: tf.keras.Model,
                  edge_servers: list,
@@ -467,6 +487,10 @@ class CloudServer(RobustAggregationMixin):
         """
         for r in range(1, self.config["federation"]["n_rounds"] + 1):
             m = self.run_round(r)
+            # 放在 run_round 之后：BackdoorCloudServer 的后门评估也在 run_round 里，峰值要把它算进去
+            _mem = gpu_mem_line(r)
+            if _mem:
+                print(_mem)
             if logger:
                 logger.log_round(r, m)
             dec = self.stopper.update(r, self._stopping_signals(m))

@@ -56,7 +56,8 @@ from utils.kvline import parse_kv, collect_kv   # noqa: E402
 # metrics.json 的结构版本。2 = 加了 run.provenance / run.cli_overrides。
 # 3 = A4：run.alignment / eval_attacker，rounds[] 的副列（[ASR4] [ASRwb] [StaleASR]），
 #     acc_rounds[].pm_acc_stale（[Stale]）、checksums[]（[Checksum]）。
-SCHEMA_VERSION = 3
+# 4 = 一卡多跑（D-052）：gpu_mem（[GPUMem]，TF 分配器的真实显存峰值）。
+SCHEMA_VERSION = 4
 
 # A4 的副列：key=value 行（utils/kvline.py）→ rounds[] / acc_rounds[] 的字段。
 # 缺行（旧口径、或该列本 run 没开）→ null，**不是 0**。
@@ -542,6 +543,18 @@ def _timing_summary(acc_rounds: list, timing_rounds: list) -> dict:
     }
 
 
+def _collect_gpu_mem(lines) -> dict | None:
+    """[GPUMem]（D-052）→ {peak_mib, n_samples}。peak 是进程启动以来的累计峰值，取最大值。
+
+    没有这一行（CPU 上跑、旧日志）→ None，**不是 0**：「没量」≠「不占显存」。
+    """
+    peaks = [d.get("peak_mib") for d in collect_kv(lines, "[GPUMem]")]
+    peaks = [float(p) for p in peaks if p is not None]
+    if not peaks:
+        return None
+    return {"peak_mib": max(peaks), "n_samples": len(peaks)}
+
+
 def collect(log_text: str) -> dict:
     lines = log_text.splitlines()
 
@@ -614,6 +627,8 @@ def collect(log_text: str) -> dict:
         # A15：每轮全局权重的 sha256 前 12 位 —— 同 seed 两次 run 逐轮对得上才算确定性
         "checksums": checksums,
         "timing_summary": _timing_summary(acc_rounds, timing_rounds),
+        # 真实显存峰值（一卡多跑按它定 K，D-052）；没有 GPU / 旧日志 → null
+        "gpu_mem": _collect_gpu_mem(lines),
         "admitted": admitted,
         # 只对有客户端级判决的防御求均值；坐标类（admitted=None）不参与，
         # 全是坐标类或无防御时结果是 None —— 0 会被误读成「全部被剔除」。

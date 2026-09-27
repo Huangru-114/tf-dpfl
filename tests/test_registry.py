@@ -292,6 +292,7 @@ def test_no_new_job_script_hardcodes_a_defense():
 def mech_copy(tmp_path):
     d = _synthetic(tmp_path)
     shutil.copy(MECH / "submit.sh", d / "submit.sh")
+    shutil.copy(MECH / "submit_lib.sh", d / "submit_lib.sh")
     reg = R.Registry(d / "registry.yaml")
     rows = R.materialize(reg)
     return d, reg, rows
@@ -313,6 +314,7 @@ def _write_metrics(reg, run_id, sha, rc=0):
 def test_submit_refuses_while_audit_is_open(tmp_path):
     d = _synthetic(tmp_path, audit_rows={"A01": "done", "A02": "open"})
     shutil.copy(MECH / "submit.sh", d / "submit.sh")
+    shutil.copy(MECH / "submit_lib.sh", d / "submit_lib.sh")
     R.materialize(R.Registry(d / "registry.yaml"))
     out = _submit(d)
     assert out.returncode == 0, out.stderr
@@ -324,12 +326,12 @@ def test_submit_done_requires_matching_config_sha(mech_copy):
     d, reg, rows = mech_copy
     sha = {r["run_id"]: r["config_sha"] for r in rows}
     _write_metrics(reg, "GA__e2__s42", sha["GA__e2__s42"])           # 完成
-    _write_metrics(reg, "GA__e2__s43", "000000000000")               # 配置已变 → 待重跑
+    _write_metrics(reg, "GA__e2__s43", "000000000000")               # 配置已变 → stale（D-053：不算完成）
     _write_metrics(reg, "GA__e4__s42", sha["GA__e4__s42"], rc=1)     # 跑挂了
     out = _submit(d, "--status")
     lines = dict(ln.split()[::-1] for ln in out.stdout.splitlines()
-                 if ln.startswith("  done") or ln.startswith("  todo"))
-    assert lines == {"GA__e2__s42": "done", "GA__e2__s43": "todo",
+                 if ln.startswith(("  done", "  todo", "  stale")))
+    assert lines == {"GA__e2__s42": "done", "GA__e2__s43": "stale",
                      "GA__e4__s42": "todo", "GA__e4__s43": "todo"}
 
 
