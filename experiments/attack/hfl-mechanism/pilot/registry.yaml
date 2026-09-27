@@ -1,6 +1,6 @@
 # 可行性 pilot 登记表 —— 口径版本 P1（**不进 P2**，所以不受 D-006 的审计门槛约束）
 #
-# 三组，都在 A4（2026-09-26）登记，预注册判据先定后跑，由 harness/pilot_a4.py 判定：
+# 前三组在 A4（2026-09-26）登记，G2P 在 2026-09-27 登记（D-047）；预注册判据先定后跑，由 harness/pilot_a4.py 判定：
 #
 #   D029  可行性实验（DECISIONS D-029，范围经 D-038 扩大）：完整 P2 代码路径
 #         （模板全开：A08 + A25 + A27 + A29 …，2edge 那格同时带上 D01 / D02；
@@ -14,6 +14,13 @@
 #         否则带回审计由用户定。
 #   DET   A15 的验收（D-028）：同一配置跑两次（2edge_distributed、5 个云轮、不停轮），
 #         [Checksum] 前 5 轮逐轮相同 → A15 改 done。
+#
+#   G2P   G2 一致性复测（D-047，预算）：旧 P1 与 G2 重合的 4 格（flat / 2edge-R5 / 4edge-R5 / 10edge-R5，seed42），
+#         其中 flat / 2edge-R5 复用 D029 组（同一配置、同一代码），这里只跑 4edge / 10edge 两格
+#         （与旧 P1 同名 yaml 只差 n_edges 与 malicious_per_edge）。
+#         判据：3 个 HFL/flat 的 T50（local_benign_asr，插值）比值与旧 P1 在 1 的同一侧；
+#         落在 [0.9, 1.1] 的算「约等于 1」、不计为不一致 → consistent；否则 inconsistent。
+#         单 seed：只回答「值不值得花完整的 G2」，**不代替**预注册的 5 seed 判定（PLAN §3 的 3-A）。
 #
 # 基配置 = P1 锚点格原文件（hfl-propagation/2edge_distributed.yaml，冻结、不改）+ 对齐模板；
 # flat 格只改与 P1 flat_baseline.yaml 不同的那几个键（守卫 tests/test_pilot_a4.py）。
@@ -59,3 +66,13 @@ groups:
     cells:
       - {cell: rep1}
       - {cell: rep2}
+
+  G2P:
+    purpose: "D-047：G2 一致性复测（seed42）。flat / 2edge-R5 复用 D029 组，这里只跑 4edge-R5 / 10edge-R5"
+    seeds: [42]
+    set: {backdoor.malicious_strategy: badpfl}
+    cells:
+      - cell: 4edge_distributed
+        set: {federation.n_edges: 4, backdoor.malicious_per_edge: [3, 3, 2, 2]}
+      - cell: 10edge_distributed
+        set: {federation.n_edges: 10, backdoor.malicious_per_edge: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]}

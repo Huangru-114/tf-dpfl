@@ -1,8 +1,8 @@
 # current-focus —— Experiment 3（改版）· 交接
 
 > 本文件是 `CLAUDE.md`「新会话开场第 3 步」要读的那一份。
-> **写于 2026-09-27**（A4 收口会话结束时）。**A4 已收口**：AUDIT 全部关闭，口径升 P2。
-> 下一会话 = **用户从下面「下一步」里挑一个功能会话**（本文件不替用户定）。
+> **写于 2026-09-27**（A4 收口会话结束时），**同日追加「机时预算」**（D-047）。**A4 已收口**：AUDIT 全部关闭，口径升 P2。
+> 下一会话 = **回收本周的三批集群结果（PACK / G2P / G7）**，据此定一卡多跑、副列降频、G2 规模，再排功能会话。
 
 ## 几套编号（容易混，先看这里）
 
@@ -12,8 +12,8 @@
 | **S1–S8** | 功能会话的名字：S3 新划分、S4 影子攻击者、S5 逐 edge 轮评估、S6 更新日志…… | PLAN §5 |
 | **A01–A29** | `AUDIT.md` 的「对齐差异」行号 | AUDIT 第一、二节 |
 | **D01–D06** | `AUDIT.md` 的「有意偏离登记」行号 | AUDIT 第三节 |
-| **D-001 … D-046** | `DECISIONS.md` 的决策日志（带连字符、三位数），**与登记行 D01–D06 是两套东西** | DECISIONS |
-| **F-001 … F-045 / N-001 … N-006** | `FINDINGS.md` 的证据条目 / 设计备注 | FINDINGS |
+| **D-001 … D-047** | `DECISIONS.md` 的决策日志（带连字符、三位数），**与登记行 D01–D06 是两套东西** | DECISIONS |
+| **F-001 … F-047 / N-001 … N-006** | `FINDINGS.md` 的证据条目 / 设计备注 | FINDINGS |
 | **P0 / P1 / P2** | 数据批次的口径版本；只有 P2 进结论 | PLAN §0 |
 
 ## A4 收口的结论（2026-09-27）
@@ -29,7 +29,26 @@
   终值类比较可能撞天花板；G2 主结论读的是 T_θ（到达阈值的轮数），受影响小一些，但 θ=0.75 附近的分辨率要看实测。
 - `status.py experiments/attack/hfl-mechanism/registry.yaml`：`todo=6`（G7）、`blocked=151`（只剩功能会话依赖）。
 
-## 下一步（用户挑一个作为下一会话的唯一问题）
+## 机时预算（D-047，2026-09-27）—— 下一会话唯一要回答的问题
+
+**上限约 100 GPU-h / 周**（按 GPU 小时计费）。157 个 run × 2.3 GPU-h ≈ 360 GPU-h 不可接受。F-046：评估约占 36%，
+run 长度由 pm_acc 平台决定 → 只降评估频率不够。本周交三批（合计约 21 GPU-h），回来后回答三件事：
+
+| 批 | 交法 | 判定（先定后跑） | 回来后 |
+|---|---|---|---|
+| **PACK** 一卡多跑测试 | `bash …/pilot/submit_pack_test.sh`（K=2、K=3 各一个作业，约 1.5 GPU-h） | `python3 harness/pack_test.py`：前 5 轮 checksum = DET 第二轮（硬门槛），加速比 ≥ 1.5 取最高的 K | 采用 → 把 pack 接进 `submit.sh` / `submit_pilot.sh`（`PACK=K`）；不采用 → 照旧一卡一跑 |
+| **G2P** G2 一致性复测 | `RUN_GROUPS="G2P" bash …/pilot/submit_pilot.sh`（4edge-R5、10edge-R5，约 5–6 GPU-h） | `python3 harness/pilot_a4.py …/pilot/registry.yaml` 的 G2P 段：3 个比值与旧 P1（0.815 / 0.398 / 1.489）同侧 → consistent | 带回给用户定 G2 的规模（**不代替** 3-A 的 5 seed 判定） |
+| **G7** 预处理对比 | `RUN_GROUPS="G7" bash …/submit.sh`（6 个 run，约 14 GPU-h） | ⚠ **还没有量化判据**（D-025 只写了「检验官方设定降低了攻击难度」，`verdicts.py` 只实现了 3-A）→ **数据回来之前要用户定** | 见下 |
+
+- **副列降频**：三批的 metrics 都带 `timing_summary.asr_split_total_s`（主列 / 白盒 / 陈旧，来自 `[TimingASR]`）。
+  据此重议 D-046，定副列每几个评估点算一次，再实现开关（终值口径要一并定：副列的「末 10 点」会跨更长的轮次）。
+  本地 CPU 小配置上量到的是：主列 54 s、白盒 9.5 s、陈旧 12 s（一次评估）—— 只是量级参考，GPU 上的比例要看集群实测。
+- **G7 的判据**（提议，未定）：按 seed 配对，比较两臂的 T50（良性 ASR）与末 10 点 ASR；「官方预处理降低攻击难度」=
+  T50(official) < T50(std) 且末 10 点 ASR 不低于 std，3 个 seed 方向一致。3 个 seed 的 bootstrap CI 很粗，只能分辨大差异。
+- **核数会改变结果**（F-047，CPU 上实测）：`pack.sbatch` 每个 run 恰好绑 4 核；别改 `cell.sbatch` 的 `-c 4`。
+- G4 **搁置**（`registry.yaml` 的 requires 里有 `reformulate-3.2`）；G6 / S8 的优先级在上面三批回来后与 S3 / S4 / S5 一起排。
+
+## 下一步（功能会话；上面三批回来后再排）
 
 | 功能会话 | 解锁 | run 数 | 说明 |
 |---|---|---|---|
@@ -54,7 +73,8 @@
 | `7e43a42` C5 | A08 / D02 有效轮、D01 交错执行、A15 确定性 + `[Checksum]` |
 | `e820c00` C6 | P2 `base.yaml`、登记表 base + overlays + G7、pilot 表 + `submit_pilot.sh` + `harness/pilot_a4.py`、AUDIT / DECISIONS / FINDINGS / CLAUDE.md |
 | `299afe6` 收口 1 | `TorchBatchNorm`（D-043）、pilot 有效性闸（D-044）、`tests/test_bn_inference_determinism.py`（CPU 上模拟 GPU 检查） |
-| 本提交 收口 2 | AUDIT 最后 4 行关闭、`PROTOCOL_VERSION = "P2"`、D-045 / D-046、F-045 |
+| `cd928bf` 收口 2 | AUDIT 最后 4 行关闭、`PROTOCOL_VERSION = "P2"`、D-045 / D-046、F-045 |
+| 本提交 预算 | `pack.sbatch` + `pilot/submit_pack_test.sh` + `harness/pack_test.py`；`[TimingASR]`；G2P 组 + `judge_g2p`；G2 登记表补齐；G4 搁置；G7 配置生成；D-047、F-046 |
 
 - AUDIT：`done` 新增 A01 A02 A03 A05 A06 A14 A16 A22 A24 A27 A28 A29 D01 D02；收口时 A15 A25 `done`、A08 A26 `deviate` → **全部关闭**。
 - 用户拍板：D-039（开关 + 一套模板）、D-040（评估尾块循环补足）、D-041（陈旧列 ξ 用攻击者陈旧模型）、D-042（pilot 完整 P2 代码路径 + DET 组）；收口：D-043 … D-046。

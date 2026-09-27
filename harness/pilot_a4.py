@@ -23,6 +23,14 @@ on_round_start 抛异常、被 `_collect_updates_*` 吞掉并踢出聚合 → �
 若评估侧没崩，D-029（ASR 不设门槛）会判 pass、D-031 两臂 ASR 都≈0 会判 same。
 崩溃也不再判 `fail`：崩溃不是可行性结论。
 
+G2P（D-047，G2 一致性复测，2026-09-27 登记）—— 旧 P1 与 G2 重合的 4 格（seed42）：
+      flat / 2edge-R5 取 D029 组，4edge-R5 / 10edge-R5 取 G2P 组。
+      T50 = local_benign_asr 首次越过 0.5 的有效轮（`analyze_exp3.first_crossing`，线性插值）；
+      比值 r = T50(HFL) / T50(flat)。旧 P1 参照从 hfl-propagation/results/*_seed42 现算，不手抄
+      （2026-09-27 算得 0.815 / 0.398 / 1.489）。
+      3 个比值都与旧 P1 在 1 的同一侧 → consistent；任一侧落在 [0.9, 1.1] 算「约等于 1」、不计为不一致。
+      任一格 T50 删失（没越过 0.5）→ undetermined。单 seed：**不代替** 3-A 的 5 seed 判定。
+
 纯标准库 + PyYAML，不 import TF。
 """
 
@@ -37,6 +45,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from registry import Registry          # noqa: E402
 from runs_table import last_k_mean     # noqa: E402
+from analyze_exp3 import first_crossing  # noqa: E402
 
 # ── 预注册阈值（DECISIONS D-029 / D-031 / D-028；改动要在 DECISIONS 留记录）────
 D029_PM_FLOOR = {"flat": 0.7367, "2edge_distributed": 0.7297}
@@ -44,6 +53,14 @@ D031_PM_TOL = 0.006
 D031_ASR_TOL = 0.07
 DET_ROUNDS = 5
 CELLS = ("flat", "2edge_distributed")
+
+# G2P（D-047）
+G2P_THETA = 0.5
+G2P_BAND = (0.9, 1.1)                  # 「约等于 1」，不计为不一致
+G2P_HFL = ("2edge_distributed", "4edge_distributed", "10edge_distributed")
+P1_RESULTS = HERE.parent / "experiments/attack/hfl-propagation/results"
+P1_FILES = {"flat": "flat_baseline_seed42.metrics.json",
+            **{c: f"{c}_seed42.metrics.json" for c in G2P_HFL}}
 
 
 def _mean10(rows, key):
@@ -134,11 +151,73 @@ def judge_det(a: dict | None, b: dict | None, k: int = DET_ROUNDS) -> dict:
             "checksums": [[r, ca[r], cb[r]] for r in rounds]}
 
 
-def judge_all(metrics: dict) -> dict:
-    """metrics：{(group, cell): metrics dict 或 None}。"""
+def t50(m: dict, key: str = "local_benign_asr", theta: float = G2P_THETA):
+    """有效轮上的首次越阈（插值）；没越过 / 点太少 → None。"""
+    eff = (m.get("run") or {}).get("edge_rounds") or 1
+    series = [(r["round"] * eff, r[key]) for r in m.get("rounds") or [] if r.get(key) is not None]
+    return first_crossing(series, theta).t_theta
+
+
+def _side(r: float) -> str:
+    lo, hi = G2P_BAND
+    return "≈1" if lo <= r <= hi else ("<1" if r < 1 else ">1")
+
+
+def judge_g2p(new: dict, p1: dict) -> dict:
+    """new / p1：{"flat" 与 G2P_HFL 里的格: metrics 或 None}。"""
+    cells = ("flat",) + G2P_HFL
+    miss = [c for c in cells if new.get(c) is None]
+    if miss:
+        return {"verdict": "missing", "reasons": [f"新结果缺 {miss}"]}
+    miss = [c for c in cells if p1.get(c) is None]
+    if miss:
+        return {"verdict": "missing", "reasons": [f"旧 P1 参照缺 {miss}"]}
+    bad = _invalid({}, **{c: new[c] for c in cells})
+    if bad:
+        return bad
+    t_new = {c: t50(new[c]) for c in cells}
+    t_p1 = {c: t50(p1[c]) for c in cells}
+    cens = [f"新 {c}" for c, t in t_new.items() if t is None] + \
+           [f"P1 {c}" for c, t in t_p1.items() if t is None]
+    rows, agree = {}, True
+    for c in G2P_HFL:
+        if None in (t_new[c], t_new["flat"], t_p1[c], t_p1["flat"]):
+            continue
+        r_new, r_p1 = t_new[c] / t_new["flat"], t_p1[c] / t_p1["flat"]
+        s_new, s_p1 = _side(r_new), _side(r_p1)
+        ok = "≈1" in (s_new, s_p1) or s_new == s_p1
+        agree &= ok
+        g_new = [t50(new[x], "global_asr") for x in (c, "flat")]
+        rows[c] = {"ratio_new": round(r_new, 3), "ratio_p1": round(r_p1, 3),
+                   "side_new": s_new, "side_p1": s_p1, "agree": ok,
+                   "ratio_new_global_asr": (round(g_new[0] / g_new[1], 3)
+                                            if None not in g_new else None)}
+    out = {"t50_new": {c: None if t is None else round(t, 2) for c, t in t_new.items()},
+           "t50_p1": {c: None if t is None else round(t, 2) for c, t in t_p1.items()},
+           "cells": rows, "band": list(G2P_BAND)}
+    if cens:
+        return {**out, "verdict": "undetermined", "reasons": [f"T50 删失（没越过 {G2P_THETA}）：{cens}"]}
+    return {**out, "verdict": "consistent" if agree else "inconsistent", "reasons": []}
+
+
+def load_p1_reference(results_dir=P1_RESULTS) -> dict:
+    out = {}
+    for c, name in P1_FILES.items():
+        p = Path(results_dir) / name
+        out[c] = json.loads(p.read_text(encoding="utf-8")) if p.is_file() else None
+    return out
+
+
+def judge_all(metrics: dict, p1: dict | None = None) -> dict:
+    """metrics：{(group, cell): metrics dict 或 None}；p1：旧 P1 参照（缺省从盘上读）。"""
     d029 = {c: judge_d029(metrics.get(("D029", c)), c) for c in CELLS}
     d031 = {c: judge_d031(metrics.get(("D029", c)), metrics.get(("A26", c)), c) for c in CELLS}
     det = judge_det(metrics.get(("DET", "rep1")), metrics.get(("DET", "rep2")))
+    g2p_new = {"flat": metrics.get(("D029", "flat")),
+               "2edge_distributed": metrics.get(("D029", "2edge_distributed")),
+               "4edge_distributed": metrics.get(("G2P", "4edge_distributed")),
+               "10edge_distributed": metrics.get(("G2P", "10edge_distributed"))}
+    g2p = judge_g2p(g2p_new, load_p1_reference() if p1 is None else p1)
 
     def _overall(parts, ok):
         vs = [p["verdict"] for p in parts]
@@ -152,6 +231,7 @@ def judge_all(metrics: dict) -> dict:
         "D-029": {"overall": _overall(d029.values(), "pass"), "cells": d029},
         "D-031": {"overall": _overall(d031.values(), "same"), "cells": d031},
         "A15-determinism": det,
+        "G2P": g2p,
         "next": {
             "D-029 pass": "A08 → deviate，A25 → done（AUDIT 与 test_registry 同步改）",
             "D-029 fail": "逐个开关消融（模板 + set 改回一项，登记进本 pilot 表），回审计",
@@ -159,6 +239,7 @@ def judge_all(metrics: dict) -> dict:
             "D-031 different": "带回审计，由用户定",
             "A15 pass": "A15 → done；fail：看第一个分叉轮，回审计（D-028）",
             "invalid": "不是结论：看 reasons / errors[] / client_failures[]，修好后重跑（D-044）",
+            "G2P consistent / inconsistent": "带回给用户定 G2 的规模（D-047）；不代替 3-A 的 5 seed 判定",
         },
     }
 
@@ -186,6 +267,10 @@ def main(argv=None):
             print(f"  {cell:<18} {r['verdict']:<9} {json.dumps(extra, ensure_ascii=False)}")
     print(f"A15 确定性: {res['A15-determinism']['verdict']} "
           f"{json.dumps({k: v for k, v in res['A15-determinism'].items() if k != 'verdict'}, ensure_ascii=False)}")
+    g = res["G2P"]
+    print(f"G2P（G2 一致性复测）: {g['verdict']} {'; '.join(g.get('reasons', []))}")
+    for cell, r in (g.get("cells") or {}).items():
+        print(f"  {cell:<20} {json.dumps(r, ensure_ascii=False)}")
     if a.json:
         Path(a.json).write_text(json.dumps(res, indent=2, ensure_ascii=False), encoding="utf-8")
     return 0

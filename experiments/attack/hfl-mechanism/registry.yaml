@@ -3,13 +3,16 @@
 # 这是 PLAN.md §4 的机器可读版本。`python3 harness/status.py <本文件>` 逐格对账；
 # `python3 harness/registry.py <本文件>` 列出每组 run 数与还缺什么。
 #
-# 现在每个组都是 blocked，这是**预期状态**：
+# 状态（2026-09-27，A4 收口之后）：
 #   · base（A4 定）= base.yaml（P1 锚点格 2edge_distributed，去掉死配置）+ overlays 里的
 #     「P2 对齐」模板 fedavg/config/alignment_p2.yaml。P2 = 模板全开（config_validate 核对）
-#   · requires: [audit] → AUDIT.md 还有未关闭的行（A08 / A26 等 pilot，A15 / A25 等集群复核）
-#   · 各组的 `set:` 大多还是空的：因素的 label 已定，对应哪个配置键要等功能会话
-#     （S3 划分 / S4 下限与时间窗 / S5 逐 edge 轮评估 / S6 更新日志）实现后再填
+#   · AUDIT 已全部关闭（pilot `2853433`）→ requires 里的 `audit` 已满足；只要求 audit 的 G7 是 todo，
+#     其余组只等自己的功能会话（S3 划分 / S4 下限与时间窗 / S5 逐 edge 轮评估 / S6 更新日志 / S8）
+#   · 各组因素的 label 已定；**大多数 `set:` 要等功能会话实现后再填**（G2 的布点与轮数 2026-09-27 已补，D-047）
+#   · G4 搁置（D-047）：requires 里的 `reformulate-3.2` 是故意的 —— 等 3.2 按 N-003 重新表述
 # 功能会话完成时，把它的 token 加进 `available`，并补上对应组的 `set:`。
+# **补 `set:` 时核对三件**（G2 就是漏了这三件，test_registry 守着）：
+#   malicious_per_edge 的长度 = n_edges；n_rounds × edge_rounds ≥ cap_effective；各格评估网格（有效轮）一致。
 
 study: hfl-mechanism
 protocol: P2
@@ -55,18 +58,29 @@ groups:
     purpose: "3-A 结构扫描：flat vs HFL 的 T50 比值（主结论，5 seed）；去掉 G1 已覆盖的 4edge×R{10,20}"
     requires: [audit, S5]
     seeds: [42, 43, 44, 45, 46]
+    # 2026-09-27（D-047）补齐：布点 = 旧 P1 的 distributed（1→[10]、2→[5,5]、4→[3,3,2,2]、10→[1]×10），
+    # n_rounds = cap_effective(300) ÷ R（否则 flat 会被截断在 60 有效轮），flat 的评估间隔与 P1 flat 一样取 5。
+    # R≠5 的格子评估网格仍是每 R 个有效轮一个点 —— 统一网格由 S5（逐 edge 轮评估）负责。
     cells:
-      - {cell: flat,     set: {federation.n_edges: 1,  federation.edge_rounds: 1}}
-      - {cell: e2-R2,    set: {federation.n_edges: 2,  federation.edge_rounds: 2}}
+      - {cell: flat,     set: {federation.n_edges: 1,  federation.edge_rounds: 1,  federation.n_rounds: 300,
+                               backdoor.malicious_per_edge: [10],
+                               backdoor.eval_interval: 5, evaluation.eval_interval: 5}}
+      - {cell: e2-R2,    set: {federation.n_edges: 2,  federation.edge_rounds: 2,  federation.n_rounds: 150}}
       - {cell: e2-R5,    set: {federation.n_edges: 2,  federation.edge_rounds: 5}}
-      - {cell: e2-R10,   set: {federation.n_edges: 2,  federation.edge_rounds: 10}}
-      - {cell: e2-R20,   set: {federation.n_edges: 2,  federation.edge_rounds: 20}}
-      - {cell: e4-R2,    set: {federation.n_edges: 4,  federation.edge_rounds: 2}}
-      - {cell: e4-R5,    set: {federation.n_edges: 4,  federation.edge_rounds: 5}}
-      - {cell: e10-R2,   set: {federation.n_edges: 10, federation.edge_rounds: 2}}
-      - {cell: e10-R5,   set: {federation.n_edges: 10, federation.edge_rounds: 5}}
-      - {cell: e10-R10,  set: {federation.n_edges: 10, federation.edge_rounds: 10}}
-      - {cell: e10-R20,  set: {federation.n_edges: 10, federation.edge_rounds: 20}}
+      - {cell: e2-R10,   set: {federation.n_edges: 2,  federation.edge_rounds: 10, federation.n_rounds: 30}}
+      - {cell: e2-R20,   set: {federation.n_edges: 2,  federation.edge_rounds: 20, federation.n_rounds: 15}}
+      - {cell: e4-R2,    set: {federation.n_edges: 4,  federation.edge_rounds: 2,  federation.n_rounds: 150,
+                               backdoor.malicious_per_edge: [3, 3, 2, 2]}}
+      - {cell: e4-R5,    set: {federation.n_edges: 4,  federation.edge_rounds: 5,
+                               backdoor.malicious_per_edge: [3, 3, 2, 2]}}
+      - {cell: e10-R2,   set: {federation.n_edges: 10, federation.edge_rounds: 2,  federation.n_rounds: 150,
+                               backdoor.malicious_per_edge: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]}}
+      - {cell: e10-R5,   set: {federation.n_edges: 10, federation.edge_rounds: 5,
+                               backdoor.malicious_per_edge: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]}}
+      - {cell: e10-R10,  set: {federation.n_edges: 10, federation.edge_rounds: 10, federation.n_rounds: 30,
+                               backdoor.malicious_per_edge: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]}}
+      - {cell: e10-R20,  set: {federation.n_edges: 10, federation.edge_rounds: 20, federation.n_rounds: 15,
+                               backdoor.malicious_per_edge: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]}}
 
   G3:
     purpose: "3-B 目标类分布：固定设计 C2/C3/C4（collocated）+ 层级 Dirichlet α_e 扫描"
@@ -82,8 +96,8 @@ groups:
       - {cell: hdir-a10}
 
   G4:
-    purpose: "3.2 私有头吸收：投毒率 ρ × {FedRep, FedAvg}"
-    requires: [audit, S6]
+    purpose: "3.2 私有头吸收：投毒率 ρ × {FedRep, FedAvg}（**搁置**，D-047：等 3.2 按 N-003 重新表述，对照臂一起重设计）"
+    requires: [audit, S6, reformulate-3.2]
     seeds: [42, 43, 44]
     factors:
       rho:

@@ -48,8 +48,11 @@ def test_v2_run_ids_and_factor_settings():
     assert r["set"] == {"federation.n_edges": 4, "federation.edge_rounds": 10}
     assert runs["G4__p1.0_fedavg__s44"]["set"] == {
         "backdoor.poison_ratio": 1.0, "training.drift_correction": "hierfedavg"}
-    assert runs["G2__flat__s46"]["set"] == {"federation.n_edges": 1,
-                                            "federation.edge_rounds": 1}
+    # D-047（2026-09-27）：G2 flat 补上布点、轮数与评估间隔（原来只有前两项 → 布点 [5,5]、截断在 60 轮）
+    assert runs["G2__flat__s46"]["set"] == {
+        "federation.n_edges": 1, "federation.edge_rounds": 1, "federation.n_rounds": 300,
+        "backdoor.malicious_per_edge": [10],
+        "backdoor.eval_interval": 5, "evaluation.eval_interval": 5}
 
 
 def test_v2_base_is_decided_in_a4_and_carries_the_p2_template():
@@ -336,3 +339,38 @@ def test_submit_run_groups_filter(mech_copy):
     assert "run 总数=0" in out.stdout
     out = _submit(d, "--dry-run", RUN_GROUPS="GA")
     assert "run 总数=4" in out.stdout
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# D-047：G2 的声明配置要能跑（布点 / 轮数 / 评估网格）；G4 搁置
+# ══════════════════════════════════════════════════════════════════════════
+def _g2_configs():
+    reg = R.Registry(MECH / "registry.yaml")
+    return [(run["cell"], reg.declared_config(run)) for run in reg.runs() if run["group"] == "G2"]
+
+
+def test_g2_placement_matches_the_number_of_edges():
+    """G2 的 set 曾经只写 n_edges / edge_rounds —— 所有格子都继承了 [5, 5]。"""
+    for cell, c in _g2_configs():
+        mpe = c["backdoor"]["malicious_per_edge"]
+        assert len(mpe) == c["federation"]["n_edges"], (cell, mpe)
+        assert sum(mpe) == 10, (cell, mpe)
+
+
+def test_g2_round_budget_reaches_the_cap():
+    """n_rounds 一律 60 时，flat（R=1）会被截断在 60 有效轮 —— 低于地板 150。"""
+    for cell, c in _g2_configs():
+        f = c["federation"]
+        assert f["n_rounds"] * f["edge_rounds"] >= c["stopping"]["cap_effective"], cell
+
+
+def test_g2_flat_is_evaluated_on_the_same_grid_as_r5():
+    """flat 的评估间隔与旧 P1 flat 一样取 5 个云轮（= 5 有效轮），否则 flat 每轮都评、开销 5 倍。"""
+    grid = {cell: c["federation"]["edge_rounds"] * c["backdoor"]["eval_interval"]
+            for cell, c in _g2_configs()}
+    assert grid["flat"] == grid["e2-R5"] == grid["e4-R5"] == grid["e10-R5"] == 5
+
+
+def test_g4_is_parked_until_3_2_is_reformulated():
+    reg = R.Registry(MECH / "registry.yaml")
+    assert "reformulate-3.2" in reg.unmet_requires("G4")

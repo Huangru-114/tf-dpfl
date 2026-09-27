@@ -163,3 +163,70 @@ def test_empty_log_does_not_crash():
     assert m["timing_rounds"] == []
     assert m["timing_summary"]["round_time_total_s"] is None
     assert m["timing_summary"]["bd_eval_fraction"] is None
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 4. asr 的分项：主列 / 白盒副列 / 陈旧副列（D-047：副列降频之前先量）
+# ══════════════════════════════════════════════════════════════════════════
+def _side_columns_src() -> str:
+    text = BD_SERVER.read_text(encoding="utf-8")
+    for node in ast.walk(ast.parse(text)):
+        if isinstance(node, ast.FunctionDef) and node.name == "_side_columns":
+            return ast.get_source_segment(text, node)
+    pytest.fail("backdoor_server.py 里找不到 _side_columns")
+
+
+def test_asr_is_split_into_main_and_side_columns():
+    src = _backdoor_eval_src()
+    assert "t_asr_main = time.perf_counter() - _t0" in src
+    assert "t_side = self._side_columns(" in src
+    assert '"[TimingASR]"' in src
+    side = _side_columns_src()
+    for col in ("whitebox", "stale"):
+        assert f't_side["{col}"] = time.perf_counter() - _t0' in side, f"{col} 副列没有被计时"
+    assert "return t_side" in side
+
+
+def test_timing_line_itself_is_unchanged():
+    """[TimingASR] 是独立一行；[Timing] 的格式一字不动（RE_TIMING 是全或无的正则）。"""
+    src = _backdoor_eval_src()
+    assert 'print(f"[Timing] Round {round_idx} | asr={_t3(t_asr)}s | "' in src
+
+
+def _split_log(whitebox="1.5", stale="0.25"):
+    L = _log().splitlines()
+    out = []
+    for ln in L:
+        out.append(ln)
+        if ln.startswith("[Timing] Round "):
+            r = int(ln.split()[2])
+            out.append(f"[TimingASR] Round {r} | main=0.{r}0 | whitebox={whitebox} | stale={stale}")
+    return "\n".join(out)
+
+
+def test_asr_split_is_collected_per_round_and_summed():
+    m = collect(_split_log())
+    t = m["timing_rounds"]
+    assert [x["asr_main_s"] for x in t] == pytest.approx([0.1, 0.2, 0.3])
+    assert all(x["asr_whitebox_s"] == pytest.approx(1.5) for x in t)
+    s = m["timing_summary"]["asr_split_total_s"]
+    assert s == {"main": pytest.approx(0.6), "whitebox": pytest.approx(4.5),
+                 "stale": pytest.approx(0.8, abs=0.05)}
+    # 原有字段照旧
+    assert m["timing_summary"]["bd_eval_total_s"] == pytest.approx(12.0)
+
+
+def test_side_column_that_was_not_computed_is_none_not_zero():
+    m = collect(_split_log(whitebox="n/a"))
+    assert all(x["asr_whitebox_s"] is None for x in m["timing_rounds"])
+    assert m["timing_summary"]["asr_split_total_s"]["whitebox"] is None
+
+
+def test_old_log_without_split_line_still_parses():
+    """反向锚点：没有 [TimingASR] 的旧日志 —— 分项全是 None，其余字段不受影响。"""
+    m = collect(_log())
+    assert all(x["asr_main_s"] is None and x["asr_stale_s"] is None
+               for x in m["timing_rounds"])
+    assert m["timing_summary"]["asr_split_total_s"] == {
+        "main": None, "whitebox": None, "stale": None}
+    assert m["timing_rounds"][0]["asr_s"] == pytest.approx(1.0)

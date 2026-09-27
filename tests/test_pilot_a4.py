@@ -44,11 +44,12 @@ def _p1_plus_template(name):
 # ══════════════════════════════════════════════════════════════════════════
 # 登记表
 # ══════════════════════════════════════════════════════════════════════════
-def test_pilot_has_the_six_planned_runs():
+def test_pilot_has_the_planned_runs():
     runs = R.Registry(PILOT).runs()
     assert sorted((r["group"], r["cell"]) for r in runs) == sorted(
         [("D029", "flat"), ("D029", "2edge_distributed"), ("A26", "flat"),
-         ("A26", "2edge_distributed"), ("DET", "rep1"), ("DET", "rep2")])
+         ("A26", "2edge_distributed"), ("DET", "rep1"), ("DET", "rep2"),
+         ("G2P", "4edge_distributed"), ("G2P", "10edge_distributed")])     # G2P：D-047
     reg = R.Registry(PILOT)
     assert reg.protocol == "P1"
     assert all(not (g.get("requires")) for g in reg.groups.values())
@@ -59,6 +60,12 @@ def test_pilot_has_the_six_planned_runs():
 def test_d029_cells_are_p1_cells_plus_template(cell, p1):
     """D-029 与 P1 比 pm_acc：除了对齐模板，配置必须与 P1 同格一字不差。"""
     assert _declared("D029", cell) == _p1_plus_template(p1)
+
+
+@pytest.mark.parametrize("cell", ["4edge_distributed", "10edge_distributed"])
+def test_g2p_cells_are_p1_cells_plus_template(cell):
+    """G2P 与旧 P1 比 T50：除了对齐模板，配置必须与 P1 同名格一字不差（与 D029 同一基配置）。"""
+    assert _declared("G2P", cell) == _p1_plus_template(f"{cell}.yaml")
 
 
 @pytest.mark.parametrize("cell", ["flat", "2edge_distributed"])
@@ -225,3 +232,81 @@ def test_overall_reports_invalid():
     res = P.judge_all(ms)
     assert res["D-029"]["overall"] == "invalid" and res["D-031"]["overall"] == "invalid"
     assert res["A15-determinism"]["verdict"] == "pass"
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# G2P：G2 一致性复测（D-047）
+# ══════════════════════════════════════════════════════════════════════════
+def _t(t50, edge_rounds=1, grid=5, n=20):
+    """一条 local_benign_asr 轨迹：在有效轮 t50 处线性越过 0.5（插值后恰好是 t50）。"""
+    rounds = []
+    for i in range(1, n + 1):
+        eff = i * grid
+        v = min(0.99, max(0.0, 0.5 + (eff - t50) * 0.01))
+        rounds.append({"round": eff // edge_rounds, "local_benign_asr": v, "global_asr": v})
+    return {"exit_code": 0, "run": {"edge_rounds": edge_rounds}, "rounds": rounds}
+
+
+def _g2p(flat, e2, e4, e10, er=5):
+    return {"flat": _t(flat), "2edge_distributed": _t(e2, er),
+            "4edge_distributed": _t(e4, er), "10edge_distributed": _t(e10, er)}
+
+
+P1_LIKE = _g2p(57.4, 46.8, 22.8, 85.5)          # 0.815 / 0.397 / 1.49
+
+
+def test_g2p_rule_is_the_decision_values():
+    assert P.G2P_BAND == (0.9, 1.1) and P.G2P_THETA == 0.5
+
+
+def test_g2p_t50_is_interpolated_on_effective_rounds():
+    assert P.t50(_t(33.4, edge_rounds=5)) == pytest.approx(33.4)
+
+
+def test_g2p_consistent_when_every_ratio_is_on_the_same_side():
+    r = P.judge_g2p(_g2p(45, 35, 20, 70), P1_LIKE)
+    assert r["verdict"] == "consistent"
+    assert r["cells"]["10edge_distributed"]["side_new"] == ">1"
+
+
+def test_g2p_inconsistent_when_a_ratio_flips():
+    r = P.judge_g2p(_g2p(45, 35, 20, 30), P1_LIKE)      # 10edge：P1 >1，新 <1
+    assert r["verdict"] == "inconsistent"
+    assert r["cells"]["10edge_distributed"]["agree"] is False
+
+
+def test_g2p_band_near_one_is_not_a_disagreement():
+    r = P.judge_g2p(_g2p(45, 35, 20, 47), P1_LIKE)      # 10edge：47/45 = 1.04 ≈ 1
+    assert r["cells"]["10edge_distributed"]["side_new"] == "≈1"
+    assert r["verdict"] == "consistent"
+
+
+def test_g2p_censored_t50_is_undetermined_not_a_verdict():
+    new = _g2p(45, 35, 20, 70)
+    for row in new["10edge_distributed"]["rounds"]:
+        row["local_benign_asr"] = 0.1                      # 从未越过 0.5
+    assert P.judge_g2p(new, P1_LIKE)["verdict"] == "undetermined"
+
+
+def test_g2p_missing_and_invalid():
+    new = _g2p(45, 35, 20, 70)
+    new["4edge_distributed"] = None
+    assert P.judge_g2p(new, P1_LIKE)["verdict"] == "missing"
+    new = _g2p(45, 35, 20, 70)
+    new["4edge_distributed"]["client_failures"] = [{"client_id": 3, "error": "x"}]
+    r = P.judge_g2p(new, P1_LIKE)
+    assert r["verdict"] == "invalid" and r["reasons"][0].startswith("4edge_distributed: ")
+
+
+def test_g2p_real_p1_reference_is_computed_not_copied():
+    """反向锚点：旧 P1 的比值从 hfl-propagation/results 现算 —— 0.815 / 0.398 / 1.489。"""
+    p1 = P.load_p1_reference()
+    t = {c: P.t50(m) for c, m in p1.items()}
+    ratios = [round(t[c] / t["flat"], 3) for c in P.G2P_HFL]
+    assert ratios == [0.815, 0.398, 1.489]
+
+
+def test_g2p_reuses_d029_for_flat_and_2edge():
+    ms = {("D029", "flat"): _t(45), ("D029", "2edge_distributed"): _t(35, 5),
+          ("G2P", "4edge_distributed"): _t(20, 5), ("G2P", "10edge_distributed"): _t(70, 5)}
+    assert P.judge_all(ms, P1_LIKE)["G2P"]["verdict"] == "consistent"

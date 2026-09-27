@@ -310,6 +310,16 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
     ⚠️ `run.provenance.protocol` 是**代码**版本：此后任何 run（包括重跑冻结的 P1 配置）都记 P2。
     **这一格是不是 P2 口径的配置**要看 `run.alignment.template == "p2"`（`[设定4]`；runs_table 的
     `alignment_template` 列）—— 登记表里 `meta.protocol: P2` 的配置由 `config_validate` 逐键核对模板。
+  - **机时预算（2026-09-27，D-047）**：上限约 100 GPU-h / 周（按 GPU 小时计费）；一个整 run 约 2.3 GPU-h，
+    评估约占 36%，run 长度由 pm_acc 平台判据决定（F-046）。
+    - `hfl-mechanism/pack.sbatch`：一张 GPU 并行 K 个 run（`TF_FORCE_GPU_ALLOW_GROWTH=true`、每个 run 绑自己的核）。
+      **先测后用**：`pilot/submit_pack_test.sh` + `harness/pack_test.py`（前 5 轮 checksum 必须等于 DET 第二轮、
+      加速比 ≥ 1.5）。测试通过之前 `submit.sh` 仍是一卡一跑。
+    - `[TimingASR] Round N | main=… | whitebox=… | stale=…`（独立 kv 行，**不改 `[Timing]`**）→
+      `timing_rounds[].asr_*_s` 与 `timing_summary.asr_split_total_s`。副列降频等这组数再定（重议 D-046）。
+    - G2 先做一致性复测（pilot 表 G2P + `pilot_a4.judge_g2p`）；G4 搁置（`registry.yaml` 的 requires 含 `reformulate-3.2`）。
+    - **登记表补 `set:` 时核对三件**：`malicious_per_edge` 长度 = `n_edges`；`n_rounds × edge_rounds ≥ cap_effective`；
+      各格评估网格（有效轮）一致 —— G2 当初三件都漏了（F-046）。
 
 **留了接口但没有实现的**（不要以为它们能用）：
 - 主动防御（需要客户端配合的防御）：接口齐了（`BaseDefense.layers` /
@@ -666,7 +676,9 @@ methods-registry.md   所有候选方法的台账 = 研究看板
     官方 Bad-PFL 设了 `cudnn.deterministic`（`utils.py:8-13`），但**只播了 torch**：划分与客户端顺序每次都不同（FINDINGS F-024）。
     A2 定为 D-028：打开 `enable_op_determinism()`，加 `[Checksum]` 行验收（A4 实现）。
     验收：pilot 第二轮 DET 两次 run（不同节点）前 5 轮 checksum 逐轮相同、指标到 4 位小数相同（F-045）。
-    **只对开了 `training.deterministic_ops` 的配置成立**（P2 模板开了；P1 / 冻结配置仍不确定）。
+    **只对开了 `training.deterministic_ops` 的配置成立**（P2 模板开了；P1 / 冻结配置仍不确定），
+    **且每个 run 的 CPU 核数要相同**：CPU 上 2 核与 4 核的 checksum 不同（F-047）。别改 `cell.sbatch` 的 `-c 4`；
+    一卡多跑的 `pack.sbatch` 让每个 run 恰好绑 4 核。
 
 21. ~~**学习率按 cloud round 衰减 → flat 与 HFL 的 LR 日程不同**~~ ✅ **P2 已改按有效轮**（AUDIT A08 `deviate`，D-029 pilot 通过，2026-09-27）
     `client_base.py:117-126`：`lr0·0.992^cloud_round`。同样 200 有效轮，末端 lr：flat 0.020、

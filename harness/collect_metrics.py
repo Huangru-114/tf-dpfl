@@ -465,14 +465,27 @@ def _collect_drift(log_text: str) -> list:
     return sorted(out, key=lambda d: d["round"])
 
 
+# asr 的分项（D-047）：[TimingASR] 是独立的 key=value 行 → timing_rounds 的三个字段。
+# 旧日志没有这一行 → 三个字段都是 None（不是 0：「没量」≠「不花时间」）。
+TIMING_ASR_FIELDS = {"main": "asr_main_s", "whitebox": "asr_whitebox_s", "stale": "asr_stale_s"}
+
+
 def _collect_timing(log_text: str) -> list:
-    """[{round, asr_s, feature_s, forgetting_s, drift_s, total_s}]，按 round 升序。"""
+    """[{round, asr_s, feature_s, forgetting_s, drift_s, total_s,
+         asr_main_s, asr_whitebox_s, asr_stale_s}]，按 round 升序。"""
+    split = {d["round"]: d for d in collect_kv(log_text.splitlines(), "[TimingASR]")
+             if "round" in d}
     out = []
     for m in RE_TIMING.finditer(log_text):
-        out.append({"round": int(m.group(1)),
-                    "asr_s": _opt(m.group(2)), "feature_s": _opt(m.group(3)),
-                    "forgetting_s": _opt(m.group(4)), "drift_s": _opt(m.group(5)),
-                    "total_s": _opt(m.group(6))})
+        r = int(m.group(1))
+        row = {"round": r,
+               "asr_s": _opt(m.group(2)), "feature_s": _opt(m.group(3)),
+               "forgetting_s": _opt(m.group(4)), "drift_s": _opt(m.group(5)),
+               "total_s": _opt(m.group(6))}
+        for k, field in TIMING_ASR_FIELDS.items():
+            v = split.get(r, {}).get(k)
+            row[field] = float(v) if v is not None else None
+        out.append(row)
     return sorted(out, key=lambda d: d["round"])
 
 
@@ -499,6 +512,10 @@ def _timing_summary(acc_rounds: list, timing_rounds: list) -> dict:
         xs = [t[key] for t in timing_rounds if t[key] is not None]
         return round(sum(xs) / len(xs), 2) if xs else None
 
+    def _total(key):
+        xs = [t.get(key) for t in timing_rounds if t.get(key) is not None]
+        return round(sum(xs), 1) if xs else None
+
     return {
         "n_rounds_timed":        len(rt),
         "n_bd_evals":            len(bd),
@@ -515,6 +532,12 @@ def _timing_summary(acc_rounds: list, timing_rounds: list) -> dict:
             "feature":    _phase("feature_s"),
             "forgetting": _phase("forgetting_s"),
             "drift":      _phase("drift_s"),
+        },
+        # asr 的分项合计（D-047，[TimingASR]）；旧日志没有 → None
+        "asr_split_total_s": {
+            "main":     _total("asr_main_s"),
+            "whitebox": _total("asr_whitebox_s"),
+            "stale":    _total("asr_stale_s"),
         },
     }
 

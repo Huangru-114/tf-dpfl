@@ -500,3 +500,38 @@ for R in (5, 10, 20):
 - **攻击接近饱和**：head_first 下 global_asr 0.998 / 0.999、fresh local_benign_asr 0.95 / 0.91。P2 口径下 Experiment 3 的跨拓扑比较可能撞天花板 —— 设计 G 组时要考虑（记录，本会话不处理）。
 - **升 P2 之后的口径标签**：`PROTOCOL_VERSION` 是代码版本，此后连冻结的 P1 配置重跑也记 `protocol=P2`；区分配置口径看 `run.alignment.template`（p2 / legacy / mixed）。登记表 `meta.protocol: P2` 的配置由 `config_validate` 逐键核对模板，所以 hfl-mechanism 的 P2 批次不受影响。
 - **标定复核**（D-046：用 D029 两格抵扣原计划的 2 个 smoke）：bd_eval_fraction 0.28（flat）/ 0.38（2edge）；单格墙钟约 2.25 h / 2.3 h（训练 + 评估）；停轮都是 `converged`，没有 `cap_reached`。
+
+### F-046 `confirmed` —— 机时去哪了：评估约占 1/3，run 长度由 pm_acc 平台决定；G2 登记表的 set 不完整（2026-09-27，D-047）
+
+- **评估占比**（pilot 第二轮，`2853433`）：flat 每 5 轮才评一次精度，「评估轮 − 非评估轮」的 round_time 差就是精度评估的开销。
+  D029 flat：非评估轮 34.7 s、评估轮 56.9 s → 精度评估 22.2 s / 点；后门（ASR）评估 74.65 s / 点。
+  整 run：训练 ≈ 1.44 h、精度评估 ≈ 0.19 h、ASR 评估 0.62 h、合计 2.25 h → **评估 35.9%**（A26 flat 36.1%）。
+  2edge 每个云轮都评精度，拆不开；只有 ASR 评估可单独量（38%）。按 22 s / 点估算合计约 49% —— **未实测**。
+  → 即使评估全删，一个 run 仍有 1.2–1.5 h 训练；157 个 run 约 220 GPU-h，仍超过每周 100 的上限两倍。
+- **run 长度由 pm_acc 平台决定，不是地板**：用 `fedavg/server/stopping.py:StoppingRule` 回放 pilot 轨迹
+  （日志键 `edge_asr_mean` / `local_asr_benign_mean` 对应 metrics 的 `edge_asr` / `local_benign_asr`），回放出的停轮与集群实测完全一致（2edge 210 / 185）。
+  地板取 0 / 50 / 75 / 100 / 150：D029 flat 115 / 115 / 115 / 115 / 150，A26 flat 全是 150，D029 2edge 全是 210，A26 2edge 全是 185。
+  ASR 的 9 个阈值在 35–50 有效轮就全部越过；fresh pm_acc 在 100–150 有效轮仍在涨（D029 2edge：0.841 @100 → 0.873 @125 → 0.892 @175）。
+- **T50 网格**：每 5 个有效轮一个 ASR 点，T50 本身 35–45 → 分辨率约 12%，与 G2 的 ±10% 等效区间同量级 → 起飞阶段不能再降频。
+- **G2 登记表的 set 不完整**（S1 登记时只写了 n_edges / edge_rounds）：所有格子继承 base 的 `malicious_per_edge: [5, 5]`
+  （`config_validate` 会在启动时拒绝，不会静默）；`n_rounds` 一律 60 → flat（R=1）只能跑到 60 有效轮、低于地板 150；
+  评估网格随 R 变（flat 每 1 有效轮 → 开销是 R5 的 5 倍；R20 每 20 有效轮）。已补布点与轮数、flat 网格改为 5（D-047，`tests/test_registry.py` 守着，改前 4 条红）；R≠5 的网格留给 S5。
+- **旧 P1 与 pilot 的 T50**（`harness/analyze_exp3.py:first_crossing`，插值，local_benign_asr，seed42）：
+  旧 P1 flat 57.38 / 2edge-R5 46.77 / 4edge-R5 22.82 / 10edge-R5 85.45 → HFL/flat 比值 **0.815 / 0.398 / 1.489**（不单调）；
+  pilot（P2 模板）flat 43.18 / 2edge-R5 33.37 → 0.773，与 P1 的 0.815 同向。单 seed，且旧 P1 混有学习率日程差异（陷阱 #21）→ 只能当假设。
+  复测组 G2P 与判据见 D-047，`python3 harness/pilot_a4.py …/pilot/registry.yaml` 给判定。
+
+### F-047 `confirmed`（CPU）/ 无证据（GPU）—— 确定性模式下，**CPU 核数会改变结果**；同卡并发不会
+
+- 本地 CPU（TF 2.15.1），DET 配置缩到 20 客户端 / 2 edge / R_edge=2 / 2 个云轮、随机数据（N-005 的做法，用 `sitecustomize` 注入），
+  `training.deterministic_ops: true`，同一配置：
+  | 运行 | 每个进程的核 | 第 1 / 2 轮 `[Checksum]` |
+  |---|---|---|
+  | `pack.sbatch` 两份并发 | 2（taskset） | `a513d3017b12` / `a7b8e47f3dd4`（两份相同） |
+  | 单跑 | 2（taskset -c 0,1） | `a513d3017b12` / `a7b8e47f3dd4` |
+  | 单跑 | 4 | `a743fa0639b5` / `78562c801fdb`（与更早另一个驱动脚本的单跑逐位相同） |
+- 结论：**「同卡 / 同机并发」不改变结果；「核数」改变结果**（TF 的 CPU 线程池按可用核数切分，归约顺序随之变）。
+- GPU 上的 run 大部分计算在 GPU，但仍有 CPU 算子；**是否同样受核数影响没有证据**。处理按最坏情况：
+  `pack.sbatch` 让每个 run **恰好**绑 4 个核（= `cell.sbatch` 的 `-c 4`），核不够或没有 taskset 就拒绝启动；
+  守卫 `tests/test_pack.py::test_pack_pins_each_run_to_exactly_four_cores` 与 `::test_single_run_job_script_still_uses_four_cores`。
+- 推论：A15 的「同 seed 逐位可复现」（F-045）**只在核数相同时成立**。改 `cell.sbatch` 的 `-c` 会让新 run 与旧 run 不可逐位比较。

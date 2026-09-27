@@ -140,7 +140,12 @@ class BackdoorCloudServer(CloudServer):
           [ASRwb]    A02：白盒 ξ（在受害者自己的 PM 上求）的良性过滤 ASR —— 上界
           [StaleASR] A28：陈旧 PM（client.model）上的良性 / 恶意过滤 ASR；
                      ξ 用攻击者**自己的陈旧模型**（受害者与攻击者同一定义，A4 用户拍板）
+
+        返回两个副列各自的耗时 {"whitebox": s, "stale": s}（没算的记 None），
+        由 _backdoor_eval 打进 [TimingASR]（D-047：副列降频之前先量它们占多少）。
+        [ASR4] 只是打印主列已算好的数，不单独计时。
         """
+        t_side = {"whitebox": None, "stale": None}
         if self.asr_columns == "four_way":
             print(format_kv("[ASR4]", {
                 "benign_filtered":   metrics["local_asr_benign_mean"],
@@ -151,6 +156,7 @@ class BackdoorCloudServer(CloudServer):
             }, round_idx=round_idx))
         benign = [c for c in self._all_clients if int(c.client_id) not in self.malicious_ids]
         if fixed:
+            _t0 = time.perf_counter()
             att, rng = self.eval_attacker, self._eval_rng(round_idx, 1)
             wb = evaluate_local_asr(
                 benign, self.main_pm,
@@ -160,7 +166,9 @@ class BackdoorCloudServer(CloudServer):
             metrics["local_asr_benign_whitebox"] = wb["benign_mean"]
             print(format_kv("[ASRwb]", {"local_benign": wb["benign_mean"]},
                             round_idx=round_idx))
+            t_side["whitebox"] = time.perf_counter() - _t0
         if self.pm_kind == "fresh":
+            _t0 = time.perf_counter()
             trig = (self._attacker_trigger(round_idx, 2, "stale") if fixed else self.trigger_fn)
             st = evaluate_local_asr(
                 self._all_clients, lambda c: c.model, trig, self.bd_target,
@@ -171,6 +179,8 @@ class BackdoorCloudServer(CloudServer):
             print(format_kv("[StaleASR]", {"local_benign": st["benign_mean"],
                                            "local_malicious": st["malicious_mean"]},
                             round_idx=round_idx))
+            t_side["stale"] = time.perf_counter() - _t0
+        return t_side
 
     def _coordinate_cerp_peers(self):
         """收集 CerP 恶意客户端最新权重，互相分发（排除自身），供下一轮 cos 正则使用。"""
@@ -271,7 +281,8 @@ class BackdoorCloudServer(CloudServer):
             asr_max_samples=self.bd_asr_max,
             asr_columns=self.asr_columns,
         )
-        self._side_columns(round_idx, metrics, fixed)
+        t_asr_main = time.perf_counter() - _t0
+        t_side = self._side_columns(round_idx, metrics, fixed)
         t_asr = time.perf_counter() - _t0
 
         # ── 任务2：特征空间分离度（global + 抽样 1 个良性 local） ─────────────
@@ -357,6 +368,16 @@ class BackdoorCloudServer(CloudServer):
         print(f"[Timing] Round {round_idx} | asr={_t3(t_asr)}s | "
               f"feature={_t3(t_feature)}s | forgetting={_t3(t_forget)}s | "
               f"drift={_t3(t_drift)}s | total={_t3(time.perf_counter() - _t_all)}s")
+        # asr 的分项：主列 / 白盒副列 / 陈旧副列（D-047：副列降频之前先量）。
+        # 独立一行，不往 [Timing] 里加字段 —— RE_TIMING 是全或无的正则，
+        # 格式一变原有六个字段会一起变 None（[设定2] 同一教训）。
+        def _r2(v):
+            return None if v is None else round(v, 2)
+
+        print(format_kv("[TimingASR]", {"main": _r2(t_asr_main),
+                                         "whitebox": _r2(t_side["whitebox"]),
+                                         "stale": _r2(t_side["stale"])},
+                        round_idx=round_idx, digits=2))
 
         # ── 任务3：wandb 记录全部分层指标 ─────────────────────────────────
         FLLogger.log_round_metrics(round_idx, metrics)
