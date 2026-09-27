@@ -314,9 +314,12 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
     评估约占 36%，run 长度由 pm_acc 平台判据决定（F-046）。
     - `hfl-mechanism/pack.sbatch`：一张 GPU 并行 K 个 run（`TF_FORCE_GPU_ALLOW_GROWTH=true`、每个 run 绑自己的核）。
       **先测后用**：`pilot/submit_pack_test.sh` + `harness/pack_test.py`（前 5 轮 checksum 必须等于 DET 第二轮、
-      加速比 ≥ 1.5）。测试通过之前 `submit.sh` 仍是一卡一跑。
+      加速比 ≥ 1.5）。**2026-09-27 测完：K=3 加速比 2.86、checksum 全等 → 采用 K=3**（D-048；F-048）；
+      显存峰值 96 GiB 已近满 → 新配置类型先单独交一个 pack 作业看显存。**接入 `submit.sh` 在下一会话**，之前仍一卡一跑。
     - `[TimingASR] Round N | main=… | whitebox=… | stale=…`（独立 kv 行，**不改 `[Timing]`**）→
-      `timing_rounds[].asr_*_s` 与 `timing_summary.asr_split_total_s`。副列降频等这组数再定（重议 D-046）。
+      `timing_rounds[].asr_*_s` 与 `timing_summary.asr_split_total_s`。实测白盒 7.2%、陈旧 ASR 7.3% 墙钟（F-051）
+      → D-050：**白盒关、陈旧 ASR 隔点**（陈旧 pm_acc 照旧）—— 已定、**未实现**（下一会话）。
+      **白盒 ≈ 主列是重要发现**（私有 head 挡不住 ξ）；**fresh-PM 会低估干净精度**，10edge 达 0.094（F-051）。
     - G2 先做一致性复测（pilot 表 G2P + `pilot_a4.judge_g2p`）；G4 搁置（`registry.yaml` 的 requires 含 `reformulate-3.2`）。
     - **登记表补 `set:` 时核对三件**：`malicious_per_edge` 长度 = `n_edges`；`n_rounds × edge_rounds ≥ cap_effective`；
       各格评估网格（有效轮）一致 —— G2 当初三件都漏了（F-046）。

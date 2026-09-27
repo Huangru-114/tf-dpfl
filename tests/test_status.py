@@ -67,8 +67,11 @@ def test_v2_after_the_audit_only_feature_sessions_block():
     """AUDIT 全部关闭（2026-09-27，pilot `2853433`）：只要求 audit 的 G7 变 todo，
     其余 151 个只剩功能会话（S3–S8）的依赖。"""
     rep = S.classify(R.Registry(V2))
-    assert rep["counts"]["blocked"] == 151 and rep["counts"]["todo"] == 6
-    assert {r["group"] for r in rep["runs"] if r["status"] == "todo"} == {"G7"}
+    assert rep["counts"]["blocked"] == 151
+    # G7 是唯一不被功能会话挡住的组：结果回来之前是 todo，回来之后是 done（2026-09-27 起，`5edd4df`）
+    assert {r["status"] for r in rep["runs"] if r["group"] == "G7"} <= {"todo", "done"}
+    assert {r["group"] for r in rep["runs"] if r["status"] != "blocked"} == {"G7"}
+    assert rep["counts"]["todo"] + rep["counts"]["done"] == 6
     assert not any("audit" in r["detail"] for r in rep["runs"])
 
 
