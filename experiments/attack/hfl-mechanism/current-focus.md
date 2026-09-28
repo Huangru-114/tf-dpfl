@@ -113,16 +113,35 @@
 
 ## 下一步
 
-**⓪ 用户（集群，登录节点）：拉代码、跑 L1**
+**⓪ 用户（集群，登录节点）：先看队列，再拉代码、跑 L1**
 
 ```bash
-git pull
-bash run_l1.sh           # 期望只有陷阱 #4 的 2 条红；test_designed_partition 的 TF 测试现在应是绿的（F-063）
+squeue -u $USER          # 有没有还在 PENDING 的 exp3v2 作业（上一批的 G3 / FLR / G6 s44）
 ```
+
+- **没有 PENDING** → 直接在主仓库 `git pull`，然后 L1：
+
+  ```bash
+  git pull
+  bash run_l1.sh         # 期望只有陷阱 #4 的 2 条红；test_designed_partition 的 TF 测试现在应是绿的（F-063）
+  ```
+
+- **有 PENDING** → **先 ①、后 pull**。作业读的是**开跑那一刻**主仓库里的代码：现在 pull，还没开跑的上一批作业就会带上 S9 仪表。
+  CPU 上已证明仪表不改训练（L2 替身），**GPU 上还没有证据** —— 那正是 ① 要回答的。
+  做法：在一个独立 worktree 里跑 ①，过了再回主仓库 pull。
+
+  ```bash
+  git fetch origin claude/federated-learning-experiment-review-pt5j1b
+  git worktree add ../tf-dpfl-s9 origin/claude/federated-learning-experiment-review-pt5j1b
+  cd ../tf-dpfl-s9         # ① 的命令在这里执行；日志 / 数据缓存仍在同一个上一级目录，--bind 不变
+  ```
+
+  ① 通过后：`cd` 回主仓库 → `git pull` → `bash run_l1.sh`；worktree 里的 `scratch/s9/` 要留就先拷走，再 `git worktree remove ../tf-dpfl-s9`。
+  ②（交 G8 / G6D）一律在 pull 过的**主仓库**里交，不要在 worktree 里交（结果要落在主仓库的 `results/`）。
 
 **① 用户（集群）：DET 重交一次，证明仪表在 GPU 上不改任何数（约 20 分钟，D-072）**
 
-`submit_pilot.sh` 会把已完成的 DET 跳过，所以直接交 `cell.sbatch`，metrics 写到 scratch（gitignore）：
+`submit_pilot.sh` 会把已完成的 DET 跳过，所以直接交 `cell.sbatch`，metrics 写到 scratch（gitignore）。在仓库根目录（或上面的 worktree 根目录）执行：
 
 ```bash
 sbatch experiments/attack/hfl-mechanism/cell.sbatch \
@@ -140,19 +159,54 @@ python3 harness/instrumentation_check.py \
 
 **② 用户（集群）：交 G8 + G6D（D-075；共约 7 GPU-h）**
 
+**②-0 先看上一批 K=3 包的主机内存实测**（72G 下的 K=3 还没有实测，D-070 只是算术：3 × 16.7 ≈ 50 GiB）：
+
 ```bash
-PACK=3 RUN_GROUPS="G8 G6D" bash experiments/attack/hfl-mechanism/submit.sh --dry-run   # 期望：G8 一个 K=3 包（3 seed）、G6D 一个 K=3 包（a/b/c）
-PACK=3 RUN_GROUPS="G8 G6D" bash experiments/attack/hfl-mechanism/submit.sh
+sacct -j <上一批 FLR / G3 的 K=3 包作业号> --format=JobID,State,ReqMem,MaxRSS
 ```
+
+- batch step 的 MaxRSS ≈ 50G、没有 `OUT_OF_MEMORY` → 照下面交；
+- 已有 `OUT_OF_MEMORY` → G8 用 `PACK=2`，G6D 改交 K=2 + K=1 两个包（约 6 GPU-h）。
+
+**②-1 G8**（一个格子、3 个 seed → `submit.sh` 自己交一个 k=3 的探路包；约 3.6 GPU-h）：
+
+```bash
+PACK=3 RUN_GROUPS="G8" bash experiments/attack/hfl-mechanism/submit.sh --dry-run   # 期望：一个 G8__a__pack-k3-s42（3 个 seed）
+PACK=3 RUN_GROUPS="G8" bash experiments/attack/hfl-mechanism/submit.sh
+```
+
+**②-2 G6D 手工交一个 K=3 包**（约 3.1 GPU-h）。**不要用 `submit.sh` 交 G6D**：
+三个格子各只有 1 个 seed、都没有显存记录 → `submit_lib.sh` 的探路规则给每个格子各交一个 k=1 的包（`pack_flush` 的 `kc == 0` 分支），
+跨格子合包（D-060）又只对有真实峰值的格子生效 → **3 个单跑作业、约 9 GPU-h**。
+下面的命令与 `submit_lib._submit_pack` 传的参数逐项相同（`-c 4K`、`--mem=24G×K`、job-name、防重交的 `--comment`）；
+tag 用合包的格式，`_cell_k` 以后认得这份显存记录（a / b / c 三个格子都算探过路）。路径已与 `configs/INDEX.tsv` 的 G6D 三行逐字核对。
+**在仓库根目录执行**（`pack.sbatch` 以提交目录为 ROOT，参数是相对 ROOT 的路径）：
+
+```bash
+M=experiments/attack/hfl-mechanism
+sbatch -c 12 --mem=72G --job-name=exp3v2-pack3 \
+    --comment=exp3v2:G6D__a__s42,G6D__b__s42,G6D__c__s42 \
+    $M/pack.sbatch G6D__mix-a+b+c__pack-k3-s42 \
+    $M/configs/G6D__a__s42.yaml G6D__a__s42 $M/results/P2/G6D/G6D__a__s42.metrics.json \
+    $M/configs/G6D__b__s42.yaml G6D__b__s42 $M/results/P2/G6D/G6D__b__s42.metrics.json \
+    $M/configs/G6D__c__s42.yaml G6D__c__s42 $M/results/P2/G6D/G6D__c__s42.metrics.json
+```
+
+- 显存风险低：同模型、同拓扑的 G6 K=3 包整卡 62 / 98 GiB，每 run 真实峰值 ≤ 16.95 GiB（F-060）。
+- **OOM 的代价**：计费按作业（墙钟 × 1 张卡，与包里几个 run 无关）；一个 run 被杀，包照样等其余的跑完 → **多花的只是被杀那个 run 的重跑**。
+  `pack.sbatch` 把它记成 exit 86（显存）/ 137（主机内存），合包的记录对 a / b / c 都生效 → 下次 `submit.sh` 自动降到 K ≤ 2。
+  最坏的现实情形（像 F-060 那样开跑即被杀一个）：3.1 + 3 ≈ 6 GPU-h，仍少于三个单跑的约 9 GPU-h；三个全被杀：包几分钟就结束，重跑 ≈ 默认路径。
+  跑到后半程才 OOM 会浪费更多，但 F-060 是第 0 轮被杀、G6D 不开存盘开关 —— **「内存不随轮数增长」这一条没有直接证据**。
 
 - G8 会往 `$ROOT/../tfdpfl-dumps/G8__a__s4?.<job>/` 写 70 个 logits 文件（约 42 MB / run）+ 2 个快照（约 100 MB 各，CPU 替身实测 99.97 MB）→ 3 个 run 合计约 0.75 GB。
   **不要回传这些文件**，只回 metrics.json（`dumps` 字段就是 manifest）。
 - 回传后先核对：
-  - G8：`python3 harness/instrumentation_check.py results/P2/G6/G6__a__s42.metrics.json results/P2/G8/G8__a__s42.metrics.json --upto 30`（s43 / s44 同）→ 应 ✅（第 1–30 轮配置只差停止轮 / n_rounds / 开关；**GPU 型号不同算「无法判定」**，F-045 只证明了跨节点）；
+  - G8：`python3 harness/instrumentation_check.py experiments/attack/hfl-mechanism/results/P2/G6/G6__a__s42.metrics.json experiments/attack/hfl-mechanism/results/P2/G8/G8__a__s42.metrics.json --upto 30`（s43 / s44 同）→ 应 ✅（第 1–30 轮配置只差停止轮 / n_rounds / 开关；**GPU 型号不同算「无法判定」**，F-045 只证明了跨节点）；
     `run.attack_stop_round == 31`（`status.py` 现在会核对）、`dumps.errors == []`、`dumps.snapshots` 两条、`client_failures == []`。
   - FLR 回来后：`python3 harness/decay_verdict.py --json experiments/attack/hfl-mechanism/analysis/decay_verdict.json` → `persists` / `decays_to_floor` / `user_decides`，据此改 G1（D-074）。
   - G6D：b、c 的良性端 ASR（主列末 10 点）是否比 a 低 ≥ 0.15 → 是则扩到 3 seed（D-075）；否则止步。
 - G6 (b) s44 仍要重交（F-060）：`PACK=3 RUN_GROUPS="G6" bash experiments/attack/hfl-mechanism/submit.sh`。
+  幂等：已在队列的打印 queued（按 `--comment`，D-070），盘上 exit 0 且 sha 一致的算 done —— 都不会重交；真的还缺才交一个单跑（约 3 GPU-h）。
 
 **③ 已交的 G6 / FLR / G3（上一会话）回来后照旧核对**（schema 6，没有 S9 的新字段 —— 预期）
 
