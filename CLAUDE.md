@@ -354,6 +354,19 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
     判定读受害 edge 的原始 benign ASR（D-059，不等 S4）。
   - 守卫：`tests/test_tier_split.py`（纯 python）+ `tests/test_three_tier_personalization.py`（TF，真跑 cloud/edge/client）。
 
+- **S3 新划分**（2026-09-28，Exp3 改版 S3；DECISIONS D-061 … D-068）。`federation.partition ∈ {designed, hdir, equal_random}`
+  + `federation.design.*` → `fedavg/data/designed_partition.py`（**不 import TF**）：
+  - **客户端等大小**（每端 500 张 = 375 训练 / 125 留出；恶意端数据占比恰为名义值，F-028 / D-027）、**无放回**、
+    每 edge 先切 500 张**干净集**（按本 edge 分布，与客户端不相交；挂在 `edge.clean_indices`，S3 不用，S6 / 阶段三用）。
+  - designed = 4 edge 机构式比例表（E0 均衡，E1–E3 各偏重一对类 r = 0.25），C1–C4 只改 airplane 一列；
+    hdir = 层级 Dirichlet，**α 按社区口径**（每个类的参数 = α；原文 Dir(α·p) 差 10 倍，F-056）；
+    equal_random = 「edge 不对应机构」的对照（G0-random / G1-random / G2 / G5 用它）。
+  - 随机性只来自 `default_rng([seed, 0x533])`，**不碰全局 np.random**；旧划分路径逐字节不变（AST 指纹守着）。
+  - 自描述 `[Partition]` + 每 edge `[PartitionEdge]` → `run.data`（H_inter / H_intra、逐 edge airplane 占比、索引 sha），collect_metrics **schema 6**。
+  - 离线预览（F0 数据，不需要 TF / GPU）：`python3 harness/partition_preview.py`（F-058）。
+  - floor 验证 pilot **FLR**（G6(a) × ρ=0，预注册判定 `harness/flr_verdict.py`，D-061）决定 G0 要不要逐划分测 floor。
+  - 守卫：`tests/test_designed_partition.py`（含集群上跑的 `build_clients` 集成测试）、`tests/test_flr_verdict.py`。
+
 **留了接口但没有实现的**（不要以为它们能用）：
 - 主动防御（需要客户端配合的防御）：接口齐了（`BaseDefense.layers` /
   `client_mixin` / `make_control` + 客户端侧 `set_control` / `get_aux`），无任何实现。

@@ -16,6 +16,8 @@
 #     S8 会话（2026-09-27）已重新 materialize → 已判完的 G7 显示 stale —— 预期，submit.sh 默认不重交 stale（D-053）
 #   · 2026-09-28（S3 讨论）：登记 FLR（floor 验证 pilot，D-061，只改配置，可交）；G0 规模等它的判定。
 #     S3 的新划分（D-062 … D-065）**写进各组 `set:`，不改 base.yaml** —— 改了会让 G6 待交的 s44 按新划分重新生成
+#   · 2026-09-28 S3 完成（D-067 / D-068）→ `available: [S8, S3]`；G3 补齐 8 格 24 run 并 materialize（可交）；
+#     G0 / G1 / G2 / G5 的划分写进 set（它们仍缺 S4 / S5 / S6）
 # 功能会话完成时，把它的 token 加进 `available`，并补上对应组的 `set:`。
 # **补 `set:` 时核对三件**（G2 就是漏了这三件，test_registry 守着）：
 #   malicious_per_edge 的长度 = n_edges；n_rounds × edge_rounds ≥ cap_effective；各格评估网格（有效轮）一致。
@@ -29,30 +31,35 @@ base: base.yaml       # A4（2026-09-26）
 overlays:
   - ../../../fedavg/config/alignment_p2.yaml   # 「P2 对齐」模板：每个对齐开关都打开
 audit: AUDIT.md
-available: [S8]       # 已完成的功能会话，如 [S3, S4]
+available: [S8, S3]   # 已完成的功能会话（S3：2026-09-28，新划分 D-062 … D-068）
 
 groups:
   G0:
     purpose: "3.1 对抗下限主干：ρ=0 影子攻击者 × 划分（兼作 3-B 逐 edge 下限、3.3 对照）"
     requires: [audit, S3, S4]
     seeds: [42, 43, 44]
+    # S3（2026-09-28）补：4 edge 集中 [10,0,0,0]、R5（D-066）、ρ=0；划分 = 等大小 random / 固定设计 C1–C4。
+    # **规模等 FLR 的判定**（D-061）：negligible → 取消逐划分 floor；hdir 四档要不要 floor 那时再定。
+    set: {federation.n_edges: 4, backdoor.malicious_per_edge: [10, 0, 0, 0], backdoor.poison_ratio: 0.0,
+          federation.design.n_per_client: 500, federation.design.clean_per_edge: 500, federation.design.alpha_client: 0.5}
     factors:
       partition:
-        - {label: random}
-        - {label: C1}
-        - {label: C2}
-        - {label: C3}
-        - {label: C4}
+        - {label: random, set: {federation.partition: equal_random}}
+        - {label: C1, set: {federation.partition: designed, federation.design.condition: C1, federation.design.strength: 0.25}}
+        - {label: C2, set: {federation.partition: designed, federation.design.condition: C2, federation.design.strength: 0.25}}
+        - {label: C3, set: {federation.partition: designed, federation.design.condition: C3, federation.design.strength: 0.25}}
+        - {label: C4, set: {federation.partition: designed, federation.design.condition: C4, federation.design.strength: 0.25}}
 
   G1:
     purpose: "3-C 锯齿、3-D 可观测性（详细记录：逐 edge 轮评估 + 更新日志）；3-A 的一部分"
     requires: [audit, S3, S5, S6]
     seeds: [42, 43, 44]
-    set: {federation.n_edges: 4}
+    # S3 补 partition 的 set（等大小 random / 固定设计 C1）；布点、轮数、评估网格留给 S5。
+    set: {federation.n_edges: 4, federation.design.n_per_client: 500, federation.design.clean_per_edge: 500, federation.design.alpha_client: 0.5}
     factors:
       partition:
-        - {label: random}
-        - {label: C1}
+        - {label: random, set: {federation.partition: equal_random}}
+        - {label: C1, set: {federation.partition: designed, federation.design.condition: C1, federation.design.strength: 0.25}}
       placement:
         - {label: collocated}
         - {label: distributed}
@@ -67,6 +74,8 @@ groups:
     # 2026-09-27（D-047）补齐：布点 = 旧 P1 的 distributed（1→[10]、2→[5,5]、4→[3,3,2,2]、10→[1]×10），
     # n_rounds = cap_effective(300) ÷ R（否则 flat 会被截断在 60 有效轮），flat 的评估间隔与 P1 flat 一样取 5。
     # R≠5 的格子评估网格仍是每 R 个有效轮一个点 —— 统一网格由 S5（逐 edge 轮评估）负责。
+    # S3（D-065）：划分 = 等大小 random（与 G1-random 同一套数据，G1 替 G2 补 e4-R10/R20）。
+    set: {federation.partition: equal_random, federation.design.n_per_client: 500, federation.design.clean_per_edge: 500, federation.design.alpha_client: 0.5}
     cells:
       - {cell: flat,     set: {federation.n_edges: 1,  federation.edge_rounds: 1,  federation.n_rounds: 300,
                                backdoor.malicious_per_edge: [10],
@@ -89,17 +98,22 @@ groups:
                                backdoor.malicious_per_edge: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]}}
 
   G3:
-    purpose: "3-B 目标类分布：固定设计 C2/C3/C4（collocated）+ 层级 Dirichlet α_e 扫描"
+    purpose: "3-B 目标类分布：固定设计 C1/C2/C3/C4（集中布点；C1 是差中差的基准，D-062）+ 层级 Dirichlet α_e 扫描"
     requires: [audit, S3]
     seeds: [42, 43, 44]
+    # S3（2026-09-28）补齐：4 edge 集中 [10,0,0,0]（E0 = 攻击者 edge，E1–E3 受害）、R5、停轮自适应（base）。
+    # 机构式表 r = 0.25（D-067）；hdir 按社区口径（D-063）；每端 500 张（375 / 125）+ 干净集 500 / edge（D-064）。
+    set: {federation.n_edges: 4, backdoor.malicious_per_edge: [10, 0, 0, 0],
+          federation.design.n_per_client: 500, federation.design.clean_per_edge: 500, federation.design.alpha_client: 0.5}
     cells:
-      - {cell: C2}
-      - {cell: C3}
-      - {cell: C4}
-      - {cell: hdir-a0.1}
-      - {cell: hdir-a0.3}
-      - {cell: hdir-a1}
-      - {cell: hdir-a10}
+      - {cell: C1, set: {federation.partition: designed, federation.design.condition: C1, federation.design.strength: 0.25}}
+      - {cell: C2, set: {federation.partition: designed, federation.design.condition: C2, federation.design.strength: 0.25}}
+      - {cell: C3, set: {federation.partition: designed, federation.design.condition: C3, federation.design.strength: 0.25}}
+      - {cell: C4, set: {federation.partition: designed, federation.design.condition: C4, federation.design.strength: 0.25}}
+      - {cell: hdir-a0.1, set: {federation.partition: hdir, federation.design.alpha_edge: 0.1}}
+      - {cell: hdir-a0.3, set: {federation.partition: hdir, federation.design.alpha_edge: 0.3}}
+      - {cell: hdir-a1,   set: {federation.partition: hdir, federation.design.alpha_edge: 1.0}}
+      - {cell: hdir-a10,  set: {federation.partition: hdir, federation.design.alpha_edge: 10.0}}
 
   G4:
     purpose: "3.2 私有头吸收：投毒率 ρ × {FedRep, FedAvg}（**搁置**，D-047：等 3.2 按 N-003 重新表述，对照臂一起重设计）"
@@ -117,6 +131,8 @@ groups:
     purpose: "3.3 收敛门控：投毒窗口 [t0, t0+20) + 观察 50 轮，从头跑（不分叉）"
     requires: [audit, S4]
     seeds: [42, 43, 44]
+    # S3（D-065）：划分 = 等大小 random。拓扑与窗口单位 S4 时定（建议同 G0：4 edge 集中、R5）。
+    set: {federation.partition: equal_random, federation.design.n_per_client: 500, federation.design.clean_per_edge: 500, federation.design.alpha_client: 0.5}
     factors:
       t0:
         - {label: t20}

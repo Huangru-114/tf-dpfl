@@ -13,6 +13,7 @@ from data.partition     import (extract_numpy, iid_partition, noniid_partition,
                                 superclass_edge_partition,
                                 make_per_edge_test_datasets,
                                 merge_test_datasets)
+from data.designed_partition import S3_PARTITIONS, designed_partition, data_lines
 from data.clustering    import random_assignment, warmup_gradient_assignment, histogram_assignment, semantic_assignment, block_assignment
 from models.cnn         import build_model
 from models.model_utils import clone_model
@@ -358,9 +359,12 @@ def set_seed(seed: int):
     print(f"[Setup] Random seed: {seed}")
 
 
-def build_clients(images_np, labels_np, global_model, config):
+def build_clients(images_np, labels_np, global_model, config, s3_out=None):
     """
     数据分区 + 批量实例化所有客户端。
+
+    S3 划分（`federation.partition ∈ S3_PARTITIONS`，data/designed_partition.py）时，
+    每个 edge 的干净集索引写进可选出参 `s3_out["clean_indices"]`（S3 本身不使用，S6 / 阶段三用）。
 
     每个客户端拿到：
       - 自己的 dataset partition
@@ -387,6 +391,7 @@ def build_clients(images_np, labels_np, global_model, config):
 
     assignments       = None
     edge_fine_classes = None
+    s3                = None
 
     if partition == "iid":
         client_datasets, client_indices = iid_partition(images_np, labels_np, n_clients, config)
@@ -448,14 +453,29 @@ def build_clients(images_np, labels_np, global_model, config):
             images_np, labels_np, n_clients, config, edge_fine_classes
         )
 
+    elif partition in S3_PARTITIONS:
+        # S3（Exp3 改版 §2；D-062 … D-068）：等大小、无放回、先切 edge 干净集、自带 train/留出切分；
+        # 随机性只来自 default_rng([seed, RNG_TAG])，不碰全局 np.random。纯 numpy：data/designed_partition.py
+        s3 = designed_partition(labels_np, config)
+        assignments = list(s3["assignments"])
+
     else:
         raise ValueError(f"Unknown partition type: {partition}")
 
-    # per-client 测试集：从每个 client 自身的训练数据中划出 test_ratio（PFLlib 做法）
-    test_ratio = config.get("data", {}).get("per_client_test_ratio", 0.2)
-    client_datasets, client_indices, client_test_datasets = split_client_train_test(
-        images_np, labels_np, client_indices, config, test_ratio=test_ratio
-    )
+    if s3 is None:
+        # per-client 测试集：从每个 client 自身的训练数据中划出 test_ratio（PFLlib 做法）
+        test_ratio = config.get("data", {}).get("per_client_test_ratio", 0.2)
+        client_datasets, client_indices, client_test_datasets = split_client_train_test(
+            images_np, labels_np, client_indices, config, test_ratio=test_ratio
+        )
+    else:
+        client_indices = s3["train_indices"]
+        client_datasets = [make_client_dataset(images_np, labels_np, idx, config, shuffle=True)
+                           for idx in client_indices]
+        client_test_datasets = [make_client_dataset(images_np, labels_np, idx, config, shuffle=False)
+                                for idx in s3["test_indices"]]
+        print(f"[Train/Test split] {len(client_indices)} clients | S3 {partition} | "
+              f"train={len(client_indices[0])}, test={len(s3['test_indices'][0])} samples each")
 
     # ── 后门攻击：恶意客户端用投毒数据集替换原本地数据集 ───────────────────
     bd_cfg        = config.get("backdoor", {})
@@ -478,6 +498,12 @@ def build_clients(images_np, labels_np, global_model, config):
         print(f"[Backdoor] resolved malicious clients "
               f"(placement={bd_cfg.get('malicious_placement', 'spread')}): "
               f"{bd_cfg['malicious_ids']}")
+    if s3 is not None:
+        # 自描述（S3）：[Partition] + 每 edge 一条 [PartitionEdge] → metrics.json 的 run.data（collect_metrics schema 6）
+        for ln in data_lines(s3, malicious_ids=sorted(malicious_ids) if bd_enabled else None):
+            print(ln)
+        if s3_out is not None:
+            s3_out["clean_indices"] = s3["clean_indices"]
     bd_trigger    = (build_trigger(bd_cfg, img_size=config["data"]["img_size"], config=config)
                      if bd_enabled else None)
     bd_target     = int(bd_cfg.get("target_label", 9))
@@ -730,8 +756,9 @@ def run_experiment(config_path="config/config.yaml"):
     # 训练过的图上测攻击成功率。现在 ASR 一律测在留出分片上（见下方 cloud 构造）。
     x_all = np.concatenate([x_train, x_test], axis=0)
     y_all = np.concatenate([y_train, y_test], axis=0)
+    s3_out = {}
     clients, baked_assignments, edge_fine_classes = build_clients(
-        x_all, y_all, global_model, config
+        x_all, y_all, global_model, config, s3_out=s3_out
     )
     print(f"[Setup] client pool = train+test merged ({len(y_all)} samples), "
           f"每客户端分片内部再按 data.per_client_test_ratio 切 train/test；"
@@ -742,6 +769,10 @@ def run_experiment(config_path="config/config.yaml"):
     edge_servers, test_clients = build_edge_servers(
         clients, global_model, config,
         precomputed_assignments=baked_assignments)
+    # S3：每个 edge 的干净集（D-064；与全部客户端分片不相交）。S3 只挂上、不使用 —— S6 / 阶段三用。
+    for edge in edge_servers:
+        edge.clean_indices = (s3_out["clean_indices"][edge.edge_id]
+                              if "clean_indices" in s3_out else None)
 
     # 为每个 edge 注入与其训练分布匹配的测试集（EM 评估用）。
     # superclass_pathological：使用预定义的超类细粒度类集合。

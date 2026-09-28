@@ -71,6 +71,12 @@ EXPECT_KEYS = (
     # S8：G6 的三臂靠它区分。声明了就核对 [设定6]（CloudServer 真正算出的 k），
     # 没声明（其他组）→ None → 不核对。
     ("edge_shared_blocks", "federation.edge_shared_blocks"),
+    # S3：只挂 S3 配置才声明的 federation.design.* —— federation.partition 所有配置都声明
+    # （旧的是 noniid），挂它会让已跑完、没有 [Partition] 行的 G6 / G7 全变 mismatch。
+    # 声明了 condition / alpha_edge / n_per_client 而日志里没有 [Partition] → 静默跑成了旧划分 → mismatch。
+    ("partition_condition",  "federation.design.condition"),
+    ("partition_alpha_edge", "federation.design.alpha_edge"),
+    ("partition_n",          "federation.design.n_per_client"),
 )
 
 AUDIT_STATUSES = ("open", "align", "deviate", "done")

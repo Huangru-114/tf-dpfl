@@ -66,7 +66,7 @@ P1 的用途（FINDINGS F-002/F-008/F-009）：同 seed 噪声的实测、效应
 | 3.2 私有头吸收 | FedRep ↔ FedAvg、ρ=1；恶意端干净精度（已算、没解析）；body 更新范数 | 部分已有 | S6 |
 | 3.3 收敛门控 | `attack_start_round`；固定长度 run | 缺起始轮 | S4 |
 | 3-A 公平对照 | flat / HFL / R_edge / 参与配额 / T_θ（都已有）；逐 edge 轮评估（高 R） | 大部分已有 | S5 |
-| 3-B 目标类分布 | 固定比例表 C1–C4；层级 Dirichlet p_e~Dir(α_e p)；H_inter/H_intra；逐 edge 下限 | 缺 | S3 |
+| 3-B 目标类分布 | 固定比例表 C1–C4；层级 Dirichlet p_e~Dir(α_e p)（按社区口径 = 每类 α_e，D-063）；H_inter/H_intra；逐 edge 下限 | ✅ 划分已有（S3）；逐 edge 下限等 FLR / G0 | S3 |
 | 3-C 锯齿 | 逐 edge 轮评估 + fresh-PM ASR；攻击停止（已有） | 缺（fresh-PM 与交错执行在 A4，D-033 / D-036） | A4 + S5 |
 | 3-D 可观测性 | 逐更新几何分数日志；周期性整包转储；离线 c_k（PGD 代价）；edge 干净集 | 缺 | S3 + S6 |
 | 3-E 三层个性化 | `get_base_head_indices` 加第三组；cloud / edge 各自只聚合对应层 | ✅ 已有（S8，D-057：`federation.edge_shared_blocks`） | S8（可选） |
@@ -103,7 +103,7 @@ P1 的用途（FINDINGS F-002/F-008/F-009）：同 seed 噪声的实测、效应
 | G0 下限主干 | 划分 {随机, C1, C2, C3, C4} × ρ=0 影子攻击者 × 3 seed；4 edge 集中 [10,0,0,0]、R5（D-066）。**规模等 FLR**：`negligible` → 取消逐划分 floor | 3.1 下限、3-B 逐 edge 下限、3.3 对照 | A4 + S3 + S4 + FLR |
 | G1 主攻击（详细记录） | 4 edge；划分 {随机, C1} × 放置 {collocated, distributed} × R_edge {10, 20} × 3 seed；逐 edge 轮评估；更新日志 | 3-C、3-D、3-A 的一部分 | A4 + S3 + S5 + S6 |
 | G2 结构扫描（**暂缓**，D-056） | flat + edge {2, 4, 10} × R_edge {2, 5, 10, 20}，去掉 G1 已覆盖的格子 × 5 seed（布点 / 轮数 2026-09-27 补齐，D-047）；**先跑 G2P 一致性复测**（pilot 表，seed42 的 4 格），结果回来再定 G2 规模 —— G2P 已回来（`consistent`，F-049），**规模尚未定**，由用户定 | 3-A | A4 + S5 |
-| G3 目标类条件 | **C1**（D-062 新增，差中差的基准）/ C2 / C3 / C4 + 层级 Dirichlet α_e {0.1, 0.3, 1, 10}（社区口径，D-063）× 3 seed；4 edge 集中 [10,0,0,0]、R5 | 3-B | A4 + S3 |
+| G3 目标类条件 | **C1**（D-062 新增，差中差的基准）/ C2 / C3 / C4 + 层级 Dirichlet α_e {0.1, 0.3, 1, 10}（社区口径，D-063）× 3 seed；4 edge 集中 [10,0,0,0]、R5；比例表 r = 0.25、E3 = deer + horse（D-067） | 3-B | A4 + S3 ✅ → **可交**（24 run） |
 | G4 私有头（**搁置**，D-047） | ρ {0.25, 1.0} × {FedRep, FedAvg} × 3 seed。用户：FedAvg 臂会被立刻攻陷、给不出结论；等 3.2 按 N-003 重新表述时一起重设计对照臂 | 3.2 | A4 + S6 + 重新表述 |
 | G5 时间窗 | t0 {20, 60, 100, 140, 180} × 20 轮投毒 + 50 轮观察 × 3 seed，从头跑 | 3.3 | A4 + S4 |
 | G6（可选） | 3-E 的三种划分 × 3 seed；4 edge 集中 [10,0,0,0]、R5、固定 300 有效轮（停止判据关）（D-058） | 3-E | S8 ✅ → 可交 |
@@ -128,7 +128,7 @@ P1 的用途（FINDINGS F-002/F-008/F-009）：同 seed 噪声的实测、效应
 | **A2**（2026-09-25） | 审计：训练协议（A07–A11、A13、A15、A16、A20、A22、A23，新增 A25）。原则 D-022：攻击定义必须对齐，训练协议不为对齐而对齐；决定 D-022 … D-029 | 已拍板；A08 待 D-029 |
 | **A3**（2026-09-25/26） | 审计：FedRep 实现细节 / ResNet-10 / A18 / HFL 形式化 + D01–D06 签字。决定 D-030 … D-038：head = 末层 Dense（D-030）；FedRep 训练顺序两种都跑 pilot（A26，D-031）；BN γ/β 共享、统计量私有（A27，D-032）；主 ASR 与 pm_acc 同模型、都用 fresh-PM（A28，D-033）；ResNet-10 三项对齐（A29，D-034）；A17 / A18 `done`、A21 `deviate`（D-035）；D01 交错执行、D02 按有效轮轮转（D-036）；D03–D06 签字（D-037）；D-029 扩大范围（D-038） | 已拍板；A26 待 pilot |
 | **A4**（实现会话；≠ AUDIT 行 A04；2026-09-26 代码 + L1 完成，pilot 待集群） | 按拍板改代码 + L1 测试（D-039：每行一个开关、默认旧行为，对齐项收成一套模板 `fedavg/config/alignment_p2.yaml`）（A1–A3 的全部 `align` 行，含 A26 的顺序开关、A27 统计量私有、A28 fresh-PM、A29 `resnet10_torch`、D01 交错执行、D02 按有效轮轮转）；跑 D-029 可行性实验（D-038：A08 + A25 + A27 + A29 一起开，2edge 那格带上 D01 / D02），通过后 A08 → `deviate`；同批跑 A26 的 2 个 body_first run，按 D-031 的判据关 A26；登记 G7；`PROTOCOL_VERSION` 升 P2；2 个 smoke 复核标定 | AUDIT 全部关闭（A08 由 D-029、A26 由 pilot 关闭） |
-| S3（2026-09-28 讨论定稿，D-062 … D-066） | 划分：C1–C4 **机构式**比例表（只改 y_t 列，D-062）、层级 Dirichlet（社区口径，D-063）、**等大小 random**（D-065）、H_inter/H_intra（打 `[Data]` 行）、edge 干净集（500/edge，按 p_e，D-064）、划分 seed 分离。**硬要求：客户端等大小**（D-027，F-028）；无放回；n 默认 500（F-057）。开工第一步：出比例表 + 离线预览实测 H，用户确认后再写代码 | → G0 / G3 |
+| **S3**（2026-09-28 ✅，D-062 … D-068） | 划分：C1–C4 **机构式**比例表（只改 y_t 列，D-062）、层级 Dirichlet（社区口径，D-063）、**等大小 random**（D-065）、H_inter/H_intra（打 `[Partition]` 行）、edge 干净集（500/edge，按 p_e，D-064）、划分 seed 分离。**硬要求：客户端等大小**（D-027，F-028）；无放回；n 默认 500（F-057）。实现：`fedavg/data/designed_partition.py`（不 import TF）、`[Partition]` / `[PartitionEdge]` → `run.data`（schema 6）、`harness/partition_preview.py`（F0 数据，F-058） | → G0 / G3 |
 | S4 | ρ=0 影子攻击者 L1、ξ-only 下限、`attack_start_round`（δ-only / ξ-only **逐点消融列不做**，D-051） | → G0 / G5 |
 | S5（**暂缓**，D-056；**预案已定**，D-055） | 逐 edge 轮评估（fresh-PM 已在 A4 实现，D-033）。**两条要求（D-047）**：各格评估网格统一在有效轮上（现在 R≠5 的格子是每 R 个有效轮一个点）；加密的点只算主列、保持轻量（否则 G1 / G2 的评估量成倍增加）。预案：`evaluation.eval_grid: 5`、轻评估点喂停止判据且横轴改网格序号（F-052）、GM / EM 只在网格点上算 | → G1 / G2 |
 | S6 | 更新日志、几何分数（body-only、滑窗）、周期转储、离线 c_k、恶意端干净精度 | → G1 / G4 |

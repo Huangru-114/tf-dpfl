@@ -17,7 +17,10 @@ harness/collect_metrics.py  —  把集群 run 的**全量日志**压成一个�
                           host / job / start。老日志没有这一行 → None
     run.cli_overrides     CLI 相对 yaml 改掉的叶子值 [[key, old, new], ...]；老日志 → None
     run.edge_shared_blocks  3-E 三层个性化的 k（[设定6]，S8）：0 = FedRep 基线；老日志 → None
-    schema_version        本文件的结构版本（2 = 有 provenance；5 = 有 run.edge_shared_blocks）
+    run.data              S3 新划分的自描述（[Partition] + 每 edge 一条 [PartitionEdge] → run.data.per_edge）；
+                          顶层另有 run.partition / partition_condition / partition_alpha_edge / partition_n。
+                          旧划分（noniid 等）不打这些行 → 全为 None
+    schema_version        本文件的结构版本（2 = 有 provenance；5 = 有 run.edge_shared_blocks；6 = 有 run.data）
     rounds[]              每个**后门评估轮**的 {round, global_asr, edge_asr,
                           local_benign_asr, same_edge_asr, diff_edge_asr, local_malicious_asr}
     final                 最后一个后门评估轮的上述指标
@@ -61,7 +64,9 @@ from utils.kvline import parse_kv, collect_kv   # noqa: E402
 #     评估降频（D-054）：acc_rounds[] 的精度评估分项计时（[TimingAcc]）+ timing_summary.acc_split_total_s。
 #     副列没算的点（白盒关 / 陈旧隔点）照旧是 null。
 # 5 = S8（3-E 三层个性化）：run.edge_shared_blocks + run.tier_split（[设定6]）。
-SCHEMA_VERSION = 5
+# 6 = S3（新划分）：run.data（[Partition] + [PartitionEdge]）+ run.partition / partition_condition /
+#     partition_alpha_edge / partition_n。
+SCHEMA_VERSION = 6
 
 # A4 的副列：key=value 行（utils/kvline.py）→ rounds[] / acc_rounds[] 的字段。
 # 缺行（旧口径、或该列本 run 没开）→ null，**不是 0**。
@@ -265,6 +270,8 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
     align = None
     eval_att = None
     split6 = None
+    data = None
+    data_edges = []
     for ln in lines:
         d = parse_kv(ln, "[设定4]")
         if d is not None:
@@ -275,6 +282,18 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
         d = parse_kv(ln, "[设定6]")
         if d is not None:
             split6 = d
+        d = parse_kv(ln, "[Partition]")
+        if d is not None:
+            data = d
+            data_edges = []            # [PartitionEdge] 紧跟在它后面；同一日志里出现两遍时只留最后一组
+        d = parse_kv(ln, "[PartitionEdge]")
+        if d is not None:
+            for key in ("class_counts", "clean_counts"):       # "a/b/…" → [int, …]
+                if isinstance(d.get(key), str):
+                    d[key] = [int(v) for v in d[key].split("/")]
+            data_edges.append(d)
+    if data is not None:
+        data["per_edge"] = sorted(data_edges, key=lambda r: r.get("edge_id", 0))
 
     return {
         "config_path":   cfg.group(1) if cfg else None,
@@ -336,6 +355,14 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
         #   0 = FedRep 基线 (a)；1 / 2 = 末 1 / 2 个残差块只在 edge 内共享 (b) / (c)。
         "edge_shared_blocks": split6.get("edge_shared_blocks") if split6 else None,
         "tier_split":        split6,
+        # ── S3 新划分（[Partition] / [PartitionEdge]，build_clients 解析完恶意端后打印）────
+        #   None = 旧划分（noniid / iid / …，不打这些行）或老日志。status 只核对 S3 配置才声明的
+        #   federation.design.* → partition_condition / partition_alpha_edge / partition_n。
+        "partition":            data.get("partition") if data else None,
+        "partition_condition":  data.get("condition") if data else None,
+        "partition_alpha_edge": data.get("alpha_edge") if data else None,
+        "partition_n":          data.get("n_per_client") if data else None,
+        "data":                 data,
     }
 
 

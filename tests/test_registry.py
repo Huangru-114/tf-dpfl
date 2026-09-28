@@ -37,23 +37,31 @@ def test_v2_group_sizes_match_plan():
     sizes = {}
     for r in runs:
         sizes[r["group"]] = sizes.get(r["group"], 0) + 1
-    assert sizes == {"G0": 15, "G1": 24, "G2": 55, "G3": 21, "G4": 12, "G5": 15, "G6": 9,
+    assert sizes == {"G0": 15, "G1": 24, "G2": 55, "G3": 24, "G4": 12, "G5": 15, "G6": 9,   # G3：S3 补 C1（D-062）
                      "FLR": 3,                   # FLR：floor 验证 pilot（D-061）
                      "G7": 6}                    # G7：A4 登记（D-025 预处理对比）
-    assert len({r["run_id"] for r in runs}) == len(runs) == 160
+    assert len({r["run_id"] for r in runs}) == len(runs) == 163
 
 
 def test_v2_run_ids_and_factor_settings():
     runs = {r["run_id"]: r for r in R.Registry(V2).runs()}
     r = runs["G1__random_collocated_R10__s42"]
-    assert r["set"] == {"federation.n_edges": 4, "federation.edge_rounds": 10}
+    assert r["set"] == {"federation.n_edges": 4, "federation.edge_rounds": 10,
+                        # S3（D-065）：random = 等大小版
+                        "federation.partition": "equal_random",
+                        "federation.design.n_per_client": 500, "federation.design.clean_per_edge": 500,
+                        "federation.design.alpha_client": 0.5}
     assert runs["G4__p1.0_fedavg__s44"]["set"] == {
         "backdoor.poison_ratio": 1.0, "training.drift_correction": "hierfedavg"}
     # D-047（2026-09-27）：G2 flat 补上布点、轮数与评估间隔（原来只有前两项 → 布点 [5,5]、截断在 60 轮）
     assert runs["G2__flat__s46"]["set"] == {
         "federation.n_edges": 1, "federation.edge_rounds": 1, "federation.n_rounds": 300,
         "backdoor.malicious_per_edge": [10],
-        "backdoor.eval_interval": 5, "evaluation.eval_interval": 5}
+        "backdoor.eval_interval": 5, "evaluation.eval_interval": 5,
+        # S3（D-065）：G2 与 G1-random 同一套等大小数据
+        "federation.partition": "equal_random",
+        "federation.design.n_per_client": 500, "federation.design.clean_per_edge": 500,
+        "federation.design.alpha_client": 0.5}
 
 
 def test_v2_base_is_decided_in_a4_and_carries_the_p2_template():
@@ -222,13 +230,13 @@ def test_materialize_with_nothing_eligible_errors_and_writes_nothing(tmp_path):
     assert not reg.configs_dir.exists()
 
 
-def test_materialize_real_v2_registry_only_g6_g7_flr_are_generable(tmp_path, monkeypatch):
-    """A4 定了 base 之后：不依赖功能会话的 G7、S8 之后的 G6、以及只改配置的 FLR（D-061）能生成配置
-    （审计门槛只在 submit.sh 拦）；其余组缺 S3–S6，一个都不生成。写到临时目录，不在仓库里留 INDEX。"""
+def test_materialize_real_v2_registry_only_unblocked_groups_are_generable(tmp_path, monkeypatch):
+    """A4 定了 base 之后：不依赖功能会话的 G7、S8 之后的 G6、只改配置的 FLR（D-061）、S3 之后的 G3
+    能生成配置（审计门槛只在 submit.sh 拦）；其余组缺 S4–S6，一个都不生成。写到临时目录，不在仓库里留 INDEX。"""
     reg = R.Registry(V2)
     monkeypatch.setattr(reg, "configs_dir", tmp_path / "configs")
     rows = R.materialize(reg)
-    assert sorted(r["group"] for r in rows) == ["FLR"] * 3 + ["G6"] * 9 + ["G7"] * 6
+    assert sorted(r["group"] for r in rows) == ["FLR"] * 3 + ["G3"] * 24 + ["G6"] * 9 + ["G7"] * 6
     with pytest.raises(R.RegistryError, match="不写 INDEX.tsv"):
         R.materialize(reg, groups=["G0", "G2"])
 

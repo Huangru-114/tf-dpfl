@@ -1,9 +1,8 @@
 # current-focus —— Experiment 3（改版）· 交接
 
 > 本文件是 `CLAUDE.md`「新会话开场第 3 步」要读的那一份。
-> **写于 2026-09-28**（S3 会话，讨论 + 第 0 步）。S3 的设计已定稿（D-062 … D-066），**floor 验证 pilot `FLR` 已登记、待交**（D-061）。
-> **S3 的代码还没写**：下一步是出机构式比例表 + 离线预览实测 H，给用户确认（见下「下一步」②）。
-> G6 仍剩 3 个 s44 待交（D-060）；G2 与 S5 仍暂缓（D-056；S5 预案 D-055）。
+> **写于 2026-09-28**（S3 会话结束时）。**S3 已完成**（D-061 … D-068）→ **G3 可交**（24 run）；**FLR 已登记、待交**（D-061）。
+> G6 仍剩 3 个 s44 待交（D-060）；G2 与 S5 仍暂缓（D-056；S5 预案 D-055）。**下一会话由用户定**（候选：S4，它解锁 G0 / G5）。
 
 ## 几套编号（容易混，先看这里）
 
@@ -17,13 +16,33 @@
 | **F-001 … F-053 / N-001 … N-006** | `FINDINGS.md` 的证据条目 / 设计备注 | FINDINGS |
 | **P0 / P1 / P2** | 数据批次的口径版本；只有 P2 进结论 | PLAN §0 |
 
-## 本会话做了什么（2026-09-28，S3 讨论 + FLR 登记）
+## 本会话做了什么（2026-09-28，S3：讨论 → FLR 登记 → 新划分实现）
 
-**问题**：「S3 这个组要干什么、验证什么、和最后的防御设计有什么关系；划分怎么构造」—— 已回答并定稿；另按用户要求**先做 floor 验证**。
+**问题**：「S3 这个组要干什么、验证什么、和最后的防御设计有什么关系；划分怎么构造」—— 已回答、定稿并实现；另按用户要求**先做 floor 验证**。
+
+两个提交：`6c15264`（FLR 登记 + 设计定稿）→ 其后一个提交（S3 代码）。
+
+**S3 的代码**（第二个提交）：
+
+| 改动 | 内容 |
+|---|---|
+| `fedavg/data/designed_partition.py`（新，不 import TF） | designed（C1–C4，机构式表 r = 0.25，D-067）/ hdir（社区口径，D-063）/ equal_random（D-065）；「名义 → IPF 投影 → 最大余数取整 → 无放回」；先切干净集（按 p_e，D-064）；每端 375 / 125；只用 `default_rng([seed, 0x533])` |
+| `fedavg/main.py` | `build_clients` 插入 `elif partition in S3_PARTITIONS` 分支；旧 train/test 切分包进 `if s3 is None:`（**旧路径逐字节不变**，AST 指纹守着）；打 `[Partition]` + 4 条 `[PartitionEdge]`；干净集经 `s3_out` 挂到 `edge.clean_indices`（S3 不使用） |
+| `fedavg/config_validate.py` §4f | S3 配置错误全部拒绝（4 edge、condition、r ∈ (0, 0.3]、target_label = 0、n × test_ratio 整数、每类供给） |
+| harness | `collect_metrics` **schema 6**：`run.data`（含 `per_edge`）+ `run.partition` / `partition_condition` / `partition_alpha_edge` / `partition_n`；`registry.EXPECT_KEYS` 只挂 `federation.design.*`（挂 `federation.partition` 会让 G6 / G7 变 mismatch）；`runs_table` / `figures` 因素键；`harness/partition_preview.py`（F0 数据，F-058） |
+| 登记表 | `available: [S8, S3]`；G3 = C1 / C2 / C3 / C4 / hdir-a{0.1, 0.3, 1, 10}（24 run，已 materialize）；G0 / G1 / G2 / G5 写入划分 set；`base.yaml` 不动 |
+
+- 自描述行叫 `[Partition]` 不叫 `[Data]`：`data/dataset.py` 早就在打 `[Data] …` 行，同名会被误解析（`test_old_logs_without_partition_lines_give_none` 守着）。
+- 离线预览（F-058）：C1 H_inter 0.375 / C3 最紧的一类 5543 / 6000；hdir 四档实测 0.17 / 0.47 / 0.67 / 0.86 **区间不重叠**；投影几乎不压平（≤ 0.013）；random 0.134 ≈ hdir α_e=10。
+- L1（本地无 TF，venv）：1139 → **1185 passed / 38 skipped / 3 xfailed**（+45 条 `test_designed_partition.py`，+1 条是 `test_main_names_are_bound` 多扫了新文件；+1 skip = 需要 TF 的 `build_clients` 集成测试，集群上跑）。
+  反向锚点：旧 noniid 分支 / `split_client_train_test` / `if s3 is None:` 里的切分语句各改一个字符 → 对应守卫变红。
+
+**设计与 FLR**（第一个提交）：
 
 | 决定 | 内容 |
 |---|---|
-| D-061 | **FLR**：G6(a) × ρ=0 × 3 seed，与 G6(a) 按 seed 配对；预注册判定 `harness/flr_verdict.py`（全部 ≤ 0.05 → 可忽略；任一 ≥ 0.10 或 E0 差 ≥ 0.05 → 不可忽略；阈值 ⚠ 待确认）→ 定 G0 规模 |
+| D-061 / D-068 | **FLR**：G6(a) × ρ=0 × 3 seed，与 G6(a) 按 seed 配对；预注册判定 `harness/flr_verdict.py`（全部 ≤ 0.05 → 可忽略；任一 ≥ 0.10 或 E0 差 ≥ 0.05 → 不可忽略；阈值用户已确认，D-068）→ 定 G0 规模 |
+| D-067 | 比例表数值：E0 均衡；E1 automobile + truck、E2 cat + dog、E3 deer + horse，特长 r = 0.25、其余 0.025；airplane / bird / ship / frog 各 0.10 |
 | D-062 | C1–C4 用**机构式**比例表（C1–C4 之间只改 y_t 列；bird / ship 均匀）→ 3-B 判定改**差中差**，G3 补 C1 格 |
 | D-063 | α 按**社区口径**（每类参数 = α）；原文 Dir(α·p) 差 10 倍（F-056） |
 | D-064 | 干净集 500 / edge，按本 edge 分布 p_e，与客户端不相交 |
@@ -62,7 +81,14 @@
 
 ## 下一步
 
-**① 用户（集群）：交 G6 剩下的 3 个 s44 + FLR 的探路包**
+**⓪ 用户（集群，登录节点即可）：先跑一次 S3 的 TF 测试**（本地没有 TF，`build_clients` 的 S3 分支只在这里第一次真跑）
+
+```bash
+git pull
+bash run_l1.sh designed_partition        # 期望：46 passed（本地是 45 passed + 1 skipped）；红了先别交 G3
+```
+
+**① 用户（集群）：交 G6 剩下的 3 个 s44 + FLR 的探路包 + G3 的探路包**
 
 ```bash
 git pull                                                                 # 本分支（含 D-061）
@@ -77,13 +103,21 @@ python3 harness/flr_verdict.py --json experiments/attack/hfl-mechanism/analysis/
 
 - FLR 与 G6(a) 同配置同显存（约 17 GiB / run，F-055），按 D-052 仍先探路。
 - FLR 回传后核对：`run.poison_ratio == 0`、`client_failures == []`、`run.malicious_ids` 与同 seed 的 G6(a) 相同（判定脚本会报 `same_malicious_ids`）。
-- **判定阈值 0.05 / 0.10 ⚠ 待用户确认**（D-061）；判定为 `user_decides` 时由用户定 G0 规模。
+- 判定阈值 0.05 / 0.10 已确认（D-068）；判定为 `user_decides` 时由用户定 G0 规模。
 
-**② Claude（S3 继续）：出比例表 + 离线预览，用户确认后才写划分代码**
-- 机构式 4 × 10 比例表（D-062：非目标类异质、C1–C4 只改 y_t 列、bird / ship 均匀）+ C1–C4 的 y_t 列；
-- `harness/partition_preview.py`（无 TF、无 GPU）对 C1–C4、hdir 四档、等大小 random × 3 seed 实际生成划分，出 (H_inter, H_intra) 表；
-  α_e 四档投影后分不开就回来和用户改档位。
-- 之后按 PLAN §5 的 S3 行实现（`fedavg/data/designed_partition.py` 不 import TF；`[Data]` 行 → schema 6；无放回；不碰全局 `np.random`）。
+**G3（3-B）的探路包**（S3 的真正 L2）：
+
+```bash
+PACK=3 RUN_GROUPS=G3 bash experiments/attack/hfl-mechanism/submit.sh --dry-run
+#   → 8 个格子各一个 K=2 探路包（16 run），其余 8 个 held
+PACK=3 RUN_GROUPS=G3 bash experiments/attack/hfl-mechanism/submit.sh
+```
+
+- 回传后先核对每个 metrics.json：`schema_version == 6`、`run.partition` / `run.partition_condition` 与格子一致、
+  `run.data.client_size_min == client_size_max == 500`、`run.data.per_edge[].yt_share` 与比例表一致（C3 的 E3 ≈ 0.005）、
+  `run.data.malicious_data_share == 0.1`、`client_failures == []`、`python3 harness/status.py …` 无 mismatch。
+- **没有证据的**（F-058）：每端 500 张（总 52k）下的干净精度与停轮标定是否仍合适 —— 探路包的 pm_acc 与 `stop_reason` 回答。
+- 3-B 的判定（差中差，D-062）要 excess ASR → 等 FLR 的判定；FLR 判 `negligible` 就用原始 ASR（D-061）。判定代码属 S7。
 
 **G6 的 s44 的注意事项**（沿用）：
 
@@ -114,7 +148,7 @@ N-005 的做法（随机数据），G6 配置缩到 20 端 / 4 edge / [2,0,0,0] 
 |---|---|---|---|
 | ~~S8~~ 三层个性化 | G6（3-E，可选） | 9 | ✅ 本会话完成；**G6 待交**（上面的命令） |
 | S5 逐 edge 轮评估 | G2（3-A）、G1 的前提之一 | 55 | **暂缓**（D-056）；预案已拍板（D-055）：`eval_grid: 5`、轻评估只算主列并喂停止判据（横轴改网格序号，F-052）、GM / EM 只在网格点上算 |
-| **S3 新划分**（进行中：设计已定 D-062 … D-066，代码未写） | G3（3-B） | 24（含 D-062 补的 C1） | 另是 G0 / G1 的前提；下一步见上「下一步」② |
+| ~~S3~~ 新划分 | G3（3-B） | 24（含 D-062 补的 C1） | ✅ 本会话完成；**G3 待交**（上面的命令）；另是 G0 / G1 的前提 |
 | S4 影子攻击者 + 攻击起始轮 | G5（3.3） | 15 | 另是 G0 的前提（G0 规模等 FLR，D-061）；ρ=0 本身只要改配置（FLR 已用），S4 的活是 L1 守卫、ξ-only 是否做（D-051 与 PLAN 的 S4 行写法不一致，开 S4 时确认）、`attack_start_round`、G5 的拓扑与窗口单位 |
 | S6 更新日志 | G4（3.2，**搁置**，D-047） | 12 | 3.2 的假设要先按 N-003 重新表述（用户）；F-051「私有 head 挡不住 ξ」是相关证据 |
 | S7 判定代码 + 出图 | — | — | 3-E 的判定（D-059 口径）属于这里，本会话没写 |
@@ -142,7 +176,7 @@ N-005 的做法（随机数据），G6 配置缩到 20 端 / 4 edge / [2,0,0,0] 
 | 交 G6 的 3 个 s44 并回传 | 用户（集群） | 上面「下一步」；探路包已回（F-055），剩 1 个 K=3 合包（D-060） |
 | 3-E 的判定代码（D-059 口径） | S7 / 需要时 | 受害 edge 的原始 benign ASR 配对差 + MTA；「三臂 floor 相同」无证据 |
 | 3-E 的 floor 格（ρ=0 × 三划分） | 用户，需要时 | 臂 (a) 的 floor = FLR（D-061）；(b)(c) 要 excess ASR 才需要，不用重跑 G6（D-059） |
-| FLR 判定阈值 0.05 / 0.10 | 用户 | ⚠ 待确认（D-061）；用户在另一仓库做过类似评估（「比随机高一些」），数值可用来定阈值 |
+| G3 的停轮：自适应还是固定长度 | 用户，需要时 | 现在是 base 的自适应（150–300 有效轮）；3-B 的差中差跨 run（C3 vs C1）比终值，run 长度不同时终值窗口落在不同轮上。有影响再改成固定 300（同 G6 的 D-058） |
 | hdir 四档要不要 floor | 用户，FLR 回来后 | D-066；FLR 判 `negligible` 则不需要 |
 | MTA 门槛「≤ 0.02」 | 用户 | 仍 ⚠待确认（PLAN §3） |
 
@@ -172,6 +206,13 @@ N-005 的做法（随机数据），G6 配置缩到 20 端 / 4 edge / [2,0,0,0] 
 - **`runs_table` 把 `edge_shared_blocks=0` 记成 None**（`FACTOR_DEFAULTS`）：S8 之前的文件没有 `[设定6]`，与 (a) 是同一种 run，要同格。
 - **`[设定6]` 在 `CloudServer.__init__` 里打**（真正算出索引处），不在 `config_validate`；每个 run（含 k=0）都有这一行。
 - **collect_metrics 是 schema 5**（S8：`run.edge_shared_blocks` / `run.tier_split`）。
+- **S3 的新划分只经 `federation.partition ∈ {designed, hdir, equal_random}` + `federation.design.*` 生效**，写在组的 `set:` 里；
+  **不要改 `base.yaml` 的 `partition: noniid`**（G6 / G7 / FLR 是旧划分，改了会整体重新生成）。
+- **`status` 核对划分只挂 `federation.design.*`**（`partition_condition` / `partition_alpha_edge` / `partition_n`）：
+  所有配置都声明 `federation.partition`，旧 run 的日志里又没有 `[Partition]` 行 —— 挂它会让 G6 / G7 全变 mismatch。
+- **自描述行叫 `[Partition]` / `[PartitionEdge]`**，不能叫 `[Data]`（`data/dataset.py` 已占用）。collect_metrics 是 **schema 6**。
+- **改 `build_clients` 的旧分支、`split_client_train_test`、`noniid_partition` 会让 `test_designed_partition.py` 的 AST 指纹变红**：
+  那是故意的（G6 s44 / FLR 要与已跑完的同配置 run 配对）。确有必要改旧路径时，先想清楚已跑完的 run 怎么办，再更新指纹。
 - **合包的 gpu.json 文件名是 `<组>__mix-a+b+c__pack-…`**（D-060）：各格子定 K 时按文件名里的格子列表认领它；
   改 tag 格式要同步改 `submit_lib.sh:_cell_k`。满包永远同格子，只有余数会跨格子。
 

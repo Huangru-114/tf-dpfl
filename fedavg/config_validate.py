@@ -454,6 +454,18 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
             warnings.append(f"{EDGE_SHARED_KEY}={_k_edge} 而 n_edges={n_edges}：只有一个 edge 时"
                             f"「edge 内共享」与「上云共享」等价，(a)/(b)/(c) 三臂没有区别。")
 
+    # ── 4f. S3 新划分（data/designed_partition.py；D-062 … D-068）──────────────
+    #   写错的后果都是「划分静默不是声明的那个」：比例表是 4 edge 的、特殊列是 class 0、
+    #   等大小要求 n_per_client × test_ratio 为整数、需求不能超过每类 6000 张的供给（F-057）。
+    from data.designed_partition import S3_PARTITIONS, config_errors
+    _s3_errs = config_errors(config)
+    if _s3_errs:
+        _fail("S3 划分配置不合法（federation.partition="
+              f"{fed.get('partition')!r}）：\n" + "\n".join(f"  {e}" for e in _s3_errs))
+    if str(fed.get("partition", "")) not in S3_PARTITIONS and (fed.get("design") or {}):
+        warnings.append(f"federation.design 只对 S3 划分 {S3_PARTITIONS} 生效；"
+                        f"当前 partition={fed.get('partition')!r} 下被忽略。")
+
     # ── 5. 可复现性 ─────────────────────────────────────────────────────
     if "seed" not in config:
         warnings.append("config 缺 seed，实验不可复现。建议显式写死。")
