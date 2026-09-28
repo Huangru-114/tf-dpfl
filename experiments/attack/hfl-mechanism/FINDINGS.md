@@ -791,3 +791,26 @@ PY
   G6 每有效轮还略快，是因为评估降频（D-050 / D-054：白盒关、陈旧隔点，评估占比 0.32 vs 单跑 0.37–0.40）。训练部分每有效轮 24–26 s，与单跑相同 → K=2 时共卡没有可见的减速（与 F-048 的 DET：K=3 每 run 1261 s vs 单跑 1202 s 一致）。
 - 机时：一个 K=2 包 3.1 h GPU 出 2 个 300 有效轮的 run → 每 run ≈ 1.55 GPU-h（F-055）；同样的 run 单跑按 36–42 s / 有效轮估 3.0–3.5 GPU-h。
 - 复现：`python3` 读 `results/P2/G6/*.gpu.json` 的 `wall_s` 与各 metrics.json 的 `timing_summary.round_time_total_s + bd_eval_total_s`。
+
+### F-060 `confirmed` —— K=3 包在 48G 主机内存下 OOM；G6 s44 被重复提交、日志互相截断
+
+**① 主机内存（用户回传 sacct / sinfo / scontrol，2026-09-28）**
+- 第一个满长 K=3 包 = **3083773**（G6 s44 合包）：batch step `OUT_OF_MEMORY`、MaxRSS ≈ 48G（用户确认与预期一致；原始数字未回传）。
+  被杀的是 (b) s44：exit 137、0 轮。(a)(c) 跑完。**显存不是原因**：每 run 真实峰值 ≤ 16.95 GiB、整卡 62 GiB / 98 GiB、n_oom = 0。
+- K=2 的三个 G6 包（3069959 / 60 / 61，ReqMem 48G）：batch step MaxRSS **35019328K / 34900864K / 34060M = 33.4 / 33.3 / 33.3 GiB**
+  → 每 run 主机内存 ≈ **16.7 GiB**（sacct 按采样间隔取样，真实峰值可能更高）→ K=3 ≈ 50 GiB > 48 GiB。
+- 节点：GH200，每节点 485854 MB（474 GiB）/ 288 核 / 4 卡 → 每卡约 118 GiB、72 核；gpu 分区 `MaxMemPerNode=UNLIMITED`、`DefMemPerCPU=1459`。
+- 计费：`TRESBillingWeights` CPU = 1/72、Mem = 0.009745 / GB、GPU = 1；分区总 billing 1766 = 内存那一项（185596228 MB ÷ 1024 × 0.009745 = 1766.2），
+  相加会是 4822 → **取各项最大值**（用户确认 `PriorityFlags` 含 MAX_TRES）→ 单卡作业 CPU ≤ 72、内存 ≤ 102.6 GB 时只按 1 张卡计费。
+- 处理：D-070（`--mem = 24G × K`、137 算 OOM）。
+
+**② G6 s44 被交了两次**
+- 用户先按交接文档交了 G6 s44 合包（3083773），之后按本会话给的命令 `RUN_GROUPS="G6 FLR"` 又交了一次（3090319，42 s 后取消：sacct CANCELLED、MaxRSS 36M）。
+  提交脚本不查队列 —— 这个重复是本会话给的命令造成的。
+- 证据：G6 s44 三个 metrics.json 的 `pack.job = 3083773`（收尾时的 `SLURM_JOB_ID`），`run.provenance.job = 3090319`、`start = 2026-09-28T08:46:46Z`（run 启动时的 `SLURM_JOB_ID`）；
+  两者读同一个变量，同一作业里不可能不同。
+- 机制：日志路径 `tfdpfl-logs/exp3v2_<run_id>.log` 只按 run_id 命名 → 3090319 启动时 `>` 截断了 3083773 正在写的三个日志，写进自己 42 s 的开头（含 `[Provenance]`）；
+  3083773 的 run 接着在原来的偏移处写完。3090319 只活到 setup（(b) 的日志停在模型 summary），没有任何轮次行。
+- **对数据的影响**：G6 s44 (a)(c) 的训练 / 评估数据（60 轮、[Checksum]、ASR、精度）来自 3083773；`run.provenance`（job / start / git commit）来自被取消的 3090319，
+  **不是**产生这些数据的作业。(b) s44 原来的日志被覆盖，死因只能靠 sacct 3083773（= 主机 OOM，①）。(b) s44 要重跑。
+- 处理：D-070 ③④（日志带作业号、提交前查队列）。

@@ -39,10 +39,10 @@ for K in ${PACK_KS:-2 3}; do
     done
     if [ "$all_done" -eq 1 ]; then echo "  done   $TAG（已有结果，跳过）"; continue; fi
     if [ "$DRY" -eq 1 ]; then
-        echo "  would sbatch -c $((4 * K)) --job-name=exp3v2-pack$K pack.sbatch ${args[*]}"
+        echo "  would sbatch -c $((4 * K)) --mem=$((24 * K))G --job-name=exp3v2-pack$K pack.sbatch ${args[*]}"
         continue
     fi
-    (cd "$ROOT" && sbatch -c $((4 * K)) --job-name="exp3v2-pack$K" "$JOB" "${args[@]}")
+    (cd "$ROOT" && sbatch -c $((4 * K)) --mem=$((24 * K))G --job-name="exp3v2-pack$K" "$JOB" "${args[@]}")   # 主机内存按 K（D-070）
 done
 echo "回传后判定：harness/pack_test.py（纯标准库）"
 [ "$DRY" -eq 1 ] && echo "(dry-run；未提交)"

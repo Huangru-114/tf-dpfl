@@ -73,14 +73,21 @@ def fake_sbatch(tmp_path):
         f'printf "%s\\t" "$@" >> "{log}"; echo >> "{log}"\n'
         'echo "Submitted batch job 1"\n')
     (bindir / "sbatch").chmod(0o755)
+    _fake_squeue(bindir)                     # 缺省：队列是空的（测试不读集群上真实的队列）
     return bindir, log
+
+
+def _fake_squeue(bindir, *comments):
+    """假 squeue：`squeue -u … -h -o %k` 逐行打印作业的 comment。"""
+    (bindir / "squeue").write_text("#!/bin/bash\n" + "".join(f'echo "{c}"\n' for c in comments))
+    (bindir / "squeue").chmod(0o755)
 
 
 def _run(script: Path, *args, bindir=None, mech_dir=None, **env):
     e = {**os.environ, "TFDPFL_ROOT": str(ROOT),
          "PATH": (f"{bindir}:" if bindir else "") + "/usr/bin:/bin"}
     for k in ("PACK", "PROBE_K", "PACK_MEM_PCT", "PACK_CTX_MIB", "RESUBMIT_STALE", "RUN_GROUPS",
-              "PACK_MIX", "PACK_MIX_TOL_PCT"):
+              "PACK_MIX", "PACK_MIX_TOL_PCT", "PACK_MEM_PER_RUN_GB"):
         e.pop(k, None)
     if mech_dir is not None:
         e["TFDPFL_MECH_DIR"] = str(mech_dir)
@@ -94,8 +101,8 @@ def _calls(log: Path):
     return [ln.rstrip("\t").split("\t") for ln in log.read_text().splitlines() if ln.strip()]
 
 
-def _pack_calls(log: Path):
-    """[(n, tag, [run_id…])]：sbatch -c 4n --job-name=… pack.sbatch <tag> (cfg rid met)×n"""
+def _pack_calls(log: Path, mem_per_run: int = 24):
+    """[(n, tag, [run_id…])]：sbatch -c 4n --mem=<24n>G --job-name=… --comment=exp3v2:<rids> pack.sbatch <tag> (cfg rid met)×n"""
     out = []
     for c in _calls(log):
         if not any(a.endswith("pack.sbatch") for a in c):
@@ -105,7 +112,10 @@ def _pack_calls(log: Path):
         assert len(triples) % 3 == 0
         rids = triples[1::3]
         assert c[0] == "-c" and int(c[1]) == 4 * len(rids), c
-        assert c[2] == f"--job-name=exp3v2-pack{len(rids)}"
+        opts = c[2:i]
+        assert f"--mem={mem_per_run * len(rids)}G" in opts, c          # 主机内存按 K 放大（D-070）
+        assert f"--job-name=exp3v2-pack{len(rids)}" in opts, c
+        assert f"--comment=exp3v2:{','.join(rids)}" in opts, c        # 队列里认得出这几个 run（D-070）
         out.append((len(rids), tag, rids))
     return out
 
@@ -143,9 +153,10 @@ def test_pack_unset_is_one_cell_sbatch_per_run(study, fake_sbatch):
     assert len(calls) == 10
     idx = R.read_index(reg)
     for c in calls:
-        assert c[0].endswith("/cell.sbatch") and len(c) == 4, c      # 没有 -c、没有 pack
-        rid = c[2]
-        assert c[1] == idx[rid]["config"] and c[3] == idx[rid]["metrics"]
+        assert c[1].endswith("/cell.sbatch") and len(c) == 5, c      # 没有 -c、没有 pack
+        rid = c[3]
+        assert c[0] == f"--comment=exp3v2:{rid}"                      # D-070
+        assert c[2] == idx[rid]["config"] and c[4] == idx[rid]["metrics"]
     assert "本次入队=10" in out.stdout
 
 
@@ -443,14 +454,14 @@ def test_audit_gate_still_blocks_under_pack(tmp_path, fake_sbatch):
     out = _run(d / "submit.sh", bindir=bindir, mech_dir=d, PACK=3)
     assert out.returncode == 0, out.stderr
     assert not _calls(log) and "本次入队=0" in out.stdout
-    assert "would sbatch -c 12 pack  GA__e2__pack-k3-s42" in out.stdout
+    assert "would sbatch -c 12 --mem=72G pack  GA__e2__pack-k3-s42" in out.stdout
 
 
 def test_dry_run_under_pack_submits_nothing(study, fake_sbatch):
     d, _, _ = study
     bindir, log = fake_sbatch
     out = _run(d / "submit.sh", "--dry-run", bindir=bindir, mech_dir=d, PACK=3)
-    assert not _calls(log) and out.stdout.count("would sbatch -c 12 pack") == 2
+    assert not _calls(log) and out.stdout.count("would sbatch -c 12 --mem=72G pack") == 2
 
 
 def test_bad_pack_value_is_rejected(study, fake_sbatch):
@@ -474,7 +485,7 @@ def test_stale_is_reported_and_not_resubmitted_by_default(study, fake_sbatch):
     out = _run(d / "submit.sh", bindir=bindir, mech_dir=d)
     assert not _calls(log) and "RESUBMIT_STALE=1" in out.stdout
     out = _run(d / "submit.sh", bindir=bindir, mech_dir=d, RESUBMIT_STALE=1)
-    assert [c[2] for c in _calls(log)] == ["GA__e2__s42"]
+    assert [c[3] for c in _calls(log)] == ["GA__e2__s42"]
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -489,7 +500,7 @@ def test_pilot_submit_supports_pack_and_stale(tmp_path, fake_sbatch):
     out = _run(mech / "pilot" / "submit_pilot.sh", bindir=bindir, PACK=3)
     assert out.returncode == 0, out.stderr
     assert [p[1] for p in _pack_calls(log)] == ["GA__e2__pack-k3-s42", "GA__e4__pack-k3-s42"]
-    assert all(c[3].endswith("/pack.sbatch") for c in _calls(log))
+    assert all(any(a.endswith("/pack.sbatch") for a in c) for c in _calls(log))
     _done(reg, rows, "GA__e2__s46", sha="000000000000")
     st = _run(mech / "pilot" / "submit_pilot.sh", "--status", bindir=bindir)
     assert "  stale  GA__e2__s46" in st.stdout
@@ -616,7 +627,7 @@ def test_gpu_mem_line_is_silent_without_a_gpu():
 # pack.sbatch 端到端（假 main.py，真 collect_metrics）：bash 的接线本身
 # ══════════════════════════════════════════════════════════════════════════
 FAKE_MAIN = r'''
-import sys
+import os, signal, sys
 cfg = sys.argv[sys.argv.index("--config") + 1]
 tag = open(cfg).read().strip()
 print("[Checksum] Round 1 | global=abcdef012345")
@@ -625,6 +636,9 @@ if tag == "b":                        # 客户端里的 OOM 被吞掉，进程�
     print("    [ERROR] Client 3: OOM when allocating tensor with shape[32,64,32,32]")
 if tag == "c":
     sys.exit(3)
+if tag == "d":                        # 主机 OOM：cgroup 的 OOM killer 发 SIGKILL → 退出码 137（D-070）
+    sys.stdout.flush()
+    os.kill(os.getpid(), signal.SIGKILL)
 print("[Cloud] Training complete.")
 '''
 
@@ -639,24 +653,87 @@ def test_pack_sbatch_end_to_end_marks_oom_and_propagates_exit_codes(tmp_path):
     shutil.copytree(ROOT / "fedavg" / "utils", repo / "fedavg" / "utils")
     (repo / "fedavg" / "main.py").write_text(FAKE_MAIN)
     args = []
-    for t in ("a", "b", "c"):
+    for t in ("a", "b", "c", "d"):
         (repo / f"{t}.yaml").write_text(t)
         args += [f"{t}.yaml", f"R_{t}", f"out/R_{t}.metrics.json"]
     env = {**os.environ, "SLURM_SUBMIT_DIR": str(repo), "TFDPFL_PY": sys.executable,
            "TFDPFL_LOGDIR": str(tmp_path / "logs"), "TFDPFL_CORES_PER_RUN": "1",
+           "SLURM_JOB_ID": "777", "SLURM_MEM_PER_NODE": "98304",
            "PATH": "/usr/bin:/bin"}
     out = subprocess.run(["bash", str(MECH / "pack.sbatch"), "T3", *args],
                          capture_output=True, text=True, env=env)
     if "不启动" in out.stdout:
         pytest.skip(out.stdout.strip().splitlines()[-1])
-    m = {t: json.loads((repo / "out" / f"R_{t}.metrics.json").read_text()) for t in "abc"}
+    m = {t: json.loads((repo / "out" / f"R_{t}.metrics.json").read_text()) for t in "abcd"}
     assert m["a"]["exit_code"] == 0 and m["a"]["pack"]["oom"] is False
     assert m["a"]["pack"]["peak_mib"] == 1500.0 and m["a"]["gpu_mem"]["peak_mib"] == 1500.0
     assert m["b"]["exit_code"] == 86 and m["b"]["pack"]["oom"] is True      # 被吞掉的 OOM
     assert m["c"]["exit_code"] == 3                                          # 真失败原样
+    assert m["d"]["exit_code"] == 137 and m["d"]["pack"]["host_oom"] is True  # 主机 OOM（D-070）
+    assert m["d"]["pack"]["oom"] is False and m["a"]["pack"]["host_oom"] is False
     assert out.returncode != 0                                               # WORST 带出来
     g = json.loads((repo / "out" / "T3.gpu.json").read_text())
-    assert g["k"] == 3 and g["runs"] == ["R_a", "R_b", "R_c"]
-    assert g["run_peak_mib"] == [1500.0, 2500.0, 2500.0] and g["run_peak_max_mib"] == 2500.0
-    assert g["oom_runs"] == ["R_b"] and g["n_oom"] == 1
+    assert g["k"] == 4 and g["runs"] == ["R_a", "R_b", "R_c", "R_d"]
+    assert g["run_peak_mib"] == [1500.0, 2500.0, 2500.0, 2500.0] and g["run_peak_max_mib"] == 2500.0
+    assert g["oom_runs"] == ["R_b", "R_d"] and g["n_oom"] == 2 and g["n_host_oom"] == 1
+    assert g["mem_req_mb"] == 98304
+    # 日志带作业号：同一个 run 被重复提交时两个作业不互相截断（D-070 / F-060）
+    assert (tmp_path / "logs" / "exp3v2_R_a.777.log").is_file()
+    assert not (tmp_path / "logs" / "exp3v2_R_a.log").exists()
     assert g["mem_total_mib"] is None                                        # 没有 nvidia-smi
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# D-070：主机内存按 K 放大；已在队列的 run 不重交
+# ══════════════════════════════════════════════════════════════════════════
+def test_host_memory_per_run_is_configurable(study, fake_sbatch):
+    d, _, _ = study
+    bindir, log = fake_sbatch
+    _run(d / "submit.sh", bindir=bindir, mech_dir=d, PACK=3, PACK_MEM_PER_RUN_GB=30)
+    assert [p[0] for p in _pack_calls(log, mem_per_run=30)] == [3, 3]      # --mem=90G
+    bad = _run(d / "submit.sh", bindir=bindir, mech_dir=d, PACK=3, PACK_MEM_PER_RUN_GB="lots")
+    assert bad.returncode == 2 and "PACK_MEM_PER_RUN_GB" in bad.stderr
+
+
+def test_runs_already_in_the_queue_are_not_resubmitted(study, fake_sbatch):
+    """2026-09-28：G6 s44 在队列里时又被交了一次（F-060）。队列里有 comment 的 run 一律不交。"""
+    d, _, _ = study
+    bindir, log = fake_sbatch
+    _fake_squeue(bindir, "exp3v2:GA__e2__s42,GA__e2__s43,GA__e2__s44", "someone-else", "",
+                 "exp3v2:GA__e4__s46")
+    out = _run(d / "submit.sh", bindir=bindir, mech_dir=d, PACK=3)
+    assert out.returncode == 0, out.stderr
+    submitted = {r for p in _pack_calls(log) for r in p[2]}
+    assert not submitted & {"GA__e2__s42", "GA__e2__s43", "GA__e2__s44", "GA__e4__s46"}
+    assert "已在队列=4" in out.stdout and out.stdout.count("  queued ") == 4
+    # e2 只剩 s45 / s46 → 一个 2 的包；e4 剩 s42–s45 → 一个 3 的包 + 1 held
+    assert sorted(p[0] for p in _pack_calls(log)) == [2, 3]
+
+
+def test_status_lists_queued_runs(study, fake_sbatch):
+    d, _, _ = study
+    bindir, log = fake_sbatch
+    _fake_squeue(bindir, "exp3v2:GA__e4__s42")
+    st = _run(d / "submit.sh", "--status", bindir=bindir, mech_dir=d)
+    assert "  queued GA__e4__s42" in st.stdout and "已在队列=1" in st.stdout
+    assert not _calls(log)
+
+
+def test_single_runs_carry_their_run_id_in_the_comment_and_are_also_skipped(study, fake_sbatch):
+    d, _, _ = study
+    bindir, log = fake_sbatch
+    _fake_squeue(bindir, "exp3v2:GA__e2__s42")
+    _run(d / "submit.sh", bindir=bindir, mech_dir=d, PACK=1)
+    rids = [c[3] for c in _calls(log)]
+    assert "GA__e2__s42" not in rids and len(rids) == 9
+    assert all(c[0] == f"--comment=exp3v2:{c[3]}" for c in _calls(log))
+
+
+@pytest.mark.skipif(shutil.which("squeue", path="/usr/bin:/bin") is not None,
+                    reason="这台机器上有真实的 squeue")
+def test_without_squeue_the_check_is_skipped_with_a_note(study, fake_sbatch):
+    d, _, _ = study
+    bindir, log = fake_sbatch
+    (bindir / "squeue").unlink()
+    out = _run(d / "submit.sh", bindir=bindir, mech_dir=d, PACK=3)
+    assert "没有 squeue" in out.stdout and len(_pack_calls(log)) == 2

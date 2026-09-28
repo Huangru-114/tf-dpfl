@@ -88,20 +88,22 @@ git pull
 bash run_l1.sh designed_partition        # 期望：46 passed（本地是 45 passed + 1 skipped）；红了先别交 G3
 ```
 
-**① 用户（集群）：FLR 改成一个 K=3 包 + 交 G3**（2026-09-28 状态：G6 的 s44 合包 = job 3090319、FLR 的 K=2 探路包 = job 3090318 已交）
+**① 用户（集群）：交 G6 (b) s44 + FLR + G3**（2026-09-28：G6 s44 回来了，(b) 被主机 OOM 杀掉，F-060；D-070 已修）
 
-首包缺省已改为 K=3（D-069）。FLR 的 K=2 探路包（s42 / s43）如果刚开始跑，取消它、三个 seed 合成一个 K=3 包更省：
-`pack.sbatch` 没有 trap，取消掉的包不留 metrics / gpu.json，重交不受影响。
+包现在按 K 申请主机内存（K=3 → 72G，计费仍按 1 张卡），exit 137 会自动降档；提交前会查队列，已在队列的 run 不重交。
+**但 D-070 之前交的作业没有 comment，查不到** —— 先自己看一眼队列：
 
 ```bash
 git pull
-scancel 3090318                                                          # FLR 的 K=2 探路包（已跑很久就别取消，等它回来再交 s44）
-# ⚠️ RUN_GROUPS 里**不要写 G6**：它的 s44 合包（3090319）还在跑，脚本不查队列，写了会重复提交
-PACK=3 RUN_GROUPS="FLR G3" bash experiments/attack/hfl-mechanism/submit.sh --dry-run
-#   → 9 个 K=3 包：FLR__g6a__pack-k3-s42 + G3 的 8 个格子各一个（27 run，held=0）
-PACK=3 RUN_GROUPS="FLR G3" bash experiments/attack/hfl-mechanism/submit.sh
+squeue -u $USER                                                          # 3090318（FLR 的 K=2 探路包）若还在：取消或等它回来
+PACK=3 RUN_GROUPS="G6 FLR G3" bash experiments/attack/hfl-mechanism/submit.sh --dry-run
+#   → G6__b__pack-k1-s44（--mem=24G）+ FLR__g6a__pack-k3-s42 + G3 的 8 个格子各一个（--mem=72G）；28 run
+PACK=3 RUN_GROUPS="G6 FLR G3" bash experiments/attack/hfl-mechanism/submit.sh
 python3 harness/flr_verdict.py --json experiments/attack/hfl-mechanism/analysis/flr_verdict.json   # FLR 回来后
 ```
+
+- 回传后看 gpu.json 的 `n_host_oom`（应为 0）与 `sacct -j <job> --format=JobID,State,ReqMem,MaxRSS`（K=3 应约 50 GiB < 72G）。
+- G6 s44 (a)(c) 的 `run.provenance` 来自被取消的重复作业 3090319（F-060）；数据本身来自 3083773，可用。
 
 - FLR 与 G6(a) 同配置同显存（约 17 GiB / run，F-055）。
 - **G3 之前先做 ⓪**（S3 的 TF 测试）。
@@ -214,6 +216,10 @@ N-005 的做法（随机数据），G6 配置缩到 20 端 / 4 edge / [2,0,0,0] 
 - **改 `build_clients` 的旧分支、`split_client_train_test`、`noniid_partition` 会让 `test_designed_partition.py` 的 AST 指纹变红**：
   那是故意的（G6 s44 / FLR 要与已跑完的同配置 run 配对）。确有必要改旧路径时，先想清楚已跑完的 run 怎么办，再更新指纹。
 - **首包缺省 K=3**（`PROBE_K`，D-069）；显存没测过的新配置类型（10 edge / R20 等）第一次交时写 `PROBE_K=2`。
+- **主机内存也要随 K 放大**（D-070）：每个包 `--mem = PACK_MEM_PER_RUN_GB × K`（缺省 24）。每 run 实测约 16.7 GiB（F-060）；
+  单卡作业内存 ≤ 102.6 GB 不多计费（MAX_TRES）。exit 137 = 主机 OOM，自动降档。
+- **提交前会查队列**（D-070）：作业带 `--comment=exp3v2:<run_id,…>`，已在队列的 run 打印 `queued`；D-070 之前交的作业查不到。
+- **日志文件名带作业号**：`tfdpfl-logs/exp3v2_<run_id>.<job>.log`（F-060：只按 run_id 命名时，重复提交的作业会截断前一个的日志）。
 - **一卡多跑确实并行**（F-059）：看包的 `wall_s` ≈ 单个 run 的耗时，不是之和。日志里的「结束」顺序与 `run.provenance.start`
   都证明不了并行（前者按 wait 顺序打印，后者是提交时刻）。G6 每个 run 约 3 h 是因为固定跑满 300 有效轮。
 - **合包的 gpu.json 文件名是 `<组>__mix-a+b+c__pack-…`**（D-060）：各格子定 K 时按文件名里的格子列表认领它；

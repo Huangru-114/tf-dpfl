@@ -72,11 +72,12 @@ def test_v2_after_the_audit_only_feature_sessions_block():
     # G7：结果回来之前是 todo，回来之后是 done（`5edd4df`）；base.yaml 加了评估降频之后
     # 重新 materialize → 旧结果的 config_sha 不符 = stale（D-053，默认不重交）
     assert {r["status"] for r in rep["runs"] if r["group"] == "G7"} <= {"todo", "done", "stale"}
-    assert {r["status"] for r in rep["runs"] if r["group"] == "G6"} <= {"todo", "done", "stale"}
+    # G6 (b) s44 在 K=3 包里被主机 OOM 杀掉（exit 137，F-060）→ status 记 failed；提交脚本照样当 todo 重交
+    assert {r["status"] for r in rep["runs"] if r["group"] == "G6"} <= {"todo", "done", "stale", "failed"}
     assert {r["status"] for r in rep["runs"] if r["group"] == "FLR"} <= {"todo", "done", "stale"}
     assert {r["status"] for r in rep["runs"] if r["group"] == "G3"} <= {"todo", "done", "stale"}
     assert {r["group"] for r in rep["runs"] if r["status"] != "blocked"} == {"G3", "G6", "G7", "FLR"}
-    assert sum(rep["counts"][k] for k in ("todo", "done", "stale")) == 42
+    assert sum(rep["counts"][k] for k in ("todo", "done", "stale", "failed")) == 42
     assert not any("audit" in r["detail"] for r in rep["runs"])
 
 

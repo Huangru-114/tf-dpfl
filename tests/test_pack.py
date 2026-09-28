@@ -76,6 +76,7 @@ def test_pack_exit_code_reflects_any_failed_run():
 def test_submit_pack_test_requests_four_cores_per_run_and_uses_det_config():
     code = _code(SUBMIT)
     assert "sbatch -c $((4 * K))" in code
+    assert "--mem=$((24 * K))G" in code                     # 主机内存按 K（D-070）
     assert "DET__rep1__s42.yaml" in code
     assert "pack.sbatch" in code
 
@@ -165,3 +166,10 @@ def test_real_det_reference_reads_from_the_pilot_files():
     assert ref["verdict"] == "ok"
     assert ref["checksums"][0] == "d259128657fd" and ref["checksums"][-1] == "931d1867fbac"
     assert ref["t_solo_s"] == pytest.approx(1202.25)
+
+
+def test_logs_carry_the_job_id_so_duplicate_submissions_do_not_clobber():
+    """F-060：同一个 run 被交两次时，第二个作业启动的 `>` 截断了第一个作业的日志。"""
+    assert 'exp3v2_$2.${SLURM_JOB_ID:-local}.log' in _code(PACK)
+    assert 'exp3v2_${TAG}.${SLURM_JOB_ID:-local}.gpu.csv' in _code(PACK)
+    assert 'exp3v2_${RUN_ID}.${SLURM_JOB_ID:-local}.log' in _code(MECH / "cell.sbatch")

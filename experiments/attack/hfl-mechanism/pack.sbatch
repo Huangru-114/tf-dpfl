@@ -33,7 +33,13 @@
 #      （run 照样 exit 0，恶意端被踢出聚合，结果无效，陷阱 #23 同类）。这种 run 的 exit_code
 #      记成 OOM_RC（非 0）→「完成 = exit 0 + sha 一致」的判据不用改就会把它当未完成重交。
 #      TF 的「ran out of memory trying to allocate … not a failure」是警告不是失败：只计数，不判 OOM。
-# -c / --mem 可在 sbatch 命令行覆盖（submit_pack_test.sh 用 -c 4K）。
+#   5. **主机 OOM**（D-070）：run 的退出码 137（SIGKILL）= 作业 cgroup 超了 --mem，OOM killer 杀了它
+#      （2026-09-28 G6 s44 的 K=3 包在 48G 下就是这样死的，sacct 3083773 = OUT_OF_MEMORY，F-060）。
+#      exit_code 保留 137（→ todo），pack.host_oom = true，并计入 gpu.json 的 n_oom / oom_runs（另记 n_host_oom）
+#      → 提交脚本的降档规则把该格子 K 压到 k − 1。gpu.json 另记本作业申请的内存 mem_req_mb。
+#   6. 日志与 nvidia-smi 采样文件名带 SLURM 作业号：同一个 run 被重复提交时，两个作业不再互相截断日志（F-060）。
+# -c / --mem 可在 sbatch 命令行覆盖：submit_lib.sh 按 K 传 -c 4K --mem=<每 run GB × K>G；
+# 下面的 48G 只是直接 sbatch 本脚本时的缺省（= K=2 × 24G）。
 # ══════════════════════════════════════════════════════════════════════════
 set -uo pipefail
 
@@ -54,7 +60,7 @@ mkdir -p "$LOGDIR"
 CONFIGS=(); RUN_IDS=(); METRICS=(); LOGS=()
 while [ $# -gt 0 ]; do
     CONFIGS+=("$ROOT/$1"); RUN_IDS+=("$2"); METRICS+=("$ROOT/$3")
-    LOGS+=("$LOGDIR/exp3v2_$2.log")
+    LOGS+=("$LOGDIR/exp3v2_$2.${SLURM_JOB_ID:-local}.log")    # 带作业号：重复提交不互相截断（D-070）
     shift 3
 done
 K=${#RUN_IDS[@]}
@@ -88,7 +94,7 @@ fi
 echo "[pack] tag=$TAG  K=$K  可用核=${#CPUS[@]}  每个 run 绑 ${PER} 核"
 
 # ── GPU 采样 ──────────────────────────────────────────────────────────────
-GPU_CSV="$LOGDIR/exp3v2_${TAG}.gpu.csv"
+GPU_CSV="$LOGDIR/exp3v2_${TAG}.${SLURM_JOB_ID:-local}.gpu.csv"
 SMI_PID=""
 if command -v nvidia-smi >/dev/null 2>&1; then
     nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total --format=csv,noheader,nounits \
@@ -136,8 +142,9 @@ d = json.load(open(p))
 d["exit_code"] = rc
 if oom and rc == 0:
     d["exit_code"] = oom_rc          # 被吞掉的 OOM：run 退出 0 但结果无效
-d["pack"] = {"tag": tag, "k": k, "slot": slot, "job": job, "oom": oom, "mem_warnings": warn,
-             "peak_mib": (d.get("gpu_mem") or {}).get("peak_mib")}
+host_oom = rc == 137                 # SIGKILL：作业 cgroup 超 --mem，被 OOM killer 杀（D-070）
+d["pack"] = {"tag": tag, "k": k, "slot": slot, "job": job, "oom": oom, "host_oom": host_oom,
+             "mem_warnings": warn, "peak_mib": (d.get("gpu_mem") or {}).get("peak_mib")}
 json.dump(d, open(p, "w"), indent=2, ensure_ascii=False)
 print(d["exit_code"])
 PY
@@ -160,16 +167,18 @@ if os.path.isfile(csv_path):
             util.append(float(parts[0])); mem.append(float(parts[1]))
             if len(parts) >= 3 and parts[2].replace(".", "").isdigit():
                 total.append(float(parts[2]))
-peaks, oom, warn = [], [], 0
+peaks, oom, warn, host = [], [], 0, 0
 for rid, mp in zip(runs, metrics):
     try:
         pk = json.load(open(mp)).get("pack") or {}
     except (OSError, ValueError):
         pk = {}
     peaks.append(pk.get("peak_mib"))
-    if pk.get("oom"):
+    if pk.get("oom") or pk.get("host_oom"):     # 主机 OOM 与 GPU OOM 一样让下一包降档（D-070）
         oom.append(rid)
+    host += 1 if pk.get("host_oom") else 0
     warn += int(pk.get("mem_warnings") or 0)
+_req = os.environ.get("SLURM_MEM_PER_NODE", "")
 known = [p for p in peaks if p is not None]
 # 标量键各占一行：submit_lib.sh 是纯 bash，只 grep 标量
 json.dump({"k": k, "runs": runs, "wall_s": wall, "n_samples": len(util),
@@ -179,6 +188,8 @@ json.dump({"k": k, "runs": runs, "wall_s": wall, "n_samples": len(util),
            "mem_total_mib": max(total) if total else None,
            "run_peak_max_mib": max(known) if known else None,
            "n_oom": len(oom),
+           "n_host_oom": host,
+           "mem_req_mb": int(_req) if _req.isdigit() else None,
            "n_mem_warnings": warn,
            "run_peak_mib": peaks,
            "oom_runs": oom},

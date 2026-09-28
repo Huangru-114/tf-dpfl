@@ -23,8 +23,19 @@
 #        连容量都没有 → 不超过已经跑通过的 k。PACK_MEM_PCT=85、PACK_CTX_MIB=1024 **没有证据**，
 #        第一批满长包回来后按实测校准（DECISIONS D-052）。
 #      · OOM：该格子任何一个包出过 OOM → K_cell ≤ 那个包的 k − 1。OOM 的 run 自动是 todo。
-#      · 每个包：sbatch -c $((4*n)) --job-name=exp3v2-pack$n pack.sbatch <tag> <三元组…>，
+#      · 每个包：sbatch -c $((4*n)) --mem=$((PACK_MEM_PER_RUN_GB*n))G --job-name=exp3v2-pack$n
+#        --comment=exp3v2:<run_id,…> pack.sbatch <tag> <三元组…>，
 #        tag = <group>__<cell>__pack-k<n>-s<首个 seed>（带 k：降档重交不会覆盖出事那个包的记录）。
+#      · **主机内存也要随 K 放大**（D-070）：pack.sbatch 头里缺省的 48G 是 K=2 的量；G6 实测每 run 主机内存
+#        约 16.7 GiB（K=2 的 MaxRSS 33.3 GiB），K=3 在 48G 下被 cgroup OOM 杀掉一个（exit 137，F-060）。
+#        缺省 PACK_MEM_PER_RUN_GB=24（= cell.sbatch 单跑的申请量）→ K=3 申请 72G。Arrhenius 计费取各项最大值
+#        （MAX_TRES），单卡作业内存 ≤ 102.6 GB 时仍只按 1 张卡计费 —— 放大内存不多花钱。
+#        exit 137（SIGKILL，主机 OOM）与 GPU OOM 一样计入 gpu.json 的 n_oom → 下面的降档规则兜底。
+#
+# 3. 防重交（D-070）：本脚本不看 SLURM 队列就会把「已交、还在跑」的 run 当 todo 再交一次 ——
+#    2026-09-28 G6 s44 就被交了两次，第二个作业启动时截断了第一个的日志（F-060）。
+#    现在每个作业都带 --comment=exp3v2:<run_id,…>；提交前 `squeue -u $USER -h -o %k` 读出队列里的 run_id，
+#    这些 run 打印 queued、不重交。没有 squeue（本地）→ 跳过这一步并提示。本改动之前交的作业没有 comment，查不到。
 #      · 跨格子合包（D-060，PACK_MIX=1 缺省开；=0 关）：**只处理余数** —— 每个格子按自己的 K 切完满包后
 #        剩下的那一包（不满 K）。同一组里，满足下面全部条件的格子，余数合起来按 K_mix 切包：
 #          - 该格子的 K 来自 TF 的**真实峰值**（不是整卡读数 / 跑通过的 k），且历史上没有 OOM、没有显存告警；
@@ -40,12 +51,13 @@
 
 PACK="${PACK:-1}"
 PROBE_K="${PROBE_K:-3}"
+PACK_MEM_PER_RUN_GB="${PACK_MEM_PER_RUN_GB:-24}"
 PACK_MEM_PCT="${PACK_MEM_PCT:-85}"
 PACK_CTX_MIB="${PACK_CTX_MIB:-1024}"
 RESUBMIT_STALE="${RESUBMIT_STALE:-0}"
 PACK_MIX="${PACK_MIX:-1}"
 PACK_MIX_TOL_PCT="${PACK_MIX_TOL_PCT:-10}"
-for _v in PACK PROBE_K PACK_MEM_PCT PACK_CTX_MIB PACK_MIX_TOL_PCT; do
+for _v in PACK PROBE_K PACK_MEM_PCT PACK_CTX_MIB PACK_MIX_TOL_PCT PACK_MEM_PER_RUN_GB; do
     if ! [[ "${!_v}" =~ ^[0-9]+$ ]] || [ "${!_v}" -lt 1 ]; then
         echo "[submit] $_v 必须是正整数，收到 '${!_v}'" >&2; exit 2
     fi
@@ -54,6 +66,27 @@ if [ "$PACK_MIX" != 0 ] && [ "$PACK_MIX" != 1 ]; then
     echo "[submit] PACK_MIX 只能是 0 或 1，收到 '$PACK_MIX'" >&2; exit 2
 fi
 held=0
+
+# ── 防重交（D-070）：队列里的 run_id ──────────────────────────────────────────
+#   queue_scan 调一次；run_in_queue <run_id> → 0 = 在队列里。
+QUEUED_RUNS=" "
+queue_scan() {
+    local c ids
+    if ! command -v squeue >/dev/null 2>&1; then
+        echo "[submit] 没有 squeue → 跳过「已在队列」检查；同一组有作业排队时不要重跑本脚本（D-070）"
+        return 0
+    fi
+    if ! ids=$(squeue -u "${USER:-$(id -un)}" -h -o "%k" 2>/dev/null); then
+        echo "[submit] squeue 调用失败 → 跳过「已在队列」检查（D-070）"
+        return 0
+    fi
+    while IFS= read -r c; do
+        case "$c" in exp3v2:*) QUEUED_RUNS+="${c#exp3v2:} " ;; esac
+    done <<< "$ids"
+    QUEUED_RUNS="${QUEUED_RUNS//,/ }"
+    return 0
+}
+run_in_queue() { [[ "$QUEUED_RUNS" == *" $1 "* ]]; }
 
 # run_state <metrics 绝对路径> <INDEX 里的 config_sha>  →  打印 done / stale / todo
 run_state() {
@@ -158,11 +191,14 @@ _submit_pack() {
         args+=("${_PK_CFG[$i]}" "${_PK_RID[$i]}" "${_PK_MET[$i]}"); rids+=("${_PK_RID[$i]}")
     done
     local tag="${key}__pack-k${n}-s${_PK_SEED[$1]}"
+    local mem="$((PACK_MEM_PER_RUN_GB * n))G" comment
+    comment="exp3v2:$(IFS=,; echo "${rids[*]}")"
     if [ "$SUBMIT_OK" -eq 1 ]; then
-        (cd "$ROOT" && sbatch -c $((4 * n)) --job-name="exp3v2-pack$n" "$PACK_JOB" "$tag" "${args[@]}")
+        (cd "$ROOT" && sbatch -c $((4 * n)) --mem="$mem" --job-name="exp3v2-pack$n" \
+            --comment="$comment" "$PACK_JOB" "$tag" "${args[@]}")
         queued=$((queued + n))
     else
-        echo "  would sbatch -c $((4 * n)) pack  $tag  ${rids[*]}"
+        echo "  would sbatch -c $((4 * n)) --mem=$mem pack  $tag  ${rids[*]}"
     fi
     return 0
 }

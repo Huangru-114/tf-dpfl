@@ -329,6 +329,10 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
       同组格子峰值相差 ≤ `PACK_MIX_TOL_PCT`（10%）、且合后作业数变少 → 合成 `<组>__mix-a+b+…__pack-…`；`PACK_MIX=0` 关。
       G6 探路包实测：真实峰值约 17 GiB / run，整卡读数约其 2 倍（F-055）。
       **确实是并行的**（F-059）：包墙钟 ≈ 单个 run 的耗时（11.1k s），不是两个之和（21.6k s）；每有效轮的训练时间与单跑相同。
+      **主机内存也要随 K 放大**（D-070 / F-060）：每 run 实测约 16.7 GiB 主机内存，K=3 在固定 48G 下被 cgroup OOM 杀掉一个（exit 137）→
+      现在每个包 `--mem = PACK_MEM_PER_RUN_GB(24) × K`；exit 137 计入 n_oom、自动降档。Arrhenius 计费取各项最大值（MAX_TRES）：
+      单卡作业内存 ≤ 102.6 GB、CPU ≤ 72 都只按 1 张卡计费。**防重交**：作业带 `--comment=exp3v2:<run_id,…>`，提交前查 `squeue`，
+      已在队列的 run 不重交；日志名带作业号（`exp3v2_<run_id>.<job>.log`），重复提交不再互相截断。
     - `[TimingASR] Round N | main=… | whitebox=… | stale=…`（独立 kv 行，**不改 `[Timing]`**）→
       `timing_rounds[].asr_*_s` 与 `timing_summary.asr_split_total_s`。实测白盒 7.2%、陈旧 ASR 7.3% 墙钟（F-051）
       → D-050 / D-054：**白盒关、陈旧 ASR 与陈旧 pm_acc 都隔点**（同一批点，共用 `CloudServer._eval_seq`）——

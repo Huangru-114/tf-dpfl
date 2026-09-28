@@ -33,7 +33,7 @@ CONFIG_ABS="$ROOT/$CONFIG_REL"
 
 METRICS="$ROOT/$METRICS_REL"
 LOGDIR="${TFDPFL_LOGDIR:-$ROOT/../tfdpfl-logs}"
-LOG="$LOGDIR/exp3v2_${RUN_ID}.log"          # 带 run_id，每个 run 独立
+LOG="$LOGDIR/exp3v2_${RUN_ID}.${SLURM_JOB_ID:-local}.log"   # 带 run_id + 作业号：重复提交不互相截断（D-070）
 mkdir -p "$(dirname "$METRICS")" "$LOGDIR"
 
 echo "[exp3v2] run=$RUN_ID config=$CONFIG_REL"

@@ -45,7 +45,8 @@ fi
 
 SUBMIT_OK=0
 [ "$DRY" -eq 0 ] && [ "$STATUS" -eq 0 ] && SUBMIT_OK=1
-total=0; done_n=0; todo_n=0; stale_n=0; queued=0
+total=0; done_n=0; todo_n=0; stale_n=0; queued=0; inq_n=0
+queue_scan                                             # 防重交（D-070）
 while IFS=$'\t' read -r run_id group cell seed sha config metrics; do
     [ "$run_id" = "run_id" ] && continue                 # 表头
     if [ -n "$ONLY_GROUPS" ] && [[ " $ONLY_GROUPS " != *" $group "* ]]; then continue; fi
@@ -55,6 +56,11 @@ while IFS=$'\t' read -r run_id group cell seed sha config metrics; do
     if [ "$state" = done ]; then
         done_n=$((done_n + 1))
         [ "$STATUS" -eq 1 ] && echo "  done   $run_id"
+        continue
+    fi
+    if run_in_queue "$run_id"; then                     # 已交、还在排队 / 在跑 → 不重交（D-070）
+        inq_n=$((inq_n + 1))
+        echo "  queued $run_id（已在 SLURM 队列里，不重交）"
         continue
     fi
     if [ "$state" = stale ]; then
@@ -69,13 +75,13 @@ while IFS=$'\t' read -r run_id group cell seed sha config metrics; do
         pack_add "$group" "$cell" "$seed" "$config" "$run_id" "$metrics" "$m"; continue
     fi
     if [ "$DRY" -eq 1 ]; then echo "  would sbatch  $run_id  ($config)"; continue; fi
-    (cd "$ROOT" && sbatch "$JOB" "$config" "$run_id" "$metrics")
+    (cd "$ROOT" && sbatch --comment="exp3v2:$run_id" "$JOB" "$config" "$run_id" "$metrics")
     queued=$((queued + 1))
 done < "$INDEX"
 [ "$STATUS" -eq 0 ] && [ "$PACK" -gt 1 ] && pack_flush
 
 echo "──────────────────────────────────────────────"
-echo "pilot run 总数=$total  已完成=$done_n  未完成=$todo_n  过期(stale)=$stale_n  本次入队=$queued  held=$held"
+echo "pilot run 总数=$total  已完成=$done_n  未完成=$todo_n  过期(stale)=$stale_n  已在队列=$inq_n  本次入队=$queued  held=$held"
 [ "$stale_n" -gt 0 ] && [ "$RESUBMIT_STALE" != 1 ] && echo "(stale 默认不重交；要重跑设 RESUBMIT_STALE=1)"
 [ "$STATUS" -eq 1 ] && echo "(仅状态；未提交)"
 [ "$DRY" -eq 1 ] && echo "(dry-run；未提交)"
