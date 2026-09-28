@@ -1,22 +1,54 @@
 # current-focus —— Experiment 3（改版）· 交接
 
 > 本文件是 `CLAUDE.md`「新会话开场第 3 步」要读的那一份。
-> **写于 2026-09-28**（S3 会话结束时）。**S3 已完成**（D-061 … D-068）→ **G3 可交**（24 run）；**FLR 已登记、待交**（D-061）。
-> G6 仍剩 3 个 s44 待交（D-060）；G2 与 S5 仍暂缓（D-056；S5 预案 D-055）。**下一会话由用户定**（候选：S4，它解锁 G0 / G5）。
+> **写于 2026-09-28**（S9 会话结束时）。**S9 已完成**（D-071 … D-075）：评估仪表（常开）+ logits / 快照两个开关 + **下一实验组 G8**（3-C 攻击停止版 = 1B-2 的 HFL 复现）与 **G6D 探针**，两组都已 materialize、**可交**。
+> G6 / FLR / G3 用户已交（回传中）；G6 (b) s44 待重交（F-060）。G1 **待 FLR + G8 重新规划**（D-074）。G2 / S5 仍暂缓（D-056）；S4 解锁 G0 / G5。
 
 ## 几套编号（容易混，先看这里）
 
 | 写法 | 是什么 | 在哪 |
 |---|---|---|
 | **A1–A4** | 审计会话的名字：A1 攻击、A2 训练协议、A3 FedRep / ResNet / HFL、**A4 = 按拍板改代码的实现会话** | PLAN §5 |
-| **S1–S8** | 功能会话的名字：S3 新划分、S4 影子攻击者、S5 逐 edge 轮评估、S6 更新日志、S8 三层个性化…… | PLAN §5 |
+| **S1–S8** | 功能会话的名字：S3 新划分、S4 影子攻击者、S5 逐 edge 轮评估、S6 更新日志、S8 三层个性化、S9 评估仪表…… | PLAN §5 |
 | **A01–A29** | `AUDIT.md` 的「对齐差异」行号 | AUDIT 第一、二节 |
 | **D01–D06** | `AUDIT.md` 的「有意偏离登记」行号 | AUDIT 第三节 |
-| **D-001 … D-059** | `DECISIONS.md` 的决策日志（带连字符、三位数），**与登记行 D01–D06 是两套东西** | DECISIONS |
-| **F-001 … F-053 / N-001 … N-006** | `FINDINGS.md` 的证据条目 / 设计备注 | FINDINGS |
+| **D-001 … D-075** | `DECISIONS.md` 的决策日志（带连字符、三位数），**与登记行 D01–D06 是两套东西** | DECISIONS |
+| **F-001 … F-064 / N-001 … N-007** | `FINDINGS.md` 的证据条目 / 设计备注 | FINDINGS |
 | **P0 / P1 / P2** | 数据批次的口径版本；只有 P2 进结论 | PLAN §0 |
 
-## 本会话做了什么（2026-09-28，S3：讨论 → FLR 登记 → 新划分实现）
+## 本会话做了什么（2026-09-28，S9：讨论 S4 / S6 → 记录项的取舍 → 下一实验组 → 仪表实现）
+
+**问题**：用户要「讨论 S4、S6 的计划」，随后把问题收窄为「记录哪些数据、重跑不重跑，都要导向防御设计」，并要求本会话「敲定下一个实验组、实现这几个开关」。
+
+| 决定 | 内容 |
+|---|---|
+| D-071 | 3-E 的 MTA 判定用 **fresh 列**，门槛维持 0.02（(a) 臂 fresh pm_acc 的 seed 间 SD ≈ 0.004；没有支持「更高」的数据），另报 ΔASR–ΔMTA 权衡 |
+| D-072 | 仪表：**常开**（无配置键）= 逐客户端 ASR / 干净精度、margin 分位数、y_t 偏置、按类 ASR、非目标翻转率；**开关**（默认关）= logits 存盘、分析快照；δ / ξ 逐点消融仍不做（D-051） |
+| D-073 | **何时开**：登记表写明了消费它的离线分析才开；logits ≤ 50 MB / run、快照 ≤ 3 次 / run、fp32、只供评估；项目总预算 **20 GB** |
+| D-074 | **G1 以 FLR + G8 为条件重新规划**（`persists` → 3-C 缩为最小确认、主用途 3-D；`decays_to_floor` → 保留 3-C、主量用 margin） |
+| D-075 | **下一实验组 = G8（只跑臂 a，3 seed）+ G6D 探针（三臂 × s42），同批交**；预注册判定 `harness/decay_verdict.py` |
+
+**代码**：
+
+| 改动 | 内容 |
+|---|---|
+| `fedavg/attack/eval_detail.py`（新，纯 numpy） | `client_record` / `summarize` / `pack_logits`；margin = log p_t − max log p_k（softmax 下与 logit 差相等，截断在 float32 tiny） |
+| `fedavg/attack/backdoor_eval.py` | 三个前向函数加**仅关键字** `detail=None`（返回值、argmax 一字不改）；`evaluate_hierarchical_asr` 返回 `client_detail` / `probe_order`，新参数 `keep_probs` / `n_classes` |
+| `fedavg/server/backdoor_server.py` | `_emit_detail`（在 `t_asr` 之后）打 `[EvalDetail]` / `[EvalDetailEdge]` / `[ClientEval]`；`_logits_due` / `_write_dump`；`_snapshot`（`run_round` 里、评估之后） |
+| `fedavg/utils/dumps.py`（新）+ `utils/kvline.py` 的 `fmt_list` / `parse_list` | 落盘位置、`[Dump]` manifest、`snapshot_rounds` 解析 |
+| `fedavg/alignment.py` / `config_validate.py` §4d' | 两个 EXTRA_SWITCHES；拒绝 bool / 负数 / YAML 列表 / 乱序 / 越界 / 超过 3 个；快照 > 1 GiB 警告 |
+| harness | `collect_metrics` **schema 7**；`runs_table` 多 4 个末 10 点列；新 `instrumentation_check.py`、`decay_verdict.py`；`registry.EXPECT_KEYS` 加 `attack_stop_round` |
+| 登记表 | `available: [S8, S3, S9]`；G8（3 run）、G6D（3 run）已 materialize（169 run）；已有 42 行 sha 不变 |
+| 顺带修 | `test_designed_partition` 的 TF 集成测试夹具少 `lr_decay`（F-063） |
+
+- **L1**（本地无 TF，`bash run_l1.sh`）：改动前 1191 passed / 40 skipped / 3 xfailed → 改动后 **1272 passed / 41 skipped / 3 xfailed**（PASS）。
+- **本地 TF 2.15.1 CPU**（scratch venv，`pytest tests/`）：改动前 1331 passed / 23 skipped / 3 xfailed / 3 failed（F-063 那条 + 陷阱 #4 的 2 条）
+  → 改动后 **1415 passed / 23 skipped / 3 xfailed / 2 failed**（只剩陷阱 #4）。
+- **反向锚点**：`compute_asr_four_way` 里多调一次触发器 → `test_each_probe_calls_the_trigger_exactly_once` 变红；`instrumentation_check` 对 G6 a vs b 判不一致、对 F-045 的 DET 两次与 F-050 的跨提交对判一致。
+- **CPU 替身前后对照**（F-064）：见下「L2 替身（S9）」。
+
+
+## 历史：S3（2026-09-28：讨论 → FLR 登记 → 新划分实现）
 
 **问题**：「S3 这个组要干什么、验证什么、和最后的防御设计有什么关系；划分怎么构造」—— 已回答、定稿并实现；另按用户要求**先做 floor 验证**。
 
@@ -81,57 +113,72 @@
 
 ## 下一步
 
-**⓪ 用户（集群，登录节点即可）：先跑一次 S3 的 TF 测试**（本地没有 TF，`build_clients` 的 S3 分支只在这里第一次真跑）
+**⓪ 用户（集群，登录节点）：拉代码、跑 L1**
 
 ```bash
 git pull
-bash run_l1.sh designed_partition        # 期望：46 passed（本地是 45 passed + 1 skipped）；红了先别交 G3
+bash run_l1.sh           # 期望只有陷阱 #4 的 2 条红；test_designed_partition 的 TF 测试现在应是绿的（F-063）
 ```
 
-**① 用户（集群）：交 G6 (b) s44 + FLR + G3**（2026-09-28：G6 s44 回来了，(b) 被主机 OOM 杀掉，F-060；D-070 已修）
+**① 用户（集群）：DET 重交一次，证明仪表在 GPU 上不改任何数（约 20 分钟，D-072）**
 
-包现在按 K 申请主机内存（K=3 → 72G，计费仍按 1 张卡），exit 137 会自动降档；提交前会查队列，已在队列的 run 不重交。
-**但 D-070 之前交的作业没有 comment，查不到** —— 先自己看一眼队列：
+`submit_pilot.sh` 会把已完成的 DET 跳过，所以直接交 `cell.sbatch`，metrics 写到 scratch（gitignore）：
 
 ```bash
-git pull
-squeue -u $USER                                                          # 3090318（FLR 的 K=2 探路包）若还在：取消或等它回来
-PACK=3 RUN_GROUPS="G6 FLR G3" bash experiments/attack/hfl-mechanism/submit.sh --dry-run
-#   → G6__b__pack-k1-s44（--mem=24G）+ FLR__g6a__pack-k3-s42 + G3 的 8 个格子各一个（--mem=72G）；28 run
-PACK=3 RUN_GROUPS="G6 FLR G3" bash experiments/attack/hfl-mechanism/submit.sh
-python3 harness/flr_verdict.py --json experiments/attack/hfl-mechanism/analysis/flr_verdict.json   # FLR 回来后
+sbatch experiments/attack/hfl-mechanism/cell.sbatch \
+    experiments/attack/hfl-mechanism/pilot/configs/DET__rep1__s42.yaml DET__rep1__s42 \
+    scratch/s9/DET__rep1__s42.metrics.json
+# 回来后：
+python3 harness/instrumentation_check.py \
+    experiments/attack/hfl-mechanism/pilot/results/P1/DET/DET__rep1__s42.metrics.json \
+    scratch/s9/DET__rep1__s42.metrics.json --upto 5
 ```
 
-- 回传后看 gpu.json 的 `n_host_oom`（应为 0）与 `sacct -j <job> --format=JobID,State,ReqMem,MaxRSS`（K=3 应约 50 GiB < 72G）。
-- G6 s44 (a)(c) 的 `run.provenance` 来自被取消的重复作业 3090319（F-060）；数据本身来自 3083773，可用。
+- 期望 ✅：前 5 轮 checksum = F-045 的 `d259128657fd b44e7042af4f 181adcfd7f95 773e061e5fbc 931d1867fbac`，已有数值字段逐位相同。
+  它顺带打印 `[TimingASR].main` 的前后均值 = 常开汇总的开销。
+- ❌ 且 checksum 就不同 → 先看 GPU 型号与核数是否同 F-045（F-047）；checksum 同、评估数不同 → 仪表改了评估，**别交 G8**，回传日志。
 
-- FLR 与 G6(a) 同配置同显存（约 17 GiB / run，F-055）。
-- **G3 之前先做 ⓪**（S3 的 TF 测试）。
-- FLR 回传后核对：`run.poison_ratio == 0`、`client_failures == []`、`run.malicious_ids` 与同 seed 的 G6(a) 相同（判定脚本会报 `same_malicious_ids`）。
-- 判定阈值 0.05 / 0.10 已确认（D-068）；判定为 `user_decides` 时由用户定 G0 规模。
-
-**G3（3-B）的探路包**（S3 的真正 L2）：
+**② 用户（集群）：交 G8 + G6D（D-075；共约 7 GPU-h）**
 
 ```bash
-已含在上面 ① 的命令里（8 个格子各一个 K=3 包，24 run 一次交完）。
+PACK=3 RUN_GROUPS="G8 G6D" bash experiments/attack/hfl-mechanism/submit.sh --dry-run   # 期望：G8 一个 K=3 包（3 seed）、G6D 一个 K=3 包（a/b/c）
+PACK=3 RUN_GROUPS="G8 G6D" bash experiments/attack/hfl-mechanism/submit.sh
+```
 
-- 回传后先核对每个 metrics.json：`schema_version == 6`、`run.partition` / `run.partition_condition` 与格子一致、
-  `run.data.client_size_min == client_size_max == 500`、`run.data.per_edge[].yt_share` 与比例表一致（C3 的 E3 ≈ 0.005）、
-  `run.data.malicious_data_share == 0.1`、`client_failures == []`、`python3 harness/status.py …` 无 mismatch。
-- **没有证据的**（F-058）：每端 500 张（总 52k）下的干净精度与停轮标定是否仍合适 —— 探路包的 pm_acc 与 `stop_reason` 回答。
-- 3-B 的判定（差中差，D-062）要 excess ASR → 等 FLR 的判定；FLR 判 `negligible` 就用原始 ASR（D-061）。判定代码属 S7。
+- G8 会往 `$ROOT/../tfdpfl-dumps/G8__a__s4?.<job>/` 写 70 个 logits 文件（约 42 MB / run）+ 2 个快照（约 100 MB 各，CPU 替身实测 99.97 MB）→ 3 个 run 合计约 0.75 GB。
+  **不要回传这些文件**，只回 metrics.json（`dumps` 字段就是 manifest）。
+- 回传后先核对：
+  - G8：`python3 harness/instrumentation_check.py results/P2/G6/G6__a__s42.metrics.json results/P2/G8/G8__a__s42.metrics.json --upto 30`（s43 / s44 同）→ 应 ✅（第 1–30 轮配置只差停止轮 / n_rounds / 开关；**GPU 型号不同算「无法判定」**，F-045 只证明了跨节点）；
+    `run.attack_stop_round == 31`（`status.py` 现在会核对）、`dumps.errors == []`、`dumps.snapshots` 两条、`client_failures == []`。
+  - FLR 回来后：`python3 harness/decay_verdict.py --json experiments/attack/hfl-mechanism/analysis/decay_verdict.json` → `persists` / `decays_to_floor` / `user_decides`，据此改 G1（D-074）。
+  - G6D：b、c 的良性端 ASR（主列末 10 点）是否比 a 低 ≥ 0.15 → 是则扩到 3 seed（D-075）；否则止步。
+- G6 (b) s44 仍要重交（F-060）：`PACK=3 RUN_GROUPS="G6" bash experiments/attack/hfl-mechanism/submit.sh`。
 
-**G6 的 s44 的注意事项**（沿用）：
+**③ 已交的 G6 / FLR / G3（上一会话）回来后照旧核对**（schema 6，没有 S9 的新字段 —— 预期）
 
-- 这是第一次 **K=3 的满长包**（D-069 的首包缺省 K=3 靠它补实测）：回传后先看 `G6__mix-a+b+c__pack-k3-s44.gpu.json` 的 `n_oom` / `n_mem_warnings` / `run_peak_mib`。
-  OOM 的 run 会记 exit 86 → 再跑一次上面的命令会自动降到 K ≤ 2 重交（合包的 OOM 对三个格子都生效）。
-- 回传后每个 metrics.json 照旧核对：`run.edge_shared_blocks` 与臂一致、`client_failures == []`、跑满 60 个云轮。
-- **G6 不读 GM 精度与 global 层 ASR**（(b)(c) 下全局模型的 edge 段是初值；FedRep 下 head 本来就是初始化 head，F-007）。
-  判定读受害 edge（E1–E3）的 fresh-PM benign ASR（逐 edge 行）与 fresh / 陈旧 pm_acc（D-059）。判定代码属 S7，还没写。
-- 不想合包：`PACK_MIX=0`（= 3 个 K=1 作业，D-052 原规则）。
-- G7 显示 stale 是预期（base.yaml 加了评估降频之后重新 materialize；D-053 默认不重交）。
+- FLR：`python3 harness/flr_verdict.py --json experiments/attack/hfl-mechanism/analysis/flr_verdict.json`；核对 `run.poison_ratio == 0`、`client_failures == []`、与 G6(a) 同 `malicious_ids`。
+- G3：`run.data.client_size_min == client_size_max == 500`、`run.data.per_edge[].yt_share` 与比例表一致（C3 的 E3 ≈ 0.005）、`client_failures == []`。
+  **G3 要不要带新仪表重跑，回来后再定**（用户：「G3 结果回传后再决定」）—— 若受害 edge ASR 贴近天花板，差中差判不出来，margin 才分得开。
 
-## L2 替身（本地 CPU，只证明接线；F-054）
+
+## L2 替身（S9；本地 CPU、随机数据，N-005 的做法；只证明接线，数字无意义）
+
+驱动脚本在 scratch、不入库：把 `cifar10.load_data` 换成同形状随机数组，G6(a) 配置缩到 20 端 / 4 edge / [2,0,0,0] / R2；`taskset -c 0-3`（F-047）。
+改动前用 HEAD 的冻结副本（`git archive`）跑，改动后用工作树跑。
+
+| 变体 | 改动前 `[Checksum]` | 改动后 | `instrumentation_check` |
+|---|---|---|---|
+| base（2 轮） | `00527830725a` / `628233ae41d3` | 同 | ✅ 2 个 checksum、130 个已有字段逐位相同 |
+| g8（3 轮、`attack_stop_round: 2`） | `00527830725a` / `2ced03f82896` / `d309897daaf5` | 同 | ✅ 3 个 checksum、195 个已有字段逐位相同 |
+| g8dump（g8 + logits 每点 + 快照 "1/3"） | —（开关改动前不存在） | `00527830725a` / `2ced03f82896` / `d309897daaf5`（= 改动前的 g8） | ✅ 同上（195 个字段）；`dumps`：logits 3 个（每个 49 KB，893 个探针样本）、快照 r1 / r3 各约 100 MB，`errors == []`；快照 `evaluated` / `edge_matches_eval` 都是 true、`resumable` false |
+
+- 替身里攻击者只在第 2、3 轮被选中（都在停止轮 2 之后）→ 生成器一次都没训，快照里 Adam 只有 `iteration = 0`（**预期**，不是 bug；G8 里攻击者在第 1–30 轮参与）。
+- logits 的 fp16 对数概率会出现并列（893 张里 1 张，最大两类都是 −2.09375）→ **以同文件的 uint8 `trig_pred` / `clean_pred` 为准**，不要用 fp16 的 argmax 重算。
+- 墙钟（只作参考）：`[TimingASR].main` 改动前后 37.9 → 35.8 s（base）、37.4 → 34.7 / 38.3 s（g8 / g8dump）—— 在噪声之内，看不出常开汇总的开销。
+
+
+
+## 历史：S8 的 L2 替身（本地 CPU，只证明接线；F-054）
 
 N-005 的做法（随机数据），G6 配置缩到 20 端 / 4 edge / [2,0,0,0] / R2 / 2 云轮，驱动脚本在 scratch、不入库。
 
@@ -148,41 +195,55 @@ N-005 的做法（随机数据），G6 配置缩到 20 端 / 4 edge / [2,0,0,0] 
 
 | 功能会话 | 解锁 | run 数 | 说明 |
 |---|---|---|---|
-| ~~S8~~ 三层个性化 | G6（3-E，可选） | 9 | ✅ 本会话完成；**G6 待交**（上面的命令） |
-| S5 逐 edge 轮评估 | G2（3-A）、G1 的前提之一 | 55 | **暂缓**（D-056）；预案已拍板（D-055）：`eval_grid: 5`、轻评估只算主列并喂停止判据（横轴改网格序号，F-052）、GM / EM 只在网格点上算 |
-| ~~S3~~ 新划分 | G3（3-B） | 24（含 D-062 补的 C1） | ✅ 本会话完成；**G3 待交**（上面的命令）；另是 G0 / G1 的前提 |
-| S4 影子攻击者 + 攻击起始轮 | G5（3.3） | 15 | 另是 G0 的前提（G0 规模等 FLR，D-061）；ρ=0 本身只要改配置（FLR 已用），S4 的活是 L1 守卫、ξ-only 是否做（D-051 与 PLAN 的 S4 行写法不一致，开 S4 时确认）、`attack_start_round`、G5 的拓扑与窗口单位 |
-| S6 更新日志 | G4（3.2，**搁置**，D-047） | 12 | 3.2 的假设要先按 N-003 重新表述（用户）；F-051「私有 head 挡不住 ξ」是相关证据 |
-| S7 判定代码 + 出图 | — | — | 3-E 的判定（D-059 口径）属于这里，本会话没写 |
-| —（无需会话） | **G7**（预处理对比，D-025） | 6 | ✅ 已跑完并判定（`5edd4df`，事后判据「是」，D-049 / F-050）；重新 materialize 后显示 stale（预期） |
+| ~~S9~~ 评估仪表 + 存盘开关 | **G8**（3-C 攻击停止版）、**G6D**（3-E 分散布点探针） | 3 + 3 | ✅ 本会话完成；**两组待交**（上面 ②） |
+| ~~S8~~ 三层个性化 | G6（3-E，可选） | 9 | ✅；(b) s44 待重交 |
+| ~~S3~~ 新划分 | G3（3-B） | 24 | ✅；G3 已交；另是 G0 / G1 的前提 |
+| S4 影子攻击者 + 攻击起始轮 | G5（3.3） | 15 | 另是 G0 的前提（G0 规模等 FLR，D-061）。**本会话讨论过但没做**：窗口外生成器怎么处理（推荐「窗口只管投毒、生成器全程训」）、单位 = cloud 轮、G5 = G0-random 配置、固定长度跑到 t0+75；floor_ξ 与迁移 baseline 推荐不做 / 推迟。**用户还没拍板** |
+| S5 逐 edge 轮评估 | G2（3-A）、G1 的前提之一 | 55 | **暂缓**（D-056）；预案 D-055 |
+| S6 更新日志 | G1（3-D）、G4（3.2，搁置） | 24 / 12 | **S9 已拿走其中的「恶意端干净精度」**；剩余：逐更新几何分数（本会话讨论推荐：每个上传的 body Δ 做 CountSketch + 在线精确余弦对拍）、周期全量转储给 c_k、c_k 的 head（推荐 edge 干净集上的类均值原型 NCM）。**等 G1 重新规划（D-074）后再定** |
+| S7 判定代码 + 出图 | — | — | 3-E 的判定（D-059 / D-071 口径）属于这里 |
+| —（无需会话） | G7 | 6 | ✅ 已判完 |
 
-- G2 的规模还没定（G2P 已回来：`consistent`，F-049）——**由用户定**，定之前不做 S5。
-- 在 S5 之前，G2 的跨 R 比较受 F-052 影响：停止判据的斜率横轴是云轮号，flat 比 R5 宽松 5 倍。
 
 ## 挂着的事
 
 | 事 | 谁 | 说明 |
 |---|---|---|
 | 合并回 main | 用户决定 | 本分支领先 `origin/main`；**Claude 没有合并** |
+| DET 重交 + G8 / G6D 提交 | 用户（集群） | 上面 ① ②；DET 不过就别交 G8 |
+| G1 重新规划 | FLR + G8 回来后 | D-074 |
+| G6D go / no-go | G6D 回来后 | b / c 比 a 低 ≥ 0.15 → 扩 3 seed（0.15 无证据） |
+| G3 要不要带仪表重跑 | 用户，G3 回来后 | 受害 edge ASR 贴近天花板 → 差中差判不出，才值得重跑（C1 / C3 各 3 seed） |
+| S4 的四个拍板项 | 用户 | 生成器在窗口外怎么办、G5 拓扑与单位、run 长度、floor_ξ / 迁移 baseline（见上表） |
+| 3.2 的假设重新表述 | 用户 | N-003；本会话给过一版草案（D-021 下 ρ=1 时 body 学到的是与触发器无关的塌缩；预测：恶意端干净精度 ≈ 本地 y_t 占比、body ‖Δ‖ 更大、无触发器时判 y_t 的比例 ≈ 有触发器时 —— **只是推理**）；y_t 偏置与恶意端精度现在常开 |
+| 磁盘预算 20 GB | 每批回传后 | 加总各 metrics.json 的 `dumps.logits.bytes` 与 `dumps.snapshots[].bytes` |
+| `.git` 已 360 MB | 需要时 | 红线 500 MB；每个 schema 7 的 metrics.json 约大 50 KB（`test_collect_eval_detail.py` 的体积守卫：≤ 70 KB） |
 | G2 的规模 | 用户 | D-056；定了再开 S5 |
-| 一卡多跑的参数校准 | K=3 满长包回来后 | 第一个校准点已有：整卡读数 ≈ 真实峰值 × 1.98（F-055）；`PACK_MEM_PCT` / `PACK_CTX_MIB` 仍无 OOM 边界的证据 |
-| 攻击接近饱和（F-045 / F-049） | 用户 | G 组的终值类比较可能撞天花板；设计 / 解读时考虑 |
-| G7 的混杂 | 用户 | 官方预处理下干净精度低约 0.10，「攻击更容易」与「模型更弱」分不开（F-050） |
-| fresh-PM 低估干净精度（F-051） | 用户 | 随 edge 数增大（10edge +0.094）；跨拓扑的精度结论同时报陈旧 pm_acc（D-054 后隔点算） |
-| δ-only / ξ-only 消融 | 需要时 | 解释「白盒 ≈ 主列」；单独开实验（D-051） |
-| `git_dirty` 排除结果文件 | 需要时 | 结果写在仓库里 → 同批后提交的 run 都会 `dirty=1`（F-045） |
-| 3.2 的假设重新表述 | 用户 | N-003；S6 / G4 之前定；也影响 3-E 的解读 |
-| `experiments/METRICS.md`「ξ 用 mal[0]」一句 | 用户 | 与 Bad-PFL 库双份同步（`test_metrics_doc.py` 守着）；按 D-015 + D-033 改 |
+| 攻击接近饱和（F-045 / F-049 / F-061） | 用户 | 终值类比较可能撞天花板 → 看 margin 列（D-072） |
+| G7 的混杂 | 用户 | 官方预处理下干净精度低约 0.10（F-050） |
+| fresh-PM 低估干净精度（F-051） | 用户 | 跨拓扑的精度结论同时报陈旧 pm_acc |
+| `experiments/METRICS.md`「ξ 用 mal[0]」一句 | 用户 | 与 Bad-PFL 库双份同步（`test_metrics_doc.py` 守着）；按 D-015 + D-033 改。S9 的新字段也没写进去 |
 | S1b：修 `exp3_cell.sbatch` 写死的 `--defense none` | 需要时 | D-007 |
-| cifar100 静态触发器的标准化常数 | 需要时 | N-004：只记录，没改 |
-| 交 G6 的 3 个 s44 并回传 | 用户（集群） | 上面「下一步」；探路包已回（F-055），剩 1 个 K=3 合包（D-060） |
-| 3-E 的判定代码（D-059 口径） | S7 / 需要时 | 受害 edge 的原始 benign ASR 配对差 + MTA；「三臂 floor 相同」无证据 |
-| 3-E 的 floor 格（ρ=0 × 三划分） | 用户，需要时 | 臂 (a) 的 floor = FLR（D-061）；(b)(c) 要 excess ASR 才需要，不用重跑 G6（D-059） |
-| G3 的停轮：自适应还是固定长度 | 用户，需要时 | 现在是 base 的自适应（150–300 有效轮）；3-B 的差中差跨 run（C3 vs C1）比终值，run 长度不同时终值窗口落在不同轮上。有影响再改成固定 300（同 G6 的 D-058） |
-| hdir 四档要不要 floor | 用户，FLR 回来后 | D-066；FLR 判 `negligible` 则不需要 |
-| MTA 门槛「≤ 0.02」 | 用户 | 仍 ⚠待确认（PLAN §3） |
+| `git_dirty` 排除结果文件 | 需要时 | F-045 |
+| G3 的停轮：自适应还是固定长度 | 用户，需要时 | 有影响再改成固定 300 |
+| hdir 四档要不要 floor | 用户，FLR 回来后 | D-066 |
+
 
 ## 容易踩的坑
+
+- **S9 的常开仪表只读主列那一次前向**：往 `compute_asr_four_way` / `compute_asr_on_dataset` 里再调一次触发器，
+  会让同一列后面所有探针的 ξ 随机数错位（并改动生成器的 BN 统计）→ AST 守卫 `test_each_probe_calls_the_trigger_exactly_once`。
+  新细节要么从 `detail` 里已收的概率算，要么单独开实验（D-051）。
+- **细节打印在 `t_asr` 之后**：放到计时里面会让 `[TimingASR].main` 与改动前不可比（`test_detail_lines_are_emitted_after_the_asr_timer_stops`）。
+- **`[EvalDetail]`（池化）与 `[EvalDetailEdge]`（每 edge）是两个 tag**：同一个 tag 带 edge 段会被 `_merge_side_columns` 按轮覆盖成 edge 行。
+- **"/" 连接的列表里 None 写 `na`**（`fmt_list`），不是 `n/a`：后者自己含 "/"。
+- **`snapshot_rounds` 写成字符串 `"30/70"`**，不要写 YAML 列表（`[设定4]` 往返会变形，`config_validate` 拒绝）。
+- **两个存盘开关只在组的 `set:` 里开**：写进 `base.yaml` 会让所有 P2 组的 sha 变（D-053 的 stale）。
+- **`[Dump]` 的 sha 用正则取**（同 `[Checksum]`）：十六进制串可能被 kvline 读成数（如 `123456e78901`）。
+- **快照不能续训**：没有客户端 / edge / 数据的随机状态与陈旧 client.model。要分叉续跑得另做（原文 §11 的 checkpoint），本会话没做。
+- **`instrumentation_check` 只比 checksum 与改动前就有的字段**；`check_reproducible` 比全部字段含计时，带仪表的新文件一定「不一致」。
+- **本地跑 TF 测试**：scratch 里的 venv（TF 2.15.1 CPU + protobuf 4.25 + wandb）；`--deselect` 不需要，陷阱 #4 的 2 条红照旧。
+
 
 - **新评估开关**（预算旋钮）放 `EXTRA_SWITCHES`、值写进 `base.yaml`；**对齐开关**放 `SWITCHES` + 模板。两类都只经 `get_switch` 读。
 - **副列的终值用 `runs_table.window_mean`**（末 10 个评估点窗口），不要用 `last_k_mean`：后者先丢 None 再往回够，隔点的列会够到 20 个点。

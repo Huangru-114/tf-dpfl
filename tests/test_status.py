@@ -66,7 +66,8 @@ def test_v1_old_files_are_done_but_unverified():
 def test_v2_after_the_audit_only_feature_sessions_block():
     """AUDIT 全部关闭（2026-09-27，pilot `2853433`）：只要求 audit 的 G7 变 todo；
     S8 之后（2026-09-27）G6 也不再被挡；FLR（D-061，只改配置）从登记起就不被挡；
-    S3 之后（2026-09-28）G3 也不再被挡。其余 121 个只剩功能会话（S4–S6）的依赖。"""
+    S3 之后（2026-09-28）G3 也不再被挡；S9（2026-09-28）登记的 G8 / G6D 不被挡。
+    其余 121 个只剩功能会话（S4–S6）的依赖。"""
     rep = S.classify(R.Registry(V2))
     assert rep["counts"]["blocked"] == 121
     # G7：结果回来之前是 todo，回来之后是 done（`5edd4df`）；base.yaml 加了评估降频之后
@@ -76,8 +77,10 @@ def test_v2_after_the_audit_only_feature_sessions_block():
     assert {r["status"] for r in rep["runs"] if r["group"] == "G6"} <= {"todo", "done", "stale", "failed"}
     assert {r["status"] for r in rep["runs"] if r["group"] == "FLR"} <= {"todo", "done", "stale"}
     assert {r["status"] for r in rep["runs"] if r["group"] == "G3"} <= {"todo", "done", "stale"}
-    assert {r["group"] for r in rep["runs"] if r["status"] != "blocked"} == {"G3", "G6", "G7", "FLR"}
-    assert sum(rep["counts"][k] for k in ("todo", "done", "stale", "failed")) == 42
+    assert {r["status"] for r in rep["runs"] if r["group"] in ("G8", "G6D")} <= {"todo", "done", "stale"}
+    assert {r["group"] for r in rep["runs"] if r["status"] != "blocked"} == {
+        "G3", "G6", "G7", "FLR", "G8", "G6D"}
+    assert sum(rep["counts"][k] for k in ("todo", "done", "stale", "failed")) == 48
     assert not any("audit" in r["detail"] for r in rep["runs"])
 
 

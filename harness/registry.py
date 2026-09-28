@@ -77,6 +77,9 @@ EXPECT_KEYS = (
     ("partition_condition",  "federation.design.condition"),
     ("partition_alpha_edge", "federation.design.alpha_edge"),
     ("partition_n",          "federation.design.n_per_client"),
+    # S9（G8）：停止轮静默没生效时（陷阱 #7 同类），run 块的 attack_stop_round 是 None → mismatch。
+    # 没声明的组 → None → 不核对。
+    ("attack_stop_round",    "backdoor.attack_stop_round"),
 )
 
 AUDIT_STATUSES = ("open", "align", "deviate", "done")

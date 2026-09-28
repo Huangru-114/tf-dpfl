@@ -10,6 +10,7 @@ server/backdoor_server.py  –  后门感知的 Cloud 服务器
 所有指标通过 FLLogger.log_round_metrics 记入 wandb。
 """
 
+import json
 import time
 
 import numpy as np
@@ -22,8 +23,10 @@ from attack.backdoor_eval import (evaluate_hierarchical_asr,
                                    evaluate_drift,
                                    evaluate_local_asr,
                                    dataset_to_numpy)
+from attack.eval_detail import EDGE_FIELDS, client_columns, pack_logits, summarize
 from alignment import get_switch
-from utils.kvline import format_kv
+from utils.dumps import dump_line, dump_root, parse_rounds, run_dir_name, write_npz
+from utils.kvline import fmt_list, format_kv
 from models.cnn import get_base_head_indices
 from defense import create_post_hoc_defense
 from utils.logger import FLLogger
@@ -67,6 +70,19 @@ class BackdoorCloudServer(CloudServer):
         self.history.setdefault("bd_asr", [])
         self._last_bd_metrics = None
 
+        # ── S9：评估细节（常开）+ 两个存盘开关（D-072 / D-073；utils/dumps.py）────────
+        #   细节只读主列那一次前向的结果，不多做前向、不碰 RNG → 已有数值逐位不变。
+        #   dump_logits_every=k：每第 k 个后门评估点存一次逐样本对数概率（0 = 关）。
+        #   snapshot_rounds="30/70"：这些 cloud 轮末存分析快照（只供评估，不能续训）。
+        self._n_classes = int(self.config["data"]["num_classes"])
+        self.dump_logits_every = int(get_switch(self.config, "evaluation.dump_logits_every"))
+        self.snapshot_rounds = parse_rounds(
+            get_switch(self.config, "evaluation.snapshot_rounds"))
+        self._bd_eval_count = 0
+        self._last_probe_order = None
+        self._dump_root = dump_root()
+        self._dump_dir = run_dir_name(self.config)
+
         # 特征分离度 / 遗忘曲线相关配置
         # 漂移测量（Experiment 3C）：默认关闭，零开销；3C 的 config 打开。
         self.drift_eval = bool(self.bd_cfg.get("drift_eval", False))
@@ -101,6 +117,9 @@ class BackdoorCloudServer(CloudServer):
         self._coordinate_cerp_peers()
         if do_eval:
             self._backdoor_eval(round_idx, anchor=anchor)
+        # S9：分析快照放在本轮全部评估之后（edge 模型此刻 = 本轮 fresh-PM 用的 body）
+        if round_idx in self.snapshot_rounds:
+            self._snapshot(round_idx, evaluated=do_eval)
         return metrics
 
     def _stopping_signals(self, metrics: dict) -> dict:
@@ -188,6 +207,115 @@ class BackdoorCloudServer(CloudServer):
                             round_idx=round_idx))
             t_side["stale"] = time.perf_counter() - _t0
         return t_side
+
+    # ══════════════════════════════════════════════════════════════════════
+    # S9：评估细节行 + logits 存盘 + 分析快照（D-072 / D-073）
+    # ══════════════════════════════════════════════════════════════════════
+
+    def _logits_due(self) -> bool:
+        """本次后门评估要不要存 logits：每第 dump_logits_every 个评估点（第 0、k、2k… 个）。"""
+        k = self.dump_logits_every
+        due = k > 0 and self._bd_eval_count % k == 0
+        self._bd_eval_count += 1
+        return due
+
+    def _write_dump(self, round_idx, kind, rel, arrays):
+        """写盘 + 打 [Dump] manifest 行。写盘失败不拖垮 run，但要在日志里留下 error。"""
+        try:
+            info = write_npz(self._dump_root, f"{self._dump_dir}/{rel}", arrays)
+        except OSError as e:
+            msg = f"{type(e).__name__}: {e}".replace("|", "/").replace("=", ":")
+            print(format_kv("[Dump]", {"kind": kind, "path": rel, "error": msg[:200]},
+                            round_idx=round_idx))
+            return
+        print(dump_line(round_idx, kind, info))
+
+    def _emit_detail(self, round_idx, metrics, keep_probs):
+        """
+        [EvalDetail]（良性端池化）+ 每 edge 的 [EvalDetailEdge] / [ClientEval]，
+        到期时再存 logits。原始数组用完即丢：metrics 之后会进 _last_bd_metrics。
+        """
+        recs = metrics.pop("client_detail", None) or []
+        self._last_probe_order = metrics.pop("probe_order", None)
+        if not recs:
+            return
+        pooled = summarize(recs, self.bd_target, self._n_classes)
+        fields = {k: v for k, v in pooled.items() if k not in ("n_benign", "n_malicious")}
+        fields["cls_asr"] = fmt_list(pooled["cls_asr"])
+        print(format_kv("[EvalDetail]", fields, round_idx=round_idx))
+        by_edge = {}
+        for r in recs:
+            by_edge.setdefault(r["edge_id"], []).append(r)
+        for eid in sorted(by_edge):
+            s = summarize(by_edge[eid], self.bd_target, self._n_classes)
+            print(format_kv("[EvalDetailEdge]", {k: s[k] for k in EDGE_FIELDS},
+                            round_idx=round_idx, edge_id=eid))
+            cols = client_columns(by_edge[eid])
+            print(format_kv("[ClientEval]", {k: fmt_list(v) for k, v in cols.items()},
+                            round_idx=round_idx, edge_id=eid))
+        if keep_probs:
+            self._write_dump(round_idx, "logits", f"logits_r{round_idx:03d}.npz",
+                             pack_logits(recs))
+
+    def _snapshot(self, round_idx, evaluated):
+        """
+        分析快照（只供评估，不能续训）：全局模型、每 edge 的模型、每端私有部分
+        （private_state：FedRep 的私有 head + 私有 BN 统计量；从未被选中的端为空 →
+        其 fresh-PM 就是 edge 模型）、评估攻击者的生成器（与其 Adam 状态，若已建）。
+        fp32 原样存：重载后应逐位复现本轮的 fresh-PM 评估。
+        """
+        arrays = {}
+
+        def put(prefix, ws):
+            for i, w in enumerate(ws):
+                arrays[f"{prefix}_{i:03d}"] = np.asarray(w)
+
+        put("global", self.global_model.get_weights())
+        cache = getattr(self, "_edge_w_cache", None)
+        matches = None
+        for e in self.edge_servers:
+            ws = e.model.get_weights()
+            put(f"edge{int(e.edge_id)}", ws)
+            if evaluated and cache is not None and int(e.edge_id) in cache:
+                same = (len(ws) == len(cache[int(e.edge_id)]) and all(
+                    np.array_equal(a, b) for a, b in zip(ws, cache[int(e.edge_id)])))
+                matches = same if matches is None else (matches and same)
+        has_private = []
+        for c in self._all_clients:
+            idx, val = c.private_state()
+            cid = int(c.client_id)
+            arrays[f"client{cid}_idx"] = np.asarray(idx, dtype=np.int32)
+            put(f"client{cid}", val)
+            has_private.append(bool(len(idx)))
+        att = self.eval_attacker
+        gen = getattr(att, "_atk_generator", None) if att is not None else None
+        n_gen_opt = 0
+        if gen is not None:                         # 不调 _atk_ensure_generator：只读已有的
+            put("gen", gen.get_weights())
+            opt = getattr(att, "_atk_gen_opt", None)
+            if opt is not None:
+                v = opt.variables
+                v = v() if callable(v) else v
+                opt_ws = [np.asarray(x.numpy()) for x in v]
+                put("genopt", opt_ws)
+                n_gen_opt = len(opt_ws)
+        R = int(self.config["federation"].get("edge_rounds", 1) or 1)
+        meta = {
+            "round": int(round_idx), "effective_round": int(round_idx) * R,
+            "seed": self._seed, "run_id": (self.config.get("meta") or {}).get("run_id"),
+            "evaluated": bool(evaluated), "edge_matches_eval": matches,
+            "edge_ids": [int(e.edge_id) for e in self.edge_servers],
+            "client_ids": [int(c.client_id) for c in self._all_clients],
+            "client_edge": [int(getattr(c, "assigned_edge", -1)) for c in self._all_clients],
+            "has_private": has_private,
+            "malicious_ids": sorted(self.malicious_ids),
+            "eval_attacker": None if att is None else int(att.client_id),
+            "has_generator": gen is not None, "n_genopt": n_gen_opt,
+            "probe_order": self._last_probe_order if evaluated else None,
+            "resumable": False,
+        }
+        arrays["meta_json"] = np.array(json.dumps(meta))
+        self._write_dump(round_idx, "snapshot", f"snapshot_r{round_idx:03d}.npz", arrays)
 
     def _coordinate_cerp_peers(self):
         """收集 CerP 恶意客户端最新权重，互相分发（排除自身），供下一轮 cos 正则使用。"""
@@ -279,6 +407,7 @@ class BackdoorCloudServer(CloudServer):
                         else self.trigger_fn)
 
         # ── 任务2：分层 ASR（global/edge/local 三层 + same/diff edge） ────────
+        keep_probs = self._logits_due()
         _t0 = time.perf_counter()
         metrics = evaluate_hierarchical_asr(
             self.global_model, self.edge_servers, self._all_clients,
@@ -287,10 +416,14 @@ class BackdoorCloudServer(CloudServer):
             local_model_fn=local_model_fn,
             asr_max_samples=self.bd_asr_max,
             asr_columns=self.asr_columns,
+            keep_probs=keep_probs,
+            n_classes=self._n_classes,
         )
         t_asr_main = time.perf_counter() - _t0
         t_side = self._side_columns(round_idx, metrics, fixed)
         t_asr = time.perf_counter() - _t0
+        # S9：细节行与 logits 存盘放在计时之后 —— [Timing] asr / [TimingASR] main 与改动前可比
+        self._emit_detail(round_idx, metrics, keep_probs)
 
         # ── 任务2：特征空间分离度（global + 抽样 1 个良性 local） ─────────────
         if self.feature_eval:

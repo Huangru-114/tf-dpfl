@@ -20,7 +20,16 @@ harness/collect_metrics.py  —  把集群 run 的**全量日志**压成一个�
     run.data              S3 新划分的自描述（[Partition] + 每 edge 一条 [PartitionEdge] → run.data.per_edge）；
                           顶层另有 run.partition / partition_condition / partition_alpha_edge / partition_n。
                           旧划分（noniid 等）不打这些行 → 全为 None
-    schema_version        本文件的结构版本（2 = 有 provenance；5 = 有 run.edge_shared_blocks；6 = 有 run.data）
+    schema_version        本文件的结构版本（2 = 有 provenance；5 = 有 run.edge_shared_blocks；6 = 有 run.data；
+                          7 = 有评估细节与 dumps manifest）
+    rounds[] 的 S9 列     benign_asr_p10/p50/p90、benign_asr_gt50、malicious_clean_acc、yt_clean_benign、
+                          margin_p10/p50/p90、flip_other、cls_asr（按真实类，目标类为 null）；老日志 → null
+    per_edge_detail_rounds {round: [[edge_id, margin_p50, benign_asr_p90, yt_clean_benign], …]}
+                          （列名在 per_edge_detail_columns；紧凑行是为了 metrics.json 的体积预算）
+    client_final          末个评估点的逐客户端值，按列：{round, client_id[], edge_id[], malicious[],
+                          asr[], acc[], yt_clean[], margin_med[], n[]}；逐轮的逐客户端值只在集群大日志
+    dumps                 [Dump] manifest：{logits: {count, bytes, dir}, snapshots: [{round, path,
+                          bytes, sha}], errors: [...]}。文件本身留集群（tfdpfl-dumps/），不进 git
     rounds[]              每个**后门评估轮**的 {round, global_asr, edge_asr,
                           local_benign_asr, same_edge_asr, diff_edge_asr, local_malicious_asr}
     final                 最后一个后门评估轮的上述指标
@@ -55,7 +64,7 @@ from pathlib import Path
 # 这里借用它的解析器，免得两处格式漂移。那个模块是纯标准库，不 import TF。
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "fedavg"))
 from utils.provenance import parse_provenance   # noqa: E402
-from utils.kvline import parse_kv, collect_kv   # noqa: E402
+from utils.kvline import parse_kv, collect_kv, parse_list   # noqa: E402
 
 # metrics.json 的结构版本。2 = 加了 run.provenance / run.cli_overrides。
 # 3 = A4：run.alignment / eval_attacker，rounds[] 的副列（[ASR4] [ASRwb] [StaleASR]），
@@ -66,7 +75,11 @@ from utils.kvline import parse_kv, collect_kv   # noqa: E402
 # 5 = S8（3-E 三层个性化）：run.edge_shared_blocks + run.tier_split（[设定6]）。
 # 6 = S3（新划分）：run.data（[Partition] + [PartitionEdge]）+ run.partition / partition_condition /
 #     partition_alpha_edge / partition_n。
-SCHEMA_VERSION = 6
+# 7 = S9（评估细节，D-072 / D-073）：rounds[] 的分布量（[EvalDetail]：良性端 ASR 分位数、
+#     margin 分位数、y_t 偏置、恶意端干净精度、非目标翻转率、按类 ASR）、
+#     per_edge_detail_rounds（[EvalDetailEdge]，紧凑行）、client_final（末个评估点的
+#     [ClientEval]，按列）、dumps（[Dump] manifest：logits 汇总 + 每个快照）。
+SCHEMA_VERSION = 7
 
 # A4 的副列：key=value 行（utils/kvline.py）→ rounds[] / acc_rounds[] 的字段。
 # 缺行（旧口径、或该列本 run 没开）→ null，**不是 0**。
@@ -78,7 +91,16 @@ ROUND_SIDE_COLUMNS = (
     ("[ASRwb]", {"local_benign": "local_benign_asr_whitebox"}),
     ("[StaleASR]", {"local_benign": "local_benign_asr_stale",
                     "local_malicious": "local_malicious_asr_stale"}),
+    # S9：良性端池化的分布量（每 edge 的行是另一个 tag [EvalDetailEdge]，不会混进来）
+    ("[EvalDetail]", {k: k for k in (
+        "benign_asr_p10", "benign_asr_p50", "benign_asr_p90", "benign_asr_gt50",
+        "malicious_clean_acc", "yt_clean_benign", "margin_p10", "margin_p50", "margin_p90",
+        "flip_other", "cls_asr")}),
 )
+EDGE_DETAIL_COLUMNS = ("edge_id", "margin_p50", "benign_asr_p90", "yt_clean_benign")
+RE_DUMP_SHA = re.compile(r"\|\s*sha=([0-9a-f]+)\s*(?:\||$)")
+CLIENT_FINAL_COLUMNS = (("ids", "client_id"), ("mal", "malicious"), ("asr", "asr"),
+                        ("acc", "acc"), ("yt", "yt_clean"), ("mmed", "margin_med"), ("n", "n"))
 ACC_SIDE_COLUMNS = (
     ("[Stale]", {"pm_acc": "pm_acc_stale"}),
     # 精度评估的分项耗时（D-054）：GM / EM 每轮都评，PM 只在评估轮评，陈旧 PM 隔点评；没评 → null
@@ -597,6 +619,59 @@ def _timing_summary(acc_rounds: list, timing_rounds: list) -> dict:
     }
 
 
+def _collect_edge_detail(lines) -> dict:
+    """[EvalDetailEdge] → {round: [[edge_id, margin_p50, benign_asr_p90, yt_clean_benign], …]}。"""
+    out = {}
+    for d in collect_kv(lines, "[EvalDetailEdge]"):
+        out.setdefault(d.get("round"), []).append([d.get(c) for c in EDGE_DETAIL_COLUMNS])
+    for rows in out.values():
+        rows.sort(key=lambda r: (r[0] is None, r[0]))
+    return out
+
+
+def _collect_client_final(lines) -> dict | None:
+    """末个评估点的 [ClientEval]（每 edge 一行，"/" 连接的列）→ 按列拼起来。没有 → None。"""
+    rows = collect_kv(lines, "[ClientEval]")
+    if not rows:
+        return None
+    last = max(d.get("round") for d in rows)
+    out = {"round": last, "edge_id": []}
+    for _, key in CLIENT_FINAL_COLUMNS:
+        out[key] = []
+    for d in sorted((d for d in rows if d.get("round") == last), key=lambda d: d.get("edge_id")):
+        cols = {src: parse_list(d.get(src)) or [] for src, _ in CLIENT_FINAL_COLUMNS}
+        n = len(cols["ids"])
+        out["edge_id"].extend([d.get("edge_id")] * n)
+        for src, key in CLIENT_FINAL_COLUMNS:
+            vals = cols[src]
+            out[key].extend([bool(v) for v in vals] if key == "malicious" else vals)
+    return out
+
+
+def _collect_dumps(lines) -> dict:
+    """[Dump] → {logits: {count, bytes, dir}, snapshots: [...], errors: [...]}（相对路径）。"""
+    logits = {"count": 0, "bytes": 0, "dir": None}
+    snaps, errors = [], []
+    for ln in lines:
+        d = parse_kv(ln, "[Dump]")
+        if d is None:
+            continue
+        # sha 是十六进制串，可能长得像数字（同 [Checksum]）→ 从原文取，不走 kvline 的类型推断
+        m = RE_DUMP_SHA.search(ln)
+        d["sha"] = m.group(1) if m else None
+        if d.get("error") is not None:
+            errors.append({"round": d.get("round"), "kind": d.get("kind"), "error": d.get("error")})
+            continue
+        if d.get("kind") == "logits":
+            logits["count"] += 1
+            logits["bytes"] += int(d.get("bytes") or 0)
+            logits["dir"] = str(d.get("path", "")).rsplit("/", 1)[0] or None
+        elif d.get("kind") == "snapshot":
+            snaps.append({"round": d.get("round"), "path": d.get("path"),
+                          "bytes": d.get("bytes"), "sha": d.get("sha")})
+    return {"logits": logits, "snapshots": snaps, "errors": errors}
+
+
 def _collect_gpu_mem(lines) -> dict | None:
     """[GPUMem]（D-052）→ {peak_mib, n_samples}。peak 是进程启动以来的累计峰值，取最大值。
 
@@ -625,6 +700,8 @@ def collect(log_text: str) -> dict:
     run = _collect_run_info(log_text, lines)
     acc_rounds = _collect_acc(lines)
     _merge_side_columns(rounds, lines, ROUND_SIDE_COLUMNS)
+    for row in rounds:                                  # "a/na/b" → [a, None, b]
+        row["cls_asr"] = parse_list(row.get("cls_asr"))
     _merge_side_columns(acc_rounds, lines, ACC_SIDE_COLUMNS)
     # 十六进制串可能长得像数字（全是数字、或形如 1234e5678901），不走 kvline 的类型推断
     checksums = [{"round": int(m.group(1)), "global": m.group(2)}
@@ -683,6 +760,11 @@ def collect(log_text: str) -> dict:
         "timing_summary": _timing_summary(acc_rounds, timing_rounds),
         # 真实显存峰值（一卡多跑按它定 K，D-052）；没有 GPU / 旧日志 → null
         "gpu_mem": _collect_gpu_mem(lines),
+        # S9：逐 edge 的分布量（紧凑行）+ 末个评估点的逐客户端值 + 存盘 manifest
+        "per_edge_detail_columns": list(EDGE_DETAIL_COLUMNS),
+        "per_edge_detail_rounds": _collect_edge_detail(lines),
+        "client_final": _collect_client_final(lines),
+        "dumps": _collect_dumps(lines),
         "admitted": admitted,
         # 只对有客户端级判决的防御求均值；坐标类（admitted=None）不参与，
         # 全是坐标类或无防御时结果是 None —— 0 会被误读成「全部被剔除」。

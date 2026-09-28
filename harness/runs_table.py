@@ -46,6 +46,11 @@ SIDE_ASR_METRICS = ("local_benign_asr_unfiltered", "local_all_asr",
                     "local_benign_asr_whitebox", "local_benign_asr_stale",
                     "local_malicious_asr_stale")
 SIDE_ACC_METRICS = ("pm_acc_stale",)
+# S9 评估细节（collect_metrics schema 7，每个后门评估点都有；老文件 → None）：
+#   margin_p50 不饱和（ASR 接近 1 时仍能分辨强弱）；benign_asr_p90 是尾部；
+#   yt_clean_benign 区分「触发器特异」与「整体偏向 y_t」；malicious_clean_acc 给 3.2。
+DETAIL_METRICS = ("margin_p50", "benign_asr_p90", "yt_clean_benign", "malicious_clean_acc")
+EDGE_DETAIL_METRICS = ("margin_p50", "benign_asr_p90", "yt_clean_benign")
 T_THETA_METRICS = ("global_asr", "edge_asr", "local_benign_asr")
 
 # 实际因素 = 决定「这是哪一格」的 run 块字段（seed 单独一列，不进因素键）。
@@ -148,6 +153,10 @@ def summarize_run(m: dict, *, name: str, source: str, legacy_protocol=None) -> d
         mean, n = window_mean(rounds, mk)
         row[f"{mk}_last{LAST_K}"] = mean
         row[f"{mk}_n"] = n
+    for mk in DETAIL_METRICS:                         # S9：每个评估点都有 → 与主列同一口径
+        mean, n = last_k_mean([r.get(mk) for r in rounds])
+        row[f"{mk}_last{LAST_K}"] = mean
+        row[f"{mk}_n"] = n
     acc = m.get("acc_rounds") or []
     for mk in ACC_METRICS:
         mean, n = last_k_mean([r.get(mk) for r in acc])
@@ -179,7 +188,7 @@ def series_rows(m: dict, run_name: str) -> list:
     er = run.get("edge_rounds") or 1
     out = []
     for r in m.get("rounds") or []:
-        for mk in ASR_METRICS + SIDE_ASR_METRICS:
+        for mk in ASR_METRICS + SIDE_ASR_METRICS + DETAIL_METRICS:
             if r.get(mk) is not None:
                 out.append((run_name, r["round"] * er, r["round"], -1, mk, r[mk]))
     for r in m.get("acc_rounds") or []:
@@ -198,6 +207,15 @@ def series_rows(m: dict, run_name: str) -> list:
                 if e.get(mk) is not None:
                     out.append((run_name, int(rnd) * er, int(rnd), e["edge_id"],
                                 f"edge.{mk}", e[mk]))
+    # S9：紧凑行 [edge_id, margin_p50, benign_asr_p90, yt_clean_benign]（列名随文件给出）
+    cols = m.get("per_edge_detail_columns") or []
+    for rnd, rows in (m.get("per_edge_detail_rounds") or {}).items():
+        for vals in rows:
+            d = dict(zip(cols, vals))
+            for mk in EDGE_DETAIL_METRICS:
+                if d.get(mk) is not None:
+                    out.append((run_name, int(rnd) * er, int(rnd), d["edge_id"],
+                                f"edge.{mk}", d[mk]))
     out.sort(key=lambda t: (t[4], t[3], t[1]))
     return out
 

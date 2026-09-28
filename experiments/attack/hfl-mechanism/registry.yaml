@@ -18,6 +18,10 @@
 #     S3 的新划分（D-062 … D-065）**写进各组 `set:`，不改 base.yaml** —— 改了会让 G6 待交的 s44 按新划分重新生成
 #   · 2026-09-28 S3 完成（D-067 / D-068）→ `available: [S8, S3]`；G3 补齐 8 格 24 run 并 materialize（可交）；
 #     G0 / G1 / G2 / G5 的划分写进 set（它们仍缺 S4 / S5 / S6）
+#   · 2026-09-28 S9 完成（评估仪表 + logits / 快照开关，D-071 … D-075）→ `available: [S8, S3, S9]`；
+#     登记 G8（3-C 攻击停止版，3 run）与 G6D（3-E 分散布点探针，3 run），已 materialize（可交）。
+#     存盘开关只写在组的 set 里（D-073），base.yaml 不动 → 已有 42 个配置的 sha 不变。
+#     G1 待 FLR + G8 重新规划（D-074）
 # 功能会话完成时，把它的 token 加进 `available`，并补上对应组的 `set:`。
 # **补 `set:` 时核对三件**（G2 就是漏了这三件，test_registry 守着）：
 #   malicious_per_edge 的长度 = n_edges；n_rounds × edge_rounds ≥ cap_effective；各格评估网格（有效轮）一致。
@@ -31,7 +35,7 @@ base: base.yaml       # A4（2026-09-26）
 overlays:
   - ../../../fedavg/config/alignment_p2.yaml   # 「P2 对齐」模板：每个对齐开关都打开
 audit: AUDIT.md
-available: [S8, S3]   # 已完成的功能会话（S3：2026-09-28，新划分 D-062 … D-068）
+available: [S8, S3, S9]   # 已完成的功能会话（S3：新划分 D-062 … D-068；S9：评估仪表 + 存盘开关 D-071 … D-075）
 
 groups:
   G0:
@@ -175,6 +179,41 @@ groups:
           federation.edge_shared_blocks: 0, backdoor.poison_ratio: 0.0}
     cells:
       - {cell: g6a}
+
+  G8:
+    purpose: "3-C 攻击停止版（= 1B-2 的 HFL 复现，D-075）：攻击 150 有效轮后停止、再观察 200 有效轮 → 衰减到 floor 还是停在平台"
+    requires: [audit, S9]
+    seeds: [42, 43, 44]
+    # 2026-09-28（S9）用户定：只跑臂 a。配置 = G6 的 set + (a) 臂逐字相同，只加：
+    #   · backdoor.attack_stop_round: 31 → 第 1–30 个 cloud 轮投毒（轮号从 1 起、round < stop 才投毒）
+    #     → 第 1–30 轮 [Checksum] 应与 G6(a) 同 seed 逐轮相同（仪表不改训练的 GPU 验证，
+    #       harness/instrumentation_check.py --upto 30）
+    #   · federation.n_rounds: 70 → 有效轮 350，攻击者走后 200 有效轮（对齐 1B-2）
+    #   · 两个存盘开关（D-073）：logits 每个评估点（追踪「哪些样本在攻击者走后仍被翻转」，约 42 MB / run）；
+    #     快照在第 30 轮末（攻击者退出时的受污染模型）与第 70 轮末（阶段三离线筛选、离线重训触发器）
+    #   · floor = FLR 同 seed（同配置 × ρ=0）；预注册判定 harness/decay_verdict.py（第 51–60 轮对齐 FLR）
+    #   · 解读注意：lr 按 0.992^有效轮 衰减（eff350 时 ×0.06），1B-2 是常数 lr
+    set: {federation.n_edges: 4, federation.n_rounds: 70,
+          backdoor.malicious_per_edge: [10, 0, 0, 0], stopping: null,
+          federation.edge_shared_blocks: 0, backdoor.attack_stop_round: 31,
+          evaluation.dump_logits_every: 1, evaluation.snapshot_rounds: "30/70"}
+    cells:
+      - {cell: a}
+
+  G6D:
+    purpose: "3-E 探针（D-075）：G6 × 分散布点 [3,3,2,2]，单 seed go / no-go —— 每个 edge 都有攻击者时 edge 内共享段还有没有用"
+    requires: [audit, S8]
+    seeds: [42]
+    # 2026-09-28（S9）用户定：与 G8 同批交。与 G6 同臂同 seed 只差 malicious_per_edge。
+    # go / no-go（D-075）：b 或 c 的良性端 ASR（全部 edge 的主列，末 10 点）比 a 低 ≥ 0.15 → 扩到 3 seed；
+    # 否则到此为止（0.15 没有证据，是 S9 提的）。单 seed 不是判定，只决定要不要花 3 seed 的机时。
+    set: {federation.n_edges: 4, federation.n_rounds: 60,
+          backdoor.malicious_per_edge: [3, 3, 2, 2], stopping: null}
+    factors:
+      split:
+        - {label: a, set: {federation.edge_shared_blocks: 0}}
+        - {label: b, set: {federation.edge_shared_blocks: 1}}
+        - {label: c, set: {federation.edge_shared_blocks: 2}}
 
   G7:
     purpose: "预处理对比（D-025）：主协议（标准化 + 增强）vs 官方预处理（不标准化、不增强），同 seed 配对。检验「官方设定降低了攻击难度」"

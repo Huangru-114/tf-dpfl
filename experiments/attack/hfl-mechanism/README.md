@@ -50,6 +50,14 @@ python3 harness/runs_table.py experiments/attack/hfl-mechanism/results/P2 \
 python3 harness/verdicts.py experiments/attack/hfl-mechanism/analysis/runs.csv \
     --out experiments/attack/hfl-mechanism/analysis/verdicts.json
 
+# 5b. 单组的预注册判定（数据回来之前写定）
+python3 harness/flr_verdict.py   --json experiments/attack/hfl-mechanism/analysis/flr_verdict.json     # FLR（D-061）
+python3 harness/decay_verdict.py --json experiments/attack/hfl-mechanism/analysis/decay_verdict.json   # G8（D-075）
+
+# 5c. 「新仪表没有改变任何已有的数」（S9）：只比 checksum 与改动前就有的数值字段，前 R 轮
+python3 harness/instrumentation_check.py experiments/attack/hfl-mechanism/results/P2/G6/G6__a__s42.metrics.json \
+    experiments/attack/hfl-mechanism/results/P2/G8/G8__a__s42.metrics.json --upto 30
+
 # 6. 出图（组内因素不唯一会被拒绝；--floor 画下限虚线）
 python3 harness/figures.py trajectory --tables experiments/attack/hfl-mechanism/analysis \
     --metric local_benign_asr --group-by n_edges,edge_rounds \
@@ -90,3 +98,5 @@ P1 只作试点（DECISIONS D-009）：用来估噪声和效应量、提出假�
 - **改判定阈值**要在 DECISIONS.md 留一条，不能悄悄改 `harness/verdicts.py`。
 - **结论的状态**：`provisional`（P1 或 seed 不够）→ `confirmed`（P2 + 判定通过）→ 被推翻时改成 `retracted` 并写原因，不删除。
 - **出图**：横轴是有效轮；ASR 图要画下限；图例写 n；图上文字用英文（容器里没有中文字体）。
+- **logits / 快照只在组的 `set:` 里开**（D-073）：登记表写明了消费它的离线分析才开；文件落在
+  `$ROOT/../tfdpfl-dumps/`，留集群、不回传，metrics.json 的 `dumps` 是 manifest；项目总预算 20 GB。

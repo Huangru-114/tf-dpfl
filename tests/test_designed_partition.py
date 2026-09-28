@@ -209,7 +209,7 @@ def test_partition_lines_are_parsed_by_collect_metrics():
     sp = D.designed_partition(LABELS, _cfg("designed", {"condition": "C3"}))
     lines = D.data_lines(sp, malicious_ids=range(10))
     m = collect("\n".join(["[Config] loading x.yaml", *lines, "[Round 1]"]) + "\n")
-    assert m["schema_version"] == 6
+    assert m["schema_version"] == 7
     run = m["run"]
     assert run["partition"] == "designed" and run["partition_condition"] == "C3"
     assert run["partition_n"] == 500 and run["partition_alpha_edge"] is None
@@ -283,7 +283,8 @@ def test_build_clients_s3_branch_bakes_assignments_and_equal_sizes():
     cfg = _cfg("designed", {"condition": "C3"})
     cfg["data"].update(batch_size=32, img_size=4, num_classes=10)
     cfg["federation"].update(edge_assignment="block", client_fraction=0.1)
-    cfg["training"] = {"drift_correction": "hierfedavg", "learning_rate": 0.1, "local_epochs": 1}
+    cfg["training"] = {"drift_correction": "hierfedavg", "learning_rate": 0.1, "lr_decay": 1.0,
+                       "local_epochs": 1}
     cfg["backdoor"] = {"enabled": False, "target_label": 0}
     model = tf.keras.Sequential([tf.keras.Input((4, 4, 3)), tf.keras.layers.Flatten(),
                                  tf.keras.layers.Dense(10, activation="softmax")])

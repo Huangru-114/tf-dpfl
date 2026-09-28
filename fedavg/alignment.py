@@ -90,6 +90,15 @@ EXTRA_SWITCHES = (
            (),                                      "A28", "D-050", None),
     Switch("evaluation.stale_pm_every",    1,            None,
            (),                                      "A28", "D-054", None),
+    # S9 / D-072 / D-073：两个存盘开关（默认关；只在登记表组的 set: 里开，不写进 base.yaml）。
+    # 何时开：登记表里写明了消费它的离线分析才开（utils/dumps.py 的 docstring）。
+    # dump_logits_every：每第 k 个后门评估点存一次逐样本对数概率（主列探针 + 干净分片）。
+    # snapshot_rounds："30/70" 这样的字符串（不是列表：[设定4] 往返要逐字相同），这些 cloud 轮末
+    #   存分析快照（只供评估）。类型由 config_validate §4d 显式检查。
+    Switch("evaluation.dump_logits_every", 0,            None,
+           (),                                      "A06", "D-073", None),
+    Switch("evaluation.snapshot_rounds",   None,         None,
+           (),                                      "A28", "D-073", None),
 )
 
 ALL = {s.key: s for s in SWITCHES + EXTRA_SWITCHES}

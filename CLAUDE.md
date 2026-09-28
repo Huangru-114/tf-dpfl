@@ -372,6 +372,29 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
   - 离线预览（F0 数据，不需要 TF / GPU）：`python3 harness/partition_preview.py`（F-058）。
   - floor 验证 pilot **FLR**（G6(a) × ρ=0，预注册判定 `harness/flr_verdict.py`，D-061）决定 G0 要不要逐划分测 floor。
   - 守卫：`tests/test_designed_partition.py`（含集群上跑的 `build_clients` 集成测试）、`tests/test_flr_verdict.py`。
+    > 那条集成测试直到 S9 才第一次在有 TF 的环境里跑，红在**夹具**少 `training.lr_decay`（F-063，已修；真实配置不受影响）。
+
+- **S9 评估仪表 + 两个存盘开关**（2026-09-28，Exp3 改版 S9；DECISIONS D-071 … D-075）。
+  取舍标准：一个量值得在线记，要能改变某个防御选择或预注册判定，且以后补比现在记贵
+  （P2 确定，F-045 / F-050 → 评估侧的量多数可以带仪表重跑那一格补回来）。
+  - **常开**（无配置键，不改 config_sha）：`attack/eval_detail.py`（纯 numpy）从**主列那一次前向**取
+    逐客户端 ASR / 干净精度（含恶意端自身）、触发样本 margin（log p_t − max log p_k，与 logit 差相等）分位数、
+    干净样本判为 y_t 的比例、按类 ASR、非目标翻转率 → `[EvalDetail]`（良性端池化）/ `[EvalDetailEdge]` /
+    `[ClientEval]`（"/" 连接的列表里 None 写 `na`，`utils/kvline.fmt_list`）。collect_metrics **schema 7**
+    （`rounds[]` 新列、`per_edge_detail_rounds` 紧凑行、`client_final` 按列、`dumps` manifest）。
+    **硬约束**：不多做前向、不碰 RNG、每个探针只调一次触发器（AST 守卫）；客户端 ASR 由整数 argmax 计数，
+    与主列逐位相同；细节打印放在 `t_asr` 计时之后。
+  - **两个开关**（`alignment.EXTRA_SWITCHES`，默认关，**只在组的 `set:` 里开**）：
+    `evaluation.dump_logits_every`（逐样本 fp16 对数概率）、`evaluation.snapshot_rounds: "30/70"`
+    （**写成字符串**：列表在 `[设定4]` 里往返会变形）。落盘 `$ROOT/../tfdpfl-dumps/<run_id>.<job>/`，
+    git 里只有 `[Dump]` manifest。快照 = 全局 + 每 edge 模型 + 每端 `private_state()` + 生成器（含 Adam）+
+    探针顺序，**只供评估，不能续训**。何时开（D-073）：登记表写明了消费它的离线分析才开；logits ≤ 50 MB / run、
+    快照 ≤ 3 次 / run，项目总预算 20 GB（组内共享 500 GB）。
+  - 验收工具：`harness/instrumentation_check.py <ref> <new> --upto R`（只比 checksum 与改动前就有的数值字段；
+    `check_reproducible.py` 比全部字段含计时，不适用）。G8 第 1–30 轮对 G6(a) 同 seed 就是它的 GPU 验证。
+  - 守卫：`tests/test_eval_detail.py`（解析值 + AST）/ `test_eval_detail_tf.py`（同一次前向、开关不改数、快照复原 fresh-PM）/
+    `test_collect_eval_detail.py`（打印 ↔ 解析同源、体积预算）/ `test_dump_switches.py` / `test_instrumentation_check.py`
+    （真实数据的正反锚点）/ `test_decay_verdict.py`。
 
 **留了接口但没有实现的**（不要以为它们能用）：
 - 主动防御（需要客户端配合的防御）：接口齐了（`BaseDefense.layers` /

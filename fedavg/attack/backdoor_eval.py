@@ -12,6 +12,7 @@ import tensorflow as tf
 
 from attack.drift_metrics import param_drift, repr_shift
 from attack.asr_counting import asr_counts, rates_from_counts   # A06（纯 numpy）
+from attack.eval_detail import client_record                      # S9（纯 numpy）
 
 
 def _f3(v):
@@ -19,13 +20,30 @@ def _f3(v):
     return "n/a" if v is None else f"{v:.3f}"
 
 
-def _acc_on_dataset(model, ds):
+def _acc_on_dataset(model, ds, *, detail=None):
     tc = tn = 0
     for x, y in ds:
         p = model(x, training=False).numpy()
         tc += np.sum(np.argmax(p, 1) == y.numpy())
         tn += x.shape[0]
+        if detail is not None:                     # S9：只收已算出的结果，不多做前向
+            detail.setdefault("clean_pred", []).append(np.argmax(p, 1))
+            detail.setdefault("y_clean", []).append(np.asarray(y.numpy()).reshape(-1))
+            if detail.get("keep_probs"):
+                detail.setdefault("clean_probs", []).append(p)
     return float(tc / tn) if tn else 0.0
+
+
+def _keep_probe_batch(detail, p):
+    """S9：把主列探针一个 batch 的概率 / argmax 收进 detail（p 是已经算出的 numpy）。"""
+    detail.setdefault("trig_pred", []).append(np.argmax(p, 1))
+    if detail.get("want_probs", True):
+        detail.setdefault("trig_probs", []).append(p)
+
+
+def _finish_probe(detail, Y):
+    detail["y_probe"] = np.asarray(Y).reshape(-1)
+    detail["n_probe"] = int(len(detail["y_probe"]))
 
 
 def _acc_on_numpy(model, x, y, batch_size=256):
@@ -122,7 +140,7 @@ def dataset_to_numpy(ds, max_samples=0):
 
 
 def compute_asr_on_dataset(model, ds, trigger_fn, target_label,
-                           max_samples=0, batch_size=256):
+                           max_samples=0, batch_size=256, *, detail=None):
     """在**留出分片**上算 ASR。返回 ``(asr 或 None, 合格样本数)``。
 
     与 `compute_asr` 的区别只是取数来源：那个吃 numpy 全量测试集，这个吃
@@ -136,6 +154,9 @@ def compute_asr_on_dataset(model, ds, trigger_fn, target_label,
     顺带地，ASR 与 `pm_acc` 这下测在同一个 population 上了。
 
     合格样本数为 0 → 返回 ``(None, 0)``：无定义，不是「ASR 为零」。
+
+    detail（S9，仅关键字）：非 None 时把这一次前向的概率 / argmax / 标签收进去
+    （attack/eval_detail.py 用）；返回值与计数一字不变。
     """
     X, Y = _collect_eligible(ds, target_label, max_samples)
     if X is None or len(Y) == 0:
@@ -145,15 +166,21 @@ def compute_asr_on_dataset(model, ds, trigger_fn, target_label,
     for i in range(0, len(Y), batch_size):
         p = model(xp[i:i + batch_size], training=False).numpy()
         hits += int(np.sum(np.argmax(p, 1) == int(target_label)))
+        if detail is not None:
+            _keep_probe_batch(detail, p)
+    if detail is not None:
+        _finish_probe(detail, Y)
     return float(hits / len(Y)), int(len(Y))
 
 
 def compute_asr_four_way(model, ds, trigger_fn, target_label, max_samples=0,
-                         batch_size=256):
+                         batch_size=256, *, detail=None):
     """
     A06 口径：探针 = 分片的**前 N 张（全部类别）**，整批加触发器（与官方一样，
     目标类样本也在批里 —— A05 official 下生成器的 batch 统计因此包含它们），
     同一次预测上同时数「过滤」与「不过滤」。返回 asr_counts 的 dict；探针为空 → None。
+
+    detail（S9，仅关键字）：同 compute_asr_on_dataset —— 只收这一次前向的结果。
     """
     X, Y = dataset_to_numpy(ds, max_samples)
     if X is None or len(Y) == 0:
@@ -161,7 +188,12 @@ def compute_asr_four_way(model, ds, trigger_fn, target_label, max_samples=0,
     xp = trigger_fn(model, X, Y)
     preds = []
     for i in range(0, len(Y), batch_size):
-        preds.append(np.argmax(model(xp[i:i + batch_size], training=False).numpy(), 1))
+        p = model(xp[i:i + batch_size], training=False).numpy()
+        preds.append(np.argmax(p, 1))
+        if detail is not None:
+            _keep_probe_batch(detail, p)
+    if detail is not None:
+        _finish_probe(detail, Y)
     return asr_counts(np.concatenate(preds), Y, target_label)
 
 
@@ -231,7 +263,8 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
                               global_test_ds, trigger_fn, target_label,
                               malicious_ids, fallback_test_ds=None,
                               batch_size=256, local_model_fn=None,
-                              asr_max_samples=0, asr_columns="filtered"):
+                              asr_max_samples=0, asr_columns="filtered",
+                              keep_probs=False, n_classes=None):
     """
     分别评估三层模型的 ASR 与干净精度（ACC）。
 
@@ -257,26 +290,35 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
         asr_columns   : "filtered"（旧）/ "four_way"（A06 / D-019）。four_way 下探针取
                         分片前 N 张（全类别），同一次预测上数「过滤 / 不过滤」，
                         额外返回 local_asr_benign_unfiltered_mean / local_asr_unfiltered_mean。
+        keep_probs    : S9 / D-073：客户端记录里附上 fp16 对数概率（logits 存盘用）。
+        n_classes     : 类别数；None → 取被评估模型的输出维度。
 
     Returns:
-        dict（见 log_round_metrics 使用的全部字段）
+        dict（见 log_round_metrics 使用的全部字段）。S9 起另有：
+          client_detail : 每个客户端一条 attack/eval_detail.client_record（**同一次前向**的结果，
+                          不多做前向、不碰 RNG；客户端 ASR 由整数 argmax 计数，与主列逐位相同）
+          probe_order   : [(kind, id, n_probe)] —— 主列 ξ 的随机数按这个顺序、按探针大小抽
+                          （global → 各 edge → clients），离线复现要照这个顺序
     """
     malicious_ids = set(int(i) for i in (malicious_ids or set()))
 
     # ── 全局模型：探针 = 所有客户端留出分片的并集 ─────────────────────────
     four = asr_columns == "four_way"
 
-    def _asr(model, ds):
-        """(过滤 ASR, 不过滤 ASR)；filtered 口径下后者恒为 None。"""
+    def _asr(model, ds, det=None):
+        """(过滤 ASR, 不过滤 ASR)；filtered 口径下后者恒为 None。det：S9 的细节收集。"""
         if not four:
             a, _ = compute_asr_on_dataset(model, ds, trigger_fn, target_label,
-                                          asr_max_samples, batch_size)
+                                          asr_max_samples, batch_size, detail=det)
             return a, None
         cnt = compute_asr_four_way(model, ds, trigger_fn, target_label,
-                                   asr_max_samples, batch_size)
+                                   asr_max_samples, batch_size, detail=det)
         return rates_from_counts(cnt) if cnt is not None else (None, None)
 
-    global_asr, global_asr_unf = _asr(global_model, global_test_ds)
+    probe_order = []                   # S9：主列 ξ 的随机数按这个顺序、按探针大小抽
+    g_det = {"want_probs": False}
+    global_asr, global_asr_unf = _asr(global_model, global_test_ds, g_det)
+    probe_order.append(("global", -1, g_det.get("n_probe", 0)))
     global_acc = _acc_on_dataset(global_model, global_test_ds)
 
     # ── 边缘模型 ──────────────────────────────────────────────────────────
@@ -285,7 +327,9 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
     for edge in edge_servers:
         # 探针 = 该 edge 下所有客户端留出分片的并集（与 em_acc 同一个集合）
         e_ds = edge.get_test_dataset() or global_test_ds
-        e_asr, _ = _asr(edge.model, e_ds)
+        e_det = {"want_probs": False}
+        e_asr, _ = _asr(edge.model, e_ds, e_det)
+        probe_order.append(("edge", int(edge.edge_id), e_det.get("n_probe", 0)))
         e_acc = _acc_on_dataset(edge.model, e_ds)
         edge_ids.append(int(edge.edge_id))
         edge_asr_per_node.append(e_asr)
@@ -304,6 +348,7 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
     # 都是逐 edge 的比较，聚合均值会把它们全抹平）
     benign_by_edge = {eid: [] for eid in edge_ids}
     malicious_by_edge = {eid: [] for eid in edge_ids}
+    client_detail = []
 
     for c in clients:
         cid = int(c.client_id)
@@ -314,11 +359,13 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
         # 全局均匀的官方测试集与某个客户端的类别分布可以差得很远）。
         ds = c.test_dataset if getattr(c, "test_dataset", None) is not None \
             else fallback_test_ds
+        det = None
         if ds is None:
             asr, asr_unf, acc = None, None, float("nan")
         else:
-            asr, asr_unf = _asr(eval_model, ds)
-            acc = _acc_on_dataset(eval_model, ds)
+            det = {"keep_probs": bool(keep_probs)}
+            asr, asr_unf = _asr(eval_model, ds, det)
+            acc = _acc_on_dataset(eval_model, ds, detail=det)
         local_asrs.append(asr)
         local_unf.append(asr_unf)
         local_accs.append(acc)
@@ -326,6 +373,11 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
             benign_unf.append(asr_unf)
 
         edge_id = int(getattr(c, "assigned_edge", -1))
+        # S9：同一次前向的细节（fresh-PM 草稿模型下一次 main_pm 就被覆盖，必须此刻取用）
+        client_detail.append(_client_record(
+            det, cid, edge_id, cid in malicious_ids, target_label,
+            n_classes if n_classes is not None else _n_outputs(eval_model), keep_probs))
+        probe_order.append(("client", cid, 0 if det is None else det.get("n_probe", 0)))
         if cid in malicious_ids:
             malicious_asrs.append(asr)
             malicious_by_edge.setdefault(edge_id, []).append(asr)
@@ -399,7 +451,34 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
         "global_asr_unfiltered":             global_asr_unf,
         "local_asr_unfiltered_mean":         _mean(local_unf),
         "local_asr_benign_unfiltered_mean":  _mean(benign_unf),
+        # S9：逐客户端细节 + 探针顺序（BackdoorCloudServer 打印 / 存盘后丢掉）
+        "client_detail":                     client_detail,
+        "probe_order":                       probe_order,
     }
+
+
+def _n_outputs(model):
+    """被评估模型的类别数（输出维度）。"""
+    return int(model.output_shape[-1])
+
+
+def _cat(det, key):
+    parts = det.get(key)
+    return np.concatenate(parts) if parts else None
+
+
+def _client_record(det, cid, edge_id, malicious, target_label, n_classes, keep_probs):
+    """S9：把 detail 里收集的分批结果拼起来，交给 attack/eval_detail.client_record。"""
+    if det is None:
+        return client_record(client_id=cid, edge_id=edge_id, malicious=malicious,
+                             target=target_label, n_classes=n_classes)
+    return client_record(
+        client_id=cid, edge_id=edge_id, malicious=malicious, target=target_label,
+        n_classes=n_classes,
+        trig_probs=_cat(det, "trig_probs"), trig_pred=_cat(det, "trig_pred"),
+        y_probe=det.get("y_probe"),
+        clean_pred=_cat(det, "clean_pred"), y_clean=_cat(det, "y_clean"),
+        clean_probs=_cat(det, "clean_probs"), keep_probs=bool(keep_probs))
 
 
 # ════════════════════════════════════════════════════════════════════════════

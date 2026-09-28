@@ -102,3 +102,26 @@ def collect_kv(lines, tag: str) -> list:
         if d is not None:
             out.append(d)
     return out
+
+
+# ── 列表字段："a/b/c"（与 [PartitionEdge] 的 class_counts 同一约定）──────────────
+# 列表里的 None 写 `na` 而**不是** `n/a`：后者本身含分隔符 "/"，拆开会错位。
+LIST_SEP = "/"
+LIST_NONE = "na"
+
+
+def fmt_list(values, digits: int = 4) -> str:
+    """[0.5, None, 3] → "0.5000/na/3"。空列表 → ""。"""
+    return LIST_SEP.join(LIST_NONE if v is None else fmt_value(v, digits) for v in values)
+
+
+def parse_list(v):
+    """fmt_list 的逆。parse_kv 可能已把单元素列表解析成数（"3" → 3），这里一并收回。"""
+    if v is None:
+        return None
+    if isinstance(v, bool) or isinstance(v, (int, float)):
+        return [v]
+    s = str(v)
+    if s == "":
+        return []
+    return [None if p == LIST_NONE else parse_value(p) for p in s.split(LIST_SEP)]

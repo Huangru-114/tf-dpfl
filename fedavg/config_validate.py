@@ -428,6 +428,37 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
                   f"== evaluation.eval_interval（{_acc_i}）：两个陈旧列共用一个评估点序号，"
                   f"网格不同就隔不到同一批点上（D-054）。")
 
+    # ── 4d'. 两个存盘开关（S9 / D-073；utils/dumps.py）────────────────────────
+    #   写错都会静默：dump_logits_every: true 在 Python 里等于 1；snapshot_rounds 写成
+    #   YAML 列表会在 [设定4] 里变成字符串；超过 n_rounds 的轮号永远不会到。全部拦掉。
+    _dl = ev_cfg.get("dump_logits_every", None)
+    if _dl is not None and (isinstance(_dl, bool) or not isinstance(_dl, int) or _dl < 0):
+        _fail(f"evaluation.dump_logits_every 必须是 ≥ 0 的整数（0 = 关），收到 {_dl!r}")
+    _snap = ev_cfg.get("snapshot_rounds", None)
+    if _snap is not None:
+        from utils.dumps import MAX_SNAPSHOTS, estimate_snapshot_bytes, parse_rounds
+        try:
+            _rounds = parse_rounds(_snap)
+        except ValueError as e:
+            _fail(f"evaluation.{e}")
+        _nr = int(fed.get("n_rounds", 0) or 0)
+        if len(_rounds) > MAX_SNAPSHOTS:
+            _fail(f"evaluation.snapshot_rounds={_snap!r}：每个 run 最多 {MAX_SNAPSHOTS} 个快照"
+                  f"（D-073，磁盘是组内共享的）")
+        if _nr and any(r > _nr for r in _rounds):
+            _fail(f"evaluation.snapshot_rounds={_snap!r} 里有轮号 > federation.n_rounds={_nr}"
+                  f" —— 那一轮永远不会到，快照静默缺失")
+        if config.get("stopping"):
+            warnings.append(
+                f"evaluation.snapshot_rounds={_snap!r} 与自适应停轮同开：提前停下时，"
+                f"停轮之后的快照轮会被静默跳过。固定长度的组请写 stopping: null。")
+        if str((config.get("model") or {}).get("arch", "")).startswith("resnet10"):
+            _est = estimate_snapshot_bytes(len(_rounds), int(fed.get("n_edges", 1) or 1) + 1,
+                                           4_909_002, int(fed.get("n_clients", 0) or 0), 10_890)
+            if _est > 1 << 30:
+                warnings.append(f"evaluation.snapshot_rounds={_snap!r}：估计 {_est / 2**30:.1f} GiB"
+                                f" / run（> 1 GiB），项目总预算 20 GB（D-073）")
+
     # ── 4e. 三层个性化（S8 / 3-E；utils/tier_split.py，D-057）──────────────
     #   四种写错都是「静默不生效或静默泄漏」：取值拼错（True == 1）、方法不是 FedRep
     #   （别的 edge server 广播照样整体覆盖 → edge 段每轮被冲掉，而 cloud 那边照样不聚合）、

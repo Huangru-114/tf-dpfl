@@ -39,8 +39,9 @@ def test_v2_group_sizes_match_plan():
         sizes[r["group"]] = sizes.get(r["group"], 0) + 1
     assert sizes == {"G0": 15, "G1": 24, "G2": 55, "G3": 24, "G4": 12, "G5": 15, "G6": 9,   # G3：S3 补 C1（D-062）
                      "FLR": 3,                   # FLR：floor 验证 pilot（D-061）
-                     "G7": 6}                    # G7：A4 登记（D-025 预处理对比）
-    assert len({r["run_id"] for r in runs}) == len(runs) == 163
+                     "G7": 6,                    # G7：A4 登记（D-025 预处理对比）
+                     "G8": 3, "G6D": 3}          # S9（D-075）：G8 衰减 + G6D 分散布点探针
+    assert len({r["run_id"] for r in runs}) == len(runs) == 169
 
 
 def test_v2_run_ids_and_factor_settings():
@@ -236,7 +237,8 @@ def test_materialize_real_v2_registry_only_unblocked_groups_are_generable(tmp_pa
     reg = R.Registry(V2)
     monkeypatch.setattr(reg, "configs_dir", tmp_path / "configs")
     rows = R.materialize(reg)
-    assert sorted(r["group"] for r in rows) == ["FLR"] * 3 + ["G3"] * 24 + ["G6"] * 9 + ["G7"] * 6
+    assert sorted(r["group"] for r in rows) == (["FLR"] * 3 + ["G3"] * 24 + ["G6"] * 9
+                                               + ["G6D"] * 3 + ["G7"] * 6 + ["G8"] * 3)
     with pytest.raises(R.RegistryError, match="不写 INDEX.tsv"):
         R.materialize(reg, groups=["G0", "G2"])
 
