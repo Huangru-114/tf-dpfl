@@ -1,9 +1,9 @@
 # current-focus —— Experiment 3（改版）· 交接
 
 > 本文件是 `CLAUDE.md`「新会话开场第 3 步」要读的那一份。
-> **写于 2026-09-27**（S8 会话结束时），**2026-09-28 补**：G6 探路包回传（6/9 run 有效，F-055）+ 余数跨格子合包（D-060）。
-> **S8（3-E 三层个性化）已完成 → G6 剩 3 个 s44 待交**（D-057 … D-060）。**下一会话由用户定**（候选见文末「功能会话一览」）。
-> G2 与 S5 仍暂缓（D-056；S5 预案 D-055）。
+> **写于 2026-09-28**（S3 会话，讨论 + 第 0 步）。S3 的设计已定稿（D-062 … D-066），**floor 验证 pilot `FLR` 已登记、待交**（D-061）。
+> **S3 的代码还没写**：下一步是出机构式比例表 + 离线预览实测 H，给用户确认（见下「下一步」②）。
+> G6 仍剩 3 个 s44 待交（D-060）；G2 与 S5 仍暂缓（D-056；S5 预案 D-055）。
 
 ## 几套编号（容易混，先看这里）
 
@@ -17,7 +17,27 @@
 | **F-001 … F-053 / N-001 … N-006** | `FINDINGS.md` 的证据条目 / 设计备注 | FINDINGS |
 | **P0 / P1 / P2** | 数据批次的口径版本；只有 P2 进结论 | PLAN §0 |
 
-## 本会话做了什么（2026-09-27，S8）
+## 本会话做了什么（2026-09-28，S3 讨论 + FLR 登记）
+
+**问题**：「S3 这个组要干什么、验证什么、和最后的防御设计有什么关系；划分怎么构造」—— 已回答并定稿；另按用户要求**先做 floor 验证**。
+
+| 决定 | 内容 |
+|---|---|
+| D-061 | **FLR**：G6(a) × ρ=0 × 3 seed，与 G6(a) 按 seed 配对；预注册判定 `harness/flr_verdict.py`（全部 ≤ 0.05 → 可忽略；任一 ≥ 0.10 或 E0 差 ≥ 0.05 → 不可忽略；阈值 ⚠ 待确认）→ 定 G0 规模 |
+| D-062 | C1–C4 用**机构式**比例表（C1–C4 之间只改 y_t 列；bird / ship 均匀）→ 3-B 判定改**差中差**，G3 补 C1 格 |
+| D-063 | α 按**社区口径**（每类参数 = α）；原文 Dir(α·p) 差 10 倍（F-056） |
+| D-064 | 干净集 500 / edge，按本 edge 分布 p_e，与客户端不相交 |
+| D-065 | P2 的 random = **等大小版**（G0-random / G1-random / G2 / G5）；写进组 `set:`，**不改 `base.yaml`** |
+| D-066 | G0 = 4 edge 集中 [10,0,0,0]、R5；规模等 FLR |
+
+- 供给核算（F-057）：n = 580 时 C2–C4 超供给，n = 560 无余量，**n 默认 500**（375 / 125）；层级 Dirichlet 名义 p_e 90–100% 超供给 → 必须投影。
+- 入库：`registry.yaml` 的 FLR 组 + `configs/FLR__g6a__s4{2,3,4}.yaml`（与 G6(a) 只差 `poison_ratio` 与 meta，`test_flr_verdict.py` 守着）、
+  `harness/flr_verdict.py` + 14 条 L1；`test_registry` / `test_status` 的组计数（157 → 160、非 blocked 组 + FLR）。G6 / G7 的 config_sha 不变。
+- L1（本地无 TF，venv；本会话实测）：改动前 1123 passed / 39 skipped / 3 xfailed → 改动后 **1139 passed / 37 skipped / 3 xfailed**（+14 条 FLR；+2 条是装了 matplotlib 后不再 skip 的出图测试）。
+  反向锚点：把配对守卫改成与 G6(b) 比 → 3 条全红。
+- 完整计划（含逐格运行表）：会话 plan 文件的内容已拆进 PLAN §3 / §4 / §5 与本文件。
+
+## 历史：S8（2026-09-27）
 
 **问题**：「实现 3-E 三层个性化（cloud 只聚合全局共享段、edge 内共享一段中间层、客户端私有 head），让 G6 能跑。」—— 已回答。
 
@@ -40,18 +60,32 @@
 - **L2 替身**（本地 CPU、随机数据，N-005 的做法；只证明接线，数字无意义）：G6 (b)/(a) 缩到 20 端 / 4 edge / R2 / 2 云轮，见下「L2 替身」。
 - **真正的 L2 = 集群交 G6**（用户）：命令见下。
 
-## 下一步：交 G6 剩下的 3 个 run（用户，集群）
+## 下一步
 
-**2026-09-28 状态**：三个 K=2 探路包已回传（`3672a21`），6 个 run 全部有效（F-055）；每臂剩 s44。
+**① 用户（集群）：交 G6 剩下的 3 个 s44 + FLR 的探路包**
 
 ```bash
-git pull                                                                 # 本分支（含 D-060）
-bash experiments/attack/hfl-mechanism/submit.sh --status                 # G6：done=6、todo=3；G7：stale=6
-PACK=3 RUN_GROUPS=G6 bash experiments/attack/hfl-mechanism/submit.sh --dry-run
-#   → [pack] G6：3 个格子的余数跨格子合包 K=3 … 3 → 1 个作业
-#     would sbatch -c 12 pack  G6__mix-a+b+c__pack-k3-s44  G6__a__s44 G6__b__s44 G6__c__s44
-PACK=3 RUN_GROUPS=G6 bash experiments/attack/hfl-mechanism/submit.sh
+git pull                                                                 # 本分支（含 D-061）
+bash experiments/attack/hfl-mechanism/submit.sh --status                 # G6：done=6、todo=3；FLR：todo=3；G7：stale=6
+PACK=3 RUN_GROUPS="G6 FLR" bash experiments/attack/hfl-mechanism/submit.sh --dry-run
+#   → would sbatch -c 8  pack  FLR__g6a__pack-k2-s42  FLR__g6a__s42 FLR__g6a__s43      （新格子先 K=2 探路，D-052）
+#     would sbatch -c 12 pack  G6__mix-a+b+c__pack-k3-s44  G6__a__s44 G6__b__s44 G6__c__s44   （D-060）
+PACK=3 RUN_GROUPS="G6 FLR" bash experiments/attack/hfl-mechanism/submit.sh
+# 探路包回来后再跑一次同一条命令 → FLR__g6a__s44 按显存定 K 交出
+python3 harness/flr_verdict.py --json experiments/attack/hfl-mechanism/analysis/flr_verdict.json
 ```
+
+- FLR 与 G6(a) 同配置同显存（约 17 GiB / run，F-055），按 D-052 仍先探路。
+- FLR 回传后核对：`run.poison_ratio == 0`、`client_failures == []`、`run.malicious_ids` 与同 seed 的 G6(a) 相同（判定脚本会报 `same_malicious_ids`）。
+- **判定阈值 0.05 / 0.10 ⚠ 待用户确认**（D-061）；判定为 `user_decides` 时由用户定 G0 规模。
+
+**② Claude（S3 继续）：出比例表 + 离线预览，用户确认后才写划分代码**
+- 机构式 4 × 10 比例表（D-062：非目标类异质、C1–C4 只改 y_t 列、bird / ship 均匀）+ C1–C4 的 y_t 列；
+- `harness/partition_preview.py`（无 TF、无 GPU）对 C1–C4、hdir 四档、等大小 random × 3 seed 实际生成划分，出 (H_inter, H_intra) 表；
+  α_e 四档投影后分不开就回来和用户改档位。
+- 之后按 PLAN §5 的 S3 行实现（`fedavg/data/designed_partition.py` 不 import TF；`[Data]` 行 → schema 6；无放回；不碰全局 `np.random`）。
+
+**G6 的 s44 的注意事项**（沿用）：
 
 - 这是第一次 **K=3 的满长包**：回传后先看 `G6__mix-a+b+c__pack-k3-s44.gpu.json` 的 `n_oom` / `n_mem_warnings` / `run_peak_mib`。
   OOM 的 run 会记 exit 86 → 再跑一次上面的命令会自动降到 K ≤ 2 重交（合包的 OOM 对三个格子都生效）。
@@ -80,8 +114,8 @@ N-005 的做法（随机数据），G6 配置缩到 20 端 / 4 edge / [2,0,0,0] 
 |---|---|---|---|
 | ~~S8~~ 三层个性化 | G6（3-E，可选） | 9 | ✅ 本会话完成；**G6 待交**（上面的命令） |
 | S5 逐 edge 轮评估 | G2（3-A）、G1 的前提之一 | 55 | **暂缓**（D-056）；预案已拍板（D-055）：`eval_grid: 5`、轻评估只算主列并喂停止判据（横轴改网格序号，F-052）、GM / EM 只在网格点上算 |
-| S3 新划分（C1–C4、层级 Dirichlet） | G3（3-B） | 21 | 另是 G0 / G1 的前提 |
-| S4 影子攻击者 + 攻击起始轮 | G5（3.3） | 15 | 另是 G0 的前提；3-E 若以后要 excess ASR，floor 格（ρ=0 × 三划分）也要它（D-059） |
+| **S3 新划分**（进行中：设计已定 D-062 … D-066，代码未写） | G3（3-B） | 24（含 D-062 补的 C1） | 另是 G0 / G1 的前提；下一步见上「下一步」② |
+| S4 影子攻击者 + 攻击起始轮 | G5（3.3） | 15 | 另是 G0 的前提（G0 规模等 FLR，D-061）；ρ=0 本身只要改配置（FLR 已用），S4 的活是 L1 守卫、ξ-only 是否做（D-051 与 PLAN 的 S4 行写法不一致，开 S4 时确认）、`attack_start_round`、G5 的拓扑与窗口单位 |
 | S6 更新日志 | G4（3.2，**搁置**，D-047） | 12 | 3.2 的假设要先按 N-003 重新表述（用户）；F-051「私有 head 挡不住 ξ」是相关证据 |
 | S7 判定代码 + 出图 | — | — | 3-E 的判定（D-059 口径）属于这里，本会话没写 |
 | —（无需会话） | **G7**（预处理对比，D-025） | 6 | ✅ 已跑完并判定（`5edd4df`，事后判据「是」，D-049 / F-050）；重新 materialize 后显示 stale（预期） |
@@ -107,7 +141,9 @@ N-005 的做法（随机数据），G6 配置缩到 20 端 / 4 edge / [2,0,0,0] 
 | cifar100 静态触发器的标准化常数 | 需要时 | N-004：只记录，没改 |
 | 交 G6 的 3 个 s44 并回传 | 用户（集群） | 上面「下一步」；探路包已回（F-055），剩 1 个 K=3 合包（D-060） |
 | 3-E 的判定代码（D-059 口径） | S7 / 需要时 | 受害 edge 的原始 benign ASR 配对差 + MTA；「三臂 floor 相同」无证据 |
-| 3-E 的 floor 格（ρ=0 × 三划分） | 用户，需要时 | 要 excess ASR 才需要；等 S4；不用重跑 G6（D-059） |
+| 3-E 的 floor 格（ρ=0 × 三划分） | 用户，需要时 | 臂 (a) 的 floor = FLR（D-061）；(b)(c) 要 excess ASR 才需要，不用重跑 G6（D-059） |
+| FLR 判定阈值 0.05 / 0.10 | 用户 | ⚠ 待确认（D-061）；用户在另一仓库做过类似评估（「比随机高一些」），数值可用来定阈值 |
+| hdir 四档要不要 floor | 用户，FLR 回来后 | D-066；FLR 判 `negligible` 则不需要 |
 | MTA 门槛「≤ 0.02」 | 用户 | 仍 ⚠待确认（PLAN §3） |
 
 ## 容易踩的坑

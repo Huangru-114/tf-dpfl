@@ -14,6 +14,8 @@
 #   · 2026-09-27 S8 完成（3-E 三层个性化，D-057 … D-059）→ `available: [S8]`，G6 的 set 已补齐，可生成配置
 #   · 2026-09-27：base.yaml 加了评估降频（D-050 / D-054）→ 所有 P2 组的 config_sha 变了。
 #     S8 会话（2026-09-27）已重新 materialize → 已判完的 G7 显示 stale —— 预期，submit.sh 默认不重交 stale（D-053）
+#   · 2026-09-28（S3 讨论）：登记 FLR（floor 验证 pilot，D-061，只改配置，可交）；G0 规模等它的判定。
+#     S3 的新划分（D-062 … D-065）**写进各组 `set:`，不改 base.yaml** —— 改了会让 G6 待交的 s44 按新划分重新生成
 # 功能会话完成时，把它的 token 加进 `available`，并补上对应组的 `set:`。
 # **补 `set:` 时核对三件**（G2 就是漏了这三件，test_registry 守着）：
 #   malicious_per_edge 的长度 = n_edges；n_rounds × edge_rounds ≥ cap_effective；各格评估网格（有效轮）一致。
@@ -140,6 +142,23 @@ groups:
         - {label: a, set: {federation.edge_shared_blocks: 0}}
         - {label: b, set: {federation.edge_shared_blocks: 1}}
         - {label: c, set: {federation.edge_shared_blocks: 2}}
+
+  FLR:
+    purpose: "floor 验证 pilot（D-061）：G6 臂 (a) 原样 × ρ=0 影子攻击者，与 G6(a) 按 seed 配对 → floor 多大、edge 间差多少 → 定 G0 规模"
+    requires: [audit]
+    seeds: [42, 43, 44]
+    # 2026-09-28（S3 会话讨论，用户：「先做一组验证对比试验再把这个写进计划」）：
+    #   · 配置 = G6 的 set + (a) 臂（edge_shared_blocks 0）逐字相同，**只改 poison_ratio: 0**
+    #     → 同 seed 下划分、恶意端 id、评估用的固定攻击者都与 G6(a) 相同（都只由 seed 决定）
+    #   · ρ=0：伯努利掩码全 False 且不消耗 rng（attack/poison_mask.py）；生成器照常训（闸门是 _attack_active）；
+    #     有恶意端 → 评估走生成器 + ξ，不回退静态 BadNet（F-006）
+    #   · 判定：harness/flr_verdict.py（预注册，阈值 ⚠ 待用户确认，D-061）
+    #   · 不改 base.yaml（G6 的 s44 还没交，改了会重新生成）
+    set: {federation.n_edges: 4, federation.n_rounds: 60,
+          backdoor.malicious_per_edge: [10, 0, 0, 0], stopping: null,
+          federation.edge_shared_blocks: 0, backdoor.poison_ratio: 0.0}
+    cells:
+      - {cell: g6a}
 
   G7:
     purpose: "预处理对比（D-025）：主协议（标准化 + 增强）vs 官方预处理（不标准化、不增强），同 seed 配对。检验「官方设定降低了攻击难度」"
