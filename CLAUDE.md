@@ -318,7 +318,8 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
       显存峰值 96 GiB 已近满 → 新配置类型先单独交一个 pack 作业看显存。
     - **已接入提交脚本**（`c88a023`，D-052 / D-053）：`PACK=3 RUN_GROUPS=… bash hfl-mechanism/submit.sh`
       （`pilot/submit_pilot.sh` 同样；共用 `submit_lib.sh`，纯 bash）。`PACK` 不设 = 一卡一跑，逐字同以前。
-      **核心是不触发 OOM、尽量省机时**：同一包只放同一格子的不同 seed；格子第一次只交 K=2 的探路包、其余 held；
+      **核心是不触发 OOM、尽量省机时**：同一包只放同一格子的不同 seed；格子第一次只交一个 PROBE_K 的包、其余 held
+      （PROBE_K **缺省 3**，D-069：G6 已实测每 run 约 17 GiB；显存没测过的新配置类型写 `PROBE_K=2`）；
       回传后按**真实显存峰值**定 K（服务器新打的 `[GPUMem]` = TF 分配器 `get_memory_info` 峰值 → `gpu_mem.peak_mib`；
       整卡 `memory.used` 在 allow_growth 下含预留块、偏大，F-053）；OOM 过 → 降一档。
       被 `_collect_updates_*` 吞掉的 OOM 会让 run 照样 exit 0 → `pack.sbatch` 按日志判 OOM、exit_code 记 86。
@@ -327,6 +328,7 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
       **余数跨格子合包**（2026-09-28，D-060）：各格子切完满包剩下的不满 K 的那一包，若 K 来自真实峰值、无 OOM / 显存告警、
       同组格子峰值相差 ≤ `PACK_MIX_TOL_PCT`（10%）、且合后作业数变少 → 合成 `<组>__mix-a+b+…__pack-…`；`PACK_MIX=0` 关。
       G6 探路包实测：真实峰值约 17 GiB / run，整卡读数约其 2 倍（F-055）。
+      **确实是并行的**（F-059）：包墙钟 ≈ 单个 run 的耗时（11.1k s），不是两个之和（21.6k s）；每有效轮的训练时间与单跑相同。
     - `[TimingASR] Round N | main=… | whitebox=… | stale=…`（独立 kv 行，**不改 `[Timing]`**）→
       `timing_rounds[].asr_*_s` 与 `timing_summary.asr_split_total_s`。实测白盒 7.2%、陈旧 ASR 7.3% 墙钟（F-051）
       → D-050 / D-054：**白盒关、陈旧 ASR 与陈旧 pm_acc 都隔点**（同一批点，共用 `CloudServer._eval_seq`）——

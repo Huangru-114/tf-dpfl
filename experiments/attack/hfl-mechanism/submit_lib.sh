@@ -13,8 +13,11 @@
 # 2. 一卡多跑（D-048 / D-052），PACK=K>1 时生效；PACK 未设 / =1 → 调用方照旧一卡一跑。
 #    核心：**不触发 OOM、尽量省机时**。
 #      · 分桶：同一个包里只放**同一格子**（group__cell）的不同 seed —— 同一种配置类型。
-#      · 探路：格子还没有任何 <group>__<cell>__pack-*.gpu.json → 只交一个 PROBE_K（缺省 2）的包，
-#        其余打印 held，等显存数据回来后再跑一次本脚本。5 个 seed = 2（探路）+ 3，包数与 3+2 相同。
+#      · 探路：格子还没有任何 <group>__<cell>__pack-*.gpu.json → 只交一个 PROBE_K（缺省 3）的包，
+#        其余打印 held，等显存数据回来后再跑一次本脚本。3 个 seed 的格子一个包交完、没有 held。
+#        缺省 3（D-069）：G6 的 K=2 探路包实测每 run 真实峰值约 17 GiB（F-055），同模型、同拓扑的格子
+#        K=3 约 54 GiB < 容量 83 GiB；万一 OOM，下面的降档规则兜底。**显存没测过的新配置类型**
+#        （如 G2 的 10 edge / R20）交时显式写 PROBE_K=2（D-048 的「新配置类型先探路」）。
 #      · 定 K：K_cell = min(PACK, ⌊mem_total × PACK_MEM_PCT% / (run_peak_max + PACK_CTX_MIB)⌋)。
 #        run_peak 是 TF 分配器的真实峰值（[GPUMem]）；没有它就退回 mem_max / k（整卡读数，偏保守）；
 #        连容量都没有 → 不超过已经跑通过的 k。PACK_MEM_PCT=85、PACK_CTX_MIB=1024 **没有证据**，
@@ -36,7 +39,7 @@
 # ══════════════════════════════════════════════════════════════════════════
 
 PACK="${PACK:-1}"
-PROBE_K="${PROBE_K:-2}"
+PROBE_K="${PROBE_K:-3}"
 PACK_MEM_PCT="${PACK_MEM_PCT:-85}"
 PACK_CTX_MIB="${PACK_CTX_MIB:-1024}"
 RESUBMIT_STALE="${RESUBMIT_STALE:-0}"
@@ -177,7 +180,11 @@ pack_flush() {
             local p=$PROBE_K
             [ "$PACK" -lt "$p" ] && p=$PACK
             [ "${#idx[@]}" -lt "$p" ] && p=${#idx[@]}
-            echo "  [pack] $key：探路 k=$p（$why）；其余 $(( ${#idx[@]} - p )) 个 held，显存数据回来后再跑一次"
+            if [ "${#idx[@]}" -gt "$p" ]; then
+                echo "  [pack] $key：探路 k=$p（$why）；其余 $(( ${#idx[@]} - p )) 个 held，显存数据回来后再跑一次"
+            else
+                echo "  [pack] $key：探路 k=$p（$why；PROBE_K=$PROBE_K）；全部交出，OOM 会记 exit 86、再跑一次自动降档"
+            fi
             _submit_pack "$key" "${idx[@]:0:$p}"
             held=$((held + ${#idx[@]} - p))
             continue

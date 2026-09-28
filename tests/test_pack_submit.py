@@ -3,7 +3,7 @@ tests/test_pack_submit.py  —  一卡多跑接进提交脚本（D-052）+ stale
 
 核心要求：**不触发 OOM、尽量省机时**。
   · PACK 未设 → 与以前逐字相同（一卡一跑，cell.sbatch）；
-  · 同一个包只放同一格子的不同 seed；格子第一次先交 PROBE_K=2 的探路包，其余 held；
+  · 同一个包只放同一格子的不同 seed；格子第一次先交 PROBE_K（缺省 3，D-069）的首包，其余 held；
   · 探路回来后按 gpu.json 的真实峰值定 K；OOM 过 → 降一档；
   · pack.sbatch 把被吞掉的 OOM 判成非 0 退出码（run 照样 exit 0 但结果无效）；
   · exit 0 但 config_sha 不符 → stale，默认不重交；
@@ -157,18 +157,43 @@ def test_pack_one_is_the_same_as_unset(study, fake_sbatch):
 
 
 # ══════════════════════════════════════════════════════════════════════════
-# 探路：每格一个 K=2 的包，其余 held
+# 探路：每格一个 PROBE_K 的包，其余 held。缺省 PROBE_K=3（D-069：G6 已实测 K=3 放得下）；
+# 显存没测过的新配置类型显式写 PROBE_K=2（D-048 / D-052 原规则）。
 # ══════════════════════════════════════════════════════════════════════════
-def test_first_submission_is_one_k2_probe_per_cell(study, fake_sbatch):
+def test_first_submission_is_one_k3_pack_per_cell_by_default(study, fake_sbatch):
     d, _, _ = study
     bindir, log = fake_sbatch
     out = _run(d / "submit.sh", bindir=bindir, mech_dir=d, PACK=3)
     assert out.returncode == 0, out.stderr
     packs = _pack_calls(log)
+    assert packs == [(3, "GA__e2__pack-k3-s42", ["GA__e2__s42", "GA__e2__s43", "GA__e2__s44"]),
+                     (3, "GA__e4__pack-k3-s42", ["GA__e4__s42", "GA__e4__s43", "GA__e4__s44"])]
+    assert "本次入队=6" in out.stdout and "held=4" in out.stdout
+    assert len(_calls(log)) == 2                                   # 没有漏交成单跑
+
+
+def test_probe_k2_is_still_available_for_untested_config_types(study, fake_sbatch):
+    """D-069 之前的缺省；10 edge / R20 这类显存没测过的配置类型第一次交时显式写 PROBE_K=2。"""
+    d, _, _ = study
+    bindir, log = fake_sbatch
+    out = _run(d / "submit.sh", bindir=bindir, mech_dir=d, PACK=3, PROBE_K=2)
+    assert out.returncode == 0, out.stderr
+    packs = _pack_calls(log)
     assert packs == [(2, "GA__e2__pack-k2-s42", ["GA__e2__s42", "GA__e2__s43"]),
                      (2, "GA__e4__pack-k2-s42", ["GA__e4__s42", "GA__e4__s43"])]
     assert "本次入队=4" in out.stdout and "held=6" in out.stdout
-    assert len(_calls(log)) == 2                                   # 没有漏交成单跑
+
+
+def test_three_seed_cell_is_submitted_whole_by_default(study, fake_sbatch):
+    """FLR / G3 的形状：每格 3 个 seed → 一个 K=3 包交完，没有 held（探路 K=2 时要交两次）。"""
+    d, reg, rows = study
+    bindir, log = fake_sbatch
+    for cell in ("e2", "e4"):
+        for s in (45, 46):
+            _done(reg, rows, f"GA__{cell}__s{s}")                   # 每格只剩 42 / 43 / 44
+    out = _run(d / "submit.sh", bindir=bindir, mech_dir=d, PACK=3)
+    assert [p[0] for p in _pack_calls(log)] == [3, 3]
+    assert "held=0" in out.stdout
 
 
 def test_probe_k_is_capped_by_pack_and_by_pending_runs(study, fake_sbatch):
@@ -198,7 +223,7 @@ def test_measured_peak_allows_k3_for_the_remaining_three(study, fake_sbatch):
     out = _run(d / "submit.sh", bindir=bindir, mech_dir=d, PACK=3)
     packs = _pack_calls(log)
     assert (3, "GA__e2__pack-k3-s44", ["GA__e2__s44", "GA__e2__s45", "GA__e2__s46"]) in packs
-    assert (2, "GA__e4__pack-k2-s42", ["GA__e4__s42", "GA__e4__s43"]) in packs  # e4 仍在探路
+    assert (3, "GA__e4__pack-k3-s42", ["GA__e4__s42", "GA__e4__s43", "GA__e4__s44"]) in packs  # e4 仍在探路
     assert "GA__e2：K=3" in out.stdout
 
 
@@ -418,14 +443,14 @@ def test_audit_gate_still_blocks_under_pack(tmp_path, fake_sbatch):
     out = _run(d / "submit.sh", bindir=bindir, mech_dir=d, PACK=3)
     assert out.returncode == 0, out.stderr
     assert not _calls(log) and "本次入队=0" in out.stdout
-    assert "would sbatch -c 8 pack  GA__e2__pack-k2-s42" in out.stdout
+    assert "would sbatch -c 12 pack  GA__e2__pack-k3-s42" in out.stdout
 
 
 def test_dry_run_under_pack_submits_nothing(study, fake_sbatch):
     d, _, _ = study
     bindir, log = fake_sbatch
     out = _run(d / "submit.sh", "--dry-run", bindir=bindir, mech_dir=d, PACK=3)
-    assert not _calls(log) and out.stdout.count("would sbatch -c 8 pack") == 2
+    assert not _calls(log) and out.stdout.count("would sbatch -c 12 pack") == 2
 
 
 def test_bad_pack_value_is_rejected(study, fake_sbatch):
@@ -463,7 +488,7 @@ def test_pilot_submit_supports_pack_and_stale(tmp_path, fake_sbatch):
     bindir, log = fake_sbatch
     out = _run(mech / "pilot" / "submit_pilot.sh", bindir=bindir, PACK=3)
     assert out.returncode == 0, out.stderr
-    assert [p[1] for p in _pack_calls(log)] == ["GA__e2__pack-k2-s42", "GA__e4__pack-k2-s42"]
+    assert [p[1] for p in _pack_calls(log)] == ["GA__e2__pack-k3-s42", "GA__e4__pack-k3-s42"]
     assert all(c[3].endswith("/pack.sbatch") for c in _calls(log))
     _done(reg, rows, "GA__e2__s46", sha="000000000000")
     st = _run(mech / "pilot" / "submit_pilot.sh", "--status", bindir=bindir)
