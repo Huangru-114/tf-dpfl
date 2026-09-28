@@ -6,7 +6,8 @@ tests/test_pack_submit.py  —  一卡多跑接进提交脚本（D-052）+ stale
   · 同一个包只放同一格子的不同 seed；格子第一次先交 PROBE_K=2 的探路包，其余 held；
   · 探路回来后按 gpu.json 的真实峰值定 K；OOM 过 → 降一档；
   · pack.sbatch 把被吞掉的 OOM 判成非 0 退出码（run 照样 exit 0 但结果无效）；
-  · exit 0 但 config_sha 不符 → stale，默认不重交。
+  · exit 0 但 config_sha 不符 → stale，默认不重交；
+  · 余数跨格子合包（D-060）：只合余数、只合真实峰值相近且无 OOM 的格子、只在作业数变少时合。
 
 纯 bash + 标准库 + pyyaml：合成一个 2 格 × 5 seed 的研究，PATH 上放一个 sbatch 替身记录参数。
 """
@@ -35,7 +36,7 @@ SEEDS = [42, 43, 44, 45, 46]
 # ══════════════════════════════════════════════════════════════════════════
 # 合成研究 + sbatch 替身
 # ══════════════════════════════════════════════════════════════════════════
-def _study(d: Path, audit_status="done"):
+def _study(d: Path, audit_status="done", cells=("e2", "e4"), seeds=SEEDS):
     d.mkdir(parents=True, exist_ok=True)
     (d / "base.yaml").write_text(yaml.safe_dump({
         "seed": 1, "federation": {"n_edges": 2, "edge_rounds": 5, "n_clients": 100},
@@ -44,9 +45,9 @@ def _study(d: Path, audit_status="done"):
     (d / "registry.yaml").write_text(yaml.safe_dump({
         "study": "demo", "protocol": "P2", "layout": "nested", "base": "base.yaml",
         "audit": "AUDIT.md", "available": [],
-        "groups": {"GA": {"requires": ["audit"], "seeds": SEEDS,
-                          "factors": {"e": [{"label": "e2"},
-                                            {"label": "e4", "set": {"federation.n_edges": 4}}]}}},
+        "groups": {"GA": {"requires": ["audit"], "seeds": list(seeds),
+                          "factors": {"e": [{"label": c, "set": {"federation.edge_rounds": i + 1}}
+                                            for i, c in enumerate(cells)]}}},
     }, sort_keys=False))
     reg = R.Registry(d / "registry.yaml")
     rows = R.materialize(reg)
@@ -78,7 +79,8 @@ def fake_sbatch(tmp_path):
 def _run(script: Path, *args, bindir=None, mech_dir=None, **env):
     e = {**os.environ, "TFDPFL_ROOT": str(ROOT),
          "PATH": (f"{bindir}:" if bindir else "") + "/usr/bin:/bin"}
-    for k in ("PACK", "PROBE_K", "PACK_MEM_PCT", "PACK_CTX_MIB", "RESUBMIT_STALE", "RUN_GROUPS"):
+    for k in ("PACK", "PROBE_K", "PACK_MEM_PCT", "PACK_CTX_MIB", "RESUBMIT_STALE", "RUN_GROUPS",
+              "PACK_MIX", "PACK_MIX_TOL_PCT"):
         e.pop(k, None)
     if mech_dir is not None:
         e["TFDPFL_MECH_DIR"] = str(mech_dir)
@@ -251,16 +253,18 @@ def test_oom_caps_k_below_the_pack_that_failed(study, fake_sbatch):
 
 
 def test_packs_never_mix_cells(study, fake_sbatch):
+    """满包永远同格子；余数 2 + 2 合成 3 + 1 仍是 2 个作业 → 不省就不合（D-060），各交各的。"""
     d, reg, rows = study
     bindir, log = fake_sbatch
     for cell in ("e2", "e4"):
         _gpu_json(reg, cell, 2, mem_total_mib=97871, run_peak_max_mib=5000.0)
-    _run(d / "submit.sh", bindir=bindir, mech_dir=d, PACK=3)
+    out = _run(d / "submit.sh", bindir=bindir, mech_dir=d, PACK=3)
     packs = _pack_calls(log)
     assert sorted(p[0] for p in packs) == [2, 2, 3, 3]              # 每格 5 = 3 + 2
     for _, tag, rids in packs:
         cells = {r.split("__")[1] for r in rids}
         assert len(cells) == 1 and tag.startswith(f"GA__{cells.pop()}__pack-")
+    assert "不省" in out.stdout
 
 
 def test_done_runs_never_enter_a_pack(study, fake_sbatch):
@@ -271,6 +275,135 @@ def test_done_runs_never_enter_a_pack(study, fake_sbatch):
     _run(d / "submit.sh", bindir=bindir, mech_dir=d, PACK=3, RUN_GROUPS="GA")
     rids = [r for p in _pack_calls(log) for r in p[2]]
     assert "GA__e2__s44" not in rids and len(rids) == len(set(rids))
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 余数跨格子合包（D-060）—— G6 的形状：3 个格子 × 3 个 seed，探路包用掉 s42 / s43
+# ══════════════════════════════════════════════════════════════════════════
+G6_PEAK = 16951.9            # 2026-09-28 G6 探路包回传的真实峰值（三臂 16764–16952 MiB）
+
+
+@pytest.fixture
+def g6like(tmp_path):
+    d = tmp_path / "g6"
+    reg, rows = _study(d, cells=("a", "b", "c"), seeds=(42, 43, 44))
+    for f in ("submit.sh", "submit_lib.sh"):
+        shutil.copy(MECH / f, d / f)
+    return d, reg, rows
+
+
+def _mixed_gpu_json(reg, cells, k, first_seed, **fields):
+    d = _metrics_path(reg, f"GA__{cells[0]}__s42").parent
+    d.mkdir(parents=True, exist_ok=True)
+    base = {"k": k, "runs": [], "mem_total_mib": 97871, "run_peak_max_mib": None,
+            "mem_max_mib": None, "n_oom": 0, "n_mem_warnings": 0}
+    base.update(fields)
+    (d / f"GA__mix-{'+'.join(cells)}__pack-k{k}-s{first_seed}.gpu.json").write_text(json.dumps(base))
+
+
+def _g6_probed(reg, rows, cells=("a", "b", "c"), **fields):
+    for c in cells:
+        _probe_done(reg, rows, c)
+        _gpu_json(reg, c, 2, **({"mem_total_mib": 97871, "run_peak_max_mib": G6_PEAK} | fields))
+
+
+def test_g6_leftovers_with_equal_real_peaks_share_one_gpu(g6like, fake_sbatch):
+    """真实场景：三臂各剩 s44 → 不合是 3 个 K=1 作业，合了是 1 个 K=3 作业。"""
+    d, reg, rows = g6like
+    bindir, log = fake_sbatch
+    _g6_probed(reg, rows)
+    out = _run(d / "submit.sh", bindir=bindir, mech_dir=d, PACK=3)
+    assert _pack_calls(log) == [(3, "GA__mix-a+b+c__pack-k3-s44",
+                                 ["GA__a__s44", "GA__b__s44", "GA__c__s44"])]
+    assert "3 → 1 个作业" in out.stdout
+
+
+def test_pack_mix_0_restores_one_cell_per_pack(g6like, fake_sbatch):
+    d, reg, rows = g6like
+    bindir, log = fake_sbatch
+    _g6_probed(reg, rows)
+    _run(d / "submit.sh", bindir=bindir, mech_dir=d, PACK=3, PACK_MIX=0)
+    assert _pack_calls(log) == [(1, f"GA__{c}__pack-k1-s44", [f"GA__{c}__s44"]) for c in "abc"]
+
+
+def test_bad_pack_mix_value_is_rejected(g6like, fake_sbatch):
+    d, _, _ = g6like
+    bindir, log = fake_sbatch
+    out = _run(d / "submit.sh", bindir=bindir, mech_dir=d, PACK=3, PACK_MIX=2)
+    assert out.returncode != 0 and not _calls(log)
+
+
+def test_peaks_beyond_tolerance_are_not_mixed_at_all(g6like, fake_sbatch):
+    """一组里有一个格子峰值差太多 → 整组都不合（不做部分合包）。"""
+    d, reg, rows = g6like
+    bindir, log = fake_sbatch
+    _g6_probed(reg, rows, cells=("a", "b"))
+    _g6_probed(reg, rows, cells=("c",), run_peak_max_mib=20000.0)      # (20000 − 16951) / 20000 = 15%
+    out = _run(d / "submit.sh", bindir=bindir, mech_dir=d, PACK=3)
+    assert [p[0] for p in _pack_calls(log)] == [1, 1, 1]
+    assert "相差超过 10%" in out.stdout
+
+
+def test_tolerance_is_configurable(g6like, fake_sbatch):
+    d, reg, rows = g6like
+    bindir, log = fake_sbatch
+    _g6_probed(reg, rows, cells=("a", "b"))
+    _g6_probed(reg, rows, cells=("c",), run_peak_max_mib=20000.0)
+    _run(d / "submit.sh", bindir=bindir, mech_dir=d, PACK=3, PACK_MIX_TOL_PCT=20)
+    assert [p[1] for p in _pack_calls(log)] == ["GA__mix-a+b+c__pack-k3-s44"]
+
+
+def test_cell_without_a_real_peak_is_not_mixed(g6like, fake_sbatch):
+    """只有整卡读数（没有 [GPUMem]）的格子不参与合包；其余两个照合。"""
+    d, reg, rows = g6like
+    bindir, log = fake_sbatch
+    _g6_probed(reg, rows, cells=("a", "b"))
+    _probe_done(reg, rows, "c")
+    _gpu_json(reg, "c", 2, mem_total_mib=97871, mem_max_mib=67016)
+    _run(d / "submit.sh", bindir=bindir, mech_dir=d, PACK=3)
+    assert sorted(_pack_calls(log)) == [
+        (1, "GA__c__pack-k1-s44", ["GA__c__s44"]),
+        (2, "GA__mix-a+b__pack-k2-s44", ["GA__a__s44", "GA__b__s44"])]
+
+
+@pytest.mark.parametrize("bad", [{"n_oom": 1, "oom_runs": ["GA__c__s43"]}, {"n_mem_warnings": 3}])
+def test_cell_with_oom_or_memory_warnings_is_not_mixed(g6like, fake_sbatch, bad):
+    d, reg, rows = g6like
+    bindir, log = fake_sbatch
+    _g6_probed(reg, rows, cells=("a", "b"))
+    _g6_probed(reg, rows, cells=("c",), **bad)
+    _run(d / "submit.sh", bindir=bindir, mech_dir=d, PACK=3)
+    tags = sorted(p[1] for p in _pack_calls(log))
+    assert tags == ["GA__c__pack-k1-s44", "GA__mix-a+b__pack-k2-s44"]
+
+
+def test_oom_in_a_mixed_pack_caps_every_cell_in_it(g6like, fake_sbatch):
+    """合包出了 OOM（run 记 86 → todo）→ 包里每个格子 K ≤ k − 1、且不再合包；不在包里的格子不受影响。"""
+    d, reg, rows = g6like
+    bindir, log = fake_sbatch
+    _g6_probed(reg, rows)
+    _mixed_gpu_json(reg, ["a", "b"], 3, 44, run_peak_max_mib=G6_PEAK, n_oom=1,
+                    oom_runs=["GA__a__s44"])
+    for c in "ab":
+        _done(reg, rows, f"GA__{c}__s44", rc=86)
+    out = _run(d / "submit.sh", bindir=bindir, mech_dir=d, PACK=3)
+    assert sorted(p[1] for p in _pack_calls(log)) == [
+        "GA__a__pack-k1-s44", "GA__b__pack-k1-s44", "GA__c__pack-k1-s44"]
+    assert "GA__a：K=2" in out.stdout and "GA__b：K=2" in out.stdout
+    assert "GA__c：K=3" in out.stdout                              # c 不在那个合包里
+
+
+def test_a_mixed_pack_counts_as_memory_data_for_its_cells(g6like, fake_sbatch):
+    """格子自己没有包、只参与过合包 → 用合包的读数定 K，不再探路。"""
+    d, reg, rows = g6like
+    bindir, log = fake_sbatch
+    _mixed_gpu_json(reg, ["a", "b", "c"], 3, 42, run_peak_max_mib=G6_PEAK)
+    for c in "abc":
+        _done(reg, rows, f"GA__{c}__s42")
+    out = _run(d / "submit.sh", bindir=bindir, mech_dir=d, PACK=3)
+    assert "探路" not in out.stdout
+    # 每格剩 s43 / s44 两个（< K=3）→ 余数 2+2+2 = 6 → 2 个 K=3 合包（原本 3 个）
+    assert [p[0] for p in _pack_calls(log)] == [3, 3]
 
 
 # ══════════════════════════════════════════════════════════════════════════

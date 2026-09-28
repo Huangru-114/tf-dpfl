@@ -324,6 +324,9 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
       被 `_collect_updates_*` 吞掉的 OOM 会让 run 照样 exit 0 → `pack.sbatch` 按日志判 OOM、exit_code 记 86。
       exit 0 但 config_sha 不符 = `stale`，**默认不重交**（`RESUBMIT_STALE=1` 才交）。**交完等回传再跑下一次**（不查队列）。
       `PACK_MEM_PCT=85` / `PACK_CTX_MIB=1024` **没有证据**，第一批满长包回来后校准。守卫 `tests/test_pack_submit.py`。
+      **余数跨格子合包**（2026-09-28，D-060）：各格子切完满包剩下的不满 K 的那一包，若 K 来自真实峰值、无 OOM / 显存告警、
+      同组格子峰值相差 ≤ `PACK_MIX_TOL_PCT`（10%）、且合后作业数变少 → 合成 `<组>__mix-a+b+…__pack-…`；`PACK_MIX=0` 关。
+      G6 探路包实测：真实峰值约 17 GiB / run，整卡读数约其 2 倍（F-055）。
     - `[TimingASR] Round N | main=… | whitebox=… | stale=…`（独立 kv 行，**不改 `[Timing]`**）→
       `timing_rounds[].asr_*_s` 与 `timing_summary.asr_split_total_s`。实测白盒 7.2%、陈旧 ASR 7.3% 墙钟（F-051）
       → D-050 / D-054：**白盒关、陈旧 ASR 与陈旧 pm_acc 都隔点**（同一批点，共用 `CloudServer._eval_seq`）——

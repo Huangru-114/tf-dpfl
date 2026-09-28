@@ -1,8 +1,8 @@
 # current-focus —— Experiment 3（改版）· 交接
 
 > 本文件是 `CLAUDE.md`「新会话开场第 3 步」要读的那一份。
-> **写于 2026-09-27**（S8 会话结束时）。
-> **S8（3-E 三层个性化）已完成 → G6 可交**（D-057 … D-059）。**下一会话由用户定**（候选见文末「功能会话一览」）。
+> **写于 2026-09-27**（S8 会话结束时），**2026-09-28 补**：G6 探路包回传（6/9 run 有效，F-055）+ 余数跨格子合包（D-060）。
+> **S8（3-E 三层个性化）已完成 → G6 剩 3 个 s44 待交**（D-057 … D-060）。**下一会话由用户定**（候选见文末「功能会话一览」）。
 > G2 与 S5 仍暂缓（D-056；S5 预案 D-055）。
 
 ## 几套编号（容易混，先看这里）
@@ -40,21 +40,25 @@
 - **L2 替身**（本地 CPU、随机数据，N-005 的做法；只证明接线，数字无意义）：G6 (b)/(a) 缩到 20 端 / 4 edge / R2 / 2 云轮，见下「L2 替身」。
 - **真正的 L2 = 集群交 G6**（用户）：命令见下。
 
-## 下一步：交 G6（用户，集群）
+## 下一步：交 G6 剩下的 3 个 run（用户，集群）
+
+**2026-09-28 状态**：三个 K=2 探路包已回传（`3672a21`），6 个 run 全部有效（F-055）；每臂剩 s44。
 
 ```bash
-git pull                                                                 # 本分支
-bash experiments/attack/hfl-mechanism/submit.sh --status                 # 应为 todo=9（G6）、stale=6（G7）
+git pull                                                                 # 本分支（含 D-060）
+bash experiments/attack/hfl-mechanism/submit.sh --status                 # G6：done=6、todo=3；G7：stale=6
 PACK=3 RUN_GROUPS=G6 bash experiments/attack/hfl-mechanism/submit.sh --dry-run
-PACK=3 RUN_GROUPS=G6 bash experiments/attack/hfl-mechanism/submit.sh     # 第一次：每臂只交一个 K=2 的探路包（共 3 个作业）
-# 探路包回传后（results/P2/G6/G6__<臂>__pack-k2-s42.gpu.json）再跑同一条命令 → 按实测峰值定 K，交剩下的 3 个
+#   → [pack] G6：3 个格子的余数跨格子合包 K=3 … 3 → 1 个作业
+#     would sbatch -c 12 pack  G6__mix-a+b+c__pack-k3-s44  G6__a__s44 G6__b__s44 G6__c__s44
+PACK=3 RUN_GROUPS=G6 bash experiments/attack/hfl-mechanism/submit.sh
 ```
 
-- 回传后先看每个 metrics.json：`run.edge_shared_blocks` 与臂一致（0 / 1 / 2；`status.py` 会核对）、`run.tier_split.n_edge_tensors`
-  = 0 / 15 / 30、`client_failures == []`、`run.stopping == "off"` 且跑满 60 个云轮。
+- 这是第一次 **K=3 的满长包**：回传后先看 `G6__mix-a+b+c__pack-k3-s44.gpu.json` 的 `n_oom` / `n_mem_warnings` / `run_peak_mib`。
+  OOM 的 run 会记 exit 86 → 再跑一次上面的命令会自动降到 K ≤ 2 重交（合包的 OOM 对三个格子都生效）。
+- 回传后每个 metrics.json 照旧核对：`run.edge_shared_blocks` 与臂一致、`client_failures == []`、跑满 60 个云轮。
 - **G6 不读 GM 精度与 global 层 ASR**（(b)(c) 下全局模型的 edge 段是初值；FedRep 下 head 本来就是初始化 head，F-007）。
-  判定读受害 edge（E1–E3）的 fresh-PM benign ASR（逐 edge 行）与 fresh / 陈旧 pm_acc（D-059）。
-- **没有证据的**：(b)(c) 的显存峰值与 (a) 相同（参数量不变，但未实测）—— 探路包就是为这个。
+  判定读受害 edge（E1–E3）的 fresh-PM benign ASR（逐 edge 行）与 fresh / 陈旧 pm_acc（D-059）。判定代码属 S7，还没写。
+- 不想合包：`PACK_MIX=0`（= 3 个 K=1 作业，D-052 原规则）。
 - G7 显示 stale 是预期（base.yaml 加了评估降频之后重新 materialize；D-053 默认不重交）。
 
 ## L2 替身（本地 CPU，只证明接线；F-054）
@@ -91,7 +95,7 @@ N-005 的做法（随机数据），G6 配置缩到 20 端 / 4 edge / [2,0,0,0] 
 |---|---|---|
 | 合并回 main | 用户决定 | 本分支领先 `origin/main`；**Claude 没有合并** |
 | G2 的规模 | 用户 | D-056；定了再开 S5 |
-| 一卡多跑的参数校准 | 第一批满长包回来后 | `PACK_MEM_PCT` / `PACK_CTX_MIB` 没有证据（D-052 / F-053） |
+| 一卡多跑的参数校准 | K=3 满长包回来后 | 第一个校准点已有：整卡读数 ≈ 真实峰值 × 1.98（F-055）；`PACK_MEM_PCT` / `PACK_CTX_MIB` 仍无 OOM 边界的证据 |
 | 攻击接近饱和（F-045 / F-049） | 用户 | G 组的终值类比较可能撞天花板；设计 / 解读时考虑 |
 | G7 的混杂 | 用户 | 官方预处理下干净精度低约 0.10，「攻击更容易」与「模型更弱」分不开（F-050） |
 | fresh-PM 低估干净精度（F-051） | 用户 | 随 edge 数增大（10edge +0.094）；跨拓扑的精度结论同时报陈旧 pm_acc（D-054 后隔点算） |
@@ -101,7 +105,7 @@ N-005 的做法（随机数据），G6 配置缩到 20 端 / 4 edge / [2,0,0,0] 
 | `experiments/METRICS.md`「ξ 用 mal[0]」一句 | 用户 | 与 Bad-PFL 库双份同步（`test_metrics_doc.py` 守着）；按 D-015 + D-033 改 |
 | S1b：修 `exp3_cell.sbatch` 写死的 `--defense none` | 需要时 | D-007 |
 | cifar100 静态触发器的标准化常数 | 需要时 | N-004：只记录，没改 |
-| 交 G6 并回传 | 用户（集群） | 上面「下一步」；探路包先回 |
+| 交 G6 的 3 个 s44 并回传 | 用户（集群） | 上面「下一步」；探路包已回（F-055），剩 1 个 K=3 合包（D-060） |
 | 3-E 的判定代码（D-059 口径） | S7 / 需要时 | 受害 edge 的原始 benign ASR 配对差 + MTA；「三臂 floor 相同」无证据 |
 | 3-E 的 floor 格（ρ=0 × 三划分） | 用户，需要时 | 要 excess ASR 才需要；等 S4；不用重跑 G6（D-059） |
 | MTA 门槛「≤ 0.02」 | 用户 | 仍 ⚠待确认（PLAN §3） |
@@ -132,6 +136,8 @@ N-005 的做法（随机数据），G6 配置缩到 20 端 / 4 edge / [2,0,0,0] 
 - **`runs_table` 把 `edge_shared_blocks=0` 记成 None**（`FACTOR_DEFAULTS`）：S8 之前的文件没有 `[设定6]`，与 (a) 是同一种 run，要同格。
 - **`[设定6]` 在 `CloudServer.__init__` 里打**（真正算出索引处），不在 `config_validate`；每个 run（含 k=0）都有这一行。
 - **collect_metrics 是 schema 5**（S8：`run.edge_shared_blocks` / `run.tier_split`）。
+- **合包的 gpu.json 文件名是 `<组>__mix-a+b+c__pack-…`**（D-060）：各格子定 K 时按文件名里的格子列表认领它；
+  改 tag 格式要同步改 `submit_lib.sh:_cell_k`。满包永远同格子，只有余数会跨格子。
 
 ## 历史：一卡多跑接入 + 评估降频（2026-09-27，S8 之前的一个会话）
 
