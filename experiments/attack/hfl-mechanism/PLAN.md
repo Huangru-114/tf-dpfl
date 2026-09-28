@@ -102,7 +102,7 @@ P1 的用途（FINDINGS F-002/F-008/F-009）：同 seed 噪声的实测、效应
 | 组 | 配置 | 服务 | 依赖 |
 |---|---|---|---|
 | FLR floor 验证（D-061） | G6 臂 (a) 原样 × ρ=0 影子攻击者 × 3 seed，与 G6(a) 按 seed 配对；预注册判定 `harness/flr_verdict.py` | 定 G0 的规模；兼作 3-E 臂 (a) 的 floor | A4（只改配置）→ **可交** |
-| G0 下限主干 | 划分 {随机, C1, C2, C3, C4} × ρ=0 影子攻击者 × 3 seed；4 edge 集中 [10,0,0,0]、R5（D-066）。**规模等 FLR**：`negligible` → 取消逐划分 floor | 3.1 下限、3-B 逐 edge 下限、3.3 对照 | A4 + S3 + S4 + FLR |
+| G0 下限主干 | 划分 {随机, C1, C2, C3, C4} × ρ=0 影子攻击者 × 3 seed；4 edge 集中 [10,0,0,0]、R5（D-066）。~~规模等 FLR~~ **FLR 判 floor 不可忽略（F-065）→ 逐划分测** | 3.1 下限、3-B 逐 edge 下限、3.3 对照 | A4 + S3 + S4 + FLR |
 | G1 主攻击（详细记录；**待 FLR + G8 重新规划**，D-074） | 4 edge；划分 {随机, C1} × 放置 {collocated, distributed} × R_edge {10, 20} × 3 seed；逐 edge 轮评估；更新日志 | 3-C、3-D、3-A 的一部分。G8 判 `persists` → 3-C 缩为最小确认、主用途改 3-D；判 `decays_to_floor` → 保留 3-C、主量用 margin | A4 + S3 + S5 + S6 |
 | G2 结构扫描（**暂缓**，D-056） | flat + edge {2, 4, 10} × R_edge {2, 5, 10, 20}，去掉 G1 已覆盖的格子 × 5 seed（布点 / 轮数 2026-09-27 补齐，D-047）；**先跑 G2P 一致性复测**（pilot 表，seed42 的 4 格），结果回来再定 G2 规模 —— G2P 已回来（`consistent`，F-049），**规模尚未定**，由用户定 | 3-A | A4 + S5 |
 | G3 目标类条件 | **C1**（D-062 新增，差中差的基准）/ C2 / C3 / C4 + 层级 Dirichlet α_e {0.1, 0.3, 1, 10}（社区口径，D-063）× 3 seed；4 edge 集中 [10,0,0,0]、R5；比例表 r = 0.25、E3 = deer + horse（D-067） | 3-B | A4 + S3 ✅ → **可交**（24 run） |

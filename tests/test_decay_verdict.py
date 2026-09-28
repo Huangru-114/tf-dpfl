@@ -107,9 +107,15 @@ def test_missing_and_insufficient():
     assert V.judge(t)["overall"] == "insufficient"
 
 
-def test_no_results_yet_on_disk():
-    """数据回来之前写定：现在盘上没有 G8 / FLR 的结果。"""
-    assert V.judge(V.load())["overall"] == "missing"
+def test_on_disk_results_give_a_defined_verdict():
+    """随盘上的数据状态断言（FLR 已于 `df4e98e` 回传，F-065）：
+    G8 一个都没回 → missing；回来后 → 必须是预注册判定之一，不能报错。"""
+    g8 = [V.RESULTS / "G8" / f"G8__a__s{s}.metrics.json" for s in (42, 43, 44)]
+    overall = V.judge(V.load())["overall"]
+    if not any(p.exists() for p in g8):
+        assert overall == "missing"
+    else:
+        assert overall in {"persists", "decays_to_floor", "user_decides", "insufficient", "invalid", "missing"}
 
 
 # ── 配置层面的配对前提 ──────────────────────────────────────────────────────

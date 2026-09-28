@@ -120,13 +120,16 @@ def test_missing_and_insufficient():
     assert F.judge(part)["overall"] == "insufficient"
 
 
-def test_real_g6a_pairs_and_flr_not_yet_back():
-    """真实 G6(a)（s42 / s43 已回）能被读成攻击臂；FLR 还没回来 → missing（不是报错）。"""
+def test_real_flr_and_g6a_pairs_give_not_negligible():
+    """真实数据（`df4e98e` 回传）：FLR 与 G6(a) 三个 seed 都在、配对有效 → not_negligible（F-065）。
+    「FLR 还没回来 → missing」那条路径由 test_missing_and_insufficient 覆盖。"""
     pairs = F.load()
-    assert all(pairs[s][0] is None for s in F.SEEDS)
-    assert F.judge(pairs)["overall"] == "missing"
-    atk = pairs[42][1]
-    assert atk is not None
-    res = F.judge_seed(_m([0.02] * 4, mal=atk["run"]["malicious_ids"]), atk, 42)
-    assert res["attack"]["same_malicious_ids"] is True
-    assert all(v is not None for v in res["attack"]["attack_edge"])
+    assert all(pairs[s][0] is not None and pairs[s][1] is not None for s in F.SEEDS)
+    res = F.judge(pairs)
+    assert res["overall"] == "not_negligible"
+    by_seed = {r["seed"]: r for r in res["per_seed"]}
+    assert all(by_seed[s]["verdict"] == "ok" for s in F.SEEDS)
+    assert all(by_seed[s]["attack"]["same_malicious_ids"] is True for s in F.SEEDS)
+    # 触发的是「某 edge ≥ HIGH」（s42 的 E0 = 0.1202），不是 E0 与受害 edge 之差
+    assert by_seed[42]["floor_edge"] == [0.1202, 0.0717, 0.1051, 0.0714]
+    assert max(by_seed[s]["gap_e0_vs_victims"] for s in F.SEEDS) < F.GAP
