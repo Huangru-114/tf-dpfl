@@ -7,6 +7,7 @@
 | 文件 | 内容 |
 |---|---|
 | `current-focus.md` | 下一会话唯一要回答的问题 |
+| `REPORT.md` | **实验初步报告**（2026-09-29）：全部组的计划 / 状态 / 路径 / 数据分析、3-B 详细说明、机时账、git 瘦身 |
 | `PLAN.md` | 评审、子实验→代码映射、预注册判定、运行组、执行路线、图目录 |
 | `AUDIT.md` | 与官方 Bad-PFL / FedRep / 原文献的对齐审计。**全部关闭前不开跑** |
 | `DECISIONS.md` | 决策日志（只追加） |
@@ -55,6 +56,8 @@ python3 harness/flr_verdict.py   --json experiments/attack/hfl-mechanism/analysi
 python3 harness/decay_verdict.py --json experiments/attack/hfl-mechanism/analysis/decay_verdict.json   # G8（D-075）
 python3 harness/decay_verdict.py --flat --json experiments/attack/hfl-mechanism/analysis/flat_verdict.json   # G8F（D-077）
 python3 harness/g5ab_verdict.py  --json experiments/attack/hfl-mechanism/analysis/g5ab_verdict.json     # G5AB（D-079）
+python3 harness/g5_verdict.py    --json experiments/attack/hfl-mechanism/analysis/g5_verdict.json       # G5（D-081，回传前写定）
+python3 harness/g3_did.py        --json experiments/attack/hfl-mechanism/analysis/g3_did.json           # 3-B 差中差 + 分解（F-075；脚本写于数据之后）
 
 # 5c. 「新仪表没有改变任何已有的数」（S9）：只比 checksum 与改动前就有的数值字段，前 R 轮
 python3 harness/instrumentation_check.py experiments/attack/hfl-mechanism/results/P2/G6/G6__a__s42.metrics.json \
@@ -93,6 +96,15 @@ python3 harness/runs_table.py experiments/attack/hfl-propagation/results --out <
 ```
 
 P1 只作试点（DECISIONS D-009）：用来估噪声和效应量、提出假设、测试工具，不进结论。
+
+## git 的体积
+
+```bash
+python3 harness/git_size_report.py            # 只读：历史 blob 按类别的占用、最大的若干个、是否还被跟踪
+git clone --filter=blob:none --branch <分支> https://github.com/Huangru-114/tf-dpfl   # 不下载历史里的大文件（约 4.4 MB）
+```
+
+历史里约 280 MiB 是早已删除的 *.h5 / venv / wandb；`tests/test_repo_hygiene.py` 防止再入库。改写历史的选项与代价见 `REPORT.md` 附录 A。
 
 ## 规矩
 

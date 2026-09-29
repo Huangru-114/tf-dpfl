@@ -11,7 +11,11 @@
 > - **G8F / G5AB / G0 已回传**（`92e126a`）：flat 也衰减、没有 0.45 平台（F-071，判 `user_decides`）；
 >   G5AB `insensitive` → **G5 用 A、已放行**（F-072 / D-080）；B 臂窗口前 = G0-random 在 GPU 上逐位成立；
 >   G0 的 floor 跟着本 edge 的目标类占比走，3-B 差中差 CI 全 > 0 但是天花板下的机械结果（F-073）。
->   **下一步 = 集群交 G5（15 run，约 7 GPU-h）**；G8F 与 3-B 的解读待用户定。
+>   ~~下一步 = 集群交 G5~~ **G5 已提交**（用户，2026-09-29）。
+> - **2026-09-29 初步报告会话**：`REPORT.md`（全部实验的计划 / 状态 / 路径 / 数据分析 / 3-B 详细说明 / 机时账 / git 瘦身附录）；
+>   G5 判定写定（`harness/g5_verdict.py`，D-081，回传前）；3-B 分解脚本 `harness/g3_did.py`（F-075）；外部 1B-2 更正为约 0.35（F-074）；
+>   git 瘦身研究（`harness/git_size_report.py`、`tests/test_repo_hygiene.py`；历史 289 MiB 中 96.8% 是已删除的垃圾）。
+>   **下一步 = 等 G5 回传 → `python3 harness/g5_verdict.py`**；3-B 出路与 git 瘦身两件待用户定（`REPORT.md` §6.7 / 附录 A）。
 
 ## 几套编号（容易混，先看这里）
 
@@ -21,8 +25,8 @@
 | **S1–S8** | 功能会话的名字：S3 新划分、S4 影子攻击者、S5 逐 edge 轮评估、S6 更新日志、S8 三层个性化、S9 评估仪表…… | PLAN §5 |
 | **A01–A29** | `AUDIT.md` 的「对齐差异」行号 | AUDIT 第一、二节 |
 | **D01–D06** | `AUDIT.md` 的「有意偏离登记」行号 | AUDIT 第三节 |
-| **D-001 … D-075** | `DECISIONS.md` 的决策日志（带连字符、三位数），**与登记行 D01–D06 是两套东西** | DECISIONS |
-| **F-001 … F-064 / N-001 … N-007** | `FINDINGS.md` 的证据条目 / 设计备注 | FINDINGS |
+| **D-001 … D-081** | `DECISIONS.md` 的决策日志（带连字符、三位数），**与登记行 D01–D06 是两套东西** | DECISIONS |
+| **F-001 … F-075 / N-001 … N-007** | `FINDINGS.md` 的证据条目 / 设计备注 | FINDINGS |
 | **P0 / P1 / P2** | 数据批次的口径版本；只有 P2 进结论 | PLAN §0 |
 
 ## 本会话做了什么（2026-09-29，S4：G8 / G6D 回传核对 → G1 / flat 对照拍板 → S4 实现）
@@ -139,7 +143,29 @@ CPU 替身（F-070）：默认配置（base / g8）与 S9 锚点逐位相同；*
 - **L2 替身**（本地 CPU、随机数据，N-005 的做法；只证明接线，数字无意义）：G6 (b)/(a) 缩到 20 端 / 4 edge / R2 / 2 云轮，见下「L2 替身」。
 - **真正的 L2 = 集群交 G6**（用户）：命令见下。
 
-## 下一步（2026-09-29，G8F / G5AB / G0 回传之后）
+## 下一步（2026-09-29，初步报告会话之后）
+
+**① 用户（集群）：等 G5 回传**（5 个 K=3 包，约 7 GPU-h），回传后：
+
+```bash
+python3 harness/status.py experiments/attack/hfl-mechanism/registry.yaml            # 期望 G5 15 格 done
+python3 harness/g5_verdict.py --json experiments/attack/hfl-mechanism/analysis/g5_verdict.json
+```
+
+- 判定：`gated`（三个 seed 的 Spearman ρ(t0, 峰值 excess) 都 > 0）/ `not_gated` / `anti_gated` / `insufficient` / `invalid`（D-081）。
+- 附带输出 `reproducibility_vs_G5AB_A`：t20 / t140 × s42 / s43 与 G5AB-A 的逐轮 checksum 应全等（只报告）。
+
+**② 用户拍板**（细节见 `REPORT.md` §9）
+
+- **3-B**（F-073 / F-075）：① G3 带仪表重跑看 margin（C1 / C3 × 3 seed，约 4.3 GPU-h）/ ② 只降投毒率（G0 的 floor 可复用，约 7–8 GPU-h）/
+  ③ C1 / C3 的攻击停止版（约 5.5 GPU-h）/ 不做。任何一条都要先写预注册规则再交。
+- **git 瘦身**（`REPORT.md` 附录 A）：选项 1 不改历史、集群重新克隆时加 `--filter=blob:none`（实测 4.4 MB）；
+  选项 2 `git filter-repo` 改写历史（scratch 模拟：289 → 9.3 MiB，main 与本分支的目录树不变；代价是全部哈希改变、17 个分支强推、所有副本重新克隆、provenance 哈希要靠 commit-map 对照）。
+  **改写历史需要用户单独明确同意**，本会话没有做。
+- G8F 的解读：外部 1B-2 更正为约 0.35 后，与 G8F 定性一致（都衰减、无高位平台），本管线低 0.15–0.23（F-074）；D-077 阈值不改。
+- G2 规模 + S5、G1（S5 + S6）、3-E 的判定代码（S7）、G8 存盘删除时机、合并 main —— 仍挂着。
+
+## 历史：G8F / G5AB / G0 回传之后的下一步（2026-09-29，已完成）
 
 **⓪ 用户（集群）：拉代码、跑 L1**（GPU 节点 5 条红、无 GPU 节点 2 条红，F-067；多出来的才是回归）
 
@@ -153,7 +179,7 @@ PACK=3 RUN_GROUPS="G5" bash experiments/attack/hfl-mechanism/submit.sh
 - G5 的 t20 / t140 × s42 / s43 与 G5AB 的 A 臂配置**只差 meta**（group / run_id）→ 回来后与 G5AB-A 逐轮 checksum 应相同
   （跨作业的 GPU 复现检查，免费）。
 - 3.3 的预注册判定只用**峰值**（窗口内 4 点最大值减同轮 G0-random floor，随 t0 的秩相关）；稀释点已贴 floor（F-072），只报告。
-- G5 的判定代码还没写（属于 S7，或下个会话在数据回来之前写定）。
+- ~~G5 的判定代码还没写~~ ✅ 已写定（`harness/g5_verdict.py`，D-081，G5 回传之前）。
 
 **② 用户拍板**
 
@@ -236,12 +262,12 @@ N-005 的做法（随机数据），G6 配置缩到 20 端 / 4 edge / [2,0,0,0] 
 | 合并回 main | 用户决定 | 本分支领先 `origin/main`；**Claude 没有合并** |
 | ~~G1 重新规划~~ | — | ✅ 用户定按「退回 floor」一支（D-076）；具体设计随 S5 / S6 |
 | ~~G6D go / no-go~~ | — | ✅ 止步：(b)/(c) 只比 (a) 低 0.033 / 0.024（F-069） |
-| G3 要不要带仪表重跑 | 用户 | **搁置**（用户，2026-09-29）。C3 受害 edge 0.93 – 0.99，差中差判不出（F-066）；重跑 = C1 / C3 各 3 seed，约 6 GPU-h，config_sha 不变 → 要在登记表里另开一个组 |
+| 3-B 的出路（含 G3 要不要带仪表重跑） | 用户 | G3 重跑此前**搁置**（用户，2026-09-29）。三条出路与代价见 `REPORT.md` §6.7：带仪表重跑 C1 / C3 各 3 seed 约 4.3 GPU-h（config_sha 不变 → 要在登记表里另开一个组）；只降投毒率约 7–8 GPU-h；攻击停止版约 5.5 GPU-h |
 | ~~G5 用哪种生成器语义~~ | — | ✅ G5AB `insensitive` → A（D-080），G5 已放行、已 materialize |
 | G8 的存盘文件（约 0.81 GB） | 用户 | **分析做完再删**；候选分析见「下一步」③ |
 | 3.2 的假设重新表述 | 用户 | N-003；本会话给过一版草案（D-021 下 ρ=1 时 body 学到的是与触发器无关的塌缩；预测：恶意端干净精度 ≈ 本地 y_t 占比、body ‖Δ‖ 更大、无触发器时判 y_t 的比例 ≈ 有触发器时 —— **只是推理**）；y_t 偏置与恶意端精度现在常开 |
 | 磁盘预算 20 GB | 每批回传后 | 加总各 metrics.json 的 `dumps.logits.bytes` 与 `dumps.snapshots[].bytes`；目前 G8 约 0.81 GB；logits 54.7 MB / run 超了 D-073 的 50 MB 上限约 9%（F-067） |
-| `.git` 已 360 MB | 需要时 | 红线 500 MB；每个 schema 7 的 metrics.json 约大 50 KB（`test_collect_eval_detail.py` 的体积守卫：≤ 70 KB） |
+| git 瘦身 | 用户 | 新克隆 289 MiB，其中 96.8% 是历史里已删除的 *.h5 / venv / wandb（`harness/git_size_report.py`）；`.gitignore` 早已覆盖、`tests/test_repo_hygiene.py` 再守一道 → 不会再长。两个选项见 `REPORT.md` 附录 A；**改写历史要用户单独同意**。每个 schema 7+ 的 metrics.json 约大 50 KB（体积守卫 ≤ 70 KB） |
 | G2 的规模 | 用户 | D-056；定了再开 S5 |
 | 攻击接近饱和（F-045 / F-049 / F-061） | 用户 | 终值类比较可能撞天花板 → 看 margin 列（D-072） |
 | G7 的混杂 | 用户 | 官方预处理下干净精度低约 0.10（F-050） |
