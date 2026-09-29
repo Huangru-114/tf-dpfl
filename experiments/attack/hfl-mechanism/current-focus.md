@@ -2,8 +2,10 @@
 
 > 本文件是 `CLAUDE.md`「新会话开场第 3 步」要读的那一份。
 > **写于 2026-09-28**（S9 会话结束时）。**S9 已完成**（D-071 … D-075）：评估仪表（常开）+ logits / 快照两个开关 + **下一实验组 G8**（3-C 攻击停止版 = 1B-2 的 HFL 复现）与 **G6D 探针**，两组都已 materialize、**可交**。
-> **G6 / FLR / G3 已全部回传**（`df4e98e`，含 G6 (b) s44 重跑）：FLR 判 **floor 不可忽略** → G0 逐划分测（F-065）；G3 初读见 F-066（C3 贴天花板，G3 要不要带仪表重跑待用户定）。
-> G1 **待 G8 重新规划**（D-074；FLR 那一半已有）。G2 / S5 仍暂缓（D-056）；S4 解锁 G0 / G5。
+> **2026-09-29：已登记的可交格子全部回传，集群上没有待交的作业**（status：todo 0 / done 42 / stale 6 = G7（预期）/ blocked 121）。
+> - G6 / FLR / G3（`df4e98e`）：FLR 判 **floor 不可忽略** → G0 逐划分测（F-065）；G3 初读见 F-066。
+> - G8 / G6D（`e61af6b`）：仪表在 GPU 上不改数（F-067）；**G8 判 `user_decides`**，后门大部分褪去（F-068）；**G6D 止步**（F-069）。
+> - 下一步全是用户拍板项（见「下一步」）。G2 / S5 仍暂缓（D-056）；S4 解锁 G0 / G5。
 
 ## 几套编号（容易混，先看这里）
 
@@ -112,109 +114,48 @@
 - **L2 替身**（本地 CPU、随机数据，N-005 的做法；只证明接线，数字无意义）：G6 (b)/(a) 缩到 20 端 / 4 edge / R2 / 2 云轮，见下「L2 替身」。
 - **真正的 L2 = 集群交 G6**（用户）：命令见下。
 
-## 下一步
+## 下一步（2026-09-29：集群上没有待交的作业，下面都要用户拍板）
 
-**⓪ 用户（集群，登录节点）：先看队列，再拉代码、跑 L1**
+**① G1 怎么重新规划（D-074）** —— G8 判 `user_decides`，D-074 只写了 `persists` / `decays_to_floor` 两支（F-068）：
+- 受害 edge 的 excess 停手后 20–30 云轮只剩 15–17%（retention 0.155 / 0.152 / 0.171），margin 中位数一直在降、没有平台；
+  但 s42 / s44 在第 51–70 轮仍有约 0.08–0.14 的 excess，是客户端的长尾（ASR > 0.5 的良性端 2–6%）。
+- **推荐按 `decays_to_floor` 那一支走**：G1 保留 3-C，主量用 margin，另报尾部（`benign_asr_p90` / `benign_asr_gt50`）。
+  理由：「一个云周期内自清洁」要看的是整体趋势，margin 给得出；ASR 逐点 σ≈0.09 测不出小斜率。
+- 拍板后：写 D-076，改 PLAN 的 G1 行、S6 的范围（S6 等的就是这一条）。
 
-```bash
-squeue -u $USER          # 有没有还在 PENDING 的 exp3v2 作业（上一批的 G3 / FLR / G6 s44）
-```
+**② G3 要不要带仪表重跑**（F-066）—— C3 贴天花板，差中差判不出；C1 / C3 × 3 seed = 6 run ≈ 6 GPU-h。
+config_sha 不变 → `submit.sh` 会当成已完成，要在登记表里另开一个组（例如 `G3M`，requires S9）。
 
-- **没有 PENDING**（上一批 G6 / FLR / G3 已全部完成回传，`df4e98e` —— 正常就是这种情况）→ 直接在主仓库 `git pull`，然后 L1：
+**③ S4 的四个拍板项**（→ G0 / G5；G0 已定逐划分测，F-065）：生成器在窗口外怎么办、G5 拓扑与单位、run 长度、floor_ξ / 迁移 baseline（见「功能会话一览」）。
+
+**④ G8 的存盘文件留不留**：在集群 `$ROOT/../tfdpfl-dumps/G8__a__s4?.<job>/`，约 0.81 GB（F-067）。
+D-073 要求有消费它的离线分析才开 —— 目前**还没有写**。候选：第 51–70 轮 ASR 仍 > 0.5 的那 2–6% 良性端是谁、它们的 head / 数据有什么共同点（快照 70 + logits）。
+不做的话可以删掉省配额。
+
+**⑤ 合并回 main**（用户决定）。
+
+**GPU 节点上跑 L1 的基线 = 5 条红**（F-067）：陷阱 #4 的 2 条 + 3 条测试默认「没有 GPU」（`test_pack_submit` 端到端、
+`test_eval_detail_tf` 开关那条、`test_badpfl_official` 的 PGD 对拍）。用户决定不改。没有 GPU 的节点仍是 2 条。多出来的才是回归。
+
+## 历史：G8 / G6D 的提交（2026-09-28 / 29）
+
+- **原计划的 DET 重交不再需要**：`instrumentation_check G6(a) vs G8 --upto 30` 三个 seed 都 ✅（F-067），比 DET 更强。
+- **单 seed 的新格子不要用 `submit.sh` 交**：每格都没有显存记录 → 各交一个 k=1 的探路包（`pack_flush` 的 `kc == 0` 分支）；
+  跨格子合包（D-060）只对有真实峰值的格子生效。G6D 当时手工交了一个与 `submit_lib._submit_pack` 参数相同的 K=3 包（在仓库根目录执行）：
 
   ```bash
-  git pull
-  bash run_l1.sh         # 期望只有陷阱 #4 的 2 条红；test_designed_partition 的 TF 测试现在应是绿的（F-063）
+  M=experiments/attack/hfl-mechanism
+  sbatch -c 12 --mem=72G --job-name=exp3v2-pack3 \
+      --comment=exp3v2:G6D__a__s42,G6D__b__s42,G6D__c__s42 \
+      $M/pack.sbatch G6D__mix-a+b+c__pack-k3-s42 \
+      $M/configs/G6D__a__s42.yaml G6D__a__s42 $M/results/P2/G6D/G6D__a__s42.metrics.json \
+      $M/configs/G6D__b__s42.yaml G6D__b__s42 $M/results/P2/G6D/G6D__b__s42.metrics.json \
+      $M/configs/G6D__c__s42.yaml G6D__c__s42 $M/results/P2/G6D/G6D__c__s42.metrics.json
   ```
 
-- **有 PENDING**（例如另外交过别的作业）→ **先 ①、后 pull**。作业读的是**开跑那一刻**主仓库里的代码：现在 pull，还没开跑的上一批作业就会带上 S9 仪表。
-  CPU 上已证明仪表不改训练（L2 替身），**GPU 上还没有证据** —— 那正是 ① 要回答的。
-  做法：在一个独立 worktree 里跑 ①，过了再回主仓库 pull。
-
-  ```bash
-  git fetch origin claude/federated-learning-experiment-review-pt5j1b
-  git worktree add ../tf-dpfl-s9 origin/claude/federated-learning-experiment-review-pt5j1b
-  cd ../tf-dpfl-s9         # ① 的命令在这里执行；日志 / 数据缓存仍在同一个上一级目录，--bind 不变
-  ```
-
-  ① 通过后：`cd` 回主仓库 → `git pull` → `bash run_l1.sh`；worktree 里的 `scratch/s9/` 要留就先拷走，再 `git worktree remove ../tf-dpfl-s9`。
-  ②（交 G8 / G6D）一律在 pull 过的**主仓库**里交，不要在 worktree 里交（结果要落在主仓库的 `results/`）。
-
-**① 用户（集群）：DET 重交一次，证明仪表在 GPU 上不改任何数（约 20 分钟，D-072）**
-
-`submit_pilot.sh` 会把已完成的 DET 跳过，所以直接交 `cell.sbatch`，metrics 写到 scratch（gitignore）。在仓库根目录（或上面的 worktree 根目录）执行：
-
-```bash
-sbatch experiments/attack/hfl-mechanism/cell.sbatch \
-    experiments/attack/hfl-mechanism/pilot/configs/DET__rep1__s42.yaml DET__rep1__s42 \
-    scratch/s9/DET__rep1__s42.metrics.json
-# 回来后：
-python3 harness/instrumentation_check.py \
-    experiments/attack/hfl-mechanism/pilot/results/P1/DET/DET__rep1__s42.metrics.json \
-    scratch/s9/DET__rep1__s42.metrics.json --upto 5
-```
-
-- 期望 ✅：前 5 轮 checksum = F-045 的 `d259128657fd b44e7042af4f 181adcfd7f95 773e061e5fbc 931d1867fbac`，已有数值字段逐位相同。
-  它顺带打印 `[TimingASR].main` 的前后均值 = 常开汇总的开销。
-- ❌ 且 checksum 就不同 → 先看 GPU 型号与核数是否同 F-045（F-047）；checksum 同、评估数不同 → 仪表改了评估，**别交 G8**，回传日志。
-
-**② 用户（集群）：交 G8 + G6D（D-075；共约 7 GPU-h）**
-
-**②-0 72G 下的 K=3 已有实测，不用再查 sacct**（F-065 ②）：上一批 9 个 K=3 包（FLR 1 + G3 8）`gpu.json` 全部
-`mem_req_mb = 73728`、`n_oom = 0`、`n_host_oom = 0`，每 run 真实显存峰值 ≤ 16.96 GiB。G8 / G6D 是同一模型、同一拓扑。
-（G8 多开了 logits / 快照：快照在主机内存里拼一次约 100 MB、每个 run 只有 2 次 —— 相对 24G 的余量可以忽略，但**这一条没有实测**。）
-
-**②-1 G8**（一个格子、3 个 seed → `submit.sh` 自己交一个 k=3 的探路包；约 3.6 GPU-h）：
-
-```bash
-PACK=3 RUN_GROUPS="G8" bash experiments/attack/hfl-mechanism/submit.sh --dry-run   # 期望：一个 G8__a__pack-k3-s42（3 个 seed）
-PACK=3 RUN_GROUPS="G8" bash experiments/attack/hfl-mechanism/submit.sh
-```
-
-**②-2 G6D 手工交一个 K=3 包**（约 3.1 GPU-h）。**不要用 `submit.sh` 交 G6D**：
-三个格子各只有 1 个 seed、都没有显存记录 → `submit_lib.sh` 的探路规则给每个格子各交一个 k=1 的包（`pack_flush` 的 `kc == 0` 分支），
-跨格子合包（D-060）又只对有真实峰值的格子生效 → **3 个单跑作业、约 9 GPU-h**。
-下面的命令与 `submit_lib._submit_pack` 传的参数逐项相同（`-c 4K`、`--mem=24G×K`、job-name、防重交的 `--comment`）；
-tag 用合包的格式，`_cell_k` 以后认得这份显存记录（a / b / c 三个格子都算探过路）。路径已与 `configs/INDEX.tsv` 的 G6D 三行逐字核对。
-**在仓库根目录执行**（`pack.sbatch` 以提交目录为 ROOT，参数是相对 ROOT 的路径）：
-
-```bash
-M=experiments/attack/hfl-mechanism
-sbatch -c 12 --mem=72G --job-name=exp3v2-pack3 \
-    --comment=exp3v2:G6D__a__s42,G6D__b__s42,G6D__c__s42 \
-    $M/pack.sbatch G6D__mix-a+b+c__pack-k3-s42 \
-    $M/configs/G6D__a__s42.yaml G6D__a__s42 $M/results/P2/G6D/G6D__a__s42.metrics.json \
-    $M/configs/G6D__b__s42.yaml G6D__b__s42 $M/results/P2/G6D/G6D__b__s42.metrics.json \
-    $M/configs/G6D__c__s42.yaml G6D__c__s42 $M/results/P2/G6D/G6D__c__s42.metrics.json
-```
-
-- 显存风险低：同模型、同拓扑的 G6 K=3 包整卡 62 / 98 GiB，每 run 真实峰值 ≤ 16.95 GiB（F-060）。
-- **OOM 的代价**：计费按作业（墙钟 × 1 张卡，与包里几个 run 无关）；一个 run 被杀，包照样等其余的跑完 → **多花的只是被杀那个 run 的重跑**。
-  `pack.sbatch` 把它记成 exit 86（显存）/ 137（主机内存），合包的记录对 a / b / c 都生效 → 下次 `submit.sh` 自动降到 K ≤ 2。
-  最坏的现实情形（像 F-060 那样开跑即被杀一个）：3.1 + 3 ≈ 6 GPU-h，仍少于三个单跑的约 9 GPU-h；三个全被杀：包几分钟就结束，重跑 ≈ 默认路径。
-  跑到后半程才 OOM 会浪费更多，但 F-060 是第 0 轮被杀、G6D 不开存盘开关 —— **「内存不随轮数增长」这一条没有直接证据**。
-
-- G8 会往 `$ROOT/../tfdpfl-dumps/G8__a__s4?.<job>/` 写 70 个 logits 文件（约 42 MB / run）+ 2 个快照（约 100 MB 各，CPU 替身实测 99.97 MB）→ 3 个 run 合计约 0.75 GB。
-  **不要回传这些文件**，只回 metrics.json（`dumps` 字段就是 manifest）。
-- 回传后先核对：
-  - G8：`python3 harness/instrumentation_check.py experiments/attack/hfl-mechanism/results/P2/G6/G6__a__s42.metrics.json experiments/attack/hfl-mechanism/results/P2/G8/G8__a__s42.metrics.json --upto 30`（s43 / s44 同）→ 应 ✅（第 1–30 轮配置只差停止轮 / n_rounds / 开关；**GPU 型号不同算「无法判定」**，F-045 只证明了跨节点）；
-    `run.attack_stop_round == 31`（`status.py` 现在会核对）、`dumps.errors == []`、`dumps.snapshots` 两条、`client_failures == []`。
-  - FLR 回来后：`python3 harness/decay_verdict.py --json experiments/attack/hfl-mechanism/analysis/decay_verdict.json` → `persists` / `decays_to_floor` / `user_decides`，据此改 G1（D-074）。
-  - G6D：b、c 的良性端 ASR（主列末 10 点）是否比 a 低 ≥ 0.15 → 是则扩到 3 seed（D-075）；否则止步。
-- ~~G6 (b) s44 重交~~ ✅ 已完成（`df4e98e`，exit 0、60 轮；F-065 ③）。`status.py` 现在：G6 / FLR / G3 36 格全部 done，只剩 G8 / G6D 6 格 todo
-  （G7 的 6 格是 `stale` —— 评估降频改了 base.yaml，D-053：`submit.sh` 默认不重交，**预期**）。
-
-**③ G6 / FLR / G3 已回传并核对**（schema 6，没有 S9 的新字段 —— 预期）
-
-- 全部 exit 0、`client_failures == []`、`errors == []`；G3 每端 500 张、`yt_share` 与 D-067 的比例表一致（C3 的 E3 = 0.005）。
-- **FLR**：`analysis/flr_verdict.json` → **floor 不可忽略**（E0 floor 0.09 – 0.13；规则「某 edge ≥ 0.10」触发）→ **G0 按原计划逐划分测**（F-065 ①，PLAN G0 行）。
-  `decay_verdict.py` 要等 G8。
-- **G3**（F-066，原始 ASR 的快速读数，**不是**预注册判定 —— 3-B 要 excess ASR，C1–C4 的 floor 等 G0）：
-  差中差 [E3 − E1/E2]_{C3} − [同]_{C1} = +0.003 / +0.020 / +0.008，但 C3 的受害 edge 在 0.93 – 0.99（天花板）→ 判不出。
-  C2 的受害 edge 比 C1 低约 0.35（本组最大的差别，机制没有证据）。
-  **G3 要不要带仪表重跑 = 用户决定**。若重跑：C1 / C3 各 3 seed = 6 run = 2 个 K=3 包（约 6 GPU-h）；配置不变 → 同 GPU 型号、同核数下轨迹应与已回传的逐位相同
-  （F-045 / F-047；`instrumentation_check` 可验），多出来的是 margin / 逐客户端 ASR。注意 config_sha 不变 → `status` 认为已 done、`submit.sh` 不会交，
-  要么在登记表里另开一个组，要么手工交且 metrics 写到 `scratch/`（**不要**写回 `results/P2/G3/`：同名会覆盖已回传的文件）。
+  tag 用合包格式，`_cell_k` 认得这份显存记录。
+- **72G 下的 K=3 已实测 11 个包**（FLR 1 + G3 8 + G8 1 + G6D 1），全部没有 OOM（F-065 ② / F-067）。
+- **OOM 的代价**：计费按作业（墙钟 × 1 张卡），被杀的 run 只多花它自己的重跑；`pack.sbatch` 记 exit 86 / 137，下次自动降档。
 
 
 ## L2 替身（S9；本地 CPU、随机数据，N-005 的做法；只证明接线，数字无意义）
@@ -251,7 +192,7 @@ N-005 的做法（随机数据），G6 配置缩到 20 端 / 4 edge / [2,0,0,0] 
 
 | 功能会话 | 解锁 | run 数 | 说明 |
 |---|---|---|---|
-| ~~S9~~ 评估仪表 + 存盘开关 | **G8**（3-C 攻击停止版）、**G6D**（3-E 分散布点探针） | 3 + 3 | ✅ 本会话完成；**两组待交**（上面 ②） |
+| ~~S9~~ 评估仪表 + 存盘开关 | **G8**（3-C 攻击停止版）、**G6D**（3-E 分散布点探针） | 3 + 3 | ✅；两组已回传：G8 `user_decides`（F-068）、G6D 止步（F-069） |
 | ~~S8~~ 三层个性化 | G6（3-E，可选） | 9 | ✅；9 个 run 全部回传（F-061 / F-065 ③） |
 | ~~S3~~ 新划分 | G3（3-B） | 24 | ✅；G3 已回传（F-066）；另是 G0 / G1 的前提 |
 | S4 影子攻击者 + 攻击起始轮 | G5（3.3） | 15 | 另是 G0 的前提（G0 规模等 FLR，D-061）。**本会话讨论过但没做**：窗口外生成器怎么处理（推荐「窗口只管投毒、生成器全程训」）、单位 = cloud 轮、G5 = G0-random 配置、固定长度跑到 t0+75；floor_ξ 与迁移 baseline 推荐不做 / 推迟。**用户还没拍板** |
@@ -266,13 +207,12 @@ N-005 的做法（随机数据），G6 配置缩到 20 端 / 4 edge / [2,0,0,0] 
 | 事 | 谁 | 说明 |
 |---|---|---|
 | 合并回 main | 用户决定 | 本分支领先 `origin/main`；**Claude 没有合并** |
-| DET 重交 + G8 / G6D 提交 | 用户（集群） | 上面 ① ②；DET 不过就别交 G8 |
-| G1 重新规划 | G8 回来后 | D-074；FLR 已判（floor 不可忽略，F-065） |
-| G6D go / no-go | G6D 回来后 | b / c 比 a 低 ≥ 0.15 → 扩 3 seed（0.15 无证据） |
-| G3 要不要带仪表重跑 | 用户 | **G3 已回**：C3 受害 edge 0.93 – 0.99，差中差 +0.003 … +0.020 判不出（F-066）→ 满足「贴天花板才重跑」的条件；C1 / C3 各 3 seed，约 6 GPU-h；怎么登记见上 ③ |
+| G1 重新规划 | 用户 | **G8 已回**：`user_decides`（F-068）；推荐按 `decays_to_floor` 一支走（见「下一步」①） |
+| ~~G6D go / no-go~~ | — | ✅ 止步：(b)/(c) 只比 (a) 低 0.033 / 0.024（F-069） |
+| G3 要不要带仪表重跑 | 用户 | **G3 已回**：C3 受害 edge 0.93 – 0.99，差中差 +0.003 … +0.020 判不出（F-066）→ 满足「贴天花板才重跑」的条件；C1 / C3 各 3 seed，约 6 GPU-h；怎么登记见「下一步」② |
 | S4 的四个拍板项 | 用户 | 生成器在窗口外怎么办、G5 拓扑与单位、run 长度、floor_ξ / 迁移 baseline（见上表） |
 | 3.2 的假设重新表述 | 用户 | N-003；本会话给过一版草案（D-021 下 ρ=1 时 body 学到的是与触发器无关的塌缩；预测：恶意端干净精度 ≈ 本地 y_t 占比、body ‖Δ‖ 更大、无触发器时判 y_t 的比例 ≈ 有触发器时 —— **只是推理**）；y_t 偏置与恶意端精度现在常开 |
-| 磁盘预算 20 GB | 每批回传后 | 加总各 metrics.json 的 `dumps.logits.bytes` 与 `dumps.snapshots[].bytes` |
+| 磁盘预算 20 GB | 每批回传后 | 加总各 metrics.json 的 `dumps.logits.bytes` 与 `dumps.snapshots[].bytes`；目前 G8 约 0.81 GB；logits 54.7 MB / run 超了 D-073 的 50 MB 上限约 9%（F-067） |
 | `.git` 已 360 MB | 需要时 | 红线 500 MB；每个 schema 7 的 metrics.json 约大 50 KB（`test_collect_eval_detail.py` 的体积守卫：≤ 70 KB） |
 | G2 的规模 | 用户 | D-056；定了再开 S5 |
 | 攻击接近饱和（F-045 / F-049 / F-061） | 用户 | 终值类比较可能撞天花板 → 看 margin 列（D-072） |

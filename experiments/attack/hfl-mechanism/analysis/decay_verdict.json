@@ -1,0 +1,104 @@
+{
+  "overall": "user_decides",
+  "summary": "excess 介于 0.05 与 0.1 之间或 seed 间不一致 → 用户定",
+  "thresholds": {
+    "low": 0.05,
+    "high": 0.1
+  },
+  "windows": {
+    "A_T": [
+      28,
+      30
+    ],
+    "main": [
+      51,
+      60
+    ],
+    "end": [
+      61,
+      70
+    ]
+  },
+  "per_seed": [
+    {
+      "seed": 42,
+      "verdict": "ok",
+      "same_malicious_ids": true,
+      "victims": {
+        "A_T": 0.6736,
+        "A_main": 0.1745,
+        "A_end": 0.1665,
+        "floor": 0.0827,
+        "excess": 0.0918,
+        "excess_end": 0.0837,
+        "retention": 0.1554,
+        "no_stop_ref": 0.7939
+      },
+      "e0": {
+        "A_T": 0.9853,
+        "A_main": 0.2127,
+        "A_end": 0.2234,
+        "floor": 0.1202,
+        "excess": 0.0925,
+        "excess_end": 0.1032,
+        "retention": 0.1069,
+        "no_stop_ref": 0.9784
+      },
+      "margin_p50_slope_31_70": -0.1676
+    },
+    {
+      "seed": 43,
+      "verdict": "ok",
+      "same_malicious_ids": true,
+      "victims": {
+        "A_T": 0.3476,
+        "A_main": 0.1419,
+        "A_end": 0.0928,
+        "floor": 0.105,
+        "excess": 0.0369,
+        "excess_end": -0.0122,
+        "retention": 0.1521,
+        "no_stop_ref": 0.6568
+      },
+      "e0": {
+        "A_T": 0.994,
+        "A_main": 0.1449,
+        "A_end": 0.101,
+        "floor": 0.1273,
+        "excess": 0.0176,
+        "excess_end": -0.0263,
+        "retention": 0.0203,
+        "no_stop_ref": 0.9702
+      },
+      "margin_p50_slope_31_70": -0.1568
+    },
+    {
+      "seed": 44,
+      "verdict": "ok",
+      "same_malicious_ids": true,
+      "victims": {
+        "A_T": 0.8779,
+        "A_main": 0.1968,
+        "A_end": 0.1783,
+        "floor": 0.0566,
+        "excess": 0.1402,
+        "excess_end": 0.1218,
+        "retention": 0.1707,
+        "no_stop_ref": 0.9954
+      },
+      "e0": {
+        "A_T": 1.0,
+        "A_main": 0.2164,
+        "A_end": 0.1888,
+        "floor": 0.093,
+        "excess": 0.1234,
+        "excess_end": 0.0958,
+        "retention": 0.1361,
+        "no_stop_ref": 1.0
+      },
+      "margin_p50_slope_31_70": -0.2197
+    }
+  ],
+  "preregistered": true,
+  "caveat": "lr 按 0.992^有效轮 衰减（1B-2 为常数 lr）；衰减慢可能部分来自 lr 小"
+}
