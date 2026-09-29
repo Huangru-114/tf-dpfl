@@ -114,7 +114,7 @@ LOG = """\
 
 def test_side_columns_land_in_rounds_and_acc_rounds():
     m = collect(LOG)
-    assert m["schema_version"] == 7
+    assert m["schema_version"] == 8
     r = m["rounds"][0]
     assert r["local_benign_asr"] == 0.3
     assert r["local_benign_asr_unfiltered"] == 0.35

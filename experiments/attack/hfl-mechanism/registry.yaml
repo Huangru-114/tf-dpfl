@@ -22,6 +22,10 @@
 #     登记 G8（3-C 攻击停止版，3 run）与 G6D（3-E 分散布点探针，3 run），已 materialize（可交）。
 #     存盘开关只写在组的 set 里（D-073），base.yaml 不动 → 已有 42 个配置的 sha 不变。
 #     G1 待 FLR + G8 重新规划（D-074）
+#   · 2026-09-29 S4 完成（投毒窗口起点 + 生成器语义开关，D-078 / D-079）→ `available: [S8, S3, S9, S4]`：
+#     G0 改固定 60 云轮（ρ=0 时自适应判据必然跑满，cap_reached 是假的）；G5 补齐 5 格（G0-random 配置、固定到 t0+75），
+#     但 requires 里的 `g5-schedule` 是故意的 —— 等 G5AB（生成器语义 A / B 的 8 run 对比）判完再放行；
+#     登记 G5AB 与 G8F（G8 的 flat 对照，D-077）。已有配置的 sha 不变
 # 功能会话完成时，把它的 token 加进 `available`，并补上对应组的 `set:`。
 # **补 `set:` 时核对三件**（G2 就是漏了这三件，test_registry 守着）：
 #   malicious_per_edge 的长度 = n_edges；n_rounds × edge_rounds ≥ cap_effective；各格评估网格（有效轮）一致。
@@ -35,7 +39,7 @@ base: base.yaml       # A4（2026-09-26）
 overlays:
   - ../../../fedavg/config/alignment_p2.yaml   # 「P2 对齐」模板：每个对齐开关都打开
 audit: AUDIT.md
-available: [S8, S3, S9]   # 已完成的功能会话（S3：新划分 D-062 … D-068；S9：评估仪表 + 存盘开关 D-071 … D-075）
+available: [S8, S3, S9, S4]   # 已完成的功能会话（S3：新划分 D-062 … D-068；S9：评估仪表 + 存盘开关 D-071 … D-075；S4：投毒窗口起点 + 生成器语义 D-078 / D-079）
 
 groups:
   G0:
@@ -43,8 +47,10 @@ groups:
     requires: [audit, S3, S4]
     seeds: [42, 43, 44]
     # S3（2026-09-28）补：4 edge 集中 [10,0,0,0]、R5（D-066）、ρ=0；划分 = 等大小 random / 固定设计 C1–C4。
-    # **规模等 FLR 的判定**（D-061）：negligible → 取消逐划分 floor；hdir 四档要不要 floor 那时再定。
+    # **规模等 FLR 的判定**（D-061）：FLR 判 floor 不可忽略（F-065）→ 逐划分测。hdir 四档要不要 floor 另定。
+    # S4（D-078）：固定 60 云轮（= FLR）。ρ=0 时「越过阈值」永远不成立，自适应判据必然跑满 → cap_reached 是假的删失。
     set: {federation.n_edges: 4, backdoor.malicious_per_edge: [10, 0, 0, 0], backdoor.poison_ratio: 0.0,
+          federation.n_rounds: 60, stopping: null,
           federation.design.n_per_client: 500, federation.design.clean_per_edge: 500, federation.design.alpha_client: 0.5}
     factors:
       partition:
@@ -133,17 +139,22 @@ groups:
 
   G5:
     purpose: "3.3 收敛门控：投毒窗口 [t0, t0+20) + 观察 50 轮，从头跑（不分叉）"
-    requires: [audit, S4]
+    # `g5-schedule`：生成器语义（A = window / B = always）等 G5AB 判完才定（D-079）→ 在那之前不生成、不交。
+    requires: [audit, S4, g5-schedule]
     seeds: [42, 43, 44]
-    # S3（D-065）：划分 = 等大小 random。拓扑与窗口单位 S4 时定（建议同 G0：4 edge 集中、R5）。
-    set: {federation.partition: equal_random, federation.design.n_per_client: 500, federation.design.clean_per_edge: 500, federation.design.alpha_client: 0.5}
-    factors:
-      t0:
-        - {label: t20}
-        - {label: t60}
-        - {label: t100}
-        - {label: t140}
-        - {label: t180}
+    # S4（2026-09-29，D-078，用户定）：G0-random 配置（4 edge、攻击者集中 [10,0,0,0]、R5、等大小 random、ρ=0.2）；
+    # 窗口以 cloud 轮计（label 写有效轮）：t0 有效轮 → attack_start_round = t0/5 + 1、attack_stop_round = start + 4
+    # （投毒有效轮 t0+1 … t0+20）；固定长度跑到 t0+75（窗口 20 + 观察 50 + 稀释取 +65/+70/+75 三点）。
+    # 判定口径（D-078）：良性端池化 fresh-PM ASR；峰值 = 窗口内 4 个评估点的最大值；稀释 = +65/+70/+75 的均值；
+    # 两者都减同有效轮的 G0-random floor。
+    set: {federation.n_edges: 4, backdoor.malicious_per_edge: [10, 0, 0, 0], stopping: null,
+          federation.partition: equal_random, federation.design.n_per_client: 500, federation.design.clean_per_edge: 500, federation.design.alpha_client: 0.5}
+    cells:
+      - {cell: t20,  set: {backdoor.attack_start_round: 5,  backdoor.attack_stop_round: 9,  federation.n_rounds: 19}}
+      - {cell: t60,  set: {backdoor.attack_start_round: 13, backdoor.attack_stop_round: 17, federation.n_rounds: 27}}
+      - {cell: t100, set: {backdoor.attack_start_round: 21, backdoor.attack_stop_round: 25, federation.n_rounds: 35}}
+      - {cell: t140, set: {backdoor.attack_start_round: 29, backdoor.attack_stop_round: 33, federation.n_rounds: 43}}
+      - {cell: t180, set: {backdoor.attack_start_round: 37, backdoor.attack_stop_round: 41, federation.n_rounds: 51}}
 
   G6:
     purpose: "3-E（可选）三层个性化：(a) FedRep 基线 / (b) 末 1 块 edge 内共享 / (c) 末 2 块"
@@ -214,6 +225,37 @@ groups:
         - {label: a, set: {federation.edge_shared_blocks: 0}}
         - {label: b, set: {federation.edge_shared_blocks: 1}}
         - {label: c, set: {federation.edge_shared_blocks: 2}}
+
+  G5AB:
+    purpose: "生成器语义的缩小规模对比（D-079）：A = window（窗口外冻结）vs B = always（全程在训）× t0 {20, 140} → 定 G5 用哪种"
+    requires: [audit, S4]
+    seeds: [42, 43]
+    # 2026-09-29 用户定：S4 ① 先不定，先做 A / B 对比。配置 = G5 的 set + t20 / t140 两格，只加 generator_schedule。
+    # t20 vs t140：B 的生成器在 t0 前已训了 t0 轮，看这个成熟度差会不会造成随 t0 上升的假正相关；
+    # 窗口后的稀释值回答「攻击者跟着训练」是否关键。预注册判定 harness/g5ab_verdict.py（阈值 0.10 无证据）。
+    set: {federation.n_edges: 4, backdoor.malicious_per_edge: [10, 0, 0, 0], stopping: null,
+          federation.partition: equal_random, federation.design.n_per_client: 500, federation.design.clean_per_edge: 500, federation.design.alpha_client: 0.5}
+    cells:
+      - {cell: t20-A,  set: {backdoor.attack_start_round: 5,  backdoor.attack_stop_round: 9,  federation.n_rounds: 19, backdoor.generator_schedule: window}}
+      - {cell: t20-B,  set: {backdoor.attack_start_round: 5,  backdoor.attack_stop_round: 9,  federation.n_rounds: 19, backdoor.generator_schedule: always}}
+      - {cell: t140-A, set: {backdoor.attack_start_round: 29, backdoor.attack_stop_round: 33, federation.n_rounds: 43, backdoor.generator_schedule: window}}
+      - {cell: t140-B, set: {backdoor.attack_start_round: 29, backdoor.attack_stop_round: 33, federation.n_rounds: 43, backdoor.generator_schedule: always}}
+
+  G8F:
+    purpose: "G8 的 flat 对照（D-077）：flat 在攻击者走后也衰减，还是像 1B-2（官方代码）那样停在平台 → 分开 HFL 结构与训练协议"
+    requires: [audit]
+    seeds: [42, 43, 44]
+    # 2026-09-29 用户定：只做 F-std（P2 协议，不加官方预处理臂、不加 flat 的 ρ=0 floor）。
+    # = G8 的 flat 版：1 edge、每云轮 1 个 edge 轮 → 有效轮 = 轮号；350 轮 = G8 的 70 云轮 × 5；
+    # attack_stop_round 151 → 有效轮 1–150 投毒 = G8 的第 1–30 云轮；每 5 轮评估一次（评估点与 G8 对齐）；
+    # 不开存盘开关（没有登记消费它的离线分析，D-073）。lr 按有效轮衰减（A08）→ 两边日程相同。
+    # 预注册判定：harness/decay_verdict.py --flat（良性端池化原始 ASR，第 255–300 有效轮；0.25 / 0.35 无证据）。
+    set: {federation.n_edges: 1, federation.edge_rounds: 1, federation.n_rounds: 350,
+          backdoor.malicious_per_edge: [10], stopping: null,
+          federation.edge_shared_blocks: 0, backdoor.attack_stop_round: 151,
+          backdoor.eval_interval: 5, evaluation.eval_interval: 5}
+    cells:
+      - {cell: std}
 
   G7:
     purpose: "预处理对比（D-025）：主协议（标准化 + 增强）vs 官方预处理（不标准化、不增强），同 seed 配对。检验「官方设定降低了攻击难度」"

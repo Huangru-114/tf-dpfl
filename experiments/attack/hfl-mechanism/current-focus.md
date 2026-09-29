@@ -1,11 +1,13 @@
 # current-focus —— Experiment 3（改版）· 交接
 
 > 本文件是 `CLAUDE.md`「新会话开场第 3 步」要读的那一份。
-> **写于 2026-09-28**（S9 会话结束时）。**S9 已完成**（D-071 … D-075）：评估仪表（常开）+ logits / 快照两个开关 + **下一实验组 G8**（3-C 攻击停止版 = 1B-2 的 HFL 复现）与 **G6D 探针**，两组都已 materialize、**可交**。
+> **写于 2026-09-29**（S4 会话结束时；S9 会话的交接内容保留在「历史：S9」）。**S9 已完成**（D-071 … D-075）：评估仪表（常开）+ logits / 快照两个开关 + **下一实验组 G8**（3-C 攻击停止版 = 1B-2 的 HFL 复现）与 **G6D 探针**，两组都已 materialize、**可交**。
 > **2026-09-29：已登记的可交格子全部回传，集群上没有待交的作业**（status：todo 0 / done 42 / stale 6 = G7（预期）/ blocked 121）。
 > - G6 / FLR / G3（`df4e98e`）：FLR 判 **floor 不可忽略** → G0 逐划分测（F-065）；G3 初读见 F-066。
 > - G8 / G6D（`e61af6b`）：仪表在 GPU 上不改数（F-067）；**G8 判 `user_decides`**，后门大部分褪去（F-068）；**G6D 止步**（F-069）。
-> - 下一步全是用户拍板项（见「下一步」）。G2 / S5 仍暂缓（D-056）；S4 解锁 G0 / G5。
+> - **2026-09-29 S4 已完成**（D-076 … D-079）：投毒窗口起点 + 生成器语义开关（A = window / B = always）；
+>   登记 **G8F**（G8 的 flat 对照，3 run）、**G5AB**（生成器语义 A/B 对比，8 run），G0 改固定 60 轮、**可交**；
+>   G5 挂着等 G5AB。**下一步 = 集群交 G8F + G5AB（G0 可选）**。G2 / S5 仍暂缓（D-056）；G3 搁置。
 
 ## 几套编号（容易混，先看这里）
 
@@ -19,7 +21,26 @@
 | **F-001 … F-064 / N-001 … N-007** | `FINDINGS.md` 的证据条目 / 设计备注 | FINDINGS |
 | **P0 / P1 / P2** | 数据批次的口径版本；只有 P2 进结论 | PLAN §0 |
 
-## 本会话做了什么（2026-09-28，S9：讨论 S4 / S6 → 记录项的取舍 → 下一实验组 → 仪表实现）
+## 本会话做了什么（2026-09-29，S4：G8 / G6D 回传核对 → G1 / flat 对照拍板 → S4 实现）
+
+**问题**：G8 判 `user_decides` 之后 G1 怎么改、要不要 flat 对照；S4 的四个拍板项（用户：「我现在决定」）。
+
+| 决定 | 内容 |
+|---|---|
+| D-076 | G8 按「退回 floor」一支处理 G1（用户判定：主体衰减完成、s42 / s44 残留长尾）；G1 保留 3-C，主量 margin，另报尾部 |
+| D-077 | **G8F** = G8 的 flat 版，只做 F-std；`decay_verdict.py --flat`：池化原始 ASR 第 255–300 有效轮，全部 ≥ 0.35 → `flat_plateau`，全部 ≤ 0.25 → `flat_decays`。**阈值在写判定时从计划里的 0.20 / 0.30 改的**：G8 自己的 s44 池化值是 0.2001，「与 HFL 一样」也会落进 user_decides。恶意端 id 与 G8 不同（按 edge 布点在 1 个 edge 下从 100 端里抽） |
+| D-078 | S4 ②③④：G5 = G0-random 配置、cloud 轮为单位、固定到 t0+75；G0 固定 60 轮；floor_ξ 不做；迁移 baseline 推迟；G5 判定口径与 3 seed |
+| D-079 | S4 ①：两种生成器语义都实现，先做 **G5AB**（t0 {20, 140} × {A, B} × 2 seed）；`g5ab_verdict.py`；G5 挂 `g5-schedule` |
+
+**实现**（批准后「开始改」）：`fedavg/attack/attack_window.py`（不 import TF）、`FLClientBase.attacking / generating` + `_gen_active`、
+Bad-PFL 的生成器闸门改读 `_gen_active`、`config_validate` 的起点 / 语义校验 + `[设定7]`、collect_metrics **schema 8**、
+`status` / `runs_table` / `figures` / `verdicts` 的因素键、`g5ab_verdict.py`、`decay_verdict.py --flat`、登记表（G0 / G5 / G5AB / G8F）。
+已有 48 个配置的 sha 不变；新生成 26 个（G0 15、G5AB 8、G8F 3），全部过 `config_validate`、0 警告。
+
+**验证**：本地 L1 **1346 passed / 41 skipped / 3 xfailed**；TF CPU 全量（`scratchpad/tfvenv`，TF 2.15.1）**1499 passed / 23 skipped / 3 xfailed / 2 failed**（只有陷阱 #4 的 2 条）。
+CPU 替身（默认配置 checksum 不变、B 臂窗口前 == ρ=0 影子攻击者、A ≠ B）在本提交时还在跑：`base` 两轮已与 S9 锚点逐位相同（`00527830725a` / `628233ae41d3`），其余结果下一个提交补上。
+
+## 历史：S9（2026-09-28：讨论 S4 / S6 → 记录项的取舍 → 下一实验组 → 仪表实现）
 
 **问题**：用户要「讨论 S4、S6 的计划」，随后把问题收窄为「记录哪些数据、重跑不重跑，都要导向防御设计」，并要求本会话「敲定下一个实验组、实现这几个开关」。
 
@@ -114,28 +135,47 @@
 - **L2 替身**（本地 CPU、随机数据，N-005 的做法；只证明接线，数字无意义）：G6 (b)/(a) 缩到 20 端 / 4 edge / R2 / 2 云轮，见下「L2 替身」。
 - **真正的 L2 = 集群交 G6**（用户）：命令见下。
 
-## 下一步（2026-09-29：集群上没有待交的作业，下面都要用户拍板）
+## 下一步（2026-09-29，S4 之后）
 
-**① G1 怎么重新规划（D-074）** —— G8 判 `user_decides`，D-074 只写了 `persists` / `decays_to_floor` 两支（F-068）：
-- 受害 edge 的 excess 停手后 20–30 云轮只剩 15–17%（retention 0.155 / 0.152 / 0.171），margin 中位数一直在降、没有平台；
-  但 s42 / s44 在第 51–70 轮仍有约 0.08–0.14 的 excess，是客户端的长尾（ASR > 0.5 的良性端 2–6%）。
-- **推荐按 `decays_to_floor` 那一支走**：G1 保留 3-C，主量用 margin，另报尾部（`benign_asr_p90` / `benign_asr_gt50`）。
-  理由：「一个云周期内自清洁」要看的是整体趋势，margin 给得出；ASR 逐点 σ≈0.09 测不出小斜率。
-- 拍板后：写 D-076，改 PLAN 的 G1 行、S6 的范围（S6 等的就是这一条）。
+**⓪ 用户（集群）：拉代码、跑 L1**
 
-**② G3 要不要带仪表重跑**（F-066）—— C3 贴天花板，差中差判不出；C1 / C3 × 3 seed = 6 run ≈ 6 GPU-h。
-config_sha 不变 → `submit.sh` 会当成已完成，要在登记表里另开一个组（例如 `G3M`，requires S9）。
+```bash
+git pull
+bash run_l1.sh     # GPU 节点：5 条红（陷阱 #4 的 2 条 + F-067 的 3 条环境性红）；没有 GPU 的节点：2 条。多出来的才是回归
+```
 
-**③ S4 的四个拍板项**（→ G0 / G5；G0 已定逐划分测，F-065）：生成器在窗口外怎么办、G5 拓扑与单位、run 长度、floor_ξ / 迁移 baseline（见「功能会话一览」）。
+新增的 TF 测试 `tests/test_attack_window_tf.py`（10 条）在本地 TF CPU 上是绿的；GPU 上没跑过 —— 若它红，先看是不是 F-067 那一类（GPU 数值），回传输出。
 
-**④ G8 的存盘文件留不留**：在集群 `$ROOT/../tfdpfl-dumps/G8__a__s4?.<job>/`，约 0.81 GB（F-067）。
-D-073 要求有消费它的离线分析才开 —— 目前**还没有写**。候选：第 51–70 轮 ASR 仍 > 0.5 的那 2–6% 良性端是谁、它们的 head / 数据有什么共同点（快照 70 + logits）。
-不做的话可以删掉省配额。
+**① 用户（集群）：交 G8F + G5AB**（在仓库根目录；共约 9 GPU-h，都是按 G3 / G8 实测外推，**没有实测**）
 
-**⑤ 合并回 main**（用户决定）。
+```bash
+PACK=3 RUN_GROUPS="G8F G5AB" bash experiments/attack/hfl-mechanism/submit.sh --dry-run
+#   期望：G8F 一个 k=3 探路包（3 seed）；G5AB 四格各一个 k=2 探路包（每格 2 seed，t20 两格约 0.85 h、t140 两格约 1.9 h）
+PACK=3 RUN_GROUPS="G8F G5AB" bash experiments/attack/hfl-mechanism/submit.sh
+```
 
-**GPU 节点上跑 L1 的基线 = 5 条红**（F-067）：陷阱 #4 的 2 条 + 3 条测试默认「没有 GPU」（`test_pack_submit` 端到端、
-`test_eval_detail_tf` 开关那条、`test_badpfl_official` 的 PGD 对拍）。用户决定不改。没有 GPU 的节点仍是 2 条。多出来的才是回归。
+- G8F 是 flat（新配置类型）：只有 1 个 edge 模型，显存预计不高于 G8（每 run ≤ 17 GiB）—— **没有实测**，回来后看 `gpu.json`。
+- G5AB 手工跨格合包能省约 0.8 GPU-h，不值得额外的手工命令 —— 用 `submit.sh` 的缺省探路即可。
+- **G0（可选，同批或下一批）**：`PACK=3 RUN_GROUPS="G0" bash …/submit.sh` → 5 格各一个 K=3 包，60 云轮，约 13 GPU-h。
+  G0 是 3.1 的主干、3-B 的逐 edge floor、G5 的 floor；G5 真正交之前必须有 G0-random。
+
+**② 回传后核对**
+
+- G8F：`python3 harness/decay_verdict.py --flat --json experiments/attack/hfl-mechanism/analysis/flat_verdict.json`
+  → `flat_plateau` / `flat_decays` / `user_decides`（D-077）。核对 `run.attack_stop_round == 151`、`n_edges == 1`、`client_failures == []`。
+  恶意端 id 与 G8 不同（按 edge 布点在 1 个 edge 下从 100 端里抽，D-077）—— 预期，配对只按 seed。
+- G5AB：`python3 harness/g5ab_verdict.py --json experiments/attack/hfl-mechanism/analysis/g5ab_verdict.json`
+  → `insensitive`（G5 用 A）/ `sensitive` / `user_decides`（D-079）。`run.attack_start_round` / `generator_schedule` 由 `status.py` 核对。
+  判完后：把 `g5-schedule` 加进 `registry.yaml` 的 `available`，G5 的 `set:` 写上选定的 `backdoor.generator_schedule`，materialize。
+- 顺带的免费验证（有了 G0-random 之后）：G5AB 的 **B 臂**在窗口开始前应与同 seed 的 G0-random **逐轮 checksum 相同**
+  （`instrumentation_check G0__random__s42 G5AB__t140-B__s42 --upto 28`；CPU 替身的结果见「本会话做了什么」的验证一段）。
+
+**③ 挂着、等数据的拍板**
+
+- G8 的存盘文件（集群 `$ROOT/../tfdpfl-dumps/G8__a__s4?.<job>/`，约 0.81 GB）：**留到分析做完再删**（用户）。
+  候选分析：第 51–70 轮 ASR 仍 > 0.5 的那 2–6% 良性端是谁；迁移 baseline（G8 第 30 轮快照里的生成器 × 干净模型快照，D-078）。
+- G3 带仪表重跑：**搁置**（用户）。
+- 合并 main：**先不合并**（用户）。
 
 ## 历史：G8 / G6D 的提交（2026-09-28 / 29）
 
@@ -195,9 +235,9 @@ N-005 的做法（随机数据），G6 配置缩到 20 端 / 4 edge / [2,0,0,0] 
 | ~~S9~~ 评估仪表 + 存盘开关 | **G8**（3-C 攻击停止版）、**G6D**（3-E 分散布点探针） | 3 + 3 | ✅；两组已回传：G8 `user_decides`（F-068）、G6D 止步（F-069） |
 | ~~S8~~ 三层个性化 | G6（3-E，可选） | 9 | ✅；9 个 run 全部回传（F-061 / F-065 ③） |
 | ~~S3~~ 新划分 | G3（3-B） | 24 | ✅；G3 已回传（F-066）；另是 G0 / G1 的前提 |
-| S4 影子攻击者 + 攻击起始轮 | G5（3.3） | 15 | 另是 G0 的前提（G0 规模等 FLR，D-061）。**本会话讨论过但没做**：窗口外生成器怎么处理（推荐「窗口只管投毒、生成器全程训」）、单位 = cloud 轮、G5 = G0-random 配置、固定长度跑到 t0+75；floor_ξ 与迁移 baseline 推荐不做 / 推迟。**用户还没拍板** |
+| ~~S4~~ 影子攻击者 + 攻击起始轮 | G0（3.1）、G5AB → G5（3.3）；另 G8F | 15 + 8 (+15) + 3 | ✅（2026-09-29，D-076 … D-079）：起点 + 生成器语义开关；G0 / G5AB / G8F 可交，G5 等 G5AB |
 | S5 逐 edge 轮评估 | G2（3-A）、G1 的前提之一 | 55 | **暂缓**（D-056）；预案 D-055 |
-| S6 更新日志 | G1（3-D）、G4（3.2，搁置） | 24 / 12 | **S9 已拿走其中的「恶意端干净精度」**；剩余：逐更新几何分数（本会话讨论推荐：每个上传的 body Δ 做 CountSketch + 在线精确余弦对拍）、周期全量转储给 c_k、c_k 的 head（推荐 edge 干净集上的类均值原型 NCM）。**等 G1 重新规划（D-074）后再定** |
+| S6 更新日志 | G1（3-D）、G4（3.2，搁置） | 24 / 12 | **S9 已拿走其中的「恶意端干净精度」**；剩余：逐更新几何分数（S9 会话讨论推荐：每个上传的 body Δ 做 CountSketch + 在线精确余弦对拍）、周期全量转储给 c_k、c_k 的 head（推荐 edge 干净集上的类均值原型 NCM）。G1 已定按「退回 floor」一支（D-076：保留 3-C、主量 margin）→ **S6 的范围可以开始定** |
 | S7 判定代码 + 出图 | — | — | 3-E 的判定（D-059 / D-071 口径）属于这里 |
 | —（无需会话） | G7 | 6 | ✅ 已判完 |
 
@@ -207,10 +247,11 @@ N-005 的做法（随机数据），G6 配置缩到 20 端 / 4 edge / [2,0,0,0] 
 | 事 | 谁 | 说明 |
 |---|---|---|
 | 合并回 main | 用户决定 | 本分支领先 `origin/main`；**Claude 没有合并** |
-| G1 重新规划 | 用户 | **G8 已回**：`user_decides`（F-068）；推荐按 `decays_to_floor` 一支走（见「下一步」①） |
+| ~~G1 重新规划~~ | — | ✅ 用户定按「退回 floor」一支（D-076）；具体设计随 S5 / S6 |
 | ~~G6D go / no-go~~ | — | ✅ 止步：(b)/(c) 只比 (a) 低 0.033 / 0.024（F-069） |
-| G3 要不要带仪表重跑 | 用户 | **G3 已回**：C3 受害 edge 0.93 – 0.99，差中差 +0.003 … +0.020 判不出（F-066）→ 满足「贴天花板才重跑」的条件；C1 / C3 各 3 seed，约 6 GPU-h；怎么登记见「下一步」② |
-| S4 的四个拍板项 | 用户 | 生成器在窗口外怎么办、G5 拓扑与单位、run 长度、floor_ξ / 迁移 baseline（见上表） |
+| G3 要不要带仪表重跑 | 用户 | **搁置**（用户，2026-09-29）。C3 受害 edge 0.93 – 0.99，差中差判不出（F-066）；重跑 = C1 / C3 各 3 seed，约 6 GPU-h，config_sha 不变 → 要在登记表里另开一个组 |
+| G5 用哪种生成器语义 | 用户，G5AB 回来后 | `g5ab_verdict.py`（D-079）；判完把 `g5-schedule` 加进 `available`、G5 的 `set:` 写上选定值 |
+| G8 的存盘文件（约 0.81 GB） | 用户 | **分析做完再删**；候选分析见「下一步」③ |
 | 3.2 的假设重新表述 | 用户 | N-003；本会话给过一版草案（D-021 下 ρ=1 时 body 学到的是与触发器无关的塌缩；预测：恶意端干净精度 ≈ 本地 y_t 占比、body ‖Δ‖ 更大、无触发器时判 y_t 的比例 ≈ 有触发器时 —— **只是推理**）；y_t 偏置与恶意端精度现在常开 |
 | 磁盘预算 20 GB | 每批回传后 | 加总各 metrics.json 的 `dumps.logits.bytes` 与 `dumps.snapshots[].bytes`；目前 G8 约 0.81 GB；logits 54.7 MB / run 超了 D-073 的 50 MB 上限约 9%（F-067） |
 | `.git` 已 360 MB | 需要时 | 红线 500 MB；每个 schema 7 的 metrics.json 约大 50 KB（`test_collect_eval_detail.py` 的体积守卫：≤ 70 KB） |

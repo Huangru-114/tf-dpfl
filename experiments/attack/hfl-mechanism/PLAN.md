@@ -62,9 +62,9 @@ P1 的用途（FINDINGS F-002/F-008/F-009）：同 seed 噪声的实测、效应
 | 子实验 | 需要的功能 | 现状 | 会话 |
 |---|---|---|---|
 | 全部 | 对齐审计关闭 | — | A1–A4 |
-| 3.1 对抗下限 | ρ=0 影子攻击者；ξ-only 下限；（可选）迁移 baseline 需要保存生成器 | 前者只需配置 + L1；后两者缺 | S4 |
+| 3.1 对抗下限 | ρ=0 影子攻击者；~~ξ-only 下限~~（**不做**，D-078）；迁移 baseline（**推迟**：S9 快照已存生成器，干净模型的快照可带开关重跑补） | ✅ 影子攻击者的 L1 守卫已补（S4） | S4 ✅ |
 | 3.2 私有头吸收 | FedRep ↔ FedAvg、ρ=1；恶意端干净精度（已算、没解析）；body 更新范数 | 部分已有 | S6 |
-| 3.3 收敛门控 | `attack_start_round`；固定长度 run | 缺起始轮 | S4 |
+| 3.3 收敛门控 | `attack_start_round` + `generator_schedule`（A = window / B = always）；固定长度 run | ✅ 已有（S4，D-078 / D-079）；用哪种生成器语义等 G5AB | S4 ✅ |
 | 3-A 公平对照 | flat / HFL / R_edge / 参与配额 / T_θ（都已有）；逐 edge 轮评估（高 R） | 大部分已有 | S5 |
 | 3-B 目标类分布 | 固定比例表 C1–C4；层级 Dirichlet p_e~Dir(α_e p)（按社区口径 = 每类 α_e，D-063）；H_inter/H_intra；逐 edge 下限 | ✅ 划分已有（S3）；逐 edge 下限等 FLR / G0 | S3 |
 | 3-C 锯齿 | 逐 edge 轮评估 + fresh-PM ASR；攻击停止（已有） | 缺（fresh-PM 与交错执行在 A4，D-033 / D-036） | A4 + S5 |
@@ -92,7 +92,7 @@ P1 的用途（FINDINGS F-002/F-008/F-009）：同 seed 噪声的实测、效应
 | 3-D | ΔAUROC = AUROC(edge 视角) − AUROC(全局视角)，**等池大小** | CI 全 > 0 → edge 的价值包含检测 | 3 |
 | 3-E | 受害 edge（E1–E3）的**原始** benign ASR（fresh-PM）：(b)/(c) 相对 (a)，按 seed 配对（D-059：不等 S4 的 floor；「三臂 floor 相同」无证据，注明）；MTA 损失（**判定用 fresh 列**，D-071；陈旧列另报） | ASR 下降的 CI 全 > 0，且 MTA 下降 ≤ 0.02（D-071：维持 0.02，另报 ΔASR–ΔMTA 权衡；更高门槛只能事后标注） | 3 |
 | 3.2 | ρ=1 时恶意端自身干净精度、body 更新范数；FedRep vs FedAvg 的 benign ASR | 按原文 §3.2 的三条预测逐条判定 | 3 |
-| 3.3 | 窗口内的峰值 ASR（植入）、窗口后第 50 轮的 ASR（稀释），随 t0 的变化 | 峰值随 t0 单调上升的秩相关 CI > 0 → 植入受收敛门控 | 3 |
+| 3.3 | 良性端池化 fresh-PM ASR：窗口内 4 个评估点的最大值（植入峰值）、t0 + 65 / 70 / 75 有效轮三点的均值（稀释），都减同有效轮的 G0-random floor（D-078），随 t0 的变化 | 峰值随 t0 单调上升的秩相关 CI > 0 → 植入受收敛门控 | 3 |
 | 3-C 衰减（G8，D-075） | 受害 edge 良性 ASR 在第 51–60 轮（= FLR 的 floor 窗口，同有效轮同 lr）减 floor；`harness/decay_verdict.py` | 3 seed 全部 ≥ 0.10 → `persists`（需主动清除）；全部 ≤ 0.05 → `decays_to_floor`（踢出攻击者可能就够）；其余用户定（阈值沿用 D-068） | 3 |
 
 ---
@@ -102,15 +102,17 @@ P1 的用途（FINDINGS F-002/F-008/F-009）：同 seed 噪声的实测、效应
 | 组 | 配置 | 服务 | 依赖 |
 |---|---|---|---|
 | FLR floor 验证（D-061） | G6 臂 (a) 原样 × ρ=0 影子攻击者 × 3 seed，与 G6(a) 按 seed 配对；预注册判定 `harness/flr_verdict.py` | 定 G0 的规模；兼作 3-E 臂 (a) 的 floor | A4（只改配置）→ **可交** |
-| G0 下限主干 | 划分 {随机, C1, C2, C3, C4} × ρ=0 影子攻击者 × 3 seed；4 edge 集中 [10,0,0,0]、R5（D-066）。~~规模等 FLR~~ **FLR 判 floor 不可忽略（F-065）→ 逐划分测** | 3.1 下限、3-B 逐 edge 下限、3.3 对照 | A4 + S3 + S4 + FLR |
-| G1 主攻击（详细记录；**待用户按 G8 的 `user_decides` 重新规划**，D-074 / F-068） | 4 edge；划分 {随机, C1} × 放置 {collocated, distributed} × R_edge {10, 20} × 3 seed；逐 edge 轮评估；更新日志 | 3-C、3-D、3-A 的一部分。G8 判 `persists` → 3-C 缩为最小确认、主用途改 3-D；判 `decays_to_floor` → 保留 3-C、主量用 margin | A4 + S3 + S5 + S6 |
+| G0 下限主干 | 划分 {随机, C1, C2, C3, C4} × ρ=0 影子攻击者 × 3 seed；4 edge 集中 [10,0,0,0]、R5（D-066）；**固定 60 云轮**（D-078）。~~规模等 FLR~~ **FLR 判 floor 不可忽略（F-065）→ 逐划分测** | 3.1 下限、3-B 逐 edge 下限、3.3 对照 | S4 ✅ → **可交**（15 run，约 13 GPU-h） |
+| G1 主攻击（详细记录；**按「退回 floor」一支重新规划**，D-076） | 4 edge；划分 {随机, C1} × 放置 {collocated, distributed} × R_edge {10, 20} × 3 seed；逐 edge 轮评估；更新日志 | 3-C（**保留，主量用 margin，另报尾部**，D-076）、3-D、3-A 的一部分 | A4 + S3 + S5 + S6 |
 | G2 结构扫描（**暂缓**，D-056） | flat + edge {2, 4, 10} × R_edge {2, 5, 10, 20}，去掉 G1 已覆盖的格子 × 5 seed（布点 / 轮数 2026-09-27 补齐，D-047）；**先跑 G2P 一致性复测**（pilot 表，seed42 的 4 格），结果回来再定 G2 规模 —— G2P 已回来（`consistent`，F-049），**规模尚未定**，由用户定 | 3-A | A4 + S5 |
 | G3 目标类条件 | **C1**（D-062 新增，差中差的基准）/ C2 / C3 / C4 + 层级 Dirichlet α_e {0.1, 0.3, 1, 10}（社区口径，D-063）× 3 seed；4 edge 集中 [10,0,0,0]、R5；比例表 r = 0.25、E3 = deer + horse（D-067） | 3-B | A4 + S3 ✅ → **可交**（24 run） |
 | G4 私有头（**搁置**，D-047） | ρ {0.25, 1.0} × {FedRep, FedAvg} × 3 seed。用户：FedAvg 臂会被立刻攻陷、给不出结论；等 3.2 按 N-003 重新表述时一起重设计对照臂 | 3.2 | A4 + S6 + 重新表述 |
-| G5 时间窗 | t0 {20, 60, 100, 140, 180} × 20 轮投毒 + 50 轮观察 × 3 seed，从头跑 | 3.3 | A4 + S4 |
+| G5 时间窗 | t0 {20, 60, 100, 140, 180} × 20 轮投毒 + 50 轮观察 × 3 seed，从头跑；G0-random 配置，固定到 t0+75（D-078） | 3.3 | S4 ✅；**挂 `g5-schedule`**，等 G5AB 判完（D-079） |
 | G6（可选） | 3-E 的三种划分 × 3 seed；4 edge 集中 [10,0,0,0]、R5、固定 300 有效轮（停止判据关）（D-058） | 3-E | S8 ✅ → 可交 |
 | G8 衰减（D-075，S9） | G6(a) + 第 1–30 轮投毒（`attack_stop_round: 31`）+ 70 轮（攻击者走后 200 有效轮）× 3 seed；logits 每点、快照 30 / 70 | 3-C 攻击停止版 = 1B-2 的 HFL 复现；floor = FLR 同 seed；决定 G1 怎么改（D-074） | ✅ 已回传：判 `user_decides`（F-068） |
 | G6D 探针（D-075，S9） | G6 三臂 × 分散布点 [3,3,2,2] × s42 | 3-E 在没有干净 edge 时还有没有用；go / no-go（低 ≥ 0.15 → 扩 3 seed） | ✅ 已回传：**止步**（只低 0.033 / 0.024，F-069） |
+| G5AB 生成器语义（D-079，S4） | G5 的 t20 / t140 × {A = window, B = always} × seed {42, 43} | 定 G5 用哪种生成器语义；预注册 `harness/g5ab_verdict.py` | S4 ✅ → **可交**（8 run，约 5 GPU-h） |
+| G8F flat 对照（D-077） | G8 的 flat 版：1 edge、每云轮 1 个 edge 轮、350 轮、第 1–150 轮投毒、每 5 轮评估 × 3 seed | 衰减来自 HFL 结构还是训练协议（对照 1B-2 的 0.45 平台）；预注册 `decay_verdict.py --flat` | **可交**（3 run，约 3.5 GPU-h） |
 | G7 预处理对比 | 主配置 × 「官方预处理」（无标准化、无增强）× 3 seed，与主协议同 seed 配对 | 检验「官方设定降低了攻击难度」（D-025） | A4（ε 换算跟随开关，F-027）；在 A4 登记进 `registry.yaml` |
 
 **全部组共用同一条参与量匹配规则（D02）**，否则 T50 不能跨组比较。
@@ -133,7 +135,7 @@ P1 的用途（FINDINGS F-002/F-008/F-009）：同 seed 噪声的实测、效应
 | **A3**（2026-09-25/26） | 审计：FedRep 实现细节 / ResNet-10 / A18 / HFL 形式化 + D01–D06 签字。决定 D-030 … D-038：head = 末层 Dense（D-030）；FedRep 训练顺序两种都跑 pilot（A26，D-031）；BN γ/β 共享、统计量私有（A27，D-032）；主 ASR 与 pm_acc 同模型、都用 fresh-PM（A28，D-033）；ResNet-10 三项对齐（A29，D-034）；A17 / A18 `done`、A21 `deviate`（D-035）；D01 交错执行、D02 按有效轮轮转（D-036）；D03–D06 签字（D-037）；D-029 扩大范围（D-038） | 已拍板；A26 待 pilot |
 | **A4**（实现会话；≠ AUDIT 行 A04；2026-09-26 代码 + L1 完成，pilot 待集群） | 按拍板改代码 + L1 测试（D-039：每行一个开关、默认旧行为，对齐项收成一套模板 `fedavg/config/alignment_p2.yaml`）（A1–A3 的全部 `align` 行，含 A26 的顺序开关、A27 统计量私有、A28 fresh-PM、A29 `resnet10_torch`、D01 交错执行、D02 按有效轮轮转）；跑 D-029 可行性实验（D-038：A08 + A25 + A27 + A29 一起开，2edge 那格带上 D01 / D02），通过后 A08 → `deviate`；同批跑 A26 的 2 个 body_first run，按 D-031 的判据关 A26；登记 G7；`PROTOCOL_VERSION` 升 P2；2 个 smoke 复核标定 | AUDIT 全部关闭（A08 由 D-029、A26 由 pilot 关闭） |
 | **S3**（2026-09-28 ✅，D-062 … D-068） | 划分：C1–C4 **机构式**比例表（只改 y_t 列，D-062）、层级 Dirichlet（社区口径，D-063）、**等大小 random**（D-065）、H_inter/H_intra（打 `[Partition]` 行）、edge 干净集（500/edge，按 p_e，D-064）、划分 seed 分离。**硬要求：客户端等大小**（D-027，F-028）；无放回；n 默认 500（F-057）。实现：`fedavg/data/designed_partition.py`（不 import TF）、`[Partition]` / `[PartitionEdge]` → `run.data`（schema 6）、`harness/partition_preview.py`（F0 数据，F-058） | → G0 / G3 |
-| S4 | ρ=0 影子攻击者 L1、ξ-only 下限、`attack_start_round`（δ-only / ξ-only **逐点消融列不做**，D-051） | → G0 / G5 |
+| **S4**（2026-09-29 ✅，D-078 / D-079） | ρ=0 影子攻击者 L1（生成器确实在训、评估触发器用生成器）、`attack_start_round` + `generator_schedule`（`attack/attack_window.py`，不 import TF；`[设定7]`，schema 8）；~~ξ-only 下限~~ 不做（D-078；δ-only / ξ-only 逐点消融列也不做，D-051） | → G0 / G5AB（G5 等 G5AB） |
 | S5（**暂缓**，D-056；**预案已定**，D-055） | 逐 edge 轮评估（fresh-PM 已在 A4 实现，D-033）。**两条要求（D-047）**：各格评估网格统一在有效轮上（现在 R≠5 的格子是每 R 个有效轮一个点）；加密的点只算主列、保持轻量（否则 G1 / G2 的评估量成倍增加）。预案：`evaluation.eval_grid: 5`、轻评估点喂停止判据且横轴改网格序号（F-052）、GM / EM 只在网格点上算 | → G1 / G2 |
 | S6 | 更新日志、几何分数（body-only、滑窗）、周期转储、离线 c_k、恶意端干净精度 | → G1 / G4 |
 | S7 | 各子实验的判定代码补全 + 出图 | — |
@@ -147,7 +149,7 @@ P1 的用途（FINDINGS F-002/F-008/F-009）：同 seed 噪声的实测、效应
 | ID | 内容 | 子实验 |
 |---|---|---|
 | F0 | 各划分的 (H_inter, H_intra) 散点 | §2 |
-| F1 | ASR 与 floor_gen / floor_ξ 随有效轮的曲线，三层 | 3.1 |
+| F1 | ASR 与 floor_gen 随有效轮的曲线，三层（~~floor_ξ~~ 不做，D-078） | 3.1 |
 | F2 | T50(HFL)/T50(flat) 森林图，按 (n_edges, R_edge) 分组 | 3-A |
 | F3 | 逐 edge × 有效轮的 fresh-PM ASR 热条，标出云聚合时刻，叠加锯齿 | 3-C |
 | F4 | C1–C4 逐 edge 的 excess ASR 与 MTA | 3-B |

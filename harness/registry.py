@@ -80,6 +80,9 @@ EXPECT_KEYS = (
     # S9（G8）：停止轮静默没生效时（陷阱 #7 同类），run 块的 attack_stop_round 是 None → mismatch。
     # 没声明的组 → None → 不核对。
     ("attack_stop_round",    "backdoor.attack_stop_round"),
+    # S4（G5 / G5AB）：起点或生成器语义静默没生效 → run 块与声明不符 → mismatch。
+    ("attack_start_round",   "backdoor.attack_start_round"),
+    ("generator_schedule",   "backdoor.generator_schedule"),
 )
 
 AUDIT_STATUSES = ("open", "align", "deviate", "done")

@@ -397,6 +397,22 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
     `test_collect_eval_detail.py`（打印 ↔ 解析同源、体积预算）/ `test_dump_switches.py` / `test_instrumentation_check.py`
     （真实数据的正反锚点）/ `test_decay_verdict.py`。
 
+- **S4 投毒窗口起点 + 生成器语义**（2026-09-29，Exp3 改版 S4；DECISIONS D-076 … D-079）。
+  - `backdoor.attack_start_round`（cloud round，含）+ 已有的 `attack_stop_round`（不含）= 投毒窗口 [start, stop)；
+    `backdoor.generator_schedule ∈ {window, always}`（只对 badpfl）：window（缺省）= 生成器跟着窗口走、窗口外冻结（G8 的语义）；
+    always = 窗口只管投毒、生成器每轮都训（窗口外 = ρ=0 影子攻击者）。两个键都不写 = 与 S4 之前逐字节一致。
+  - 判定只在 `fedavg/attack/attack_window.py`（**不 import TF**）定义一次；`FLClientBase.attacking / generating` 调它，
+    `on_round_start` 刷新 `_attack_active`（投毒闸门）与 `_gen_active`（生成器闸门，只有 Bad-PFL 的 `on_round_start` 读）。
+    **窗口外不能消耗投毒随机数**（`on_batch` 在闸门关时直接返回）—— 否则 B 臂窗口前与 ρ=0 影子攻击者的轨迹不同。
+  - `config_validate` 拒绝：起点 < 1、起点 ≥ 停止轮（空窗口）、起点 ≥ n_rounds、vanilla、`always` 配非 badpfl。
+    自描述 `[设定7]`（独立 kv 行，**不扩 `[设定2]`**）→ `run.attack_start_round / generator_schedule`，collect_metrics **schema 8**；
+    `status` 核对这两个键；`runs_table` 以它们为因素键（window 与没有 `[设定7]` 的老文件同格）。
+  - 登记表：G0 固定 60 云轮；G5（3.3）5 格已补但挂 `g5-schedule`，等 G5AB（A/B 对比，`harness/g5ab_verdict.py`）；
+    G8F = G8 的 flat 对照（`decay_verdict.py --flat`）。
+  - 守卫：`tests/test_attack_window.py`（真值表 + 校验 + 闸门 AST）/ `test_attack_window_tf.py`（真 Bad-PFL 客户端：
+    两种语义下生成器与投毒的开关、窗口外不耗投毒随机数、ρ=0 影子攻击者确实在训生成器且评估触发器用生成器）/
+    `test_g5ab_verdict.py` / `test_decay_verdict.py`（flat 分支）/ `test_run_self_description.py`（`[设定7]` 往返）。
+
 **留了接口但没有实现的**（不要以为它们能用）：
 - 主动防御（需要客户端配合的防御）：接口齐了（`BaseDefense.layers` /
   `client_mixin` / `make_control` + 客户端侧 `set_control` / `get_aux`），无任何实现。

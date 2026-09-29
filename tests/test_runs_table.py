@@ -50,6 +50,18 @@ def _metrics(lb, *, er=5, protocol=None, run_over=None, exit_code=0):
             "exit_code": exit_code}
 
 
+def test_s4_window_and_schedule_are_factors_with_window_as_the_default():
+    """S4：G5 的 t0 与 A/B 臂必须分成不同的格；window 是缺省语义，与 S4 之前的文件（None）同格。"""
+    base = _metrics([0.5] * 3)["run"]
+    old = T.factor_key(base)
+    window = T.factor_key({**base, "generator_schedule": "window"})
+    always = T.factor_key({**base, "generator_schedule": "always"})
+    t20 = T.factor_key({**base, "attack_start_round": 5, "attack_stop_round": 9})
+    t140 = T.factor_key({**base, "attack_start_round": 29, "attack_stop_round": 33})
+    assert window == old
+    assert always != old and t20 != t140 and t20 != old
+
+
 def test_summary_uses_last_ten_points_not_the_last_round():
     lb = [0.1 * i for i in range(12)]          # 0.0 … 1.1，末轮 1.1，末 10 点均值 0.65
     row = T.summarize_run(_metrics(lb), name="x", source="x", legacy_protocol="P1")

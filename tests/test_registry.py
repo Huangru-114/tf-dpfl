@@ -40,8 +40,9 @@ def test_v2_group_sizes_match_plan():
     assert sizes == {"G0": 15, "G1": 24, "G2": 55, "G3": 24, "G4": 12, "G5": 15, "G6": 9,   # G3：S3 补 C1（D-062）
                      "FLR": 3,                   # FLR：floor 验证 pilot（D-061）
                      "G7": 6,                    # G7：A4 登记（D-025 预处理对比）
-                     "G8": 3, "G6D": 3}          # S9（D-075）：G8 衰减 + G6D 分散布点探针
-    assert len({r["run_id"] for r in runs}) == len(runs) == 169
+                     "G8": 3, "G6D": 3,          # S9（D-075）：G8 衰减 + G6D 分散布点探针
+                     "G5AB": 8, "G8F": 3}        # S4（D-079 / D-077）：生成器语义 A/B 对比 + G8 的 flat 对照
+    assert len({r["run_id"] for r in runs}) == len(runs) == 180
 
 
 def test_v2_run_ids_and_factor_settings():
@@ -237,10 +238,11 @@ def test_materialize_real_v2_registry_only_unblocked_groups_are_generable(tmp_pa
     reg = R.Registry(V2)
     monkeypatch.setattr(reg, "configs_dir", tmp_path / "configs")
     rows = R.materialize(reg)
-    assert sorted(r["group"] for r in rows) == (["FLR"] * 3 + ["G3"] * 24 + ["G6"] * 9
-                                               + ["G6D"] * 3 + ["G7"] * 6 + ["G8"] * 3)
+    assert sorted(r["group"] for r in rows) == (["FLR"] * 3 + ["G0"] * 15 + ["G3"] * 24
+                                               + ["G5AB"] * 8 + ["G6"] * 9 + ["G6D"] * 3
+                                               + ["G7"] * 6 + ["G8"] * 3 + ["G8F"] * 3)
     with pytest.raises(R.RegistryError, match="不写 INDEX.tsv"):
-        R.materialize(reg, groups=["G0", "G2"])
+        R.materialize(reg, groups=["G5", "G2"])
 
 
 def test_eligible_group_with_undecided_base_errors(tmp_path):
@@ -387,3 +389,37 @@ def test_g2_flat_is_evaluated_on_the_same_grid_as_r5():
 def test_g4_is_parked_until_3_2_is_reformulated():
     reg = R.Registry(MECH / "registry.yaml")
     assert "reformulate-3.2" in reg.unmet_requires("G4")
+
+
+# ── S4（2026-09-29）：G0 固定长度、G5 的窗口、G5AB / G8F ─────────────────────────
+def test_g0_is_fixed_length_like_flr():
+    """ρ=0 时「越过阈值」永远不成立 → 自适应判据必然跑满，cap_reached 是假的删失（D-078）。"""
+    for r in R.Registry(V2).runs():
+        if r["group"] == "G0":
+            assert r["set"]["stopping"] is None and r["set"]["federation.n_rounds"] == 60, r["run_id"]
+
+
+def test_g5_windows_follow_t0_and_are_parked_on_the_schedule_decision():
+    reg = R.Registry(V2)
+    assert "g5-schedule" in reg.groups["G5"]["requires"]
+    cells = {r["cell"]: r["set"] for r in reg.runs() if r["group"] == "G5" and r["seed"] == 42}
+    assert sorted(cells, key=lambda c: int(c[1:])) == ["t20", "t60", "t100", "t140", "t180"]
+    for cell, s in cells.items():
+        t0 = int(cell[1:])
+        assert s["backdoor.attack_start_round"] == t0 // 5 + 1
+        assert s["backdoor.attack_stop_round"] == s["backdoor.attack_start_round"] + 4
+        assert s["federation.n_rounds"] == (t0 + 75) // 5
+        assert s["stopping"] is None and s["backdoor.malicious_per_edge"] == [10, 0, 0, 0]
+        assert s["federation.partition"] == "equal_random"
+
+
+def test_g5ab_is_g5_at_two_t0_with_both_schedules():
+    runs = [r for r in R.Registry(V2).runs() if r["group"] == "G5AB"]
+    assert {r["seed"] for r in runs} == {42, 43}
+    g5 = {r["cell"]: r["set"] for r in R.Registry(V2).runs() if r["group"] == "G5" and r["seed"] == 42}
+    for r in runs:
+        t0, arm = r["cell"].split("-")
+        s = dict(r["set"])
+        assert s.pop("backdoor.generator_schedule") == {"A": "window", "B": "always"}[arm]
+        assert s == g5[t0], r["run_id"]
+

@@ -53,6 +53,8 @@ python3 harness/verdicts.py experiments/attack/hfl-mechanism/analysis/runs.csv \
 # 5b. 单组的预注册判定（数据回来之前写定）
 python3 harness/flr_verdict.py   --json experiments/attack/hfl-mechanism/analysis/flr_verdict.json     # FLR（D-061）
 python3 harness/decay_verdict.py --json experiments/attack/hfl-mechanism/analysis/decay_verdict.json   # G8（D-075）
+python3 harness/decay_verdict.py --flat --json experiments/attack/hfl-mechanism/analysis/flat_verdict.json   # G8F（D-077）
+python3 harness/g5ab_verdict.py  --json experiments/attack/hfl-mechanism/analysis/g5ab_verdict.json     # G5AB（D-079）
 
 # 5c. 「新仪表没有改变任何已有的数」（S9）：只比 checksum 与改动前就有的数值字段，前 R 轮
 python3 harness/instrumentation_check.py experiments/attack/hfl-mechanism/results/P2/G6/G6__a__s42.metrics.json \

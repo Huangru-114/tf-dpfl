@@ -149,3 +149,116 @@ def test_g6d_config_differs_from_g6_only_in_placement(arm):
     diff = {k for k in d.keys() | g6.keys() if d.get(k) != g6.get(k)}
     assert diff == {"backdoor.malicious_per_edge", "meta.group", "meta.run_id"}
     assert d["backdoor.malicious_per_edge"] == [3, 3, 2, 2]
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# flat 对照（G8F，D-077）：良性端池化列、窗口按有效轮对齐
+# ══════════════════════════════════════════════════════════════════════════
+def _flat_m(level, pre=0.8, end=None, n=350, stop=151, er=1, n_edges=1, every=5, failures=None):
+    """flat：有效轮 = 轮号；每 5 轮一个评估点。≤150 = pre，151–300 = level，>300 = end。"""
+    rounds = []
+    for r in range(every, n + 1, every):
+        eff = r * er
+        v = pre if eff <= 150 else (level if eff <= 300 else (level if end is None else end))
+        rounds.append({"round": r, "local_benign_asr": v})
+    return {"exit_code": 0, "client_failures": failures or [],
+            "run": {"attack_stop_round": stop, "n_edges": n_edges, "edge_rounds": er,
+                    "malicious_ids": [1, 2]},
+            "rounds": rounds}
+
+
+def _flat_pairs(levels, **kw):
+    return {s: (_flat_m(lv, **kw), None) for s, lv in zip(V.SEEDS, levels)}
+
+
+@pytest.mark.parametrize("levels,want", [
+    ((0.45, 0.40, 0.35), "flat_plateau"),          # 最小 0.35 ≥ HIGH（边界含）
+    ((0.45, 0.40, 0.34), "user_decides"),          # 0.34 差一点
+    ((0.18, 0.14, 0.25), "flat_decays"),           # 最大 0.25 ≤ LOW（边界含）
+    ((0.18, 0.14, 0.2001), "flat_decays"),         # G8 自己的池化值（s44 = 0.2001）必须判得出「像 HFL」
+    ((0.18, 0.14, 0.26), "user_decides"),
+    ((0.10, 0.45, 0.10), "user_decides"),          # seed 间不一致
+])
+def test_flat_verdict_boundaries(levels, want):
+    assert V.judge_flat(_flat_pairs(levels))["overall"] == want
+
+
+def test_flat_windows_are_in_effective_rounds():
+    """同一个量：flat（每轮 1 有效轮、每 5 轮一点）与 G8（每轮 5 有效轮、每轮一点）取到同一批有效轮。"""
+    flat = _flat_m(0.3, pre=0.9)
+    hfl = _flat_m(0.3, pre=0.9, n=70, er=5, n_edges=4, every=1, stop=31)
+    for win in (V.FLAT_WIN_T, V.FLAT_WIN_MAIN, V.FLAT_WIN_END):
+        assert V.pooled_window_mean(flat, win) == pytest.approx(V.pooled_window_mean(hfl, win))
+    assert V.pooled_window_mean(flat, V.FLAT_WIN_T) == pytest.approx(0.9)
+    assert V.pooled_window_mean(flat, V.FLAT_WIN_MAIN) == pytest.approx(0.3)
+    # 主窗口正好 10 个评估点（有效轮 255, 260, …, 300）
+    assert sum(1 for r in flat["rounds"] if 255 <= r["round"] <= 300) == 10
+
+
+def test_flat_reports_pairing_with_g8():
+    g8 = _m(0.1)
+    g8["run"]["edge_rounds"] = 5
+    g8["rounds"] = [{"round": r, "local_benign_asr": 0.9 if r <= 30 else 0.18} for r in range(1, 71)]
+    res = V.judge_flat({s: (_flat_m(0.40), g8) for s in V.SEEDS})
+    p = res["per_seed"][0]
+    assert p["hfl"]["A_main"] == pytest.approx(0.18) and p["flat_minus_hfl"] == pytest.approx(0.22)
+    assert res["overall"] == "flat_plateau"
+
+
+@pytest.mark.parametrize("bad", [
+    {"stop": 31},                                  # 停止轮没生效
+    {"n_edges": 4},                                # 不是 flat
+    {"n": 250},                                    # 没跑到主窗口末
+    {"failures": [{"client_id": 3}]},              # 客户端异常被吞
+])
+def test_flat_invalid_runs_are_flagged(bad):
+    lv = (0.4, 0.4, 0.4)
+    pairs = _flat_pairs(lv)
+    pairs[42] = (_flat_m(0.4, **bad), None)
+    assert V.judge_flat(pairs)["overall"] == "invalid"
+
+
+def test_flat_missing_and_insufficient():
+    assert V.judge_flat({})["overall"] == "missing"
+    pairs = _flat_pairs((0.4, 0.4, 0.4))
+    pairs[44] = (None, None)
+    assert V.judge_flat(pairs)["overall"] == "insufficient"
+
+
+def test_flat_on_disk_results_give_a_defined_verdict():
+    """随盘上的数据状态断言：G8F 没回 → missing；回来后必须是预注册判定之一。"""
+    files = [V.RESULTS / "G8F" / f"G8F__std__s{s}.metrics.json" for s in V.SEEDS]
+    overall = V.judge_flat(V.load_flat())["overall"]
+    if not any(p.exists() for p in files):
+        assert overall == "missing"
+    else:
+        assert overall in {"flat_plateau", "flat_decays", "user_decides", "insufficient",
+                           "invalid", "missing"}
+
+
+def test_real_g8_pooled_values_are_what_the_thresholds_were_set_against():
+    """反向锚点（真实数据）：G8 池化列 0.1807 / 0.1424 / 0.2001 —— 阈值 0.25 / 0.35 就是照它定的。"""
+    got = [V._pooled(g)["A_main"] for _, g in (V.load_flat()[s] for s in V.SEEDS)]
+    assert got == [0.1807, 0.1424, 0.2001]
+    assert max(got) <= V.FLAT_LOW
+
+
+@pytest.mark.parametrize("seed", V.SEEDS)
+def test_g8f_config_is_g8_made_flat(seed):
+    """G8F 与 G8 只差「flat 化」与存盘开关；停止轮换算成同一批有效轮（D-077）。"""
+    f = _flat(yaml.safe_load((CONFIGS / f"G8F__std__s{seed}.yaml").read_text(encoding="utf-8")))
+    g8 = _flat(yaml.safe_load((CONFIGS / f"G8__a__s{seed}.yaml").read_text(encoding="utf-8")))
+    diff = {k for k in f.keys() | g8.keys() if f.get(k) != g8.get(k)}
+    assert diff == {"federation.n_edges", "federation.edge_rounds", "federation.n_rounds",
+                    "backdoor.malicious_per_edge", "backdoor.attack_stop_round",
+                    "backdoor.eval_interval", "evaluation.eval_interval",
+                    "evaluation.dump_logits_every", "evaluation.snapshot_rounds",
+                    "meta.group", "meta.run_id"}
+    # 有效轮对齐：flat 的轮数 / 停止轮 = G8 的 × edge_rounds（停止轮从 1 起、左闭右开）
+    assert f["federation.n_rounds"] == g8["federation.n_rounds"] * g8["federation.edge_rounds"]
+    assert f["backdoor.attack_stop_round"] - 1 == (g8["backdoor.attack_stop_round"] - 1) * 5
+    assert f["backdoor.attack_stop_round"] == V.FLAT_STOP_ROUND
+    # 评估点对齐：flat 每 5 轮一点 = G8 每云轮一点
+    assert f["backdoor.eval_interval"] * f["federation.edge_rounds"] == \
+        g8["backdoor.eval_interval"] * g8["federation.edge_rounds"]
+    assert "evaluation.dump_logits_every" not in f and "evaluation.snapshot_rounds" not in f

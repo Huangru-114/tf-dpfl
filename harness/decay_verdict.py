@@ -28,6 +28,18 @@ E0 的同样几个量、良性端池化 margin 中位数在第 31–70 轮的 OL
   insufficient / missing / invalid 同 flr_verdict（有效性闸 D-044 + 停止轮真的是 31）
 解读注意：lr 在有效轮 150 → 300 从 ×0.30 降到 ×0.09（1B-2 是常数 lr）；「衰减慢」可能部分来自 lr 小。
 
+── flat 对照（G8F，D-077）：`python3 harness/decay_verdict.py --flat [--json out.json]` ──────────
+问题：G8（P2 HFL）退回 floor，而 1B-2（flat、官方代码）停在约 0.45 —— 差别来自 HFL 结构还是训练协议？
+G8F = G8 的 flat 版（1 edge、每云轮 1 个 edge 轮、350 轮、第 1–150 轮投毒、每 5 轮评估），与 G8 按 seed 配对。
+flat 没有「受害 edge」，两边一律用良性端池化的主列 `rounds[].local_benign_asr`；窗口按**有效轮**对齐：
+  A_T 有效轮 140–150（G8 第 28–30 云轮）｜A_main 255–300（G8 第 51–60 云轮）｜A_end 305–350（只报告）
+判定（**原始** ASR，没有 flat 的 floor —— 用户只做 F-std；阈值 0.25 / 0.35 没有证据：1B-2 的平台 0.45、
+G8 池化列 0.14–0.20，D-077）：
+  flat_plateau   3 个 seed 的 G8F A_main 全部 ≥ FLAT_HIGH → 衰减来自 HFL 结构
+  flat_decays    全部 ≤ FLAT_LOW → flat 也衰减：与 1B-2 的差别在训练协议
+  user_decides   其余
+另报与 G8 池化列的配对差值与保留比例 A_main / A_T。
+
 纯标准库，不 import TF。
 """
 
@@ -178,11 +190,113 @@ def load(results_dir: Path = RESULTS) -> dict:
                 _l(results_dir / "G6" / f"G6__a__s{s}.metrics.json")) for s in SEEDS}
 
 
+# ══════════════════════════════════════════════════════════════════════════
+# flat 对照（G8F，D-077）
+# ══════════════════════════════════════════════════════════════════════════
+FLAT_STOP_ROUND = 151              # flat：第 1–150 轮投毒 = G8 的第 1–30 云轮（有效轮 1–150）
+FLAT_WIN_T = (140, 150)            # 有效轮
+FLAT_WIN_MAIN = (255, 300)
+FLAT_WIN_END = (305, 350)
+# ⚠ 没有证据（D-077）。计划里提的是 0.20 / 0.30；写判定时发现 G8 自己的池化列 s44 = 0.2001 ——
+# flat 若与 HFL 完全一样，也会落进 user_decides → 数据回来之前改为 0.25 / 0.35
+# （G8 的 0.14–0.20 往上留 0.05；1B-2 的 0.45 往下留 0.10）。
+FLAT_LOW, FLAT_HIGH = 0.25, 0.35
+POOLED_KEY = "local_benign_asr"
+
+
+def pooled_window_mean(m: dict, win_eff) -> float | None:
+    """良性端池化主列在有效轮窗口内的均值；有效轮 = cloud 轮 × edge_rounds（run 块）。"""
+    er = int((m.get("run") or {}).get("edge_rounds") or 1)
+    vals = [r.get(POOLED_KEY) for r in m.get("rounds") or []
+            if win_eff[0] <= int(r["round"]) * er <= win_eff[1]]
+    vals = [v for v in vals if v is not None]
+    return sum(vals) / len(vals) if vals else None
+
+
+def flat_reasons(m: dict) -> list:
+    reasons = list(invalid_reasons(m))
+    run = m.get("run") or {}
+    if run.get("attack_stop_round") != FLAT_STOP_ROUND:
+        reasons.append(f"run.attack_stop_round={run.get('attack_stop_round')} ≠ {FLAT_STOP_ROUND}"
+                       f"（停止轮没生效 = 陷阱 #7 同类）")
+    if run.get("n_edges") != 1 or run.get("edge_rounds") != 1:
+        reasons.append(f"不是 flat：n_edges={run.get('n_edges')} edge_rounds={run.get('edge_rounds')}")
+    rounds = m.get("rounds") or []
+    if not rounds or max(int(r["round"]) for r in rounds) < FLAT_WIN_MAIN[1]:
+        reasons.append(f"没跑到主判定窗口末（有效轮 {FLAT_WIN_MAIN[1]}）")
+    return reasons
+
+
+def _pooled(m):
+    a_t = pooled_window_mean(m, FLAT_WIN_T)
+    a_main = pooled_window_mean(m, FLAT_WIN_MAIN)
+    ret = None if a_t in (None, 0) or a_main is None else a_main / a_t
+    return {"A_T": _r(a_t), "A_main": _r(a_main),
+            "A_end": _r(pooled_window_mean(m, FLAT_WIN_END)), "retention_raw": _r(ret)}
+
+
+def judge_flat_seed(g8f, g8, seed: int) -> dict:
+    if g8f is None:
+        return {"seed": seed, "verdict": "missing", "missing": ["G8F"]}
+    bad = flat_reasons(g8f)
+    if bad:
+        return {"seed": seed, "verdict": "invalid", "reasons": bad}
+    out = {"seed": seed, "verdict": "ok", "flat": _pooled(g8f)}
+    if out["flat"]["A_main"] is None:
+        return {"seed": seed, "verdict": "invalid", "reasons": ["主窗口里没有值"]}
+    if g8 is not None and not decay_reasons(g8):
+        out["hfl"] = _pooled(g8)
+        f, h = out["flat"]["A_main"], out["hfl"]["A_main"]
+        out["flat_minus_hfl"] = None if h is None else _r(f - h)
+        out["same_malicious_ids"] = (sorted((g8f.get("run") or {}).get("malicious_ids") or [])
+                                     == sorted((g8.get("run") or {}).get("malicious_ids") or []))
+    return out
+
+
+def judge_flat(pairs: dict, low: float = FLAT_LOW, high: float = FLAT_HIGH) -> dict:
+    """pairs：{seed: (g8f, g8)}。"""
+    per = [judge_flat_seed(*pairs.get(s, (None, None)), s) for s in SEEDS]
+    ok = [p for p in per if p["verdict"] == "ok"]
+    vs = {p["verdict"] for p in per}
+    if "invalid" in vs:
+        overall = "invalid"
+    elif len(ok) < len(SEEDS):
+        overall = "insufficient" if ok else "missing"
+    else:
+        a = [p["flat"]["A_main"] for p in ok]
+        overall = ("flat_plateau" if min(a) >= high else
+                   "flat_decays" if max(a) <= low else "user_decides")
+    text = {
+        "flat_plateau": f"flat 在攻击者走后 100–150 有效轮仍 ≥ {high}（3 seed 全部），而 G8（HFL）退回 floor"
+                        f" → 衰减来自 HFL 结构（edge 内的干净训练冲掉了后门）",
+        "flat_decays": f"flat 也衰减到 ≤ {low}（3 seed 全部）→ 与 1B-2 的 0.45 平台的差别在训练协议"
+                       f"（预处理 / lr 日程 / 本地训练量等），不在 HFL 结构",
+        "user_decides": f"flat 的 A_main 介于 {low} 与 {high} 之间或 seed 间不一致 → 用户定",
+        "insufficient": "有效 seed 不足 3 个（不报方向）",
+        "missing": "G8F 的结果还没回来",
+        "invalid": "有 run 无效（D-044 的闸 / 停止轮没生效 / 不是 flat）",
+    }[overall]
+    return {"overall": overall, "summary": text,
+            "thresholds": {"low": low, "high": high, "evidence": "none（D-077）"},
+            "windows_effective": {"A_T": FLAT_WIN_T, "main": FLAT_WIN_MAIN, "end": FLAT_WIN_END},
+            "per_seed": per, "preregistered": True,
+            "caveat": "原始 ASR（没有 flat 的 floor）；lr 按 0.992^有效轮 衰减，flat 与 G8 相同"}
+
+
+def load_flat(results_dir: Path = RESULTS) -> dict:
+    def _l(p):
+        return json.loads(p.read_text(encoding="utf-8")) if p.is_file() else None
+    return {s: (_l(results_dir / "G8F" / f"G8F__std__s{s}.metrics.json"),
+                _l(results_dir / "G8" / f"G8__a__s{s}.metrics.json")) for s in SEEDS}
+
+
 def main(argv=None):
-    ap = argparse.ArgumentParser(description="G8（攻击停止后的衰减）的预注册判定，D-075")
+    ap = argparse.ArgumentParser(description="G8（攻击停止后的衰减）的预注册判定，D-075；"
+                                             "--flat = G8F（flat 对照，D-077）")
     ap.add_argument("--json")
+    ap.add_argument("--flat", action="store_true")
     a = ap.parse_args(argv)
-    res = judge(load())
+    res = judge_flat(load_flat()) if a.flat else judge(load())
     for p in res["per_seed"]:
         print(f"  seed {p['seed']}: {p['verdict']:<8} "
               f"{json.dumps({k: v for k, v in p.items() if k not in ('seed', 'verdict')}, ensure_ascii=False)}")

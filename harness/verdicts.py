@@ -133,7 +133,7 @@ def verdict_t50_ratio(hfl_rows, flat_rows, *, min_seeds=T50_MIN_SEEDS,
 # 3-A 要比较的是「拓扑」本身；其余因素必须相同，否则不算同一组对照。
 _SAME_EXCEPT_TOPOLOGY = ("method", "attack", "defense", "n_clients", "client_fraction",
                          "poison_ratio", "local_epochs", "plocal_epochs", "attack_stop_round",
-                         "protocol")
+                         "attack_start_round", "generator_schedule", "protocol")
 
 
 def _n_malicious_total(r):

@@ -20,8 +20,11 @@ harness/collect_metrics.py  —  把集群 run 的**全量日志**压成一个�
     run.data              S3 新划分的自描述（[Partition] + 每 edge 一条 [PartitionEdge] → run.data.per_edge）；
                           顶层另有 run.partition / partition_condition / partition_alpha_edge / partition_n。
                           旧划分（noniid 等）不打这些行 → 全为 None
+    run.attack_start_round / run.generator_schedule
+                          S4 投毒窗口起点（cloud round，None = 从第一轮起）与生成器语义（window / always），
+                          [设定7]；老日志 → None
     schema_version        本文件的结构版本（2 = 有 provenance；5 = 有 run.edge_shared_blocks；6 = 有 run.data；
-                          7 = 有评估细节与 dumps manifest）
+                          7 = 有评估细节与 dumps manifest；8 = 有 [设定7]）
     rounds[] 的 S9 列     benign_asr_p10/p50/p90、benign_asr_gt50、malicious_clean_acc、yt_clean_benign、
                           margin_p10/p50/p90、flip_other、cls_asr（按真实类，目标类为 null）；老日志 → null
     per_edge_detail_rounds {round: [[edge_id, margin_p50, benign_asr_p90, yt_clean_benign], …]}
@@ -79,7 +82,9 @@ from utils.kvline import parse_kv, collect_kv, parse_list   # noqa: E402
 #     margin 分位数、y_t 偏置、恶意端干净精度、非目标翻转率、按类 ASR）、
 #     per_edge_detail_rounds（[EvalDetailEdge]，紧凑行）、client_final（末个评估点的
 #     [ClientEval]，按列）、dumps（[Dump] manifest：logits 汇总 + 每个快照）。
-SCHEMA_VERSION = 7
+# 8 = S4（投毒窗口起点 + 生成器语义，D-078 / D-079）：run.attack_start_round /
+#     run.generator_schedule（[设定7]）。老日志 → 两个都是 None（「不知道」）。
+SCHEMA_VERSION = 8
 
 # A4 的副列：key=value 行（utils/kvline.py）→ rounds[] / acc_rounds[] 的字段。
 # 缺行（旧口径、或该列本 run 没开）→ null，**不是 0**。
@@ -292,6 +297,7 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
     align = None
     eval_att = None
     split6 = None
+    setg7 = None
     data = None
     data_edges = []
     for ln in lines:
@@ -304,6 +310,9 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
         d = parse_kv(ln, "[设定6]")
         if d is not None:
             split6 = d
+        d = parse_kv(ln, "[设定7]")
+        if d is not None:
+            setg7 = d
         d = parse_kv(ln, "[Partition]")
         if d is not None:
             data = d
@@ -353,6 +362,10 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
         # 三者都是「这一格没有退出轮」，下游读到 None 就不该去切衰减段。
         "attack_stop_round": (_opt_int(setg2.group(9)) if setg2 and setg2.group(9)
                               else None),
+        # 投毒窗口起点与生成器语义（S4，[设定7]）。起点 None = 从第一轮起、或老日志；
+        # generator_schedule None = 老日志 / 无攻击（有攻击的新日志一定是 window / always）。
+        "attack_start_round": setg7.get("attack_start_round") if setg7 else None,
+        "generator_schedule": setg7.get("generator_schedule") if setg7 else None,
         # ── 自适应轮数：这一格跑到第几轮、为什么停 ──────────────────────
         #   全 None = 固定轮数（没配 stopping，或老日志）。
         #   stop_reason='cap_reached' 是 **censored**，不是「收敛在 cap」。

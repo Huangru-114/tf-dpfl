@@ -18,6 +18,7 @@ import numpy as np
 import tensorflow as tf
 
 from alignment import get_switch
+from attack.attack_window import DEFAULT_SCHEDULE, generator_on, in_window
 from data.epoch_pipeline import augment_batch, epoch_index_batches
 
 
@@ -98,10 +99,21 @@ class FLClientBase(ABC):
         # 后者同时是身份标记，malicious_participation_by_client 的统计、
         # 逐 edge 的 same/diff-edge 分组、build_eval_trigger 挑生成器都依赖它。
         # 把它改成 False 会让「攻击者退出」看起来像「这一格压根没有恶意端」。
-        _stop = (config or {}).get("backdoor", {}).get("attack_stop_round", None)
+        _bd = (config or {}).get("backdoor", {}) or {}
+        _stop = _bd.get("attack_stop_round", None)
         self._attack_stop_round = None if _stop is None else int(_stop)
+        # S4（D-078 / D-079）：`attack_start_round` = 投毒窗口的起点（cloud round，含）；
+        # None = 从第一轮起（= 加这条之前的行为）。`generator_schedule` 只管 Bad-PFL 的
+        # 生成器：window = 跟着投毒窗口走（缺省），always = 每轮都训（窗口外 = ρ=0 影子攻击者）。
+        # 判定规则只在 attack/attack_window.py 定义一次。
+        _start = _bd.get("attack_start_round", None)
+        self._attack_start_round = None if _start is None else int(_start)
+        self._generator_schedule = str(_bd.get("generator_schedule", None)
+                                       or DEFAULT_SCHEDULE).lower()
         # 本轮攻击是否生效。由 on_round_start 每轮刷新，攻击 mixin 的闸门读它。
         self._attack_active = False
+        # 本轮是否训练触发器生成器（只有 Bad-PFL 读它）。window 语义下恒等于 _attack_active。
+        self._gen_active = False
 
     # ══════════════════════════════════════════════════════════════════════
     # 权重管理
@@ -228,27 +240,34 @@ class FLClientBase(ABC):
 
     def attacking(self, round_idx: int) -> bool:
         """
-        本轮该客户端是否投毒 = **是恶意端** 且 **还没到退出轮**。
+        本轮该客户端是否投毒 = **是恶意端** 且 **在投毒窗口 [start, stop) 内**。
 
         `round_idx` 是 global(cloud) round —— `EdgeServerBase._collect_updates_*`
         把 `global_round_idx` 传给 `client.local_train(round_idx)`，方法类再原样
-        转给 `on_round_start`。edge round 在这个粒度下不可见，退出轮因此以
+        转给 `on_round_start`。edge round 在这个粒度下不可见，起止轮因此以
         cloud round 计（与 `attack_freq_Q` / `eval_interval` 同一把尺）。
         """
         if not self.is_malicious:
             return False
-        stop = self._attack_stop_round
-        return stop is None or int(round_idx) < int(stop)
+        return in_window(round_idx, self._attack_start_round, self._attack_stop_round)
+
+    def generating(self, round_idx: int) -> bool:
+        """本轮是否训练触发器生成器（Bad-PFL）。window 语义下 = attacking(round_idx)。"""
+        if not self.is_malicious:
+            return False
+        return generator_on(round_idx, self._attack_start_round, self._attack_stop_round,
+                            self._generator_schedule)
 
     def on_round_start(self, round_idx: int):
         """
         本地训练开始前（已收到 edge 权重、尚未训练）。
 
-        基类只做一件事：刷新本轮的攻击时间窗。攻击 mixin 必须先调
-        `super().on_round_start(round_idx)` 再读 `self._attack_active`
-        —— 三个 mixin 都是这么写的，守卫见 tests/test_attack_window.py。
+        基类只做一件事：刷新本轮的攻击时间窗（投毒闸门 `_attack_active`、
+        生成器闸门 `_gen_active`）。攻击 mixin 必须先调 `super().on_round_start(round_idx)`
+        再读闸门 —— 三个 mixin 都是这么写的，守卫见 tests/test_attack_window.py。
         """
         self._attack_active = self.attacking(round_idx)
+        self._gen_active = self.generating(round_idx)
 
     def on_batch(self, x, y):
         """

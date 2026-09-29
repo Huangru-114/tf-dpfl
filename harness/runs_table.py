@@ -57,14 +57,17 @@ T_THETA_METRICS = ("global_asr", "edge_asr", "local_benign_asr")
 FACTOR_KEYS = ("method", "attack", "defense", "n_clients", "n_edges", "edge_rounds",
                "client_fraction", "poison_ratio", "malicious_per_edge",
                "malicious_placement", "edge_assignment", "local_epochs", "plocal_epochs",
-               "attack_stop_round", "edge_shared_blocks",
+               "attack_stop_round", "attack_start_round", "generator_schedule",
+               "edge_shared_blocks",
                "partition", "partition_condition", "partition_alpha_edge")
 # partition*（S3，[Partition] 行）：旧划分不打这一行 → None，与 S3 之前的文件同格。
+# attack_start_round / generator_schedule（S4，[设定7]）：G5 的 t0 与 A/B 臂靠它们区分。
 # 因素的缺省值：等于它就记成 None（「这个因素在本 run 不起作用」）。
 #   edge_shared_blocks（S8 / 3-E）：0 = FedRep 基线，与 S8 之前的代码（没有 [设定6] → None）
 #   是同一种 run。不做这一步，老文件与新的 k=0 文件会被拆成两格；而**不加**这个因素键，
 #   G6 的 (a)/(b)/(c) 又会被当成同一格的重复（三臂塌成一格，比较无从谈起）。
-FACTOR_DEFAULTS = {"edge_shared_blocks": 0}
+#   generator_schedule（S4）：window 是缺省语义，与 S4 之前的文件（没有 [设定7] → None）是同一种 run。
+FACTOR_DEFAULTS = {"edge_shared_blocks": 0, "generator_schedule": "window"}
 PROV_KEYS = ("protocol", "git", "config_sha", "study", "group", "run_id")
 
 UNKNOWN_PROTOCOL = "unknown"

@@ -111,7 +111,8 @@ def group_runs(runs, group_by):
 FACTOR_COLUMNS = ("protocol", "method", "attack", "defense", "n_clients", "n_edges",
                   "edge_rounds", "client_fraction", "poison_ratio", "malicious_per_edge",
                   "malicious_placement", "edge_assignment", "local_epochs", "plocal_epochs",
-                  "attack_stop_round", "edge_shared_blocks",
+                  "attack_stop_round", "attack_start_round", "generator_schedule",
+                  "edge_shared_blocks",
                   "partition", "partition_condition", "partition_alpha_edge")
 
 

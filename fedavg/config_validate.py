@@ -282,6 +282,52 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
                     f"每轮被强制选入、之后仍占着名额（补位循环只砍良性端）。"
                     f"衰减段的参与分布因此与主干格不同，跨格比较前先确认这是有意的。")
 
+        # ── 投毒窗口起点 + 生成器语义（S4，D-078 / D-079）────────────────────
+        #   S = backdoor.attack_start_round：第 S 个 cloud round 起投毒（含），窗口 [S, T)。
+        #   写错同样都是静默的：S ≥ T 是空窗口（一轮都不投毒）、S ≥ n_rounds 是跑完都没开始，
+        #   而日志与正常 run 一样 —— 在这里拦掉。
+        from attack.attack_window import SCHEDULES as GEN_SCHEDULES
+        start_round = bd.get("attack_start_round", None)
+        S = None
+        if start_round is not None:
+            n_rounds = int(fed.get("n_rounds", 0) or 0)
+            try:
+                S = int(start_round)
+            except (TypeError, ValueError):
+                _fail(f"backdoor.attack_start_round={start_round!r} 不是整数。"
+                      f"（null = 从第一轮起投毒）")
+            if S is not None and S < 1:
+                _fail(f"backdoor.attack_start_round={S} < 1 —— cloud round 从 1 起；"
+                      f"从第一轮起投毒请写 null。")
+            if S is not None and stop_round is not None and S >= int(stop_round):
+                _fail(f"backdoor.attack_start_round={S} ≥ attack_stop_round={int(stop_round)}"
+                      f" —— 投毒窗口 [start, stop) 是空的，恶意端一轮都不投毒，"
+                      f"而 metrics.json 会写着有窗口。")
+            if S is not None and n_rounds and S >= n_rounds:
+                _fail(f"backdoor.attack_start_round={S} ≥ federation.n_rounds={n_rounds}"
+                      f" —— 跑完都没开始投毒（或只投最后一轮）。")
+            if S is not None and strategy == "vanilla":
+                _fail("backdoor.attack_start_round 对 malicious_strategy='vanilla' 无效："
+                      "vanilla 在 build_clients 阶段就把恶意端的数据集**静态**投毒了，"
+                      "时间窗只作用于钩子 → 会静默无效。请用 neurotoxin / cerp / badpfl。")
+            if S is not None and bool(bd.get("forced_participation", False)):
+                warnings.append(
+                    f"attack_start_round={S} 同时开着 forced_participation —— 窗口外恶意端"
+                    f"仍被强制选入，参与分布与主干格不同，跨格比较前先确认这是有意的。")
+        gen_sched = bd.get("generator_schedule", None)
+        if gen_sched is not None:
+            gs = str(gen_sched).lower()
+            if gs not in GEN_SCHEDULES:
+                _fail(f"backdoor.generator_schedule={gen_sched!r}：合法取值 {list(GEN_SCHEDULES)}"
+                      f"（window = 生成器跟着投毒窗口走；always = 每轮都训）。")
+            elif gs == "always" and strategy != "badpfl":
+                _fail(f"backdoor.generator_schedule=always 只对 badpfl 有意义"
+                      f"（malicious_strategy={strategy!r} 没有触发器生成器）→ 会静默无效。")
+            elif gs == "always" and S is None and stop_round is None:
+                warnings.append(
+                    "generator_schedule=always 但没有投毒窗口（start / stop 都没写）——"
+                    "全程都在投毒，与 window 完全等价。")
+
     # ── 3b. 自适应轮数（stopping）────────────────────────────────────────
     #   写错的三种方式都会静默改变实验长度，而日志与正常 run 一模一样：
     #   floor ≥ cap（永不延长/立刻停）、窗口比总点数还大（判据永远不满足）、
@@ -569,4 +615,16 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
     from alignment import describe_fields
     from utils.kvline import format_kv
     print(format_kv("[设定4]", describe_fields(config)))
+
+    # ── 6e. 投毒窗口起点 + 生成器语义（[设定7]，S4）────────────────────────
+    #   独立的 key=value 行，**不扩 [设定2]**（那条是全或无的正则，末尾的
+    #   attack_stop_round 已经是可选组）。起点缺省 → n/a（= 从第一轮起），
+    #   generator_schedule 打**有效值**（没写 → window），无攻击 → 两个都是 n/a。
+    _sched = (str(bd.get("generator_schedule", None) or "window").lower()
+              if bd_enabled else None)
+    _start = bd.get("attack_start_round", None) if bd_enabled else None
+    print(format_kv("[设定7]", {
+        "attack_start_round": None if _start is None else int(_start),
+        "generator_schedule": _sched,
+    }))
     return warnings

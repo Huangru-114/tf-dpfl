@@ -232,3 +232,38 @@ def test_na_round_trips_to_none_not_zero():
     assert run["malicious_per_edge"] != []          # 铁律 #5：无定义不是空也不是 0
     assert run["seed"] is None
     assert run["malicious_placement"] == "spread"
+
+
+# ── S4：[设定7]（投毒窗口起点 + 生成器语义）────────────────────────────────
+def test_settings7_round_trips_into_the_run_block():
+    run = collect(_log(_SETTINGS, _SETTINGS2 + " | attack_stop_round=9",
+                       "[设定7] attack_start_round=5 | generator_schedule=always"))["run"]
+    assert run["attack_start_round"] == 5 and run["generator_schedule"] == "always"
+    assert run["attack_stop_round"] == 9 and run["seed"] == 42      # [设定2] 不受影响
+
+
+def test_settings7_na_start_is_none_not_zero():
+    """起点 n/a = 从第一轮起。读成 0 与「没有窗口」混不到一起，但下游会把 0 当成轮号。"""
+    run = collect(_log(_SETTINGS, _SETTINGS2,
+                       "[设定7] attack_start_round=n/a | generator_schedule=window"))["run"]
+    assert run["attack_start_round"] is None
+    assert run["generator_schedule"] == "window"
+
+
+def test_old_log_without_settings7_leaves_both_none():
+    """S4 之前的日志（含全部已回传的 P2 run）→ 两个都是 None；其余字段照常。"""
+    run = collect(_log(_SETTINGS, _SETTINGS2 + " | attack_stop_round=31"))["run"]
+    assert run["attack_start_round"] is None and run["generator_schedule"] is None
+    assert run["attack_stop_round"] == 31
+
+
+def test_validate_and_collect_agree_on_settings7():
+    """打印 ↔ 解析同源：config_validate 打出来的 [设定7]，collect 读回同样的值。"""
+    cfg = _cfg()
+    cfg["backdoor"].update({"attack_start_round": 3, "attack_stop_round": 7,
+                            "generator_schedule": "always",
+                            "malicious_strategy": "badpfl"})
+    cfg["federation"]["n_rounds"] = 20
+    line = _line(_stdout_of(cfg), "[设定7]")
+    run = collect(_log(_SETTINGS, _SETTINGS2, line))["run"]
+    assert run["attack_start_round"] == 3 and run["generator_schedule"] == "always"

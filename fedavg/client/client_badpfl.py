@@ -236,13 +236,15 @@ class BadPFLMixin:
         """
         在收到的 edge 模型上训练触发器生成器（30 步，分类模型冻结）。
 
-        闸门是 `_attack_active`（由基类 on_round_start 刷新）而不是
-        `is_malicious`：攻击时间窗到期后生成器**停止更新**，
-        `build_eval_trigger` 之后仍用它做评估触发器 —— 触发器冻结在退出那一刻，
-        测的正是「攻击者走后这个后门还活多久」。
+        闸门是 `_gen_active`（由基类 on_round_start 刷新）而不是 `is_malicious`：
+          · generator_schedule=window（缺省）：`_gen_active` ≡ `_attack_active`，
+            窗口外生成器**不更新**，`build_eval_trigger` 仍用它做评估触发器 ——
+            触发器冻结在退出那一刻，测的正是「攻击者走后这个后门还活多久」；
+          · always（S4，D-079 的 B 臂）：每轮都训，窗口外只是不投毒（on_batch 读
+            `_attack_active`）→ 窗口外等于 ρ=0 的影子攻击者。
         """
         super().on_round_start(round_idx)
-        if not self._attack_active:
+        if not self._gen_active:
             return
         self._atk_ensure_generator()
         self._atk_n_poisoned_batches = 0

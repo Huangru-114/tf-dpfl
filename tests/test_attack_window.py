@@ -41,36 +41,45 @@ sys.path.insert(0, str(FEDAVG))
 # 1. attacking() 的判定 —— 不 import TF，直接拿类的函数对象在假对象上跑
 # ══════════════════════════════════════════════════════════════════════════
 
-def _attacking_fn():
+def _client_base_fn(name):
     """
-    从源码里取出 `FLClientBase.attacking` 的函数体并编译。
+    从源码里取出 `FLClientBase.<name>` 的函数体并编译。
 
     不 `from client.client_base import FLClientBase` —— 那会 import TF，
-    本地跑不了。这里只要这一个纯 Python 的判定函数。
+    本地跑不了。这里只要纯 Python 的判定函数；它们调用的 `in_window` /
+    `generator_on` 来自不 import TF 的 attack/attack_window.py（S4），注入进命名空间。
     """
+    import attack.attack_window as AW
     src = (FEDAVG / "client" / "client_base.py").read_text(encoding="utf-8")
     tree = ast.parse(src)
     fn = next((n for n in ast.walk(tree)
-               if isinstance(n, ast.FunctionDef) and n.name == "attacking"), None)
+               if isinstance(n, ast.FunctionDef) and n.name == name), None)
     assert fn is not None, (
-        "FLClientBase 里找不到 attacking() —— 攻击时间窗的判定没了，"
-        "attack_stop_round 会静默无效。")
+        f"FLClientBase 里找不到 {name}() —— 攻击时间窗的判定没了，"
+        "attack_stop_round / attack_start_round 会静默无效。")
     mod = ast.Module(body=[fn], type_ignores=[])
-    ns = {}
-    exec(compile(ast.fix_missing_locations(mod), "<attacking>", "exec"), ns)
-    return ns["attacking"]
+    ns = {"in_window": AW.in_window, "generator_on": AW.generator_on}
+    exec(compile(ast.fix_missing_locations(mod), f"<{name}>", "exec"), ns)
+    return ns[name]
 
 
 class _FakeClient:
-    def __init__(self, is_malicious, stop):
+    def __init__(self, is_malicious, stop, start=None, schedule="window"):
         self.is_malicious = is_malicious
         self._attack_stop_round = stop
+        self._attack_start_round = start
+        self._generator_schedule = schedule
 
 
 @pytest.fixture(scope="module")
 def attacking():
     """惰性取 —— 函数不存在时只让这几条红，不要在收集期把整个模块带下线。"""
-    return _attacking_fn()
+    return _client_base_fn("attacking")
+
+
+@pytest.fixture(scope="module")
+def generating():
+    return _client_base_fn("generating")
 
 
 @pytest.mark.parametrize("round_idx,expected", [
@@ -92,6 +101,55 @@ def test_benign_client_never_attacks(attacking):
     for stop in (None, 0, 40):
         c = _FakeClient(False, stop)
         assert not any(attacking(c, r) for r in (0, 39, 40, 400))
+
+
+# ── S4：起点 + 生成器语义（D-078 / D-079）───────────────────────────────────
+@pytest.mark.parametrize("round_idx,expected", [
+    (1, False), (4, False), (5, True), (8, True), (9, False), (19, False),
+])
+def test_window_is_start_inclusive_stop_exclusive(attacking, round_idx, expected):
+    """G5 的 t20 格：attack_start_round=5、attack_stop_round=9 → 第 5–8 个 cloud 轮投毒。"""
+    assert attacking(_FakeClient(True, 9, start=5), round_idx) is expected
+
+
+def test_start_only_attacks_until_the_end(attacking):
+    c = _FakeClient(True, None, start=10)
+    assert [attacking(c, r) for r in (9, 10, 11, 500)] == [False, True, True, True]
+
+
+def test_start_none_is_byte_identical_to_the_stop_only_rule(attacking):
+    """默认 start=None 必须与 S4 之前的判定（`stop is None or r < stop`）逐轮相同。"""
+    for stop in (None, 1, 31, 151):
+        c = _FakeClient(True, stop)
+        old = [stop is None or r < stop for r in range(0, 400)]
+        assert [attacking(c, r) for r in range(0, 400)] == old
+
+
+@pytest.mark.parametrize("start,stop", [(None, None), (None, 31), (5, 9), (29, 33), (10, None)])
+def test_window_schedule_generates_exactly_when_attacking(attacking, generating, start, stop):
+    """A 臂（window，缺省）：生成器闸门 ≡ 投毒闸门 → G8 与以前的 run 行为不变。"""
+    c = _FakeClient(True, stop, start=start, schedule="window")
+    assert [generating(c, r) for r in range(0, 60)] == [attacking(c, r) for r in range(0, 60)]
+
+
+def test_always_schedule_trains_the_generator_outside_the_window(attacking, generating):
+    """B 臂（always）：窗口外只是不投毒，生成器每一轮都训（= ρ=0 影子攻击者）。"""
+    c = _FakeClient(True, 9, start=5, schedule="always")
+    assert all(generating(c, r) for r in range(1, 20))
+    assert [attacking(c, r) for r in (4, 5, 8, 9)] == [False, True, True, False]
+
+
+def test_benign_client_never_generates(generating):
+    for sched in ("window", "always"):
+        assert not any(generating(_FakeClient(False, 9, start=5, schedule=sched), r)
+                       for r in range(0, 20))
+
+
+def test_attack_window_module_rejects_unknown_schedules():
+    import attack.attack_window as AW
+    with pytest.raises(ValueError):
+        AW.generator_on(1, None, None, "sometimes")
+    assert AW.SCHEDULES == ("window", "always") and AW.DEFAULT_SCHEDULE == "window"
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -121,6 +179,15 @@ def _hook_sources(path: pathlib.Path):
             if isinstance(n, ast.FunctionDef) and n.name in GATED_HOOKS}
 
 
+# Bad-PFL 的 on_round_start 只训生成器，闸门是生成器闸门 `_gen_active`（S4；window 语义下
+# ≡ `_attack_active`）。其余钩子（投毒本身）一律读 `_attack_active`。
+GEN_GATED = {("client_badpfl.py", "on_round_start")}
+
+
+def _gate_of(fname, name):
+    return "self._gen_active" if (fname, name) in GEN_GATED else "self._attack_active"
+
+
 @pytest.mark.parametrize("fname", ATTACK_MIXIN_FILES)
 def test_hooks_gate_on_attack_active_not_is_malicious(fname):
     hooks = _hook_sources(FEDAVG / "client" / fname)
@@ -130,8 +197,15 @@ def test_hooks_gate_on_attack_active_not_is_malicious(fname):
             f"{fname}::{name} 仍然拿 self.is_malicious 当投毒闸门。\n"
             f"  时间窗只作用于 self._attack_active（基类 on_round_start 每轮刷新），\n"
             f"  用 is_malicious 会让 attack_stop_round 对这个攻击**静默失效**。")
-        assert "self._attack_active" in src, (
-            f"{fname}::{name} 没有读 self._attack_active —— 闸门去哪了？")
+        gate = _gate_of(fname, name)
+        assert gate in src, f"{fname}::{name} 没有读 {gate} —— 闸门去哪了？"
+
+
+def test_badpfl_poisoning_still_gates_on_the_attack_window():
+    """B 臂的要害：生成器全程训，但**投毒**（on_batch）仍只在窗口内。"""
+    hooks = _hook_sources(FEDAVG / "client" / "client_badpfl.py")
+    assert "self._attack_active" in hooks["on_batch"]
+    assert "self._gen_active" not in hooks["on_batch"]
 
 
 @pytest.mark.parametrize("fname", ATTACK_MIXIN_FILES)
@@ -144,7 +218,7 @@ def test_hooks_call_super_before_reading_the_flag(fname):
     if src is None:
         pytest.skip(f"{fname} 没有 on_round_start")
     i_super = src.find("super().on_round_start")
-    i_flag  = src.find("_attack_active")
+    i_flag  = src.find(_gate_of(fname, "on_round_start").replace("self.", ""))
     assert i_super != -1, f"{fname}::on_round_start 没调 super()"
     if i_flag != -1:
         assert i_super < i_flag, (
@@ -152,9 +226,10 @@ def test_hooks_call_super_before_reading_the_flag(fname):
 
 
 def test_base_on_round_start_refreshes_the_flag():
-    """基类那一句是整条链的源头，不能被优化掉。"""
+    """基类那两句是整条链的源头，不能被优化掉。"""
     src = _hook_sources(FEDAVG / "client" / "client_base.py")["on_round_start"]
     assert "_attack_active" in src and "attacking" in src, src
+    assert "_gen_active" in src and "generating" in src, src
 
 
 def test_is_malicious_is_not_mutated_anywhere():
@@ -255,3 +330,54 @@ def test_no_stop_round_passes_unchanged():
     out, err = _validate(_cfg())
     assert err is None, err
     assert "attack_stop_round=n/a" in out
+
+
+# ── S4：起点与生成器语义的校验（D-078 / D-079）───────────────────────────────
+def test_start_round_at_or_after_stop_is_rejected():
+    """空窗口 = 一轮都不投毒，而 metrics.json 会写着有窗口。"""
+    _, err = _validate(_cfg(attack_start_round=40, attack_stop_round=40))
+    assert err and "空的" in err
+
+
+def test_start_round_below_one_is_rejected():
+    _, err = _validate(_cfg(attack_start_round=0, attack_stop_round=40))
+    assert err and "从 1 起" in err
+
+
+def test_start_round_beyond_n_rounds_is_rejected():
+    _, err = _validate(_cfg(attack_start_round=80))
+    assert err and "n_rounds" in err
+
+
+def test_vanilla_with_start_round_is_rejected():
+    _, err = _validate(_cfg(malicious_strategy="vanilla", attack_start_round=5,
+                            attack_stop_round=9))
+    assert err and "vanilla" in err
+
+
+def test_unknown_generator_schedule_is_rejected():
+    _, err = _validate(_cfg(generator_schedule="sometimes"))
+    assert err and "generator_schedule" in err
+
+
+def test_always_schedule_needs_badpfl():
+    _, err = _validate(_cfg(malicious_strategy="neurotoxin", generator_schedule="always",
+                            attack_start_round=5, attack_stop_round=9))
+    assert err and "badpfl" in err
+
+
+def test_valid_window_passes_and_self_describes():
+    """反向锚点：合法窗口放行，[设定7] 打出起点与有效的生成器语义。"""
+    out, err = _validate(_cfg(attack_start_round=5, attack_stop_round=9,
+                              generator_schedule="always"))
+    assert err is None, err
+    assert "[设定7] attack_start_round=5 | generator_schedule=always" in out
+    assert "attack_stop_round=9" in out
+
+
+def test_default_config_self_describes_the_default_schedule():
+    """不写这两个键 → 起点 n/a（从第一轮起）、语义 window（缺省）。"""
+    out, err = _validate(_cfg())
+    assert err is None, err
+    assert "[设定7] attack_start_round=n/a | generator_schedule=window" in out
+
