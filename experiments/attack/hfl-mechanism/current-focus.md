@@ -38,7 +38,7 @@ Bad-PFL 的生成器闸门改读 `_gen_active`、`config_validate` 的起点 / �
 已有 48 个配置的 sha 不变；新生成 26 个（G0 15、G5AB 8、G8F 3），全部过 `config_validate`、0 警告。
 
 **验证**：本地 L1 **1346 passed / 41 skipped / 3 xfailed**；TF CPU 全量（`scratchpad/tfvenv`，TF 2.15.1）**1499 passed / 23 skipped / 3 xfailed / 2 failed**（只有陷阱 #4 的 2 条）。
-CPU 替身（默认配置 checksum 不变、B 臂窗口前 == ρ=0 影子攻击者、A ≠ B）在本提交时还在跑：`base` 两轮已与 S9 锚点逐位相同（`00527830725a` / `628233ae41d3`），其余结果下一个提交补上。
+CPU 替身（F-070）：默认配置（base / g8）与 S9 锚点逐位相同；**B 臂窗口前 = ρ=0 影子攻击者**（第 1–2 轮 checksum 与 152 个字段逐位相同，投毒率与 n_rounds 都不同）；A 臂窗口前 = 停手后的攻击者（= g8 第 2 轮）；A ≠ B 从第一个有攻击者的轮起。GPU 上没有证据。
 
 ## 历史：S9（2026-09-28：讨论 S4 / S6 → 记录项的取舍 → 下一实验组 → 仪表实现）
 
@@ -168,7 +168,7 @@ PACK=3 RUN_GROUPS="G8F G5AB" bash experiments/attack/hfl-mechanism/submit.sh
   → `insensitive`（G5 用 A）/ `sensitive` / `user_decides`（D-079）。`run.attack_start_round` / `generator_schedule` 由 `status.py` 核对。
   判完后：把 `g5-schedule` 加进 `registry.yaml` 的 `available`，G5 的 `set:` 写上选定的 `backdoor.generator_schedule`，materialize。
 - 顺带的免费验证（有了 G0-random 之后）：G5AB 的 **B 臂**在窗口开始前应与同 seed 的 G0-random **逐轮 checksum 相同**
-  （`instrumentation_check G0__random__s42 G5AB__t140-B__s42 --upto 28`；CPU 替身的结果见「本会话做了什么」的验证一段）。
+  （`instrumentation_check G0__random__s42 G5AB__t140-B__s42 --upto 28`；CPU 替身已证，F-070；GPU 上这是第一次）。
 
 **③ 挂着、等数据的拍板**
 
