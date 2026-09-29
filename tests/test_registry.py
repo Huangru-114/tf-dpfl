@@ -239,10 +239,10 @@ def test_materialize_real_v2_registry_only_unblocked_groups_are_generable(tmp_pa
     monkeypatch.setattr(reg, "configs_dir", tmp_path / "configs")
     rows = R.materialize(reg)
     assert sorted(r["group"] for r in rows) == (["FLR"] * 3 + ["G0"] * 15 + ["G3"] * 24
-                                               + ["G5AB"] * 8 + ["G6"] * 9 + ["G6D"] * 3
-                                               + ["G7"] * 6 + ["G8"] * 3 + ["G8F"] * 3)
+                                               + ["G5"] * 15 + ["G5AB"] * 8 + ["G6"] * 9
+                                               + ["G6D"] * 3 + ["G7"] * 6 + ["G8"] * 3 + ["G8F"] * 3)
     with pytest.raises(R.RegistryError, match="不写 INDEX.tsv"):
-        R.materialize(reg, groups=["G5", "G2"])
+        R.materialize(reg, groups=["G1", "G2"])
 
 
 def test_eligible_group_with_undecided_base_errors(tmp_path):
@@ -399,9 +399,10 @@ def test_g0_is_fixed_length_like_flr():
             assert r["set"]["stopping"] is None and r["set"]["federation.n_rounds"] == 60, r["run_id"]
 
 
-def test_g5_windows_follow_t0_and_are_parked_on_the_schedule_decision():
+def test_g5_windows_follow_t0_and_use_the_schedule_g5ab_chose():
+    """G5 挂 `g5-schedule`（D-079），G5AB 判 insensitive 后放行、用 A = window（D-080）。"""
     reg = R.Registry(V2)
-    assert "g5-schedule" in reg.groups["G5"]["requires"]
+    assert "g5-schedule" in reg.groups["G5"]["requires"] and "g5-schedule" in reg.available
     cells = {r["cell"]: r["set"] for r in reg.runs() if r["group"] == "G5" and r["seed"] == 42}
     assert sorted(cells, key=lambda c: int(c[1:])) == ["t20", "t60", "t100", "t140", "t180"]
     for cell, s in cells.items():
@@ -411,6 +412,7 @@ def test_g5_windows_follow_t0_and_are_parked_on_the_schedule_decision():
         assert s["federation.n_rounds"] == (t0 + 75) // 5
         assert s["stopping"] is None and s["backdoor.malicious_per_edge"] == [10, 0, 0, 0]
         assert s["federation.partition"] == "equal_random"
+        assert s["backdoor.generator_schedule"] == "window"
 
 
 def test_g5ab_is_g5_at_two_t0_with_both_schedules():
@@ -419,7 +421,8 @@ def test_g5ab_is_g5_at_two_t0_with_both_schedules():
     g5 = {r["cell"]: r["set"] for r in R.Registry(V2).runs() if r["group"] == "G5" and r["seed"] == 42}
     for r in runs:
         t0, arm = r["cell"].split("-")
-        s = dict(r["set"])
+        s, g = dict(r["set"]), dict(g5[t0])
         assert s.pop("backdoor.generator_schedule") == {"A": "window", "B": "always"}[arm]
-        assert s == g5[t0], r["run_id"]
+        assert g.pop("backdoor.generator_schedule") == "window"
+        assert s == g, r["run_id"]
 

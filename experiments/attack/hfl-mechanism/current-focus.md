@@ -7,7 +7,11 @@
 > - G8 / G6D（`e61af6b`）：仪表在 GPU 上不改数（F-067）；**G8 判 `user_decides`**，后门大部分褪去（F-068）；**G6D 止步**（F-069）。
 > - **2026-09-29 S4 已完成**（D-076 … D-079）：投毒窗口起点 + 生成器语义开关（A = window / B = always）；
 >   登记 **G8F**（G8 的 flat 对照，3 run）、**G5AB**（生成器语义 A/B 对比，8 run），G0 改固定 60 轮、**可交**；
->   G5 挂着等 G5AB。**下一步 = 集群交 G8F + G5AB（G0 可选）**。G2 / S5 仍暂缓（D-056）；G3 搁置。
+>   G5 挂着等 G5AB。G2 / S5 仍暂缓（D-056）；G3 搁置。
+> - **G8F / G5AB / G0 已回传**（`92e126a`）：flat 也衰减、没有 0.45 平台（F-071，判 `user_decides`）；
+>   G5AB `insensitive` → **G5 用 A、已放行**（F-072 / D-080）；B 臂窗口前 = G0-random 在 GPU 上逐位成立；
+>   G0 的 floor 跟着本 edge 的目标类占比走，3-B 差中差 CI 全 > 0 但是天花板下的机械结果（F-073）。
+>   **下一步 = 集群交 G5（15 run，约 7 GPU-h）**；G8F 与 3-B 的解读待用户定。
 
 ## 几套编号（容易混，先看这里）
 
@@ -135,47 +139,30 @@ CPU 替身（F-070）：默认配置（base / g8）与 S9 锚点逐位相同；*
 - **L2 替身**（本地 CPU、随机数据，N-005 的做法；只证明接线，数字无意义）：G6 (b)/(a) 缩到 20 端 / 4 edge / R2 / 2 云轮，见下「L2 替身」。
 - **真正的 L2 = 集群交 G6**（用户）：命令见下。
 
-## 下一步（2026-09-29，S4 之后）
+## 下一步（2026-09-29，G8F / G5AB / G0 回传之后）
 
-**⓪ 用户（集群）：拉代码、跑 L1**
+**⓪ 用户（集群）：拉代码、跑 L1**（GPU 节点 5 条红、无 GPU 节点 2 条红，F-067；多出来的才是回归）
 
-```bash
-git pull
-bash run_l1.sh     # GPU 节点：5 条红（陷阱 #4 的 2 条 + F-067 的 3 条环境性红）；没有 GPU 的节点：2 条。多出来的才是回归
-```
-
-新增的 TF 测试 `tests/test_attack_window_tf.py`（10 条）在本地 TF CPU 上是绿的；GPU 上没跑过 —— 若它红，先看是不是 F-067 那一类（GPU 数值），回传输出。
-
-**① 用户（集群）：交 G8F + G5AB**（在仓库根目录；共约 9 GPU-h，都是按 G3 / G8 实测外推，**没有实测**）
+**① 用户（集群）：交 G5**（在仓库根目录；约 7 GPU-h，按 G5AB 实测每云轮约 140–155 s 外推）
 
 ```bash
-PACK=3 RUN_GROUPS="G8F G5AB" bash experiments/attack/hfl-mechanism/submit.sh --dry-run
-#   期望：G8F 一个 k=3 探路包（3 seed）；G5AB 四格各一个 k=2 探路包（每格 2 seed，t20 两格约 0.85 h、t140 两格约 1.9 h）
-PACK=3 RUN_GROUPS="G8F G5AB" bash experiments/attack/hfl-mechanism/submit.sh
+PACK=3 RUN_GROUPS="G5" bash experiments/attack/hfl-mechanism/submit.sh --dry-run   # 期望：5 个 k=3 包（t20 … t180，各 3 seed）
+PACK=3 RUN_GROUPS="G5" bash experiments/attack/hfl-mechanism/submit.sh
 ```
 
-- G8F 是 flat（新配置类型）：只有 1 个 edge 模型，显存预计不高于 G8（每 run ≤ 17 GiB）—— **没有实测**，回来后看 `gpu.json`。
-- G5AB 手工跨格合包能省约 0.8 GPU-h，不值得额外的手工命令 —— 用 `submit.sh` 的缺省探路即可。
-- **G0（可选，同批或下一批）**：`PACK=3 RUN_GROUPS="G0" bash …/submit.sh` → 5 格各一个 K=3 包，60 云轮，约 13 GPU-h。
-  G0 是 3.1 的主干、3-B 的逐 edge floor、G5 的 floor；G5 真正交之前必须有 G0-random。
+- G5 的 t20 / t140 × s42 / s43 与 G5AB 的 A 臂配置**只差 meta**（group / run_id）→ 回来后与 G5AB-A 逐轮 checksum 应相同
+  （跨作业的 GPU 复现检查，免费）。
+- 3.3 的预注册判定只用**峰值**（窗口内 4 点最大值减同轮 G0-random floor，随 t0 的秩相关）；稀释点已贴 floor（F-072），只报告。
+- G5 的判定代码还没写（属于 S7，或下个会话在数据回来之前写定）。
 
-**② 回传后核对**
+**② 用户拍板**
 
-- G8F：`python3 harness/decay_verdict.py --flat --json experiments/attack/hfl-mechanism/analysis/flat_verdict.json`
-  → `flat_plateau` / `flat_decays` / `user_decides`（D-077）。核对 `run.attack_stop_round == 151`、`n_edges == 1`、`client_failures == []`。
-  恶意端 id 与 G8 不同（按 edge 布点在 1 个 edge 下从 100 端里抽，D-077）—— 预期，配对只按 seed。
-- G5AB：`python3 harness/g5ab_verdict.py --json experiments/attack/hfl-mechanism/analysis/g5ab_verdict.json`
-  → `insensitive`（G5 用 A）/ `sensitive` / `user_decides`（D-079）。`run.attack_start_round` / `generator_schedule` 由 `status.py` 核对。
-  判完后：把 `g5-schedule` 加进 `registry.yaml` 的 `available`，G5 的 `set:` 写上选定的 `backdoor.generator_schedule`，materialize。
-- 顺带的免费验证（有了 G0-random 之后）：G5AB 的 **B 臂**在窗口开始前应与同 seed 的 G0-random **逐轮 checksum 相同**
-  （`instrumentation_check G0__random__s42 G5AB__t140-B__s42 --upto 28`；CPU 替身已证，F-070；GPU 上这是第一次）。
-
-**③ 挂着、等数据的拍板**
-
-- G8 的存盘文件（集群 `$ROOT/../tfdpfl-dumps/G8__a__s4?.<job>/`，约 0.81 GB）：**留到分析做完再删**（用户）。
-  候选分析：第 51–70 轮 ASR 仍 > 0.5 的那 2–6% 良性端是谁；迁移 baseline（G8 第 30 轮快照里的生成器 × 干净模型快照，D-078）。
-- G3 带仪表重跑：**搁置**（用户）。
-- 合并 main：**先不合并**（用户）。
+- **G8F 的解读**（F-071，预注册 `user_decides`，只因 s43 = 0.286）：两个 seed ≤ 0.25、末窗口三个都 ≤ 0.20、保留比例与 HFL 相同
+  → 我的读法：flat 在本管线里也衰减，与 1B-2 的差别在训练协议、不在 HFL 结构。要不要据此进一步拆协议（例如 G7 那种官方预处理臂的衰减版），用户定。
+- **3-B 在天花板下判不出**（F-073）：预注册差中差 +0.077 / +0.067 / +0.068，CI 全 > 0，但来自 floor 差（C3 的 E3 floor ≈ 0）。
+  选项：降低攻击强度离开天花板，或 G3 带仪表重跑看 margin（此前用户搁置）。
+- G8 的存盘文件（约 0.81 GB）：分析做完再删（用户）；候选分析见 F-068 / D-078（长尾客户端、迁移 baseline）。
+- 合并 main：先不合并（用户）。
 
 ## 历史：G8 / G6D 的提交（2026-09-28 / 29）
 
@@ -250,7 +237,7 @@ N-005 的做法（随机数据），G6 配置缩到 20 端 / 4 edge / [2,0,0,0] 
 | ~~G1 重新规划~~ | — | ✅ 用户定按「退回 floor」一支（D-076）；具体设计随 S5 / S6 |
 | ~~G6D go / no-go~~ | — | ✅ 止步：(b)/(c) 只比 (a) 低 0.033 / 0.024（F-069） |
 | G3 要不要带仪表重跑 | 用户 | **搁置**（用户，2026-09-29）。C3 受害 edge 0.93 – 0.99，差中差判不出（F-066）；重跑 = C1 / C3 各 3 seed，约 6 GPU-h，config_sha 不变 → 要在登记表里另开一个组 |
-| G5 用哪种生成器语义 | 用户，G5AB 回来后 | `g5ab_verdict.py`（D-079）；判完把 `g5-schedule` 加进 `available`、G5 的 `set:` 写上选定值 |
+| ~~G5 用哪种生成器语义~~ | — | ✅ G5AB `insensitive` → A（D-080），G5 已放行、已 materialize |
 | G8 的存盘文件（约 0.81 GB） | 用户 | **分析做完再删**；候选分析见「下一步」③ |
 | 3.2 的假设重新表述 | 用户 | N-003；本会话给过一版草案（D-021 下 ρ=1 时 body 学到的是与触发器无关的塌缩；预测：恶意端干净精度 ≈ 本地 y_t 占比、body ‖Δ‖ 更大、无触发器时判 y_t 的比例 ≈ 有触发器时 —— **只是推理**）；y_t 偏置与恶意端精度现在常开 |
 | 磁盘预算 20 GB | 每批回传后 | 加总各 metrics.json 的 `dumps.logits.bytes` 与 `dumps.snapshots[].bytes`；目前 G8 约 0.81 GB；logits 54.7 MB / run 超了 D-073 的 50 MB 上限约 9%（F-067） |

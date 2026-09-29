@@ -26,6 +26,7 @@
 #     G0 改固定 60 云轮（ρ=0 时自适应判据必然跑满，cap_reached 是假的）；G5 补齐 5 格（G0-random 配置、固定到 t0+75），
 #     但 requires 里的 `g5-schedule` 是故意的 —— 等 G5AB（生成器语义 A / B 的 8 run 对比）判完再放行；
 #     登记 G5AB 与 G8F（G8 的 flat 对照，D-077）。已有配置的 sha 不变
+#   · 2026-09-29 G5AB 判 insensitive（F-072）→ `available` 加 g5-schedule，G5 用 A（window），materialize（D-080）
 # 功能会话完成时，把它的 token 加进 `available`，并补上对应组的 `set:`。
 # **补 `set:` 时核对三件**（G2 就是漏了这三件，test_registry 守着）：
 #   malicious_per_edge 的长度 = n_edges；n_rounds × edge_rounds ≥ cap_effective；各格评估网格（有效轮）一致。
@@ -39,7 +40,7 @@ base: base.yaml       # A4（2026-09-26）
 overlays:
   - ../../../fedavg/config/alignment_p2.yaml   # 「P2 对齐」模板：每个对齐开关都打开
 audit: AUDIT.md
-available: [S8, S3, S9, S4]   # 已完成的功能会话（S3：新划分 D-062 … D-068；S9：评估仪表 + 存盘开关 D-071 … D-075；S4：投毒窗口起点 + 生成器语义 D-078 / D-079）
+available: [S8, S3, S9, S4, g5-schedule]   # 已完成的功能会话（S3：新划分 D-062 … D-068；S9：评估仪表 + 存盘开关 D-071 … D-075；S4：投毒窗口起点 + 生成器语义 D-078 / D-079）；g5-schedule：G5AB 判 insensitive → G5 用 A（D-080）
 
 groups:
   G0:
@@ -147,7 +148,9 @@ groups:
     # （投毒有效轮 t0+1 … t0+20）；固定长度跑到 t0+75（窗口 20 + 观察 50 + 稀释取 +65/+70/+75 三点）。
     # 判定口径（D-078）：良性端池化 fresh-PM ASR；峰值 = 窗口内 4 个评估点的最大值；稀释 = +65/+70/+75 的均值；
     # 两者都减同有效轮的 G0-random floor。
+    # 2026-09-29（D-080）：G5AB 判 insensitive（|B − A| ≤ 0.035，F-072）→ 生成器语义用 A（window），g5-schedule 放行。
     set: {federation.n_edges: 4, backdoor.malicious_per_edge: [10, 0, 0, 0], stopping: null,
+          backdoor.generator_schedule: window,
           federation.partition: equal_random, federation.design.n_per_client: 500, federation.design.clean_per_edge: 500, federation.design.alpha_client: 0.5}
     cells:
       - {cell: t20,  set: {backdoor.attack_start_round: 5,  backdoor.attack_stop_round: 9,  federation.n_rounds: 19}}

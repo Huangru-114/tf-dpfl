@@ -67,12 +67,11 @@ def test_v2_after_the_audit_only_feature_sessions_block():
     """AUDIT 全部关闭（2026-09-27，pilot `2853433`）：只要求 audit 的 G7 变 todo；
     S8 之后（2026-09-27）G6 也不再被挡；FLR（D-061，只改配置）从登记起就不被挡；
     S3 之后（2026-09-28）G3 也不再被挡；S9（2026-09-28）登记的 G8 / G6D 不被挡。
-    S4 之后（2026-09-29）G0 与新登记的 G5AB / G8F 不被挡；G5 被 `g5-schedule` 故意挡着（D-079）。
-    其余 106 个只剩功能会话（S5 / S6）与 g5-schedule / reformulate-3.2 的依赖。"""
+    S4 之后（2026-09-29）G0 与新登记的 G5AB / G8F 不被挡；G5 曾被 `g5-schedule` 挡着（D-079），
+    G5AB 判 insensitive 后放行（D-080）。其余 91 个只剩功能会话（S5 / S6）与 reformulate-3.2 的依赖。"""
     rep = S.classify(R.Registry(V2))
-    assert rep["counts"]["blocked"] == 106
-    assert {r["status"] for r in rep["runs"] if r["group"] == "G5"} == {"blocked"}
-    assert all("g5-schedule" in r["detail"] for r in rep["runs"] if r["group"] == "G5")
+    assert rep["counts"]["blocked"] == 91
+    assert {r["status"] for r in rep["runs"] if r["group"] == "G5"} <= {"todo", "done", "stale", "failed"}
     # G7：结果回来之前是 todo，回来之后是 done（`5edd4df`）；base.yaml 加了评估降频之后
     # 重新 materialize → 旧结果的 config_sha 不符 = stale（D-053，默认不重交）
     assert {r["status"] for r in rep["runs"] if r["group"] == "G7"} <= {"todo", "done", "stale"}
@@ -84,8 +83,8 @@ def test_v2_after_the_audit_only_feature_sessions_block():
     assert {r["status"] for r in rep["runs"] if r["group"] in ("G0", "G5AB", "G8F")} <= {
         "todo", "done", "stale", "failed"}
     assert {r["group"] for r in rep["runs"] if r["status"] != "blocked"} == {
-        "G3", "G6", "G7", "FLR", "G8", "G6D", "G0", "G5AB", "G8F"}
-    assert sum(rep["counts"][k] for k in ("todo", "done", "stale", "failed")) == 74
+        "G3", "G6", "G7", "FLR", "G8", "G6D", "G0", "G5AB", "G8F", "G5"}
+    assert sum(rep["counts"][k] for k in ("todo", "done", "stale", "failed")) == 89
     assert not any("audit" in r["detail"] for r in rep["runs"])
 
 

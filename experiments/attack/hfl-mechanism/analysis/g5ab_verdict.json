@@ -1,0 +1,102 @@
+{
+  "overall": "insensitive",
+  "summary": "两种生成器语义的峰值与稀释值差都 < 0.1（2 格 × 2 seed）→ G5 用 A（攻击者投入与 t0 无关，3.3 的秩相关不被生成器成熟度混杂）",
+  "threshold": 0.1,
+  "threshold_evidence": "none（D-079）",
+  "deltas_B_minus_A": {
+    "t140/dilution/s42": 0.0154,
+    "t140/dilution/s43": -0.0063,
+    "t140/peak/s42": -0.028,
+    "t140/peak/s43": -0.035,
+    "t20/dilution/s42": 0.025,
+    "t20/dilution/s43": 0.0297,
+    "t20/peak/s42": -0.024,
+    "t20/peak/s43": 0.005
+  },
+  "mean_peak_delta": {
+    "t20": -0.0095,
+    "t140": -0.0315
+  },
+  "mean_dilution_delta": {
+    "t20": 0.0273,
+    "t140": 0.0046
+  },
+  "per_run": [
+    {
+      "cell": "t140",
+      "arm": "A",
+      "seed": 42,
+      "peak": 0.236,
+      "n_peak_points": 4,
+      "dilution": 0.0823,
+      "n_dilution_points": 3
+    },
+    {
+      "cell": "t140",
+      "arm": "A",
+      "seed": 43,
+      "peak": 0.329,
+      "n_peak_points": 4,
+      "dilution": 0.0953,
+      "n_dilution_points": 3
+    },
+    {
+      "cell": "t140",
+      "arm": "B",
+      "seed": 42,
+      "peak": 0.208,
+      "n_peak_points": 4,
+      "dilution": 0.0977,
+      "n_dilution_points": 3
+    },
+    {
+      "cell": "t140",
+      "arm": "B",
+      "seed": 43,
+      "peak": 0.294,
+      "n_peak_points": 4,
+      "dilution": 0.089,
+      "n_dilution_points": 3
+    },
+    {
+      "cell": "t20",
+      "arm": "A",
+      "seed": 42,
+      "peak": 0.179,
+      "n_peak_points": 4,
+      "dilution": 0.0517,
+      "n_dilution_points": 3
+    },
+    {
+      "cell": "t20",
+      "arm": "A",
+      "seed": 43,
+      "peak": 0.32,
+      "n_peak_points": 4,
+      "dilution": 0.0233,
+      "n_dilution_points": 3
+    },
+    {
+      "cell": "t20",
+      "arm": "B",
+      "seed": 42,
+      "peak": 0.155,
+      "n_peak_points": 4,
+      "dilution": 0.0767,
+      "n_dilution_points": 3
+    },
+    {
+      "cell": "t20",
+      "arm": "B",
+      "seed": 43,
+      "peak": 0.325,
+      "n_peak_points": 4,
+      "dilution": 0.053,
+      "n_dilution_points": 3
+    }
+  ],
+  "invalid": [],
+  "missing": [],
+  "preregistered": true,
+  "note": "2 个 seed 只够看大差别；这不是 3.3 的判定，只决定 G5 用哪种语义"
+}
