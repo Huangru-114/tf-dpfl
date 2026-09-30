@@ -1,6 +1,6 @@
 # Experiment 3（改版）实验初步报告
 
-> **写于 2026-09-29**（G5 已提交、未回传时）。本文件是**汇总**，不是新证据：每个数都出自 `FINDINGS.md` 的原表或下面给出的脚本输出，
+> **写于 2026-09-29**（G5 已提交、未回传时）；**2026-09-30 更新**：G5 已回传（§5.10），各组加结果图（§0）。本文件是**汇总**，不是新证据：每个数都出自 `FINDINGS.md` 的原表或下面给出的脚本输出，
 > 每节末尾附复现命令。与 `FINDINGS.md` 不一致时以 FINDINGS 和脚本为准（陷阱 #14：文档会比数据旧）。
 >
 > 路径一律相对仓库根。`hfl-mechanism/` = `experiments/attack/hfl-mechanism/`。
@@ -10,6 +10,7 @@
 
 ## 目录
 
+0. [结果图一览](#0-结果图一览)
 1. [一页摘要](#1-一页摘要)
 2. [研究问题与预注册判定](#2-研究问题与预注册判定)
 3. [协议与口径](#3-协议与口径)
@@ -23,6 +24,25 @@
 
 ---
 
+## 0. 结果图一览
+
+全部在 `hfl-mechanism/figures/final/`，由 `python3 harness/report_figures.py` 重画（数取自各组的判定脚本，与判定输出是同一份，
+`tests/test_report_figures.py` 逐项核对）；F0 由 `python3 harness/partition_preview.py --plot …` 出。图内文字是英文（集群容器没有中文字体）。
+
+| 图 | 回答什么 | 小节 |
+|---|---|---|
+| [`F7_G5_convergence_gating.png`](figures/final/F7_G5_convergence_gating.png) | 3.3：植入受不受收敛门控 → **not_gated** | §5.10 |
+| [`G5AB_generator_semantics.png`](figures/final/G5AB_generator_semantics.png) | 窗口外生成器冻结 / 在训有没有区别 → 没有 | §5.9 |
+| [`F1_floor_G0_FLR.png`](figures/final/F1_floor_G0_FLR.png) | 3.1：不投毒时同一触发器有多高（floor） | §5.6 |
+| [`F4_3B_G3.png`](figures/final/F4_3B_G3.png) | 3-B：差中差为什么是机械结果 | §6 |
+| [`3E_G6_G6D.png`](figures/final/3E_G6_G6D.png) | 3-E：edge 内共享段能不能挡住跨 edge 传播 | §5.4 / §5.5 |
+| [`F3_decay_G8_G8F.png`](figures/final/F3_decay_G8_G8F.png) | 3-C：攻击者走后后门怎样衰减；flat 是否一样 | §5.7 / §5.8 |
+| [`G7_preprocessing.png`](figures/final/G7_preprocessing.png) | 官方预处理是否让攻击更容易（背景） | §5.3 |
+| [`G2P_T50_ratio.png`](figures/final/G2P_T50_ratio.png) | 3-A pilot：HFL 比 flat 植入快还是慢（单 seed） | §5.2 |
+| [`F0_partitions.png`](figures/final/F0_partitions.png) | S3 各划分的实测异质性 | §3 / PLAN §6 |
+
+---
+
 ## 1. 一页摘要
 
 **研究问题**：在三层联邦学习（cloud – edge – client）中，客户端用 FedRep 个性化（私有 head、私有 BN 统计量）时，
@@ -33,13 +53,12 @@ Bad-PFL 个性化后门**怎样植入、怎样在 edge 之间传播、攻击者�
 
 | 状态 | run 数 | 组 |
 |---|---|---|
-| 已回传、已核对 | 68 | FLR 3、G0 15、G3 24、G5AB 8、G6 9、G6D 3、G8 3、G8F 3 |
+| 已回传、已核对 | 83 | FLR 3、G0 15、G3 24、**G5 15**、G5AB 8、G6 9、G6D 3、G8 3、G8F 3 |
 | 已回传、配置已变（`stale`，按 D-053 默认不重交） | 6 | G7（评估降频改了 base 的 config_sha；结果仍有效） |
-| **在跑** | 15 | **G5**（3.3 收敛门控） |
 | 挡住（等功能会话） | 91 | G1 24（S5 + S6）、G2 55（S5，暂缓 D-056）、G4 12（S6 + 3.2 重新表述，搁置 D-047） |
 | pilot（P1 口径，不进结论） | 13 | DET 2、D029 2、A26 2、G2P 2 新格、PACK 5（另 2 格复用 D029） |
 
-已用约 **93 GPU-h**（§8）。另有旧方案 P1 的 26 个 run、P0 的 30 个归档，只作背景。
+已用约 **99 GPU-h**（§8）。另有旧方案 P1 的 26 个 run、P0 的 30 个归档，只作背景。
 
 **主要发现**：
 
@@ -57,7 +76,10 @@ Bad-PFL 个性化后门**怎样植入、怎样在 edge 之间传播、攻击者�
 7. **3-B**：预注册差中差 CI 全 > 0（方向与假设相反），但那是**天花板下 floor 差的机械结果** —— 原始差中差只有 +0.003 / +0.020 / +0.008，
    excess 的差几乎全部来自 C3 的 E3 floor 低（§6）。**3-B 在当前攻击强度下判不出来**。
 8. **3-A**：G2P 单 seed，HFL / flat 的 T50 比值方向与旧 P1 一致但**不单调**（4edge 0.51 < 2edge 0.77 < flat 1 < 10edge 2.97，F-049）；G2 的规模未定。
-9. **G5AB**：两种生成器语义（窗口外冻结 / 全程在训）的峰值与稀释值差 ≤ 0.035 → G5 用 A（D-080）；G5 已提交。
+9. **G5AB**：两种生成器语义（窗口外冻结 / 全程在训）的峰值与稀释值差 ≤ 0.035 → G5 用 A（D-080）。
+10. **3.3 收敛门控：`not_gated`**（G5，F-076）。投毒窗口从欠训练（pm_acc 0.55）移到接近收敛（0.84），峰值 excess 都在 0.14–0.32、
+    不随 t0 单调变化（逐 seed ρ = 0.1 / 0.0 / −0.3）。攻击者所在 edge 的良性端**在每个 t0 都一开窗就饱和**；
+    池化峰值里随 t0 变化的部分是向受害 edge 的传染（§5.10 的图）。→ **没有「训练后期更安全」的时段**。
 
 **待你决定的**（§9）：3-B 的出路（三选一或都不做）、git 瘦身（不改历史 / 改写历史）、G2 规模与 S5、G1 的重新规划（S5 + S6）、G8 存盘何时删。
 
@@ -72,7 +94,7 @@ Bad-PFL 个性化后门**怎样植入、怎样在 edge 之间传播、攻击者�
 |---|---|---|---|---|
 | **3.1** 对抗下限 | ASR 平台期里有多少是「触发扰动本身的对抗效应」 | FLR、G0 | floor_gen ≥ 0.3 → 平台期主要来自对抗脆弱性 | ✅ **不成立**：floor_gen 0.04–0.10（F-073）；floor 不可忽略（F-065） |
 | **3.2** 私有头吸收 | 私有 head 能不能吸收掉后门 | G4 | 原文 §3.2 的三条预测 | ⏸ 搁置（D-047：FedAvg 臂立刻被攻陷、给不出结论；等重新表述）。反面信号：白盒 ≈ 主列（F-051） |
-| **3.3** 收敛门控 | 植入难度是否随模型收敛程度上升 | G5AB → G5 | 峰值 excess 随 t0 的 Spearman ρ，CI > 0 → gated（D-081） | ⏳ G5 在跑；判定脚本已写定（`harness/g5_verdict.py`） |
+| **3.3** 收敛门控 | 植入难度是否随模型收敛程度上升 | G5AB → G5 | 峰值 excess 随 t0 的 Spearman ρ，CI > 0 → gated（D-081） | ✅ **`not_gated`**：ρ 0.1 / 0.0 / −0.3，均值 −0.067，CI [−0.3, 0.1]（F-076） |
 | **3-A** 公平对照 | HFL 是否结构性地延迟植入 | G2P → G2 | log(T50_HFL / T50_flat) 的 CI 全 > 0 → 结构性延迟 | 🔸 G2P 单 seed、方向与 P1 一致（F-049）；G2 暂缓（D-056） |
 | **3-B** 目标类分布 | 迁移是否依赖受害 edge 有没有目标类的自然样本 | G0 + G3 | excess 差中差 CI 全 < 0 → 依赖自然特征；含 0 → 无差异 | ⚠ **两支都没落上**：CI 全 > 0，机械结果（§6） |
 | **3-C** 锯齿 | 干净 edge 在一个云周期内能不能自清洁 | G1 | r_down 的 CI 全 > 0 → edge 级隔离可用 | ⏸ 等 S5（逐 edge 轮评估）+ S6 |
@@ -85,7 +107,7 @@ Bad-PFL 个性化后门**怎样植入、怎样在 edge 之间传播、攻击者�
 | G7（预处理） | 官方预处理是否降低攻击难度 | G7 | **事后判据**（D-049） | 「是」，但干净精度低约 0.10（混杂，F-050） |
 | pilot（A4 验收） | 对齐改动是否可行、是否可复现 | D029 / A26 / DET | D-029 / D-031 / A15 的判据 | ✅ D-029 pass、A15 pass、D-031 different → 维持 head_first（F-045 / D-045） |
 
-图例：✅ 已判定；🔸 有读数、判定不完整；⚠ 判定落在预注册分支之外；⏳ 在跑；⏸ 挡住 / 搁置。
+图例：✅ 已判定；🔸 有读数、判定不完整；⚠ 判定落在预注册分支之外；⏸ 挡住 / 搁置。
 
 ---
 
@@ -144,7 +166,7 @@ GPU-h = 包的实测墙钟 × 1 卡（§8）。配置都在 `hfl-mechanism/confi
 | **G0** | floor 主干 | {random, C1–C4} × ρ=0 × 3 seed；固定 60 云轮 | 15 | ✅ | 12.2 | 读数 + `g3_did.py` 的 floor | floor_gen < 0.3 | F-073 / D-066 / D-078 |
 | **G5AB** | 生成器语义 | t20 / t140 × {A, B} × s42 / s43 | 8 | ✅ | 4.8 | `harness/g5ab_verdict.py` → `analysis/g5ab_verdict.json` | insensitive → A | F-072 / D-079 / D-080 |
 | **G8F** | 衰减的 flat 对照 | 1 edge、350 轮、第 1–150 轮投毒、每 5 轮评估 × 3 seed | 3 | ✅ | 4.6 | `harness/decay_verdict.py --flat` → `analysis/flat_verdict.json` | user_decides | F-071 / D-077 |
-| **G5** | 3.3 收敛门控 | G0-random 配置；t0 {20,60,100,140,180} × 20 有效轮投毒 + 55 有效轮观察 × 3 seed；A 语义 | 15 | ⏳ 在跑 | 估 ≈ 7 | `harness/g5_verdict.py` | — | D-078 / D-080 / D-081 |
+| **G5** | 3.3 收敛门控 | G0-random 配置；t0 {20,60,100,140,180} × 20 有效轮投毒 + 55 有效轮观察 × 3 seed；A 语义 | 15 | ✅ | 6.4 | `harness/g5_verdict.py` → `analysis/g5_verdict.json` | **not_gated** | F-076 / D-078 / D-080 / D-081 |
 | G1 | 3-C 锯齿 + 3-D | 4 edge；{random, C1} × {collocated, distributed} × R {10, 20} × 3 seed | 24 | ⏸ S5 + S6 | — | — | — | D-074 / D-076 |
 | G2 | 3-A 结构扫描 | flat + edge {2,4,10} × R {2,5,10,20} × 5 seed | 55 | ⏸ 暂缓 | — | `harness/verdicts.py` | — | D-047 / D-056 |
 | G4 | 3.2 私有头 | ρ {0.25, 1} × {FedRep, FedAvg} × 3 seed | 12 | ⏸ 搁置 | — | — | — | D-047 |
@@ -170,6 +192,11 @@ python3 harness/pack_test.py --help
 
 ### 5.2 G2P：3-A 的一致性复测（F-049，单 seed，`provisional`）
 
+![G2P](figures/final/G2P_T50_ratio.png)
+
+*读图*：每行一个拓扑，横轴是 T50(HFL)/T50(flat)（对数轴，< 1 = HFL 植入更快）。蓝 = 旧 P1，橙 = 当前 P2；两点在 1 的同一侧就算「一致」。
+2edge / 4edge 在左、10edge 在右，而且 10edge 在 P2 下更慢（2.97）—— **只有 seed 42**。
+
 T50 = 良性 ASR 首次越过 0.5 的有效轮（每 5 有效轮一个点、线性插值），r = T50(HFL) / T50(flat)：
 
 | 格 | P2：T50 → r | P1：T50 → r | 末 10 良性 / global（P2） |
@@ -183,6 +210,11 @@ T50 = 良性 ASR 首次越过 0.5 的有效轮（每 5 有效轮一个点、线�
 - **没有证据的**：幅度变化的原因；幅度本身在单 seed 下可能是噪声（G7 标准臂换 seed 时 T50 在 19.7–44.4 之间变 2.2 倍）。
 
 ### 5.3 G7：官方预处理（F-050，事后判据）
+
+![G7](figures/final/G7_preprocessing.png)
+
+*读图*：每行一个 seed，蓝 = 标准预处理、橙 = 官方预处理。(a) 官方臂越过 0.5 更早（「<」= 第一个评估点就已越过）；
+(b) 末 10 点 ASR 略高；(c) 但干净精度低约 0.10 → 「攻击更容易」与「模型更弱」分不开。
 
 | seed | 良性 T50 std / official | 末 10 良性 ASR std / official | fresh pm_acc 差 |
 |---|---|---|---|
@@ -199,6 +231,12 @@ python3 harness/g7_posthoc.py
 
 ### 5.4 G6：3-E 三层个性化（F-061 / F-062 / F-065③，快速读数，`provisional`）
 
+![3-E](figures/final/3E_G6_G6D.png)
+
+*读图*：(a) 受害 edge（E1–E3）的 ASR：基线 a 一路升到约 0.8，把最后 1 / 2 个残差块改为 edge 内共享（b / c）后压到约 0.3 / 0.1；
+(b) 与攻击者同在 E0 的良性端三臂都约 1.0 —— **只隔离、不治愈**；(c) 横轴是精度、纵轴是末值 ASR：实心（G6）的代价 ≤ 0.02，
+空心（G6D，攻击者分散到每个 edge）三臂都约 1.0 —— 攻击者到处都有时这一招无效（§5.5）。带子 = 3 个 seed 的 [min, max]。
+
 末 10 个评估点均值；受害 = E1–E3 均值；集中布点 [10,0,0,0]（E0 里 10 个攻击者 + 15 个良性端）。
 
 | 臂（edge 段） | E0 良性端（s42 / s43 / s44） | 受害 E1–E3 | fresh pm_acc | 陈旧 pm_acc |
@@ -214,11 +252,20 @@ python3 harness/g7_posthoc.py
 
 ### 5.5 G6D：分散布点下的 3-E（F-069）
 
+（图见 §5.4 (c) 的空心点。）
+
 s42、布点 [3,3,2,2]（每个 edge 都有攻击者）：良性端 ASR (a) 0.999、(b) 0.966、(c) 0.975 → (b)−(a) = −0.033、(c)−(a) = −0.024，
 远小于 go 门槛 0.15 → **止步**。精度代价照付（fresh −0.010 / −0.017）。
 **结论**：3-E 只对「攻击者集中在少数 edge」的威胁模型有意义。
 
 ### 5.6 FLR 与 G0：floor（F-065 / F-073）
+
+![floor](figures/final/F1_floor_G0_FLR.png)
+
+*读图*：floor = 攻击者**一张都不投毒**（ρ=0 影子攻击者，生成器照训）时，良性端对触发样本判成目标类的比例。
+(a) 5 种划分的池化 floor 全程在 0.03–0.15，远低于 3.1 的 0.3 判据线 → 3.1 不成立；
+(b) 每个点是一个 (划分, seed, edge)：本 edge 目标类占比越高，floor 越高（0.005 → ≈0，0.3 → 0.16–0.20）；
+(c) FLR（G6(a) 配置）逐 edge 的 floor 超过 0.10 → 「不可忽略」→ G0 逐划分测。
 
 **FLR**（G6(a) × ρ=0，末 10 点）：
 
@@ -251,6 +298,13 @@ python3 harness/g3_did.py          # floor 与 excess 的逐 edge 表（§6）
 
 ### 5.7 G8：攻击停止后的衰减（F-068 / D-076）
 
+![decay](figures/final/F3_decay_G8_G8F.png)
+
+*读图*：(a) HFL（G8），灰底 = 攻击者投毒的第 1–30 云轮。橙 = 攻击者所在 edge 的良性端，蓝 = 受害 edge，
+蓝点线 = 攻击者一直不走的 G6(a)，灰虚线 = floor。攻击者一走，两条都往下掉，到第 250 有效轮以后在 0.1–0.2，接近 floor。
+(b) 从攻击者停手的时刻对齐：flat（G8F，绿）和 HFL（G8，黄）一样衰减，末段都在 0.25 以下；
+黑菱形 = 外部 1B-2（官方代码、flat）200 轮后约 0.35。灰底 = D-077 的判定窗口。
+
 第 1–30 云轮投毒（= 150 有效轮，E0 已饱和、受害 edge 部分植入，F-062），观察到第 70 轮（攻击者走后 200 有效轮）。
 
 | seed | 受害 E1–E3：停手前（28–30）→ 第 51–60 / 61–70 轮 | floor（FLR） | excess | 保留比例 | E0：停手前 → 51–60 | 不停手的 G6(a) 受害 |
@@ -272,6 +326,8 @@ python3 harness/instrumentation_check.py experiments/attack/hfl-mechanism/result
 ```
 
 ### 5.8 G8F：flat 对照，以及与外部 1B-2 的对照（F-071 + 本次更正）
+
+（图见 §5.7 (b)。）
 
 良性端池化原始 ASR（有效轮窗口）：
 
@@ -305,6 +361,10 @@ python3 harness/decay_verdict.py --flat
 
 ### 5.9 G5AB：生成器语义（F-072 / D-080）
 
+![G5AB](figures/final/G5AB_generator_semantics.png)
+
+*读图*：每行一个 (量, 格, seed)，横轴是 B − A。8 个点全部落在灰色的 ±0.10「无差别」带里 → `insensitive` → G5 用 A。
+
 | 格 | 峰值 A / B（s42；s43） | 稀释 A / B（s42；s43） |
 |---|---|---|
 | t20 | 0.179 / 0.155；0.320 / 0.325 | 0.052 / 0.077；0.023 / 0.053 |
@@ -319,17 +379,44 @@ python3 harness/decay_verdict.py --flat
 python3 harness/g5ab_verdict.py
 ```
 
-### 5.10 G5（在跑）：判定口径已写定（D-081）
+### 5.10 G5：3.3 收敛门控 → `not_gated`（F-076 / D-081）
 
-- 量：峰值 excess = 窗口内 4 个评估点的最大值 − 同 4 轮 G0-random floor 的均值；稀释 excess（只报告）= t0 + 65 / 70 / 75 三点均值 − 同轮 floor。
-- 统计：每个 seed 内 Spearman ρ(t0, 峰值 excess)（并列取平均秩）→ 按 seed bootstrap（10000 次、固定种子）。
-- 判定：`gated`（CI 下界 > 0，即三个 seed 的 ρ 都 > 0）/ `not_gated` / `anti_gated`（CI 上界 < 0，单独报）/ `insufficient` / `missing` / `invalid`。
-- 有效性闸：exit 0、无吞掉的客户端异常、起止轮与生成器语义真的生效、跑满 n_rounds、G0-random 是 ρ=0 且跑到第 51 轮以上。
-- 附带（只报告）：G5 的 t20 / t140 × s42 / s43 与 G5AB-A 配置只差 meta → 逐轮 checksum 应全等（跨作业复现检查）。
-- 现在输出 `missing`。
+![G5](figures/final/F7_G5_convergence_gating.png)
+
+*读图*：
+- **(a)** 5 个 t0 的池化良性 ASR，横轴对齐到投毒窗口起点（灰底 = 20 有效轮的窗口）；灰虚线 = 不投毒时的 floor。
+  五条曲线形状几乎一样：窗口里升到 0.2–0.3，窗口结束后几十个有效轮内回到 floor 附近。
+- **(b)** 预注册的判定量：峰值 excess（窗口内最大值 − 同轮 floor），每个 seed 一条灰线，黑粗线是均值。
+  它不随 t0 单调上升（逐 seed ρ = 0.1 / 0.0 / −0.3）。空心点是稀释 excess（只报告），都贴在 0。
+- **(c)** 把池化值拆开。池化 = 1/6 × 攻击者所在 edge 的良性端 + 5/6 × 受害 edge，这个关系逐轮成立：
+  - 攻击者所在 edge（绿）在每个 t0 都是 0.8–0.9，已经饱和；
+  - 池化峰值随 t0 的起伏，来自受害 edge（紫）在窗口里被传染的程度。
+- **(d)** 窗口起点处的干净精度从 0.55 走到 0.84。所以 t0 确实从欠训练跨到了接近收敛，不是「t0 选得太窄所以看不出差别」。
+
+| t0 | 峰值 excess s42 / s43 / s44 | 稀释 excess s42 / s43 / s44 |
+|---|---|---|
+| 20 | 0.143 / 0.207 / 0.228 | −0.013 / −0.025 / 0.008 |
+| 60 | 0.248 / 0.230 / 0.234 | 0.027 / 0.001 / 0.024 |
+| 100 | 0.226 / 0.249 / 0.162 | 0.006 / 0.006 / −0.009 |
+| 140 | 0.149 / 0.271 / 0.325 | 0.006 / 0.039 / 0.045 |
+| 180 | 0.217 / 0.155 / 0.150 | 0.037 / −0.024 / −0.006 |
+
+**判定结果与附带检查**
+
+- 判定：逐 seed ρ(t0, 峰值 excess) = 0.1 / 0.0 / −0.3，均值 −0.067，CI [−0.3, 0.1]，结论是 **`not_gated`**。
+  稀释的 ρ 是 0.7 / 0.4 / −0.1，只报告。
+- 有效性：15 个 run 全部 exit 0，`client_failures` 和 `errors` 都是空的，起止轮与 `generator_schedule = window` 都生效了。
+- 跨作业复现：t20 / t140 × s42 / s43 与 G5AB-A 逐轮 checksum 全等（19 / 43 轮），相当于 GPU 上跨作业再证了一次确定性。
+
+**防御含义**：攻击者所在的 edge 在任何训练阶段都是一开窗就被植入，所以**不存在「训练后期较安全」的时段**，检测要一直开着。
+
+**没有证据的地方**：
+- 原实验 1 看到「植入受收敛门控」，这里没有复现。差别出在哪里（原配置欠训练、协议不同等）没有逐项证据。
+- 3 个 seed、5 个 t0 的设计只能排除较大的单调效应，小幅上升测不出。
 
 ```bash
 python3 harness/g5_verdict.py --json experiments/attack/hfl-mechanism/analysis/g5_verdict.json
+python3 harness/report_figures.py --only G5
 ```
 
 ### 5.11 P1 / P0：只作背景
@@ -418,6 +505,12 @@ bootstrap 均值 +0.070，95% CI [0.067, 0.077] → **CI 全 > 0**，两条预�
 
 ### 6.4 为什么说这是机械结果
 
+![3-B](figures/final/F4_3B_G3.png)
+
+*读图*：(a)(b) 蓝柱 = 攻击后的 ASR，灰柱 = 同 edge 的 floor（黑点 = 各 seed）。C1 与 C3 的蓝柱都顶在 0.93–1.0 —— 天花板；
+差别只在灰柱：C3 的 E3 几乎没有目标类，floor ≈ 0。(c) 差中差拆成三根柱：原始（蓝）≈ 0，floor（灰）为负，
+预注册的 excess（橙）= 原始 − floor ≈ −floor → 那个「CI 全 > 0」完全来自 floor。
+
 恒等式 **DiD(excess) = DiD(原始) − DiD(floor)**。三个 seed 里：
 
 - **DiD(原始) ≈ 0**（+0.003 … +0.020）：C1 与 C3 的受害 edge 都在 0.85–0.99，**贴着天花板**，E3 就算「更难植入」也表现不出来；
@@ -503,13 +596,14 @@ python3 harness/g3_did.py --json experiments/attack/hfl-mechanism/analysis/g3_di
 | `flr_verdict.py` | FLR：floor 是否可忽略 |
 | `decay_verdict.py`（`--flat`） | G8 / G8F：攻击停止后的衰减 |
 | `g5ab_verdict.py` | G5AB：生成器语义 |
-| **`g5_verdict.py`** | G5：收敛门控（D-081，本次新增） |
-| **`g3_did.py`** | 3-B：差中差 + 分解表 + 探索性读数（本次新增） |
+| `g5_verdict.py` | G5：收敛门控（D-081） |
+| `g3_did.py` | 3-B：差中差 + 分解表 + 探索性读数 |
 | `instrumentation_check.py` | 「新代码没改已有的数」：只比 checksum 与已有数值字段 |
 | `check_reproducible.py` | 两个 run 全部字段（含计时）是否相同 |
 | `partition_preview.py` | 离线预览 S3 划分的异质性（F0 数据，不需要 TF） |
-| `figures.py` | 出图（组内因素不唯一会被拒绝） |
-| **`git_size_report.py`** | git 历史的空间占用（只读，本次新增，附录 A） |
+| `figures.py` | 出图基元：按因素分组的轨迹 / 逐 edge 小多图（组内因素不唯一会被拒绝） |
+| **`report_figures.py`** | 本报告 §0 的结果图（2026-09-30 新增；数取自上面各判定脚本，`tests/test_report_figures.py` 逐项核对） |
+| `git_size_report.py` | git 历史的空间占用（只读，附录 A） |
 | `analyze_exp3.py` / `collect_matrix.py` / `evidence_data_split.py` | 旧方案用 |
 
 ### 7.4 代码模块（`fedavg/`，改版实验相关）
@@ -544,8 +638,8 @@ python3 harness/g3_did.py --json experiments/attack/hfl-mechanism/analysis/g3_di
 | G0 | 5 × K=3 | 12.2 | — |
 | G5AB | 4 × K=2 | 4.8 | 约 5 |
 | G8F | 1 × K=3 | 4.6 | 3.5（flat 的 350 个云轮比外推贵） |
-| **合计** | | **约 93** | |
-| G5（在跑） | 5 × K=3 | — | 约 7 |
+| G5 | 5 × K=3 | 6.4 | 约 7 |
+| **合计** | | **约 99** | |
 
 - 单跑的 GPU-h 取 `timing_summary` 的训练 + 评估墙钟（不含启动）；包取 `*.gpu.json` 的墙钟。pilot 第一轮（6 个 run 全崩，F-043）没有计入。
 - 上限约 100 GPU-h / 周（D-047）。挡住的 91 个 run 按 PLAN §4 的每 run 约 0.9 GPU-h（K=3）外推 ≥ 80 GPU-h；10edge / R20 格没有实测，会更贵（G2P 的 10edge 单跑 3.3 h）。
@@ -562,7 +656,7 @@ EOF
 
 ## 9. 下一步与待决事项
 
-**集群上**：等 G5 回传 → `python3 harness/g5_verdict.py --json …/analysis/g5_verdict.json` → 写 FINDINGS。
+**集群上**：已登记的可交格子全部回传（G5 是最后一批，2026-09-30），没有在跑的作业。
 
 **待你决定**：
 
@@ -574,7 +668,8 @@ EOF
 | 4 | G1 的重新规划 | 按 D-076：保留 3-C、主量 margin；需要 S5 + S6 | D-074 / D-076 |
 | 5 | 3-E 的判定代码（S7） | G6 的快速读数已有，预注册判定还没按 D-059 / D-071 写成脚本；(c) 臂的 MTA 正好贴 0.02 | §5.4 |
 | 6 | G8 存盘删除时机 | 已定「分析做完后删」；消费它的离线分析（margin / 逐客户端的离线复算）还没开始 | D-073 |
-| 7 | 合并到 main | 你已定「先不合并」；`origin/main` 停在 2026-08-26（`cf40b13`），本分支领先 61 个提交 | CLAUDE.md 分支纪律 |
+| 7 | 合并到 main | 你已定「先不合并」；`origin/main` 停在 2026-08-26（`cf40b13`），本分支领先 50 个提交（2026-09-30） | CLAUDE.md 分支纪律 |
+| 8 | 3.3 是否收尾 | 建议收尾：记 `not_gated` 并写明范围（本配置、池化峰值；攻击者 edge 已饱和，结论主要落在跨 edge 传染上） | §5.10 / F-076 |
 
 **已知没有证据的地方**（集中列出，免得被当成结论）：
 - 衰减在本管线比外部 1B-2 低 0.15–0.23 的原因（预处理 / lr / 本地训练量 / 聚合权重，逐项消融才分得开）；
@@ -628,8 +723,8 @@ EOF
   2. 集群和所有本地副本都要**重新克隆**（旧副本一 pull 就会把旧历史混回来）；
   3. 88 个 metrics.json 的 `run.provenance.git`（8 个不同提交）和文档里约 55 处短哈希会**指不到提交** → 要把 `commit-map` 入库，并先存一份旧仓库的 `git bundle` 作备份；
   4. GitHub 上 9 个 PR 的只读引用 `refs/pull/*` 改不了，旧对象在 GitHub 服务器上仍可达；**不影响新克隆的大小**（克隆默认不取 `refs/pull/*`），但远端的「仓库大小」要等 GitHub 自己回收；
-  5. 进行中的作业（G5）的 provenance 会指向旧哈希。
-- **这是破坏性、对外可见的操作，需要你单独明确同意才会执行**；建议若要做，等 G5 回传、没有作业在跑时做，并按上面的 1–5 逐条准备。
+  5. ~~进行中的作业（G5）的 provenance 会指向旧哈希。~~ 已不适用：G5 已回传（它的 15 个 metrics.json 并入第 3 条），现在没有在跑的作业（2026-09-30）。
+- **这是破坏性、对外可见的操作，需要你单独明确同意才会执行**；建议若要做，趁现在（G5 已回传、没有作业在跑）做，并按上面的 1–5 逐条准备。
 
 **我的建议**：先用选项 1（集群下次重新克隆时加 `--filter=blob:none`）。瘦身的收益只在「克隆」这一步（289 MiB，一次性），
 而选项 2 的代价会落在每一份溯源记录上。除非克隆大小确实造成了问题（例如集群配额），否则不改写历史。

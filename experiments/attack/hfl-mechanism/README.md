@@ -7,7 +7,7 @@
 | 文件 | 内容 |
 |---|---|
 | `current-focus.md` | 下一会话唯一要回答的问题 |
-| `REPORT.md` | **实验初步报告**（2026-09-29）：全部组的计划 / 状态 / 路径 / 数据分析、3-B 详细说明、机时账、git 瘦身 |
+| `REPORT.md` | **实验初步报告**（2026-09-29；09-30 加 G5 与结果图 §0）：全部组的计划 / 状态 / 路径 / 数据分析、3-B 详细说明、机时账、git 瘦身 |
 | `PLAN.md` | 评审、子实验→代码映射、预注册判定、运行组、执行路线、图目录 |
 | `AUDIT.md` | 与官方 Bad-PFL / FedRep / 原文献的对齐审计。**全部关闭前不开跑** |
 | `DECISIONS.md` | 决策日志（只追加） |
@@ -56,7 +56,7 @@ python3 harness/flr_verdict.py   --json experiments/attack/hfl-mechanism/analysi
 python3 harness/decay_verdict.py --json experiments/attack/hfl-mechanism/analysis/decay_verdict.json   # G8（D-075）
 python3 harness/decay_verdict.py --flat --json experiments/attack/hfl-mechanism/analysis/flat_verdict.json   # G8F（D-077）
 python3 harness/g5ab_verdict.py  --json experiments/attack/hfl-mechanism/analysis/g5ab_verdict.json     # G5AB（D-079）
-python3 harness/g5_verdict.py    --json experiments/attack/hfl-mechanism/analysis/g5_verdict.json       # G5（D-081，回传前写定）
+python3 harness/g5_verdict.py    --json experiments/attack/hfl-mechanism/analysis/g5_verdict.json       # G5（D-081，回传前写定；not_gated，F-076）
 python3 harness/g3_did.py        --json experiments/attack/hfl-mechanism/analysis/g3_did.json           # 3-B 差中差 + 分解（F-075；脚本写于数据之后）
 
 # 5c. 「新仪表没有改变任何已有的数」（S9）：只比 checksum 与改动前就有的数值字段，前 R 轮
@@ -69,6 +69,10 @@ python3 harness/figures.py trajectory --tables experiments/attack/hfl-mechanism/
     --floor poison_ratio=0 --out experiments/attack/hfl-mechanism/figures/F2.png
 python3 harness/figures.py per-edge --tables experiments/attack/hfl-mechanism/analysis \
     --run <run> --metric edge.client_benign --out experiments/attack/hfl-mechanism/figures/F3.png
+
+# 6b. REPORT 的结果图（各组一张，数取自 5b 的判定脚本；定稿进 figures/final/，见 REPORT §0）
+python3 harness/report_figures.py                     # 全部；--only G5 G8 … 只画几张
+python3 harness/partition_preview.py --plot experiments/attack/hfl-mechanism/figures/final/F0_partitions.png
 ```
 
 ## A4 的可行性 pilot（P1 口径，不进 P2）

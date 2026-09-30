@@ -64,7 +64,7 @@ P1 的用途（FINDINGS F-002/F-008/F-009）：同 seed 噪声的实测、效应
 | 全部 | 对齐审计关闭 | — | A1–A4 |
 | 3.1 对抗下限 | ρ=0 影子攻击者；~~ξ-only 下限~~（**不做**，D-078）；迁移 baseline（**推迟**：S9 快照已存生成器，干净模型的快照可带开关重跑补） | ✅ 影子攻击者的 L1 守卫已补（S4） | S4 ✅ |
 | 3.2 私有头吸收 | FedRep ↔ FedAvg、ρ=1；恶意端干净精度（已算、没解析）；body 更新范数 | 部分已有 | S6 |
-| 3.3 收敛门控 | `attack_start_round` + `generator_schedule`（A = window / B = always）；固定长度 run | ✅ 已有（S4，D-078 / D-079）；用哪种生成器语义等 G5AB | S4 ✅ |
+| 3.3 收敛门控 | `attack_start_round` + `generator_schedule`（A = window / B = always）；固定长度 run | ✅ 已有（S4，D-078 / D-079）；G5AB 判 A（D-080）；G5 判 `not_gated`（F-076） | S4 ✅ |
 | 3-A 公平对照 | flat / HFL / R_edge / 参与配额 / T_θ（都已有）；逐 edge 轮评估（高 R） | 大部分已有 | S5 |
 | 3-B 目标类分布 | 固定比例表 C1–C4；层级 Dirichlet p_e~Dir(α_e p)（按社区口径 = 每类 α_e，D-063）；H_inter/H_intra；逐 edge 下限 | ✅ 划分已有（S3）；逐 edge 下限等 FLR / G0 | S3 |
 | 3-C 锯齿 | 逐 edge 轮评估 + fresh-PM ASR；攻击停止（已有） | 缺（fresh-PM 与交错执行在 A4，D-033 / D-036） | A4 + S5 |
@@ -107,7 +107,7 @@ P1 的用途（FINDINGS F-002/F-008/F-009）：同 seed 噪声的实测、效应
 | G2 结构扫描（**暂缓**，D-056） | flat + edge {2, 4, 10} × R_edge {2, 5, 10, 20}，去掉 G1 已覆盖的格子 × 5 seed（布点 / 轮数 2026-09-27 补齐，D-047）；**先跑 G2P 一致性复测**（pilot 表，seed42 的 4 格），结果回来再定 G2 规模 —— G2P 已回来（`consistent`，F-049），**规模尚未定**，由用户定 | 3-A | A4 + S5 |
 | G3 目标类条件 | **C1**（D-062 新增，差中差的基准）/ C2 / C3 / C4 + 层级 Dirichlet α_e {0.1, 0.3, 1, 10}（社区口径，D-063）× 3 seed；4 edge 集中 [10,0,0,0]、R5；比例表 r = 0.25、E3 = deer + horse（D-067） | 3-B | A4 + S3 ✅ → **可交**（24 run） |
 | G4 私有头（**搁置**，D-047） | ρ {0.25, 1.0} × {FedRep, FedAvg} × 3 seed。用户：FedAvg 臂会被立刻攻陷、给不出结论；等 3.2 按 N-003 重新表述时一起重设计对照臂 | 3.2 | A4 + S6 + 重新表述 |
-| G5 时间窗 | t0 {20, 60, 100, 140, 180} × 20 轮投毒 + 50 轮观察 × 3 seed，从头跑；G0-random 配置，固定到 t0+75（D-078）；生成器语义 A（D-080） | 3.3 | **已提交**（2026-09-29，15 run，约 7 GPU-h）；判定 `harness/g5_verdict.py`（D-081）；稀释点已贴 floor（F-072） |
+| G5 时间窗 | t0 {20, 60, 100, 140, 180} × 20 轮投毒 + 50 轮观察 × 3 seed，从头跑；G0-random 配置，固定到 t0+75（D-078）；生成器语义 A（D-080） | 3.3 | ✅ 已回传（2026-09-30，15 run，6.4 GPU-h）：**`not_gated`**（ρ 0.1 / 0.0 / −0.3，F-076）；攻击者所在 edge 在每个 t0 都饱和 |
 | G6（可选） | 3-E 的三种划分 × 3 seed；4 edge 集中 [10,0,0,0]、R5、固定 300 有效轮（停止判据关）（D-058） | 3-E | S8 ✅ → 可交 |
 | G8 衰减（D-075，S9） | G6(a) + 第 1–30 轮投毒（`attack_stop_round: 31`）+ 70 轮（攻击者走后 200 有效轮）× 3 seed；logits 每点、快照 30 / 70 | 3-C 攻击停止版 = 1B-2 的 HFL 复现；floor = FLR 同 seed；决定 G1 怎么改（D-074） | ✅ 已回传：判 `user_decides`（F-068） |
 | G6D 探针（D-075，S9） | G6 三臂 × 分散布点 [3,3,2,2] × s42 | 3-E 在没有干净 edge 时还有没有用；go / no-go（低 ≥ 0.15 → 扩 3 seed） | ✅ 已回传：**止步**（只低 0.033 / 0.024，F-069） |
@@ -146,13 +146,15 @@ P1 的用途（FINDINGS F-002/F-008/F-009）：同 seed 噪声的实测、效应
 
 ## 6. 图目录（出图规则见 README）
 
-| ID | 内容 | 子实验 |
-|---|---|---|
-| F0 | 各划分的 (H_inter, H_intra) 散点 | §2 |
-| F1 | ASR 与 floor_gen 随有效轮的曲线，三层（~~floor_ξ~~ 不做，D-078） | 3.1 |
-| F2 | T50(HFL)/T50(flat) 森林图，按 (n_edges, R_edge) 分组 | 3-A |
-| F3 | 逐 edge × 有效轮的 fresh-PM ASR 热条，标出云聚合时刻，叠加锯齿 | 3-C |
-| F4 | C1–C4 逐 edge 的 excess ASR 与 MTA | 3-B |
-| F5 | edge 视角 vs 全局视角的 ROC（等池大小） | 3-D |
-| F6 | ρ × {FedRep, FedAvg}：benign ASR、恶意端干净精度、body 更新范数 | 3.2 |
-| F7 | t0 窗口网格：峰值 ASR 与 +50 轮的 ASR | 3.3 |
+| ID | 内容 | 子实验 | 状态（`figures/final/`，`harness/report_figures.py`） |
+|---|---|---|---|
+| F0 | 各划分的 (H_inter, H_intra) 散点 | §2 | ✅ `F0_partitions.png`（`partition_preview.py --plot`） |
+| F1 | ASR 与 floor_gen 随有效轮的曲线，三层（~~floor_ξ~~ 不做，D-078） | 3.1 | ✅ `F1_floor_G0_FLR.png`（池化 floor 曲线 + 逐 edge floor vs y_t + FLR） |
+| F2 | T50(HFL)/T50(flat) 森林图，按 (n_edges, R_edge) 分组 | 3-A | 等 G2（pilot 版：`G2P_T50_ratio.png`，单 seed） |
+| F3 | 逐 edge × 有效轮的 fresh-PM ASR 热条，标出云聚合时刻，叠加锯齿 | 3-C | 衰减版 ✅ `F3_decay_G8_G8F.png`（G8 / G8F）；锯齿热条等 G1 |
+| F4 | C1–C4 逐 edge 的 excess ASR 与 MTA | 3-B | ✅ `F4_3B_G3.png`（C1 / C3 逐 edge 原始 vs floor + 差中差分解；MTA 未画） |
+| F5 | edge 视角 vs 全局视角的 ROC（等池大小） | 3-D | 等 G1（S6） |
+| F6 | ρ × {FedRep, FedAvg}：benign ASR、恶意端干净精度、body 更新范数 | 3.2 | 等 G4（搁置） |
+| F7 | t0 窗口网格：峰值 ASR 与 +50 轮的 ASR | 3.3 | ✅ `F7_G5_convergence_gating.png` |
+
+目录外另有 `3E_G6_G6D.png`（3-E）、`G5AB_generator_semantics.png`、`G7_preprocessing.png`（2026-09-30）；每张图的读法见 `REPORT.md` §0 / §5。

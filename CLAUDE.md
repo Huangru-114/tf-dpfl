@@ -410,7 +410,8 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
   - 登记表：G0 固定 60 云轮；G5（3.3）5 格挂 `g5-schedule` 等 G5AB（A/B 对比，`harness/g5ab_verdict.py`）——
     **G5AB 判 insensitive → G5 用 A、已放行**（D-080）；G8F = G8 的 flat 对照（`decay_verdict.py --flat`）。
     GPU 上已证：B 臂窗口前与同 seed 的 G0-random 逐位相同（FINDINGS F-072）。
-    G5 已提交（2026-09-29）；判定 `harness/g5_verdict.py` 在回传前写定（D-081）。实验全貌见 `experiments/attack/hfl-mechanism/REPORT.md`。
+    G5 已回传（2026-09-30）：预注册判定 `harness/g5_verdict.py`（D-081）→ **`not_gated`**（F-076）。实验全貌见 `experiments/attack/hfl-mechanism/REPORT.md`，
+    各组结果图 `harness/report_figures.py` → `hfl-mechanism/figures/final/`（REPORT §0；数取自各组判定脚本，守卫 `tests/test_report_figures.py`）。
   - 守卫：`tests/test_attack_window.py`（真值表 + 校验 + 闸门 AST）/ `test_attack_window_tf.py`（真 Bad-PFL 客户端：
     两种语义下生成器与投毒的开关、窗口外不耗投毒随机数、ρ=0 影子攻击者确实在训生成器且评估触发器用生成器）/
     `test_g5ab_verdict.py` / `test_decay_verdict.py`（flat 分支）/ `test_run_self_description.py`（`[设定7]` 往返）。

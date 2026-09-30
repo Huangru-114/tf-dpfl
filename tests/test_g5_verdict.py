@@ -183,3 +183,18 @@ def test_real_g5ab_arm_a_and_g0_random_run_through_the_quantities():
     got = {(p["t0"], p["seed"]): p for p in res["per_run"]}
     assert set(got) == set(g5ab)
     assert all(p["n_window_points"] == 4 and p["peak_excess"] is not None for p in got.values())
+
+
+def test_real_g5_verdict_is_what_was_reported():
+    """G5 回传（`5c31f14`，2026-09-30）：把用户在集群上看到的判定钉住（F-076）。
+    数据或判定代码一变，这条就红 —— 那时要回头改 FINDINGS / REPORT 与图，而不是改这条。"""
+    g5, g0, g5ab = V.load()
+    if len(g5) < 15 or any(g0.get(s) is None for s in V.SEEDS):
+        pytest.skip("G5 / G0-random 不全")
+    res = V.judge(g5, g0, g5ab)
+    assert res["overall"] == "not_gated" and not res["invalid"]
+    assert {s: v["rho_peak"] for s, v in res["per_seed"].items()} == {"s42": 0.1, "s43": 0.0, "s44": -0.3}
+    assert res["rho_peak_mean"] == -0.0667 and res["rho_peak_ci"] == [-0.3, 0.1]
+    rep = res["reproducibility_vs_G5AB_A"]
+    assert len(rep) == 4 and all(r["identical"] for r in rep)
+    assert [r["rounds_compared"] for r in rep] == [19, 19, 43, 43]
