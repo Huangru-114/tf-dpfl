@@ -108,7 +108,7 @@ P1 的用途（FINDINGS F-002/F-008/F-009）：同 seed 噪声的实测、效应
 | G3 目标类条件 | **C1**（D-062 新增，差中差的基准）/ C2 / C3 / C4 + 层级 Dirichlet α_e {0.1, 0.3, 1, 10}（社区口径，D-063）× 3 seed；4 edge 集中 [10,0,0,0]、R5；比例表 r = 0.25、E3 = deer + horse（D-067） | 3-B | A4 + S3 ✅ → **可交**（24 run） |
 | G4 私有头（**搁置**，D-047） | ρ {0.25, 1.0} × {FedRep, FedAvg} × 3 seed。用户：FedAvg 臂会被立刻攻陷、给不出结论；等 3.2 按 N-003 重新表述时一起重设计对照臂 | 3.2 | A4 + S6 + 重新表述 |
 | G5 时间窗 | t0 {20, 60, 100, 140, 180} × 20 轮投毒 + 50 轮观察 × 3 seed，从头跑；G0-random 配置，固定到 t0+75（D-078）；生成器语义 A（D-080） | 3.3 | ✅ 已回传（2026-09-30，15 run，6.4 GPU-h）：**`not_gated`**（ρ 0.1 / 0.0 / −0.3，F-076）；攻击者所在 edge 在每个 t0 都饱和 |
-| G6（可选） | 3-E 的三种划分 × 3 seed；4 edge 集中 [10,0,0,0]、R5、固定 300 有效轮（停止判据关）（D-058） | 3-E | S8 ✅ → 可交 |
+| G6（可选） | 3-E 的三种划分 × 3 seed；4 edge 集中 [10,0,0,0]、R5、固定 300 有效轮（停止判据关）（D-058） | 3-E | ✅ 已回传；判定 `harness/g6_verdict.py` → b、c 两臂都 **`blocks`**（F-077） |
 | G8 衰减（D-075，S9） | G6(a) + 第 1–30 轮投毒（`attack_stop_round: 31`）+ 70 轮（攻击者走后 200 有效轮）× 3 seed；logits 每点、快照 30 / 70 | 3-C 攻击停止版 = 1B-2 的 HFL 复现；floor = FLR 同 seed；决定 G1 怎么改（D-074） | ✅ 已回传：判 `user_decides`（F-068） |
 | G6D 探针（D-075，S9） | G6 三臂 × 分散布点 [3,3,2,2] × s42 | 3-E 在没有干净 edge 时还有没有用；go / no-go（低 ≥ 0.15 → 扩 3 seed） | ✅ 已回传：**止步**（只低 0.033 / 0.024，F-069） |
 | G5AB 生成器语义（D-079，S4） | G5 的 t20 / t140 × {A = window, B = always} × seed {42, 43} | 定 G5 用哪种生成器语义；预注册 `harness/g5ab_verdict.py` | ✅ 已回传：`insensitive` → A（F-072 / D-080） |
@@ -138,7 +138,7 @@ P1 的用途（FINDINGS F-002/F-008/F-009）：同 seed 噪声的实测、效应
 | **S4**（2026-09-29 ✅，D-078 / D-079） | ρ=0 影子攻击者 L1（生成器确实在训、评估触发器用生成器）、`attack_start_round` + `generator_schedule`（`attack/attack_window.py`，不 import TF；`[设定7]`，schema 8）；~~ξ-only 下限~~ 不做（D-078；δ-only / ξ-only 逐点消融列也不做，D-051） | → G0 / G5AB（G5 等 G5AB） |
 | S5（**暂缓**，D-056；**预案已定**，D-055） | 逐 edge 轮评估（fresh-PM 已在 A4 实现，D-033）。**两条要求（D-047）**：各格评估网格统一在有效轮上（现在 R≠5 的格子是每 R 个有效轮一个点）；加密的点只算主列、保持轻量（否则 G1 / G2 的评估量成倍增加）。预案：`evaluation.eval_grid: 5`、轻评估点喂停止判据且横轴改网格序号（F-052）、GM / EM 只在网格点上算 | → G1 / G2 |
 | S6 | 更新日志、几何分数（body-only、滑窗）、周期转储、离线 c_k、恶意端干净精度 | → G1 / G4 |
-| S7 | 各子实验的判定代码补全 + 出图 | — |
+| S7（**部分完成**，2026-09-30） | 各子实验的判定代码补全 + 出图。✅ 3-E 判定 `harness/g6_verdict.py`（F-077，两臂 `blocks`）；✅ 已回传各组的结果图 `harness/report_figures.py`（REPORT §0）。剩下：等 G1 / G2 / G4 的数据（F2 / F3 锯齿 / F5 / F6） | — |
 | **S9**（2026-09-28 ✅，D-071 … D-075） | 评估仪表（常开：逐客户端、margin、y_t 偏置、按类 ASR、非目标翻转率；schema 7）+ 两个存盘开关（logits / 快照，默认关）+ `harness/decay_verdict.py` / `instrumentation_check.py`；登记 G8 / G6D | → G8 / G6D；G1 待 FLR + G8 重新规划（D-074） |
 | **S8**（2026-09-27 ✅，D-057 … D-059） | 3-E 三层个性化 | → G6 |
 
@@ -157,4 +157,4 @@ P1 的用途（FINDINGS F-002/F-008/F-009）：同 seed 噪声的实测、效应
 | F6 | ρ × {FedRep, FedAvg}：benign ASR、恶意端干净精度、body 更新范数 | 3.2 | 等 G4（搁置） |
 | F7 | t0 窗口网格：峰值 ASR 与 +50 轮的 ASR | 3.3 | ✅ `F7_G5_convergence_gating.png` |
 
-目录外另有 `3E_G6_G6D.png`（3-E）、`G5AB_generator_semantics.png`、`G7_preprocessing.png`（2026-09-30）；每张图的读法见 `REPORT.md` §0 / §5。
+目录外另有 `3E_G6_G6D.png` / `3E_verdict_G6.png`（3-E）、`F3b_decay_margin_tail.png`（3-C 的 margin 与长尾）、`F4b_3B_all_partitions.png`（3-B 全部 24 run）、`G5AB_generator_semantics.png`、`G7_preprocessing.png`、`pilot_A4.png`、`status_progress.png`（进度与机时）（2026-09-30）；每张图的读法见 `REPORT.md` §0 / §5 / §9.1。

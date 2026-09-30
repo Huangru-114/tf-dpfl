@@ -36,8 +36,12 @@ import flr_verdict as FV                                           # noqa: E402
 import g3_did as G3                                                # noqa: E402
 import g5_verdict as G5                                            # noqa: E402
 import g5ab_verdict as G5AB                                        # noqa: E402
+import g6_verdict as G6V                                           # noqa: E402
 import g7_posthoc as G7                                            # noqa: E402
+import pack_test as PT                                             # noqa: E402
 import pilot_a4 as PA                                              # noqa: E402
+import status as ST                                                # noqa: E402
+from registry import Registry                                      # noqa: E402
 from figures import FLOOR, GRID, INK, INK_2, SERIES, SURFACE, _style, band, spread_labels  # noqa: E402,F401
 from runs_table import last_k_mean                                 # noqa: E402
 
@@ -176,26 +180,27 @@ ARM_LABEL = {"a": "a: FedRep baseline (k=0)", "b": "b: last block edge-shared (k
 
 
 def data_g6(results_dir: Path = RESULTS) -> dict | None:
-    g6 = {(a, s): _load(results_dir / "G6" / f"G6__{a}__s{s}.metrics.json") for a in ARMS for s in SEEDS}
-    g6d = {(a, 42): _load(results_dir / "G6D" / f"G6D__{a}__s42.metrics.json") for a in ARMS}
+    """3-E 读数：曲线 + 末值（末值与判定同源：`g6_verdict.run_quantities` / `load_g6d`）。"""
+    g6 = G6V.load(results_dir)
     if not any(g6.values()):
         return None
-    curves = {a: {"victims": [edge_group_curve(g6[(a, s)], (1, 2, 3)) for s in SEEDS if g6[(a, s)]],
+    curves = {a: {"victims": [edge_group_curve(g6[(a, s)], G6V.VICTIMS) for s in SEEDS if g6[(a, s)]],
                   "e0": [edge_group_curve(g6[(a, s)], (0,)) for s in SEEDS if g6[(a, s)]]} for a in ARMS}
     end = []
     for (a, s), m in sorted(g6.items()):
-        if m is None:
-            continue
-        vict = _mean(last_k_mean([v for _, v in edge_group_curve(m, (e,))])[0] for e in (1, 2, 3))
-        end.append({"arm": a, "seed": s, "group": "G6", "asr": vict,
-                    "pm_acc": last_k_mean([v for _, v in acc_curve(m)])[0]})
-    for (a, s), m in sorted(g6d.items()):
-        if m is None:
-            continue
-        end.append({"arm": a, "seed": s, "group": "G6D",
-                    "asr": last_k_mean([v for _, v in pooled_curve(m)])[0],
-                    "pm_acc": last_k_mean([v for _, v in acc_curve(m)])[0]})
+        if m is not None:
+            q = G6V.run_quantities(m)
+            end.append({"arm": a, "seed": s, "group": "G6", "asr": q["victim_asr"], "pm_acc": q["pm_acc"]})
+    for a, q in sorted(G6V.load_g6d(results_dir).items()):
+        end.append({"arm": a, "seed": 42, "group": "G6D", "asr": q["benign_asr"], "pm_acc": q["pm_acc"]})
     return {"curves": curves, "end": end}
+
+
+def data_g6_verdict(results_dir: Path = RESULTS) -> dict | None:
+    runs = G6V.load(results_dir)
+    if not any(runs.values()):
+        return None
+    return {"verdict": G6V.judge(runs)}
 
 
 def data_decay(results_dir: Path = RESULTS) -> dict | None:
@@ -673,6 +678,360 @@ def plot_g2p(d: dict, out: Path):
 
 
 # ══════════════════════════════════════════════════════════════════════════
+# 第二批（2026-09-30）：进度 / G3 全划分 / 3-E 判定 / G8 margin 与长尾 / pilot
+# ══════════════════════════════════════════════════════════════════════════
+
+EST_GPU_H_PER_RUN = 0.9          # ⚠ 外推值：PLAN §4 / REPORT §8 的「每 run 约 0.9 GPU-h（K=3）」，10edge / R20 没有实测
+
+
+def _gpu_hours(group_dir: Path) -> float:
+    """一个结果目录的实测机时：包按 *.gpu.json 的墙钟 × 1 卡；不在包里的单跑按 timing_summary 的训练 + 评估墙钟。"""
+    total = sum(json.loads(p.read_text(encoding="utf-8")).get("wall_s") or 0 for p in group_dir.glob("*.gpu.json"))
+    for p in group_dir.glob("*.metrics.json"):
+        m = json.loads(p.read_text(encoding="utf-8"))
+        if not m.get("pack"):
+            total += (m.get("timing_summary") or {}).get("wall_total_s") or 0
+    return total / 3600
+
+
+def data_status(registry: Path = STUDY / "registry.yaml", pilot_dir: Path = STUDY / "pilot/results/P1") -> dict | None:
+    try:
+        reg = Registry(registry)
+    except (FileNotFoundError, OSError):
+        return None
+    rep = ST.classify(reg)
+    groups = {}
+    for r in rep["runs"]:
+        g = groups.setdefault(r["group"], {"done": 0, "stale": 0, "blocked": 0, "todo": 0, "failed": 0, "mismatch": 0})
+        g[r["status"]] = g.get(r["status"], 0) + 1
+    group_dir = {}
+    for run in reg.runs():
+        group_dir.setdefault(run["group"], reg.metrics_path(run).parent)   # results/<口径>/<组>/
+    for g, c in groups.items():
+        c["requires"] = reg.unmet_requires(g)
+        n_left = c["blocked"] + c["todo"]
+        d = group_dir[g]
+        c["gpu_h_used"] = _gpu_hours(d) if d.is_dir() else 0.0
+        c["gpu_h_est_left"] = n_left * EST_GPU_H_PER_RUN
+    pilot = sum(_gpu_hours(d) for d in pilot_dir.iterdir() if d.is_dir()) if pilot_dir.is_dir() else 0.0
+    return {"counts": rep["counts"], "groups": groups, "pilot_gpu_h": pilot}
+
+
+G3_ORDER = ("C1", "C2", "C3", "C4", "hdir-a10", "hdir-a1", "hdir-a0.3", "hdir-a0.1")
+
+
+def data_g3_all(results_dir: Path = RESULTS) -> dict | None:
+    g3, g0, hd = G3.load(results_dir)
+    if not g3:
+        return None
+    v = G3.judge(g3, g0)
+    hdir = G3.explore_hdir(hd)
+    rows = []
+    for r in v["per_run"] + hdir["runs"]:
+        rows.append({"cell": r["cell"], "seed": r["seed"],
+                     "raw": {int(e): x for e, x in r["raw"].items()},
+                     "yt_share": {int(e): x for e, x in r["yt_share"].items()}})
+    return {"verdict": v, "rows": rows, "explore_yt": G3.explore_yt(v["per_run"], hdir)}
+
+
+def data_g8_margin(results_dir: Path = RESULTS) -> dict | None:
+    """3-C 的 margin 与长尾（F-068 / F-071 的量）：从停手时刻对齐，HFL（G8）对 flat（G8F）。"""
+    trip, flat = DV.load(results_dir), DV.load_flat(results_dir)
+    if not any(t[0] for t in trip.values()):
+        return None
+    out = {}
+    for name, runs, shift in (("hfl", [trip[s][0] for s in SEEDS], (DV.STOP_ROUND - 1) * 5),
+                              ("flat", [flat[s][0] for s in SEEDS], DV.FLAT_STOP_ROUND - 1)):
+        runs = [m for m in runs if m]
+        out[name] = {k: [pooled_curve(m, k, shift=shift) for m in runs]
+                     for k in ("margin_p10", "margin_p50", "margin_p90", "benign_asr_p90", "benign_asr_gt50")}
+        out[name]["seeds"] = [(m.get("run") or {}).get("seed") for m in runs]
+    out["stop_eff"] = (DV.STOP_ROUND - 1) * 5
+    return out
+
+
+def margin_zero_crossing(curve: list):
+    """margin 中位数从 ≥ 0 首次变成 < 0 的横坐标（停手之后）；一直 < 0 → 停手后第一个点之前就已为负 → None。"""
+    prev = None
+    for x, v in curve:
+        if x <= 0:
+            prev = v
+            continue
+        if v < 0 and (prev is None or prev >= 0):
+            return None if prev is None else x
+        prev = v
+    return None
+
+
+def data_pilot(registry: Path = STUDY / "pilot/registry.yaml") -> dict | None:
+    try:
+        res = PA.judge_all(PA.load_pilot(registry))
+    except (FileNotFoundError, OSError):
+        return None
+    ref = PT.reference([PT._load(p) for p in PT.DET_FILES])
+    pack = PT.judge_all(PT.load_packs(), ref)
+    return {"d029": res["D-029"], "d031": res["D-031"], "det": res["A15-determinism"], "pack": pack}
+
+
+def plot_status(d: dict, out: Path):
+    plt = _plt()
+    fig, axes = _fig(plt, 1, 2, (14, 4.8))
+    groups = list(d["groups"])
+    order = sorted(groups, key=lambda g: (d["groups"][g]["blocked"] > 0, groups.index(g)))
+    cols = {"done": SERIES[2], "stale": SERIES[3], "blocked": FLOOR}
+    names = {"done": "done (returned, checked)", "stale": "stale (returned; config sha changed, still valid)",
+             "blocked": "blocked (not run yet)"}
+    ax = axes[0][0]
+    _style(ax, "runs", "")
+    for i, g in enumerate(order):
+        c, left = d["groups"][g], 0
+        for k in ("done", "stale", "blocked"):
+            if c.get(k):
+                ax.barh(i, c[k], left=left, color=cols[k], height=0.62, edgecolor=SURFACE, linewidth=2)
+                left += c[k]
+        note = f"{left}" + (f"   needs {', '.join(c['requires'])}" if c["requires"] else "")
+        ax.text(left + 0.8, i, note, va="center", fontsize=7.5, color=INK)
+    handles = [plt.Rectangle((0, 0), 1, 1, color=cols[k]) for k in ("done", "stale", "blocked")]
+    ax.legend(handles, [names[k] for k in ("done", "stale", "blocked")], frameon=False, fontsize=7,
+              labelcolor=INK, loc="center right")
+    ax.set_yticks(range(len(order)))
+    ax.set_yticklabels(order)
+    ax.invert_yaxis()
+    ax.set_xlim(0, 75)
+    cnt = d["counts"]
+    _panel_title(ax, f"(a) runs per group: done {cnt['done']}, stale {cnt['stale']}, blocked {cnt['blocked']}, "
+                     f"todo {cnt['todo']}")
+
+    ax = axes[0][1]
+    _style(ax, "GPU-hours", "")
+    rows = [(g, d["groups"][g]["gpu_h_used"], d["groups"][g]["gpu_h_est_left"]) for g in order]
+    rows.append(("pilot (P1)", d["pilot_gpu_h"], 0.0))
+    for i, (g, used, left) in enumerate(rows):
+        if used:
+            ax.barh(i, used, color=SERIES[0], height=0.62)
+        if left:
+            ax.barh(i, left, left=used, color=SURFACE, edgecolor=INK_2, hatch="///", height=0.62, linewidth=0.8)
+        txt = (f"{used:.1f}" if used else "") + (f"  (+~{left:.0f} est.)" if left else "")
+        ax.text(used + left + 0.8, i, txt, va="center", fontsize=7.5, color=INK)
+    handles = [plt.Rectangle((0, 0), 1, 1, color=SERIES[0]),
+               plt.Rectangle((0, 0), 1, 1, facecolor=SURFACE, edgecolor=INK_2, hatch="///")]
+    ax.legend(handles, ["measured (pack wall time x 1 GPU; single runs: train + eval time)",
+                        f"still needed, extrapolated at {EST_GPU_H_PER_RUN} GPU-h/run"],
+              frameon=False, fontsize=7, labelcolor=INK, loc="center right")
+    ax.set_yticks(range(len(rows)))
+    ax.set_yticklabels([r[0] for r in rows])
+    ax.invert_yaxis()
+    ax.set_xlim(0, 62)
+    used = sum(r[1] for r in rows)
+    left = sum(r[2] for r in rows)
+    _panel_title(ax, f"(b) GPU-hours: ~{used:.0f} used so far; >= ~{left:.0f} more for G1 / G2 / G4 (extrapolated)")
+    return _save(fig, out, "What has been run and what is left (P2 registry)")
+
+
+def plot_g3_all(d: dict, out: Path):
+    plt = _plt()
+    fig, axes = _fig(plt, 1, 3, (16, 4.6))
+    rows = d["rows"]
+    ax = axes[0][0]
+    _style(ax, "partition", "raw benign ASR (last-10 window)")
+    for i, cell in enumerate(G3_ORDER):
+        rs = [r for r in rows if r["cell"] == cell]
+        for r in rs:
+            ax.plot([i - 0.14], [r["raw"][0]], marker=MARKERS[r["seed"]], color=SERIES[1], markersize=6,
+                    linewidth=0, alpha=0.9)
+            for e in (1, 2, 3):
+                ax.plot([i + 0.14], [r["raw"][e]], marker=MARKERS[r["seed"]], color=SERIES[0], markersize=5,
+                        linewidth=0, alpha=0.75)
+        v = [r["raw"][e] for r in rs for e in (1, 2, 3)]
+        if v:
+            ax.plot([i + 0.02, i + 0.26], [_mean(v)] * 2, color=INK, linewidth=2)
+    ax.plot([], [], marker="o", color=SERIES[1], linewidth=0, label="attacker's edge E0 (benign)")
+    ax.plot([], [], marker="o", color=SERIES[0], linewidth=0, label="victim edges E1-E3 (one point per edge)")
+    ax.plot([], [], color=INK, linewidth=2, label="victim mean")
+    ax.axvline(3.5, color=GRID, linewidth=1.2)
+    ax.text(1.5, 0.03, "designed (y_t share per edge fixed)", ha="center", fontsize=7, color=INK_2)
+    ax.text(5.5, 0.03, "hierarchical Dirichlet (alpha_e)", ha="center", fontsize=7, color=INK_2)
+    ax.set_xticks(range(len(G3_ORDER)))
+    ax.set_xticklabels(G3_ORDER, fontsize=7.5)
+    ax.set_ylim(0, 1.08)
+    _legend(ax, loc="lower left", bbox_to_anchor=(0.0, 0.08))
+    _panel_title(ax, "(a) victims stay lower in C2 (attacker's edge rich in y_t)\n     and in the most heterogeneous hdir (alpha_e 0.3 / 0.1)")
+
+    ax = axes[0][1]
+    _style(ax, "share of target class y_t in this victim edge", "raw benign ASR of this victim edge")
+    for fam, c, lab in (("C", SERIES[0], "designed C1-C4"), ("h", SERIES[4], "hierarchical Dirichlet")):
+        xs, ys = [], []
+        for r in rows:
+            if r["cell"][0] != fam:
+                continue
+            for e in (1, 2, 3):
+                if r["yt_share"].get(e) is not None and r["raw"].get(e) is not None:
+                    xs.append(r["yt_share"][e])
+                    ys.append(r["raw"][e])
+        ax.scatter(xs, ys, s=22, color=c, edgecolors=SURFACE, linewidths=0.8, label=lab, zorder=3)
+    ey = d["explore_yt"]
+    ax.set_ylim(0, 1.05)
+    _legend(ax, loc="lower right")
+    _panel_title(ax, f"(b) exploratory: Spearman rho = {ey['rho_victim_yt_vs_victim_raw']} over "
+                     f"{ey['n_victim_edges']} edges\n     (edges of one run are not independent; floor rises with y_t)")
+
+    ax = axes[0][2]
+    _style(ax, "", "C3 - C1 DiD of T50 (cloud rounds)")
+    did = d["verdict"]["did_per_seed"]
+    for i, s in enumerate(SEEDS):
+        val = (did.get(str(s)) or {}).get("c_t50")
+        if val is not None:
+            ax.bar(i, val, width=0.55, color=SERIES[0])
+            ax.annotate(f"{val:+.2f}", (i, val), xytext=(0, 4 if val >= 0 else -11), textcoords="offset points",
+                        ha="center", fontsize=7.5, color=INK)
+    ax.axhline(0, color=INK_2, linewidth=0.8)
+    ax.set_xticks(range(len(SEEDS)))
+    ax.set_xticklabels([f"seed {s}" for s in SEEDS])
+    _panel_title(ax, "(c) exploratory: E3 in C3 reaches 0.5 later in 2 of 3 seeds\n     (> 0 = later; 3 seeds, no test)")
+    return _save(fig, out, "3-B (G3), all 24 runs: raw ASR per edge; the pre-registered DiD is in F4_3B_G3.png")
+
+
+def plot_g6_verdict(d: dict, out: Path):
+    plt = _plt()
+    fig, axes = _fig(plt, 1, 2, (12.5, 4.4))
+    v = d["verdict"]
+    col = {"b": SERIES[1], "c": SERIES[2]}
+    ax = axes[0][0]
+    _style(ax, "", "drop in victim-edge ASR vs arm a (paired by seed)")
+    for i, arm in enumerate(("b", "c")):
+        a = v["arms"][arm]
+        for s in SEEDS:
+            ax.plot([i], [a["d_asr"][f"s{s}"]], marker=MARKERS[s], markersize=8, color=col[arm], linewidth=0)
+        lo, hi = a["d_asr_ci"]
+        ax.plot([i + 0.18] * 2, [lo, hi], color=INK, linewidth=2)
+        ax.plot([i + 0.18], [a["d_asr_mean"]], marker="_", markersize=14, color=INK)
+        ax.annotate(f"mean {a['d_asr_mean']:.2f}\nCI [{lo:.2f}, {hi:.2f}]", (i + 0.18, a["d_asr_mean"]),
+                    xytext=(8, 0), textcoords="offset points", fontsize=7, color=INK, va="center")
+    ax.axhline(0, color=INK_2, linewidth=0.8)
+    ax.set_xticks([0, 1])
+    ax.set_xticklabels([ARM_LABEL["b"], ARM_LABEL["c"]], fontsize=7.5)
+    ax.set_xlim(-0.5, 1.8)
+    ax.set_ylim(-0.05, 1.0)
+    ax.plot([], [], color=INK, linewidth=2, label="bootstrap 95% CI of the mean")
+    for s in SEEDS:
+        ax.plot([], [], marker=MARKERS[s], color=INK_2, linewidth=0, label=f"seed {s}")
+    _legend(ax, loc="upper left")
+    _panel_title(ax, "(a) ASR criterion: CI lower bound > 0 for both arms")
+
+    ax = axes[0][1]
+    _style(ax, "", "drop in clean accuracy vs arm a (paired by seed)")
+    for i, arm in enumerate(("b", "c")):
+        a = v["arms"][arm]
+        for s in SEEDS:
+            ax.plot([i - 0.1], [a["d_mta_fresh"][f"s{s}"]], marker=MARKERS[s], markersize=8, color=col[arm],
+                    linewidth=0)
+            st = a["d_mta_stale"].get(f"s{s}")
+            if st is not None:
+                ax.plot([i + 0.1], [st], marker=MARKERS[s], markersize=8, color=col[arm], linewidth=0,
+                        markerfacecolor="none", markeredgewidth=1.5)
+    ax.axhline(v["mta_max"], color=INK, linewidth=1, linestyle="-.", label=f"threshold {v['mta_max']} (D-071, fresh)")
+    ax.axhline(0, color=INK_2, linewidth=0.8)
+    ax.plot([], [], marker="o", color=INK_2, linewidth=0, label="fresh pm_acc (used for the verdict)")
+    ax.plot([], [], marker="o", color=INK_2, markerfacecolor="none", linewidth=0, label="stale pm_acc (report only)")
+    ax.set_xticks([0, 1])
+    ax.set_xticklabels(["arm b", "arm c"])
+    ax.set_xlim(-0.5, 1.5)
+    ax.set_ylim(-0.005, 0.04)
+    _legend(ax, loc="upper left")
+    verdict = ", ".join(f"{k}: {x}" for k, x in v["overall"].items()) if isinstance(v["overall"], dict) else v["overall"]
+    _panel_title(ax, f"(b) accuracy criterion: every seed <= 0.02  ->  verdict {verdict}")
+    return _save(fig, out, "3-E (G6) pre-registered verdict (rule D-059 / D-071; script written after the data)")
+
+
+def plot_g8_margin(d: dict, out: Path):
+    plt = _plt()
+    fig, axes = _fig(plt, 1, 3, (16, 4.4))
+    col = {"hfl": SERIES[3], "flat": SERIES[2]}
+    lab = {"hfl": "G8: HFL (4 edges)", "flat": "G8F: flat (1 edge)"}
+    ax = axes[0][0]
+    _style(ax, "effective rounds since the attackers stopped", "margin log p(y_t) - max log p(other)")
+    for k in ("flat", "hfl"):
+        lo = band(d[k]["margin_p10"])
+        hi = band(d[k]["margin_p90"])
+        if lo and hi:
+            xs = sorted(set(x for x, *_ in lo) & set(x for x, *_ in hi))
+            lo_d, hi_d = {x: m for x, m, *_ in lo}, {x: m for x, m, *_ in hi}
+            ax.fill_between(xs, [lo_d[x] for x in xs], [hi_d[x] for x in xs], color=col[k], alpha=0.12, linewidth=0)
+        _band_line(ax, d[k]["margin_p50"], col[k], f"{lab[k]}: median (band = p10-p90, seed mean)", lw=2, alpha=0.0)
+    ax.axhline(0, color=INK, linewidth=1)
+    ax.axvline(0, color=INK_2, linewidth=0.8, linestyle=":")
+    ax.text(3, ax.get_ylim()[1] * 0.9 if ax.get_ylim()[1] > 0 else 1, "attackers stop", fontsize=7, color=INK_2)
+    ax.set_xlim(-150, 205)
+    _legend(ax, loc="lower left")
+    _panel_title(ax, "(a) median margin crosses 0 soon after the stop and keeps falling (no plateau)")
+    for j, (key, ylab, title) in enumerate((
+            ("benign_asr_p90", "90th percentile of per-client ASR", "(b) the tail: the most-backdoored 10% of clients"),
+            ("benign_asr_gt50", "fraction of benign clients with ASR > 0.5", "(c) share of clients still backdoored"))):
+        ax = axes[0][j + 1]
+        _style(ax, "effective rounds since the attackers stopped", ylab)
+        for k in ("flat", "hfl"):
+            _band_line(ax, d[k][key], col[k], lab[k], lw=1.8, alpha=0.14)
+        ax.axvline(0, color=INK_2, linewidth=0.8, linestyle=":")
+        ax.set_xlim(-150, 205)
+        ax.set_ylim(0, 1.02)
+        _legend(ax, loc="upper right")
+        _panel_title(ax, title)
+    return _save(fig, out, "3-C (G8 / G8F) after the stop: margin and tail (S9 instruments; numbers as in F-068 / F-071)")
+
+
+def plot_pilot(d: dict, out: Path):
+    plt = _plt()
+    fig, axes = _fig(plt, 1, 3, (15, 4.2))
+    cells = ("flat", "2edge_distributed")
+    ax = axes[0][0]
+    _style(ax, "", "stale pm_acc, last 10 eval points")
+    for i, c in enumerate(cells):
+        r = d["d029"]["cells"][c]
+        ax.bar(i, r["pm_acc_stale_last10"], width=0.5, color=SERIES[0], label="measured" if i == 0 else None)
+        ax.plot([i - 0.3, i + 0.3], [r["floor"]] * 2, color=INK, linewidth=2, label="pre-registered floor" if i == 0 else None)
+        ax.annotate(f"{r['pm_acc_stale_last10']:.3f}", (i, r["pm_acc_stale_last10"]), xytext=(0, 4),
+                    textcoords="offset points", ha="center", fontsize=7.5, color=INK)
+    ax.set_xticks(range(len(cells)))
+    ax.set_xticklabels(["flat", "2 edges, R5"])
+    ax.set_ylim(0.6, 1.0)
+    _legend(ax, loc="upper right")
+    _panel_title(ax, f"(a) D-029 lr decay per effective round: {d['d029']['overall']}")
+
+    ax = axes[0][1]
+    _style(ax, "value (last 10)", "")
+    rows = [(c, m) for c in cells for m in ("pm_acc", "asr")]
+    for i, (c, m) in enumerate(rows):
+        r = d["d031"]["cells"][c]
+        h, b = r[f"{m}_head_first"], r[f"{m}_body_first"]
+        ax.plot([h, b], [i, i], color=INK_2, linewidth=1, zorder=0)
+        ax.plot([h], [i], marker="o", markersize=8, color=SERIES[0], linewidth=0, label="head first (kept)" if i == 0 else None)
+        ax.plot([b], [i], marker="o", markersize=8, color=SERIES[1], linewidth=0, label="body first" if i == 0 else None)
+    ax.set_yticks(range(len(rows)))
+    ax.set_yticklabels([f"{'flat' if c == 'flat' else '2 edges'}: {'fresh pm_acc' if m == 'pm_acc' else 'benign ASR'}"
+                        for c, m in rows], fontsize=7.5)
+    ax.set_xlim(0.7, 1.02)
+    _legend(ax, loc="lower left")
+    _panel_title(ax, f"(b) D-031 FedRep order: {d['d031']['overall']} -> keep head first (D-045)")
+
+    ax = axes[0][2]
+    _style(ax, "runs sharing one GPU (K)", "speed-up vs one run per GPU")
+    per = d["pack"]["per_k"]
+    ks = [1] + sorted(per)
+    sp = [1.0] + [per[k]["speedup"] for k in sorted(per)]
+    ax.bar(range(len(ks)), sp, width=0.5, color=SERIES[0])
+    for i, v in enumerate(sp):
+        ax.annotate(f"{v:.2f}x", (i, v), xytext=(0, 4), textcoords="offset points", ha="center", fontsize=7.5, color=INK)
+    ax.axhline(PT.MIN_SPEEDUP, color=INK, linewidth=1, linestyle="-.", label=f"adopt if >= {PT.MIN_SPEEDUP}x and checksums identical")
+    ax.set_xticks(range(len(ks)))
+    ax.set_xticklabels([str(k) for k in ks])
+    ax.set_ylim(0, 3.4)
+    _legend(ax, loc="upper left")
+    det = "identical" if d["det"]["verdict"] == "pass" else d["det"]["verdict"]
+    _panel_title(ax, f"(c) packing: adopt K={d['pack']['adopt_k']}\n     (DET rerun on another node: 5/5 checksums {det})")
+    return _save(fig, out, "A4 pilot (P1 protocol, background): feasibility checks before P2")
+
+
+# ══════════════════════════════════════════════════════════════════════════
 # 入口
 # ══════════════════════════════════════════════════════════════════════════
 
@@ -685,6 +1044,11 @@ FIGURES = {
     "G8":   ("F3_decay_G8_G8F.png", data_decay, plot_decay),
     "G7":   ("G7_preprocessing.png", data_g7, plot_g7),
     "G2P":  ("G2P_T50_ratio.png", data_g2p, plot_g2p),
+    "STATUS": ("status_progress.png", data_status, plot_status),
+    "G3ALL": ("F4b_3B_all_partitions.png", data_g3_all, plot_g3_all),
+    "G6V":  ("3E_verdict_G6.png", data_g6_verdict, plot_g6_verdict),
+    "G8M":  ("F3b_decay_margin_tail.png", data_g8_margin, plot_g8_margin),
+    "PILOT": ("pilot_A4.png", data_pilot, plot_pilot),
 }
 
 

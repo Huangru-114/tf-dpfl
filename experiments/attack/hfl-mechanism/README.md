@@ -58,6 +58,7 @@ python3 harness/decay_verdict.py --flat --json experiments/attack/hfl-mechanism/
 python3 harness/g5ab_verdict.py  --json experiments/attack/hfl-mechanism/analysis/g5ab_verdict.json     # G5AB（D-079）
 python3 harness/g5_verdict.py    --json experiments/attack/hfl-mechanism/analysis/g5_verdict.json       # G5（D-081，回传前写定；not_gated，F-076）
 python3 harness/g3_did.py        --json experiments/attack/hfl-mechanism/analysis/g3_did.json           # 3-B 差中差 + 分解（F-075；脚本写于数据之后）
+python3 harness/g6_verdict.py    --json experiments/attack/hfl-mechanism/analysis/g6_verdict.json       # 3-E（S7，D-059 / D-071；脚本写于数据之后；blocks，F-077）
 
 # 5c. 「新仪表没有改变任何已有的数」（S9）：只比 checksum 与改动前就有的数值字段，前 R 轮
 python3 harness/instrumentation_check.py experiments/attack/hfl-mechanism/results/P2/G6/G6__a__s42.metrics.json \

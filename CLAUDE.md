@@ -360,6 +360,8 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
   - **(b)(c) 下 GM 精度与 global 层 ASR 不可读**（全局模型不完整）→ G6 固定 300 有效轮、停止判据关（D-058）；
     判定读受害 edge 的原始 benign ASR（D-059，不等 S4）。
   - 守卫：`tests/test_tier_split.py`（纯 python）+ `tests/test_three_tier_personalization.py`（TF，真跑 cloud/edge/client）。
+  - **判定（S7，2026-09-30）**：`harness/g6_verdict.py`（规则 D-059 / D-071 预注册，脚本写于数据之后）→ b、c 两臂都 `blocks`（FINDINGS F-077）；
+    精度代价 ≤ 0.02 只对 fresh 口径成立（陈旧列 c 臂 0.027–0.029）。
 
 - **S3 新划分**（2026-09-28，Exp3 改版 S3；DECISIONS D-061 … D-068）。`federation.partition ∈ {designed, hdir, equal_random}`
   + `federation.design.*` → `fedavg/data/designed_partition.py`（**不 import TF**）：
