@@ -1,41 +1,106 @@
 # current-focus —— Experiment 3（改版）· 交接
 
-> 本文件是 `CLAUDE.md`「新会话开场第 3 步」要读的那一份。**写于 2026-09-30**（3-E 判定 + 补图会话结束时）。
+> 本文件是 `CLAUDE.md`「新会话开场第 3 步」要读的那一份。**写于 2026-10-01**（3.3 收尾、交接 S5 时）。
 >
-> **全局概况先看 `REPORT.md`**：
-> - §0 **结果图一览**（14 张，每张附中文读法）；
-> - §9.1 **还没做的实验**；
-> - 其余章节：计划 / 状态 / 路径 / 数据分析 / 3-B 详细说明 / 机时账 / git 瘦身附录。
+> **下一会话 = S5**（用户 2026-10-01 定，D-083）。**唯一要回答的问题与判据见下一节「S5 交接」**。
 >
-> **现在在哪**（`python3 harness/status.py experiments/attack/hfl-mechanism/registry.yaml`，本会话实测）：
-> todo 0 / **done 83** / stale 6（G7，D-053 默认不重交）/ **blocked 91**，集群上没有在跑的作业。已用约 99 GPU-h（实测，`status_progress.png`）。
+> **全局概况看 `REPORT.md`**：
+> - §0 结果图一览（14 张，附中文读法）；
+> - §9.1 还没做的实验；
+> - §9.2 待用户定的事。
 >
-> **还没跑的**（REPORT §9.1）：
-> - **G1** 24 run：缺 S5 + S6；
-> - **G2** 55 run：缺 S5，规模未定；
-> - **G4** 12 run：搁置。
+> **现在在哪**（`python3 harness/status.py experiments/attack/hfl-mechanism/registry.yaml`，2026-09-30 实测）：
+> todo 0 / done 83 / stale 6（G7，D-053 默认不重交）/ blocked 91（G1 24 缺 S5 + S6、G2 55 缺 S5、G4 12 搁置）。
+> 集群上没有在跑的作业；已用约 99 GPU-h。
 >
-> 三组外推至少约 82 GPU-h。另有可选补充：3-B 后续、hdir floor 12 run、3-E floor 6 run。
+> **已判定**：
+> - 3.1 不成立（F-073）；
+> - 3.3 `not_gated` 并**收尾**（F-076 / D-082）；
+> - 3-E 两臂 `blocks`（F-077，精度代价 ≤ 0.02 只对 fresh 口径成立）；
+> - 3-C 衰减 `user_decides` → 用户判「退回 floor」（D-076）；
+> - 3-B 在天花板下判不出（F-073 / F-075）。
 >
-> **已判定的**：
-> - 3.3 `not_gated`（F-076）；
-> - **3-E 两臂 `blocks`（F-077，本会话）**。注意 fresh 口径的代价 ≤ 0.02，陈旧口径超过 0.02。
->
-> **待用户定**：
-> ① 3.3 是否收尾（建议收尾）；
-> ② 3-B 的出路（`REPORT.md` §6.7）；
-> ③ git 瘦身（附录 A；**改写历史要用户单独明确同意**）；
-> ④ S5 / G2 规模、S6 范围（开 G1 的前提）；
+> **待用户定**（REPORT §9.2）：
+> ① 3-B 的出路；
+> ② git 瘦身（**改写历史要用户单独明确同意**）；
+> ③ G2 的规模（S5 不依赖它，见下）；
+> ④ S6 的范围（G1 的另一个前提）；
 > ⑤ G8 存盘的离线分析与删除时机。
 >
 > **分支**：继续在 `claude/federated-learning-experiment-review-pt5j1b` 上工作（用户定「先不合并」；`origin/main` 停在 `cf40b13`，2026-08-26）。
-> 本地 L1 基线（本会话实测）：
+> 本地 L1 基线：
 > - 没有 matplotlib：**1414 passed / 43 skipped / 3 xfailed**；
 > - 装了 matplotlib：1417 / 40 / 3。
 >
 > 集群 GPU 节点 5 条红、没有 GPU 的 TF 节点 2 条红（F-067），多出来的才是回归。
 
-## 本会话做了什么（2026-09-30，还没做的实验 + 3-E 判定 + 补图）
+## S5 交接（2026-10-01 写；下一会话从这里开始）
+
+**本会话唯一要回答的问题**：实现 S5 —— **统一评估网格**（按有效轮）+ **轻评估点** + **停止判据横轴改为网格序号**；开了网格后 GM / EM 精度也只在网格点上算。
+它是 G2（3-A，55 run）与 G1（3-C 锯齿 + 3-D，24 run，另缺 S6）的前提（`registry.yaml` 的 `requires`）。
+
+**为什么要做**：
+- **F-046**：现在 R≠5 的格子是每 R 个有效轮一个评估点（R20 每 20 有效轮才一点），而 T50 在 5 有效轮网格下的分辨率已经只有约 12%。
+- **F-052**：停止判据的斜率横轴是云轮号 → flat 比 R5 宽松 5 倍、R10 / R20 越来越严，跨 R 比较时「跑多久」本身随 R 变。
+
+**预案**（D-055，三项用户已选定 —— **照做，不重开讨论**）：
+
+| 项 | 内容 |
+|---|---|
+| 网格 | 配置键 `evaluation.eval_grid: 5`（有效轮）；缺省 None = 旧行为，逐字节不变 |
+| 全量评估 | 云轮末在 (g·R) % G == 0 时发生；两个 eval_interval（`evaluation.` / `backdoor.`）必须 = lcm(G, R) / R（`config_validate` 核对） |
+| 轻评估 | 其余网格点落在 edge 轮之间，**只算主列**：fresh-PM 的 local / edge ASR + fresh pm_acc；**不算** global、白盒、陈旧、ASR4、drift |
+| 停止判据 | 轻评估点也喂给 `StoppingRule`；斜率横轴改为网格序号 eff / G（R5 下逐位不变） |
+| GM / EM | 开了网格后只在网格点上算（现在 R2 格每云轮评一次，150 次） |
+
+**验收判据**（客观，全部要有 L1 断言或可复跑的命令）：
+
+1. **不写 `eval_grid` 时一切不变**：已有配置的 `config_sha` 不变（`status.py` 仍是 done 83）；L1 已有的 checksum 锚点不变。
+2. **评估不改变训练**（D-055 的硬要求）：同一配置开 / 关网格，训练侧 `[Checksum]` 逐轮逐位相同。
+   - 评估用独立的 RNG 键；评估结束后清 `_edge_w_cache`。
+   - official BN 模式下，`client_badpfl.py:171` 的 `eval_delta` 会以 training=True 调生成器，从而更新 moving 统计量。
+     这一点**没有证据**说明它会不会影响训练 —— 要由这条测试判定，不要事先假设。
+3. R ∈ {1, 2, 5, 10, 20} 时，评估点（全量 + 轻）都落在 5 的倍数有效轮上；R5 的评估点与改动前完全相同。
+4. **R5 下停止判据的停轮与改动前相同**（F-052 的反向锚点：横轴改了、R5 不该变）；R10 / R20 的容差折成「每有效轮」后与 R5 一致。
+5. 新的自描述行（独立 kv 行，**不扩已有的 `[设定*]`**）+ `collect_metrics` 升 schema；
+   `runs_table` / `figures` 按有效轮读网格点；轻评估点与全量点在 metrics.json 里分得开。
+6. L2：
+   - 本地 CPU 替身（N-005 的做法：随机数据、缩小配置）开 / 关网格 checksum 相同；
+   - 集群先交一个 DET 式短作业探路（陷阱 #23：GPU 上才会抛的东西，先用几分钟的作业试）。
+
+**代码地图**（2026-10-01 在 `68393ae` 上核对过行号）：
+
+| 位置 | 内容 |
+|---|---|
+| `fedavg/server/server.py:318` 起 | `CloudServer.run_round`：`eval_interval` / `do_pm_eval` 在 350–352 行；`_eval_seq` 在 115 / 376 行（陈旧列共用的评估点序号，D-054） |
+| `server.py:277–285` | edge 轮交错执行的循环（`edge_schedule_order`，`server/participation.py:86`）—— **轻评估点要插在这里的 edge 轮之间** |
+| `server.py:118 / 328 / 486 / 506` | `_edge_w_cache`（一次评估内 edge 权重的缓存）；`backdoor_server.py:274` 也读它 |
+| `server.py:533` 起 | `run()`；第 546 行 `self.stopper.update(r, …)` 以云轮号为横轴 |
+| `fedavg/server/backdoor_server.py:106–108` | `run_round` 的 `bd_eval_interval` 判断；`_backdoor_eval` 在 355 行起 |
+| `fedavg/server/stopping.py` | `StoppingRule.update` / `_ols_slope` / `max_eval_points` / `_grid_too_coarse` |
+| `fedavg/alignment.py:73` | `EXTRA_SWITCHES`（预算旋钮类开关，同 D-054 的三个评估开关；只经 `get_switch` 读） |
+| `fedavg/config_validate.py:368–405` | 现有的 eval_interval 核对，lcm 规则加在这里 |
+
+要扩的守卫：
+- `tests/test_stopping.py`
+- `test_eval_downsampling.py`
+- `test_alignment_switches.py`
+- `test_run_self_description.py`
+- `test_registry.py`（G1 / G2 的 `set:`）
+- `test_collect_*`（schema）
+
+**S5 会话开场先跟用户确认**（CLAUDE.md 交互约定：「开始改」之前只出方案）：
+1. 实现方案 / 语义 diff 表。
+2. **G2 要不要挂 `g2-scale` 闸门**：S5 一完成、`available` 加 S5，G2 的 55 run 就会变成 todo、能被 `submit.sh` 交出去，而规模还没定（D-056 / D-083）。
+3. G1 的 R10 / R20 格是否同样上网格（G1 还缺 S6，不急）。
+
+**不要做的**：
+- 不重新讨论 D-055 的三项；
+- 不改 `base.yaml`（会让所有 P2 组变 stale）；
+- 网格只在组的 `set:` 里开；
+- 不交 G2（规模未定）。
+
+## 历史：还没做的实验 + 3-E 判定 + 补图会话做了什么（2026-09-30）
 
 **请求**（用户）：「现在还有哪些实验没有做，更新 report.md，并且为其他已经做完的实验做绘图和分析」。
 问答中定了两件事：写 3-E 的判定（S7）；S9 仪表只画 G8 的 margin / 长尾，不新开探索。
@@ -97,7 +162,7 @@
 | **S1–S8** | 功能会话的名字：S3 新划分、S4 影子攻击者、S5 逐 edge 轮评估、S6 更新日志、S8 三层个性化、S9 评估仪表…… | PLAN §5 |
 | **A01–A29** | `AUDIT.md` 的「对齐差异」行号 | AUDIT 第一、二节 |
 | **D01–D06** | `AUDIT.md` 的「有意偏离登记」行号 | AUDIT 第三节 |
-| **D-001 … D-081** | `DECISIONS.md` 的决策日志（带连字符、三位数），**与登记行 D01–D06 是两套东西** | DECISIONS |
+| **D-001 … D-083** | `DECISIONS.md` 的决策日志（带连字符、三位数），**与登记行 D01–D06 是两套东西** | DECISIONS |
 | **F-001 … F-077 / N-001 … N-007** | `FINDINGS.md` 的证据条目 / 设计备注 | FINDINGS |
 | **P0 / P1 / P2** | 数据批次的口径版本；只有 P2 进结论 | PLAN §0 |
 
@@ -362,7 +427,7 @@ N-005 的做法（随机数据），G6 配置缩到 20 端 / 4 edge / [2,0,0,0] 
 | ~~S8~~ 三层个性化 | G6（3-E，可选） | 9 | ✅；9 个 run 全部回传（F-061 / F-065 ③） |
 | ~~S3~~ 新划分 | G3（3-B） | 24 | ✅；G3 已回传（F-066）；另是 G0 / G1 的前提 |
 | ~~S4~~ 影子攻击者 + 攻击起始轮 | G0（3.1）、G5AB → G5（3.3）；另 G8F | 15 + 8 (+15) + 3 | ✅（2026-09-29，D-076 … D-080）：G0 / G5AB / G8F 已回传（F-071 … F-073）；G5 已提交，判定 `g5_verdict.py`（D-081） |
-| S5 逐 edge 轮评估 | G2（3-A）、G1 的前提之一 | 55 | **暂缓**（D-056）；预案 D-055 |
+| S5 逐 edge 轮评估（**下一会话**，D-083） | G2（3-A）、G1 的前提之一 | 55 | ~~暂缓（D-056）~~ → 下一会话按预案 D-055 实现（见开头「S5 交接」） |
 | S6 更新日志 | G1（3-D）、G4（3.2，搁置） | 24 / 12 | **S9 已拿走其中的「恶意端干净精度」**；剩余：逐更新几何分数（S9 会话讨论推荐：每个上传的 body Δ 做 CountSketch + 在线精确余弦对拍）、周期全量转储给 c_k、c_k 的 head（推荐 edge 干净集上的类均值原型 NCM）。G1 已定按「退回 floor」一支（D-076：保留 3-C、主量 margin）→ **S6 的范围可以开始定** |
 | S7 判定代码 + 出图（**部分完成**，2026-09-30） | — | — | ✅ 3-E 判定 `g6_verdict.py`（F-077）；✅ 已回传各组的结果图（REPORT §0）；剩下的图等 G1 / G2 / G4 |
 | —（无需会话） | G7 | 6 | ✅ 已判完 |
@@ -381,7 +446,7 @@ N-005 的做法（随机数据），G6 配置缩到 20 端 / 4 edge / [2,0,0,0] 
 | 3.2 的假设重新表述 | 用户 | N-003；本会话给过一版草案（D-021 下 ρ=1 时 body 学到的是与触发器无关的塌缩；预测：恶意端干净精度 ≈ 本地 y_t 占比、body ‖Δ‖ 更大、无触发器时判 y_t 的比例 ≈ 有触发器时 —— **只是推理**）；y_t 偏置与恶意端精度现在常开 |
 | 磁盘预算 20 GB | 每批回传后 | 加总各 metrics.json 的 `dumps.logits.bytes` 与 `dumps.snapshots[].bytes`；目前 G8 约 0.81 GB；logits 54.7 MB / run 超了 D-073 的 50 MB 上限约 9%（F-067） |
 | git 瘦身 | 用户 | 新克隆 289 MiB，其中 96.8% 是历史里已删除的 *.h5 / venv / wandb（`harness/git_size_report.py`）；`.gitignore` 早已覆盖、`tests/test_repo_hygiene.py` 再守一道 → 不会再长。两个选项见 `REPORT.md` 附录 A；**改写历史要用户单独同意**。每个 schema 7+ 的 metrics.json 约大 50 KB（体积守卫 ≤ 70 KB） |
-| G2 的规模 | 用户 | D-056；定了再开 S5 |
+| G2 的规模 | 用户 | D-056；~~定了再开 S5~~ S5 先做（D-083），G2 规模仍待定；S5 会话问要不要加 `g2-scale` 闸门 |
 | 攻击接近饱和（F-045 / F-049 / F-061） | 用户 | 终值类比较可能撞天花板 → 看 margin 列（D-072） |
 | G7 的混杂 | 用户 | 官方预处理下干净精度低约 0.10（F-050） |
 | fresh-PM 低估干净精度（F-051） | 用户 | 跨拓扑的精度结论同时报陈旧 pm_acc |

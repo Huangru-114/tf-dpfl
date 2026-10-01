@@ -342,7 +342,7 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
       另有 `[TimingAcc]`（GM / EM / PM / 陈旧 PM 分项）→ `timing_summary.acc_split_total_s`。守卫 `tests/test_eval_downsampling.py`。
       **白盒 ≈ 主列是重要发现**（私有 head 挡不住 ξ）；**fresh-PM 会低估干净精度**，10edge 达 0.094（F-051）。
     - G2 先做一致性复测（pilot 表 G2P + `pilot_a4.judge_g2p`）；G4 搁置（`registry.yaml` 的 requires 含 `reformulate-3.2`）。
-    - **G2 与 S5 暂缓**（D-056，规模待用户定；S5 预案 D-055）。S8 已完成（见下一条），G6 待交。
+    - ~~**G2 与 S5 暂缓**（D-056）~~ → **S5 = 下一会话**（2026-10-01，D-083；按预案 D-055 实现）；**G2 规模仍待用户定**。S8 已完成（见下一条），G6 已回传。
       停止判据的斜率横轴是云轮号 → flat 比 R5 宽松 5 倍（F-052，代码证据、无数值证据），S5 预案里改。
     - **登记表补 `set:` 时核对三件**：`malicious_per_edge` 长度 = `n_edges`；`n_rounds × edge_rounds ≥ cap_effective`；
       各格评估网格（有效轮）一致 —— G2 当初三件都漏了（F-046）。
@@ -412,7 +412,7 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
   - 登记表：G0 固定 60 云轮；G5（3.3）5 格挂 `g5-schedule` 等 G5AB（A/B 对比，`harness/g5ab_verdict.py`）——
     **G5AB 判 insensitive → G5 用 A、已放行**（D-080）；G8F = G8 的 flat 对照（`decay_verdict.py --flat`）。
     GPU 上已证：B 臂窗口前与同 seed 的 G0-random 逐位相同（FINDINGS F-072）。
-    G5 已回传（2026-09-30）：预注册判定 `harness/g5_verdict.py`（D-081）→ **`not_gated`**（F-076）。实验全貌见 `experiments/attack/hfl-mechanism/REPORT.md`，
+    G5 已回传（2026-09-30）：预注册判定 `harness/g5_verdict.py`（D-081）→ **`not_gated`**（F-076）；**3.3 收尾**（2026-10-01，D-082）。实验全貌见 `experiments/attack/hfl-mechanism/REPORT.md`，
     各组结果图 `harness/report_figures.py` → `hfl-mechanism/figures/final/`（REPORT §0；数取自各组判定脚本，守卫 `tests/test_report_figures.py`）。
   - 守卫：`tests/test_attack_window.py`（真值表 + 校验 + 闸门 AST）/ `test_attack_window_tf.py`（真 Bad-PFL 客户端：
     两种语义下生成器与投毒的开关、窗口外不耗投毒随机数、ρ=0 影子攻击者确实在训生成器且评估触发器用生成器）/
