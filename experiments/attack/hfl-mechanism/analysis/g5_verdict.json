@@ -1,0 +1,225 @@
+{
+  "overall": "not_gated",
+  "summary": "秩相关的 CI 含 0 → 没有证据表明植入受收敛门控",
+  "rho_peak_mean": -0.0667,
+  "rho_peak_ci": [
+    -0.3,
+    0.1
+  ],
+  "per_seed": {
+    "s42": {
+      "rho_peak": 0.1,
+      "rho_dilution": 0.7
+    },
+    "s43": {
+      "rho_peak": 0.0,
+      "rho_dilution": 0.4
+    },
+    "s44": {
+      "rho_peak": -0.3,
+      "rho_dilution": -0.1
+    }
+  },
+  "rho_dilution_mean": 0.3333,
+  "per_run": [
+    {
+      "t0": 20,
+      "seed": 42,
+      "peak": 0.179,
+      "floor_window": 0.036,
+      "peak_excess": 0.143,
+      "dilution": 0.0517,
+      "floor_dilution": 0.0643,
+      "dilution_excess": -0.0127,
+      "n_window_points": 4
+    },
+    {
+      "t0": 60,
+      "seed": 42,
+      "peak": 0.29,
+      "floor_window": 0.042,
+      "peak_excess": 0.248,
+      "dilution": 0.1263,
+      "floor_dilution": 0.099,
+      "dilution_excess": 0.0273,
+      "n_window_points": 4
+    },
+    {
+      "t0": 100,
+      "seed": 42,
+      "peak": 0.303,
+      "floor_window": 0.077,
+      "peak_excess": 0.226,
+      "dilution": 0.1113,
+      "floor_dilution": 0.1057,
+      "dilution_excess": 0.0057,
+      "n_window_points": 4
+    },
+    {
+      "t0": 140,
+      "seed": 42,
+      "peak": 0.236,
+      "floor_window": 0.0875,
+      "peak_excess": 0.1485,
+      "dilution": 0.0823,
+      "floor_dilution": 0.076,
+      "dilution_excess": 0.0063,
+      "n_window_points": 4
+    },
+    {
+      "t0": 180,
+      "seed": 42,
+      "peak": 0.303,
+      "floor_window": 0.0865,
+      "peak_excess": 0.2165,
+      "dilution": 0.1403,
+      "floor_dilution": 0.103,
+      "dilution_excess": 0.0373,
+      "n_window_points": 4
+    },
+    {
+      "t0": 20,
+      "seed": 43,
+      "peak": 0.32,
+      "floor_window": 0.113,
+      "peak_excess": 0.207,
+      "dilution": 0.0233,
+      "floor_dilution": 0.048,
+      "dilution_excess": -0.0247,
+      "n_window_points": 4
+    },
+    {
+      "t0": 60,
+      "seed": 43,
+      "peak": 0.282,
+      "floor_window": 0.0518,
+      "peak_excess": 0.2302,
+      "dilution": 0.0493,
+      "floor_dilution": 0.048,
+      "dilution_excess": 0.0013,
+      "n_window_points": 4
+    },
+    {
+      "t0": 100,
+      "seed": 43,
+      "peak": 0.306,
+      "floor_window": 0.057,
+      "peak_excess": 0.249,
+      "dilution": 0.079,
+      "floor_dilution": 0.073,
+      "dilution_excess": 0.006,
+      "n_window_points": 4
+    },
+    {
+      "t0": 140,
+      "seed": 43,
+      "peak": 0.329,
+      "floor_window": 0.058,
+      "peak_excess": 0.271,
+      "dilution": 0.0953,
+      "floor_dilution": 0.0563,
+      "dilution_excess": 0.039,
+      "n_window_points": 4
+    },
+    {
+      "t0": 180,
+      "seed": 43,
+      "peak": 0.223,
+      "floor_window": 0.068,
+      "peak_excess": 0.155,
+      "dilution": 0.0377,
+      "floor_dilution": 0.0617,
+      "dilution_excess": -0.024,
+      "n_window_points": 4
+    },
+    {
+      "t0": 20,
+      "seed": 44,
+      "peak": 0.329,
+      "floor_window": 0.1013,
+      "peak_excess": 0.2278,
+      "dilution": 0.036,
+      "floor_dilution": 0.028,
+      "dilution_excess": 0.008,
+      "n_window_points": 4
+    },
+    {
+      "t0": 60,
+      "seed": 44,
+      "peak": 0.283,
+      "floor_window": 0.0488,
+      "peak_excess": 0.2342,
+      "dilution": 0.0693,
+      "floor_dilution": 0.0457,
+      "dilution_excess": 0.0237,
+      "n_window_points": 4
+    },
+    {
+      "t0": 100,
+      "seed": 44,
+      "peak": 0.201,
+      "floor_window": 0.0393,
+      "peak_excess": 0.1618,
+      "dilution": 0.0253,
+      "floor_dilution": 0.0343,
+      "dilution_excess": -0.009,
+      "n_window_points": 4
+    },
+    {
+      "t0": 140,
+      "seed": 44,
+      "peak": 0.362,
+      "floor_window": 0.0375,
+      "peak_excess": 0.3245,
+      "dilution": 0.0937,
+      "floor_dilution": 0.049,
+      "dilution_excess": 0.0447,
+      "n_window_points": 4
+    },
+    {
+      "t0": 180,
+      "seed": 44,
+      "peak": 0.194,
+      "floor_window": 0.044,
+      "peak_excess": 0.15,
+      "dilution": 0.0453,
+      "floor_dilution": 0.051,
+      "dilution_excess": -0.0057,
+      "n_window_points": 4
+    }
+  ],
+  "invalid": [],
+  "missing": [],
+  "reproducibility_vs_G5AB_A": [
+    {
+      "cell": "t20",
+      "seed": 42,
+      "rounds_compared": 19,
+      "identical": true,
+      "first_diff_round": null
+    },
+    {
+      "cell": "t20",
+      "seed": 43,
+      "rounds_compared": 19,
+      "identical": true,
+      "first_diff_round": null
+    },
+    {
+      "cell": "t140",
+      "seed": 42,
+      "rounds_compared": 43,
+      "identical": true,
+      "first_diff_round": null
+    },
+    {
+      "cell": "t140",
+      "seed": 43,
+      "rounds_compared": 43,
+      "identical": true,
+      "first_diff_round": null
+    }
+  ],
+  "preregistered": true,
+  "note": "3 个 seed 时 CI 下界 = 最小的 seed ρ（「CI > 0」⇔ 三个 seed 都 > 0）；稀释只报告（F-072）"
+}
