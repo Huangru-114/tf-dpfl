@@ -369,6 +369,10 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
         # 陷阱 #18 就是这么来的；守卫 tests/test_main_names_are_bound.py）。
         _ev = int(bd.get("eval_interval", 0) or 0) if bd_enabled else 0
         n_points = (cap // er) // _ev if _ev else 0
+        # S5：开了统一网格，轻评估点也喂 pm_acc 平台判据 → 点数 = cap ÷ G
+        _G = (config.get("evaluation") or {}).get("eval_grid", None)
+        if isinstance(_G, int) and not isinstance(_G, bool) and _G >= 1:
+            n_points = cap // _G
         if "pm_acc_plateau" in tuple(stop_cfg.get("criteria", VALID_CRITERIA)) \
                 and n_points and n_points < W:
             warnings.append(
@@ -411,6 +415,72 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
             f"backdoor.eval_interval={int(bd_ev)} != evaluation.eval_interval={int(acc_ev)}："
             f"ASR 与 PM 精度会落在不同的轮上，metrics.json 的 rounds[] 与 acc_rounds[] "
             f"无法逐点配对。若是有意的（ASR 评估更贵），忽略本条。")
+
+    # ── 4b'. 统一评估网格（S5；规则在 server/eval_grid.py，D-055 / D-084）────────
+    #   写错的每一种都会静默跑错：网格与 eval_interval 对不上 → 全量点不在网格上；
+    #   顺序调度 → 没有「所有 edge 都跑完第 er 轮」的时刻；陈旧 PM → 轻评估测的不是主列。
+    #   其余几条把网格收窄到 P2 的代码路径（G1 / G2 都在里面），不去证明别的路径也安全：
+    #   legacy 管线用 Python random 洗牌、非共享生成器惰性创建、非固定攻击者的 ξ 退回持久的
+    #   _atk_eval_rng —— 轻评估都可能碰到它们（D-084）。
+    _grid = ev_cfg.get("eval_grid", None)
+    if _grid is not None:
+        if isinstance(_grid, bool) or not isinstance(_grid, int) or _grid < 1:
+            _fail(f"evaluation.eval_grid 必须是 ≥ 1 的整数（有效轮），收到 {_grid!r}")
+        # get_switch 在下面 §4c 才导入；这里先绑定，否则是「先用后绑」（陷阱 #18 同类）
+        from alignment import get_switch
+        from server import eval_grid as EG
+        _R = int(fed.get("edge_rounds", 1) or 1)
+        _need = EG.full_interval(_grid, _R)
+        _period = EG.period_eff(_grid, _R)
+        for _name, _sec, _dflt, _on in (("backdoor", bd, 50, bd_enabled),
+                                        ("evaluation", ev_cfg, 10, True)):
+            if not _on:
+                continue
+            _got = int(_sec.get("eval_interval", _dflt))
+            if _got != _need:
+                _fail(f"evaluation.eval_grid={_grid}、edge_rounds={_R} 要求 {_name}.eval_interval"
+                      f" = lcm({_grid},{_R})/{_R} = {_need}，收到 {_got}：全量评估会落在网格外"
+                      f"（D-055）。")
+        _nr = int(fed.get("n_rounds", 0) or 0)
+        if _nr and (_nr * _R) % _period:
+            _fail(f"federation.n_rounds × edge_rounds = {_nr * _R} 不是 lcm({_grid},{_R}) = {_period}"
+                  f" 的倍数：强制的末轮评估会落在网格外。")
+        if _R > 1 and get_switch(config, "federation.edge_schedule") != "interleaved":
+            _fail("evaluation.eval_grid 要求 federation.edge_schedule = interleaved：顺序调度下"
+                  "没有「所有 edge 都跑完第 er 个 edge 轮」的时刻，轻评估点无从插入。")
+        if get_switch(config, "evaluation.pm_model") != "fresh":
+            _fail("evaluation.eval_grid 要求 evaluation.pm_model = fresh：轻评估只算主列"
+                  "（fresh-PM），陈旧口径下它测的不是主列。")
+        if get_switch(config, "data.batch_pipeline") != "per_epoch":
+            _fail("evaluation.eval_grid 要求 data.batch_pipeline = per_epoch：legacy 管线训练时用"
+                  " Python random 洗牌，轻评估若动到它就会改变训练（D-084，只开放 P2 路径）。")
+        if defense in POST_HOC_DEFENSES:
+            _fail(f"evaluation.eval_grid 与后处理防御 {defense!r} 不能同开：Simple-Tuning 会在每个"
+                  f"轻评估点微调模型，且可能改到 edge 模型本身（未实现）。")
+        if bd_enabled and str(bd.get("malicious_strategy", "vanilla")).lower() == "badpfl":
+            if get_switch(config, "backdoor.eval_xi_model") != "fixed_attacker":
+                _fail("evaluation.eval_grid + Bad-PFL 要求 backdoor.eval_xi_model = fixed_attacker："
+                      "否则评估的 ξ 退回持久的 _atk_eval_rng，轻评估会消耗它 → 全量点的 ξ 随之错位，"
+                      "开 / 关网格的全量数值不可比。")
+            if not bool(bd.get("badpfl_shared_generator", False)):
+                _fail("evaluation.eval_grid + Bad-PFL 要求 backdoor.badpfl_shared_generator = true："
+                      "非共享生成器是惰性创建的，轻评估可能把创建时刻提前（D-084）。")
+        _floor = int((config.get("stopping") or {}).get("floor_effective", 0) or 0)
+        # period == R 时 §3b 的「floor 不是 edge_rounds 的整数倍」已经警告过，不重复
+        if config.get("stopping") and _floor % _period and _period != _R:
+            warnings.append(
+                f"stopping.floor_effective={_floor} 不是 lcm({_grid},{_R}) = {_period} 的倍数："
+                f"网格下只在全量点做停止决定，实际地板推迟到 "
+                f"{(_floor + _period - 1) // _period * _period} 个有效轮。")
+        _side = [k for k, on in (
+            ("stale_asr_every", int(ev_cfg.get("stale_asr_every", 1) or 1) > 1),
+            ("stale_pm_every", int(ev_cfg.get("stale_pm_every", 1) or 1) > 1),
+            ("dump_logits_every", int(ev_cfg.get("dump_logits_every", 0) or 0) > 0),
+            ("snapshot_rounds", ev_cfg.get("snapshot_rounds") is not None)) if on]
+        if _side:
+            warnings.append(
+                f"evaluation.eval_grid 下 {', '.join(_side)} 只按全量点计数（间隔 = 每 "
+                f"{_period} 个有效轮的倍数，仍随 edge_rounds 变）：副列与存盘不纳入网格（D-084）。")
 
     # ── 4c. 对齐开关（A4；fedavg/alignment.py + config/alignment_p2.yaml）──
     #   三种写错都会静默跑错：取值拼错（回退旧行为）、P2 配置少开一项（与其他
@@ -627,4 +697,10 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
         "attack_start_round": None if _start is None else int(_start),
         "generator_schedule": _sched,
     }))
+
+    # ── 6f. 统一评估网格（[设定8]，S5）──────────────────────────────────
+    #   独立的 key=value 行，不扩已有的 [设定*]。没开网格：eval_grid=n/a、slope_axis=cloud
+    #   （停止判据横轴是云轮号）、gm_em=every_round —— 与 S5 之前的 run 是同一种 run。
+    from server.eval_grid import describe as _grid_describe
+    print(format_kv("[设定8]", _grid_describe(config)))
     return warnings

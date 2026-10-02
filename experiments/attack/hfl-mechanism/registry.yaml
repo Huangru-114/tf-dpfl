@@ -27,6 +27,10 @@
 #     但 requires 里的 `g5-schedule` 是故意的 —— 等 G5AB（生成器语义 A / B 的 8 run 对比）判完再放行；
 #     登记 G5AB 与 G8F（G8 的 flat 对照，D-077）。已有配置的 sha 不变
 #   · 2026-09-29 G5AB 判 insensitive（F-072）→ `available` 加 g5-schedule，G5 用 A（window），materialize（D-080）
+#   · 2026-10-01 S5 完成（统一评估网格 evaluation.eval_grid，D-055 / D-084）→ `available` 加 S5：
+#     G2 的 set 加 eval_grid: 5、R2 三格的两个 eval_interval 改 5（= lcm(5,2)/2）；但 G2 的 requires 里的
+#     `g2-scale` 是故意的 —— 规模未定（D-056 / D-083），用户定了再放行。G1 仍缺 S6，网格留给 S6 定（用户）。
+#     登记 S5P（GPU 上开 / 关网格的 checksum 探路 + 轻评估点单价，4 run）。已有配置的 sha 不变
 # 功能会话完成时，把它的 token 加进 `available`，并补上对应组的 `set:`。
 # **补 `set:` 时核对三件**（G2 就是漏了这三件，test_registry 守着）：
 #   malicious_per_edge 的长度 = n_edges；n_rounds × edge_rounds ≥ cap_effective；各格评估网格（有效轮）一致。
@@ -40,7 +44,7 @@ base: base.yaml       # A4（2026-09-26）
 overlays:
   - ../../../fedavg/config/alignment_p2.yaml   # 「P2 对齐」模板：每个对齐开关都打开
 audit: AUDIT.md
-available: [S8, S3, S9, S4, g5-schedule]   # 已完成的功能会话（S3：新划分 D-062 … D-068；S9：评估仪表 + 存盘开关 D-071 … D-075；S4：投毒窗口起点 + 生成器语义 D-078 / D-079）；g5-schedule：G5AB 判 insensitive → G5 用 A（D-080）
+available: [S8, S3, S9, S4, g5-schedule, S5]   # 已完成的功能会话（S3：新划分 D-062 … D-068；S9：评估仪表 + 存盘开关 D-071 … D-075；S4：投毒窗口起点 + 生成器语义 D-078 / D-079）；g5-schedule：G5AB 判 insensitive → G5 用 A（D-080）；S5：统一评估网格（D-084）
 
 groups:
   G0:
@@ -80,27 +84,32 @@ groups:
 
   G2:
     purpose: "3-A 结构扫描：flat vs HFL 的 T50 比值（主结论，5 seed）；去掉 G1 已覆盖的 4edge×R{10,20}"
-    requires: [audit, S5]
+    requires: [audit, S5, g2-scale]   # g2-scale：规模未定（D-056 / D-083），用户定了再加进 available（D-084）
     seeds: [42, 43, 44, 45, 46]
     # 2026-09-27（D-047）补齐：布点 = 旧 P1 的 distributed（1→[10]、2→[5,5]、4→[3,3,2,2]、10→[1]×10），
     # n_rounds = cap_effective(300) ÷ R（否则 flat 会被截断在 60 有效轮），flat 的评估间隔与 P1 flat 一样取 5。
-    # R≠5 的格子评估网格仍是每 R 个有效轮一个点 —— 统一网格由 S5（逐 edge 轮评估）负责。
+    # S5（D-084）：统一网格 eval_grid: 5（有效轮）→ 每格 300 有效轮内 60 个评估点；两个 eval_interval
+    # 必须 = lcm(5, R) / R：flat 5、R2 5、R5 / R10 / R20 1（base 的值）。R2 / R10 / R20 的其余网格点是轻评估。
     # S3（D-065）：划分 = 等大小 random（与 G1-random 同一套数据，G1 替 G2 补 e4-R10/R20）。
-    set: {federation.partition: equal_random, federation.design.n_per_client: 500, federation.design.clean_per_edge: 500, federation.design.alpha_client: 0.5}
+    set: {federation.partition: equal_random, federation.design.n_per_client: 500, federation.design.clean_per_edge: 500, federation.design.alpha_client: 0.5,
+          evaluation.eval_grid: 5}
     cells:
       - {cell: flat,     set: {federation.n_edges: 1,  federation.edge_rounds: 1,  federation.n_rounds: 300,
                                backdoor.malicious_per_edge: [10],
                                backdoor.eval_interval: 5, evaluation.eval_interval: 5}}
-      - {cell: e2-R2,    set: {federation.n_edges: 2,  federation.edge_rounds: 2,  federation.n_rounds: 150}}
+      - {cell: e2-R2,    set: {federation.n_edges: 2,  federation.edge_rounds: 2,  federation.n_rounds: 150,
+                               backdoor.eval_interval: 5, evaluation.eval_interval: 5}}
       - {cell: e2-R5,    set: {federation.n_edges: 2,  federation.edge_rounds: 5}}
       - {cell: e2-R10,   set: {federation.n_edges: 2,  federation.edge_rounds: 10, federation.n_rounds: 30}}
       - {cell: e2-R20,   set: {federation.n_edges: 2,  federation.edge_rounds: 20, federation.n_rounds: 15}}
       - {cell: e4-R2,    set: {federation.n_edges: 4,  federation.edge_rounds: 2,  federation.n_rounds: 150,
-                               backdoor.malicious_per_edge: [3, 3, 2, 2]}}
+                               backdoor.malicious_per_edge: [3, 3, 2, 2],
+                               backdoor.eval_interval: 5, evaluation.eval_interval: 5}}
       - {cell: e4-R5,    set: {federation.n_edges: 4,  federation.edge_rounds: 5,
                                backdoor.malicious_per_edge: [3, 3, 2, 2]}}
       - {cell: e10-R2,   set: {federation.n_edges: 10, federation.edge_rounds: 2,  federation.n_rounds: 150,
-                               backdoor.malicious_per_edge: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]}}
+                               backdoor.malicious_per_edge: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                               backdoor.eval_interval: 5, evaluation.eval_interval: 5}}
       - {cell: e10-R5,   set: {federation.n_edges: 10, federation.edge_rounds: 5,
                                backdoor.malicious_per_edge: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]}}
       - {cell: e10-R10,  set: {federation.n_edges: 10, federation.edge_rounds: 10, federation.n_rounds: 30,
@@ -259,6 +268,24 @@ groups:
           backdoor.eval_interval: 5, evaluation.eval_interval: 5}
     cells:
       - {cell: std}
+
+  S5P:
+    purpose: "S5 探路（D-084）：GPU 上开 / 关统一评估网格，训练侧 [Checksum] 逐轮相同；实测轻评估点的单价（供 G2 规模决策）"
+    requires: [audit, S5]
+    seeds: [42]
+    # = G2 的 e2-R2 / e2-R20 截短（10 云轮 = 20 有效轮；2 云轮 = 40 有效轮），stopping 关（固定长度）。
+    # R2 的 off / on 都写 eval_interval 5 → 两格只差轻评估点、GM / EM 跳过与停止横轴；R20 两格都是 base 的 1。
+    # 验收：python3 harness/instrumentation_check.py <off> <on> --grid（checksum + 全量点数值逐位相同）。
+    # 陷阱 #23：GPU 上才会抛的东西先用几分钟的作业试。
+    set: {federation.partition: equal_random, federation.design.n_per_client: 500, federation.design.clean_per_edge: 500, federation.design.alpha_client: 0.5,
+          federation.n_edges: 2, stopping: null}
+    cells:
+      - {cell: R2-off,  set: {federation.edge_rounds: 2,  federation.n_rounds: 10,
+                              backdoor.eval_interval: 5, evaluation.eval_interval: 5}}
+      - {cell: R2-on,   set: {federation.edge_rounds: 2,  federation.n_rounds: 10,
+                              backdoor.eval_interval: 5, evaluation.eval_interval: 5, evaluation.eval_grid: 5}}
+      - {cell: R20-off, set: {federation.edge_rounds: 20, federation.n_rounds: 2}}
+      - {cell: R20-on,  set: {federation.edge_rounds: 20, federation.n_rounds: 2, evaluation.eval_grid: 5}}
 
   G7:
     purpose: "预处理对比（D-025）：主协议（标准化 + 增强）vs 官方预处理（不标准化、不增强），同 seed 配对。检验「官方设定降低了攻击难度」"

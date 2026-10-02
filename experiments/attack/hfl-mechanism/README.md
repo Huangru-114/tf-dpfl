@@ -64,6 +64,10 @@ python3 harness/g6_verdict.py    --json experiments/attack/hfl-mechanism/analysi
 python3 harness/instrumentation_check.py experiments/attack/hfl-mechanism/results/P2/G6/G6__a__s42.metrics.json \
     experiments/attack/hfl-mechanism/results/P2/G8/G8__a__s42.metrics.json --upto 30
 
+# 5d. 「评估网格不改变训练」（S5 / D-084）：S5P 回来后，开 / 关网格逐对比（GM / EM 网格下不评不算分歧）
+python3 harness/instrumentation_check.py experiments/attack/hfl-mechanism/results/P2/S5P/S5P__R20-off__s42.metrics.json \
+    experiments/attack/hfl-mechanism/results/P2/S5P/S5P__R20-on__s42.metrics.json --grid
+
 # 6. 出图（组内因素不唯一会被拒绝；--floor 画下限虚线）
 python3 harness/figures.py trajectory --tables experiments/attack/hfl-mechanism/analysis \
     --metric local_benign_asr --group-by n_edges,edge_rounds \

@@ -13,6 +13,10 @@ harness/instrumentation_check.py  —  「新仪表没有改变任何已有的�
 为什么不用 check_reproducible.py：它比**全部**数值字段、含计时，且要求两边字段集合相同 ——
 带仪表的新文件必然多出字段。
 
+`--grid`（S5 / D-084）：参照 = 没开网格，新 = 开了统一评估网格的同一配置（S5P 组）。
+  网格下非全量轮的 GM / EM 不评（null）—— 这些字段记为「网格下不评」单独计数，不算分歧；
+  其余照旧逐位比。另报新文件的轻评估点数（light_rounds）。训练侧 checksum 必须逐轮相同。
+
 用途（S9 的两次验收）：
   · DET：`--upto 5`，参照 = pilot/results/P1/DET/DET__rep1__s42.metrics.json（F-045 的 checksum）；
   · G8 vs G6(a) 同 seed：`--upto 30`（G8 在第 31 轮才停止投毒，之前配置只差停止轮与 n_rounds）。
@@ -31,6 +35,9 @@ from pathlib import Path
 
 ROW_LISTS = ("rounds", "acc_rounds")
 EDGE_DICTS = ("per_edge_rounds", "per_edge_acc_rounds")
+# --grid：网格下只在全量点评、其余轮是 null 的字段（server.CloudServer.run_round 的 gm_em_due）
+GRID_SKIPPABLE = {("acc_rounds", "gm_acc"), ("acc_rounds", "em_acc"),
+                  ("per_edge_acc_rounds", "em_acc")}
 
 
 def _is_timing(key: str) -> bool:
@@ -41,12 +48,16 @@ def _checksums(m) -> dict:
     return {int(c["round"]): c["global"] for c in (m.get("checksums") or [])}
 
 
-def compare(ref: dict, new: dict, upto: int | None = None) -> dict:
+def compare(ref: dict, new: dict, upto: int | None = None, grid: bool = False) -> dict:
     ck_ref, ck_new = _checksums(ref), _checksums(new)
     common = sorted(set(ck_ref) & set(ck_new))
     if upto is None:
         upto = common[-1] if common else 0
     diffs, missing = [], []
+    n_grid_skipped = 0
+
+    def _skippable(where, k, v, got):
+        return grid and (where, k) in GRID_SKIPPABLE and v is not None and got is None
 
     for r in range(1, upto + 1):
         if r not in ck_ref:
@@ -70,6 +81,9 @@ def compare(ref: dict, new: dict, upto: int | None = None) -> dict:
             for k, v in row.items():
                 if _is_timing(k) or k == "round":
                     continue
+                if _skippable(key, k, v, other.get(k)):
+                    n_grid_skipped += 1
+                    continue
                 n_fields += 1
                 if other.get(k) != v:
                     diffs.append((f"{key}[round={r}].{k}", v, other.get(k)))
@@ -87,13 +101,17 @@ def compare(ref: dict, new: dict, upto: int | None = None) -> dict:
                     missing.append(f"{key}[{r}][edge{e.get('edge_id')}]")
                     continue
                 for k, v in e.items():
+                    if _skippable(key, k, v, o.get(k)):
+                        n_grid_skipped += 1
+                        continue
                     n_fields += 1
                     if o.get(k) != v:
                         diffs.append((f"{key}[{r}][edge{e.get('edge_id')}].{k}", v, o.get(k)))
 
     n_ck = sum(1 for r in range(1, upto + 1) if r in ck_ref and r in ck_new)
     return {"upto": upto, "n_checksums": n_ck, "n_fields": n_fields,
-            "diffs": diffs, "missing": missing}
+            "diffs": diffs, "missing": missing, "n_grid_skipped": n_grid_skipped,
+            "n_light": len(new.get("light_rounds") or [])}
 
 
 def _timing_note(ref: dict, new: dict, upto: int) -> str | None:
@@ -112,10 +130,12 @@ def main(argv=None) -> int:
     ap.add_argument("ref")
     ap.add_argument("new")
     ap.add_argument("--upto", type=int, default=None)
+    ap.add_argument("--grid", action="store_true",
+                    help="新文件开了统一评估网格（S5）：非全量轮的 GM / EM 为 null 不算分歧")
     a = ap.parse_args(argv)
     ref = json.loads(Path(a.ref).read_text(encoding="utf-8"))
     new = json.loads(Path(a.new).read_text(encoding="utf-8"))
-    res = compare(ref, new, a.upto)
+    res = compare(ref, new, a.upto, grid=a.grid)
     if res["n_checksums"] == 0:
         print(f"❌ 前 {res['upto']} 轮没有两边都有的 checksum —— 无从比较")
         return 2
@@ -123,6 +143,9 @@ def main(argv=None) -> int:
     if not res["diffs"] and not res["missing"]:
         print(f"✅ 前 {res['upto']} 轮逐位一致：{res['n_checksums']} 个 checksum、"
               f"{res['n_fields']} 个已有数值字段")
+        if a.grid:
+            print(f"   网格：{res['n_grid_skipped']} 个 GM / EM 字段网格下不评（不算分歧）；"
+                  f"新文件 {res['n_light']} 个轻评估点")
         if note:
             print("   " + note)
         return 0

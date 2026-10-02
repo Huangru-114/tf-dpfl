@@ -99,6 +99,11 @@ EXTRA_SWITCHES = (
            (),                                      "A06", "D-073", None),
     Switch("evaluation.snapshot_rounds",   None,         None,
            (),                                      "A28", "D-073", None),
+    # S5 / D-055 / D-084：统一评估网格（有效轮）。缺省 None = 旧行为（每个云轮末评、横轴是云轮号）。
+    # 只在登记表组的 set: 里开（不写进 base.yaml）；规则在 server/eval_grid.py，类型与配套条件由
+    # config_validate §4b' 检查。
+    Switch("evaluation.eval_grid",         None,         None,
+           (),                                      "A28", "D-055", None),
 )
 
 ALL = {s.key: s for s in SWITCHES + EXTRA_SWITCHES}

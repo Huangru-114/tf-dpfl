@@ -113,7 +113,8 @@ FACTOR_COLUMNS = ("protocol", "method", "attack", "defense", "n_clients", "n_edg
                   "malicious_placement", "edge_assignment", "local_epochs", "plocal_epochs",
                   "attack_stop_round", "attack_start_round", "generator_schedule",
                   "edge_shared_blocks",
-                  "partition", "partition_condition", "partition_alpha_edge")
+                  "partition", "partition_condition", "partition_alpha_edge",
+                  "eval_grid")
 
 
 def heterogeneous_factors(groups) -> dict:

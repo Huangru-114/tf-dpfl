@@ -145,16 +145,47 @@ class BackdoorCloudServer(CloudServer):
         """评估期 PGD 起点噪声：按 (seed, 轮, 列) 键控 —— 不消耗训练流，列之间互不影响。"""
         return np.random.default_rng([self._seed, 0xE7A1, int(round_idx), int(column)])
 
-    def _attacker_trigger(self, round_idx, column, pm_kind):
-        """ξ 在固定攻击者的 PM（pm_kind）上求，δ 用它的生成器；**忽略**被评估的模型。"""
+    def _light_rng(self, eff, column):
+        """S5 轻评估的 PGD 起点噪声：按 (seed, 有效轮, 列) 键控，与全量点的 0xE7A1 键互不重叠。"""
+        return np.random.default_rng([self._seed, 0x11E7, int(eff), int(column)])
+
+    def _attacker_trigger(self, round_idx, column, pm_kind, *, rng=None, slot="attacker"):
+        """ξ 在固定攻击者的 PM（pm_kind）上求，δ 用它的生成器；**忽略**被评估的模型。
+
+        rng / slot：S5 的轻评估传自己的键与草稿槽（light_attacker）；缺省 = 全量点（逐字同旧）。
+        """
         att = self.eval_attacker
-        xi_model = self.pm_model(att, pm_kind, slot="attacker")
-        rng = self._eval_rng(round_idx, column)
+        xi_model = self.pm_model(att, pm_kind, slot=slot)
+        rng = self._eval_rng(round_idx, column) if rng is None else rng
 
         def trig(model, x, y=None):
             x = np.asarray(x, np.float32)
             return x + att.eval_xi(xi_model, x, y, rng=rng) + att.eval_delta(x)
         return trig
+
+    def _light_asr(self, round_idx, er, eff):
+        """
+        S5 轻评估点的 ASR：只算主列（fresh-PM 的 local / edge ASR，含逐 edge 分组），
+        不算 global / 白盒 / 陈旧 / ASR4 / drift / 细节行 / 存盘。草稿槽与 RNG 键都是轻评估专用的，
+        于是全量点的 ξ 随机数与草稿模型的创建时刻在开 / 关网格时完全相同（D-084）。
+        config_validate 保证：fresh-PM、Bad-PFL 时固定攻击者、没有后处理防御。
+        """
+        fixed = (self.eval_xi_model == "fixed_attacker" and self.eval_attacker is not None)
+        trig = (self._attacker_trigger(round_idx, 0, self.pm_kind,
+                                       rng=self._light_rng(eff, 0), slot="light_attacker")
+                if fixed else self.trigger_fn)
+        m = evaluate_hierarchical_asr(
+            self.global_model, self.edge_servers, self._all_clients,
+            self.test_dataset, trig, self.bd_target,
+            self.malicious_ids, fallback_test_ds=self.test_dataset,
+            local_model_fn=lambda c: self.main_pm(c, slot="light_victim"),
+            asr_max_samples=self.bd_asr_max,
+            asr_columns=self.asr_columns,      # 与全量点同一个口径：four_way 的探针取法与 filtered 不同
+            light=True,
+        )
+        m.pop("client_detail", None)
+        m.pop("probe_order", None)
+        return m
 
     def _side_columns(self, round_idx, metrics, fixed):
         """

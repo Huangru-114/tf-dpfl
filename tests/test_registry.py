@@ -41,8 +41,9 @@ def test_v2_group_sizes_match_plan():
                      "FLR": 3,                   # FLR：floor 验证 pilot（D-061）
                      "G7": 6,                    # G7：A4 登记（D-025 预处理对比）
                      "G8": 3, "G6D": 3,          # S9（D-075）：G8 衰减 + G6D 分散布点探针
-                     "G5AB": 8, "G8F": 3}        # S4（D-079 / D-077）：生成器语义 A/B 对比 + G8 的 flat 对照
-    assert len({r["run_id"] for r in runs}) == len(runs) == 180
+                     "G5AB": 8, "G8F": 3,        # S4（D-079 / D-077）：生成器语义 A/B 对比 + G8 的 flat 对照
+                     "S5P": 4}                   # S5（D-084）：GPU 上开 / 关网格的 checksum 探路
+    assert len({r["run_id"] for r in runs}) == len(runs) == 184
 
 
 def test_v2_run_ids_and_factor_settings():
@@ -63,7 +64,9 @@ def test_v2_run_ids_and_factor_settings():
         # S3（D-065）：G2 与 G1-random 同一套等大小数据
         "federation.partition": "equal_random",
         "federation.design.n_per_client": 500, "federation.design.clean_per_edge": 500,
-        "federation.design.alpha_client": 0.5}
+        "federation.design.alpha_client": 0.5,
+        # S5（D-084）：统一评估网格（有效轮）
+        "evaluation.eval_grid": 5}
 
 
 def test_v2_base_is_decided_in_a4_and_carries_the_p2_template():
@@ -234,15 +237,26 @@ def test_materialize_with_nothing_eligible_errors_and_writes_nothing(tmp_path):
 
 def test_materialize_real_v2_registry_only_unblocked_groups_are_generable(tmp_path, monkeypatch):
     """A4 定了 base 之后：不依赖功能会话的 G7、S8 之后的 G6、只改配置的 FLR（D-061）、S3 之后的 G3
-    能生成配置（审计门槛只在 submit.sh 拦）；其余组缺 S4–S6，一个都不生成。写到临时目录，不在仓库里留 INDEX。"""
+    能生成配置（审计门槛只在 submit.sh 拦）；其余组缺 S4–S6，一个都不生成。写到临时目录，不在仓库里留 INDEX。
+    S5 之后（D-084）：S5P 可生成；G2 仍被 `g2-scale` 挡着（规模未定），G1 仍缺 S6。"""
     reg = R.Registry(V2)
     monkeypatch.setattr(reg, "configs_dir", tmp_path / "configs")
     rows = R.materialize(reg)
     assert sorted(r["group"] for r in rows) == (["FLR"] * 3 + ["G0"] * 15 + ["G3"] * 24
                                                + ["G5"] * 15 + ["G5AB"] * 8 + ["G6"] * 9
-                                               + ["G6D"] * 3 + ["G7"] * 6 + ["G8"] * 3 + ["G8F"] * 3)
+                                               + ["G6D"] * 3 + ["G7"] * 6 + ["G8"] * 3 + ["G8F"] * 3
+                                               + ["S5P"] * 4)
     with pytest.raises(R.RegistryError, match="不写 INDEX.tsv"):
         R.materialize(reg, groups=["G1", "G2"])
+
+
+def test_g2_is_gated_on_its_scale_and_g1_on_s6():
+    """S5 进了 available 之后，G2 只剩 `g2-scale`（用户定规模后才放行，D-083 / D-084）；G1 只剩 S6。"""
+    reg = R.Registry(V2)
+    assert "S5" in reg.available
+    assert reg.unmet_requires("G2") == ["g2-scale"]
+    assert reg.unmet_requires("G1") == ["S6"]
+    assert reg.unmet_requires("S5P") == []
 
 
 def test_eligible_group_with_undecided_base_errors(tmp_path):
@@ -384,6 +398,18 @@ def test_g2_flat_is_evaluated_on_the_same_grid_as_r5():
     grid = {cell: c["federation"]["edge_rounds"] * c["backdoor"]["eval_interval"]
             for cell, c in _g2_configs()}
     assert grid["flat"] == grid["e2-R5"] == grid["e4-R5"] == grid["e10-R5"] == 5
+
+
+def test_every_g2_cell_is_on_the_same_effective_round_grid():
+    """S5（D-084）：全部 11 格开 eval_grid 5，两个 eval_interval = lcm(5, R) / R →
+    全量 + 轻评估点都在 5 的倍数有效轮上（R2 不再每 2 有效轮全量评一次，R20 不再每 20 才一点）。"""
+    from math import lcm
+    cells = _g2_configs()
+    assert len({cell for cell, _ in cells}) == 11
+    for cell, c in cells:
+        R_ = c["federation"]["edge_rounds"]
+        assert c["evaluation"]["eval_grid"] == 5, cell
+        assert c["backdoor"]["eval_interval"] == c["evaluation"]["eval_interval"] == lcm(5, R_) // R_, cell
 
 
 def test_g4_is_parked_until_3_2_is_reformulated():

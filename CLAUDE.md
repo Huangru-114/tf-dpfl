@@ -342,8 +342,8 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
       另有 `[TimingAcc]`（GM / EM / PM / 陈旧 PM 分项）→ `timing_summary.acc_split_total_s`。守卫 `tests/test_eval_downsampling.py`。
       **白盒 ≈ 主列是重要发现**（私有 head 挡不住 ξ）；**fresh-PM 会低估干净精度**，10edge 达 0.094（F-051）。
     - G2 先做一致性复测（pilot 表 G2P + `pilot_a4.judge_g2p`）；G4 搁置（`registry.yaml` 的 requires 含 `reformulate-3.2`）。
-    - ~~**G2 与 S5 暂缓**（D-056）~~ → **S5 = 下一会话**（2026-10-01，D-083；按预案 D-055 实现）；**G2 规模仍待用户定**。S8 已完成（见下一条），G6 已回传。
-      停止判据的斜率横轴是云轮号 → flat 比 R5 宽松 5 倍（F-052，代码证据、无数值证据），S5 预案里改。
+    - ~~**G2 与 S5 暂缓**（D-056）~~ → **S5 已完成**（2026-10-01，D-084，见「S5 统一评估网格」一条）；**G2 规模仍待用户定**（挂 `g2-scale`）。S8 已完成（见下一条），G6 已回传。
+      ~~停止判据的斜率横轴是云轮号~~ → 开了网格后横轴 = 网格序号（F-052 已修；pilot D029 flat 的回放是第一条数值证据，F-078）。
     - **登记表补 `set:` 时核对三件**：`malicious_per_edge` 长度 = `n_edges`；`n_rounds × edge_rounds ≥ cap_effective`；
       各格评估网格（有效轮）一致 —— G2 当初三件都漏了（F-046）。
 
@@ -417,6 +417,28 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
   - 守卫：`tests/test_attack_window.py`（真值表 + 校验 + 闸门 AST）/ `test_attack_window_tf.py`（真 Bad-PFL 客户端：
     两种语义下生成器与投毒的开关、窗口外不耗投毒随机数、ρ=0 影子攻击者确实在训生成器且评估触发器用生成器）/
     `test_g5ab_verdict.py` / `test_decay_verdict.py`（flat 分支）/ `test_run_self_description.py`（`[设定7]` 往返）。
+
+- **S5 统一评估网格**（2026-10-01，Exp3 改版 S5；DECISIONS D-055 预案 / D-084 实现取舍）。
+  `evaluation.eval_grid: G`（有效轮；`alignment.EXTRA_SWITCHES`，缺省 None = 旧行为逐字节不变；**只在组的 `set:` 里开**）。
+  规则只在 `fedavg/server/eval_grid.py`（**不 import TF**）定义一次：
+  - 全量评估 = 网格上的云轮末，两个 eval_interval 必须 = lcm(G,R)/R（`config_validate` §4b' 核对）；
+  - 其余网格点在 edge 轮之间做**轻评估**（`CloudServer._light_eval`，只有交错调度有这个时刻）：只算主列 ——
+    fresh-PM 的 local / edge ASR（`evaluate_hierarchical_asr(light=True)`）+ fresh pm_acc + EM 精度；不算 global / 白盒 / 陈旧 / ASR4 / drift；
+  - 停止判据横轴 = 网格序号 eff / G（`StoppingRule.update(..., x=)` + `observe()`；R = G 时就是云轮号 → 逐位不变），停止决定只在全量点；
+  - GM 只在全量点算；非全量轮 `[Cloud] GM=n/a | EM=n/a`、`[Acc] em_acc=n/a`。
+  **评估不得改变训练**：轻评估用专用草稿槽（`light_victim` / `light_attacker`）+ 独立 RNG 键，并整个包在
+  `random.getstate()/setstate()` 里 —— `clone_model` 的未播种初始化器会消耗 **Python random**（F-078 实测；main.py 只调
+  `tf.random.set_seed`），legacy 管线训练用它洗牌。网格因此**收窄到 P2 路径**：顺序调度 / 陈旧 PM / legacy 管线 /
+  非共享生成器 / Bad-PFL 非固定攻击者 / 后处理防御，`config_validate` 一律拒绝。
+  自描述 `[设定8]` → `run.eval_grid` / `run.grid`；轻评估点 `[Light]` / `[LightEdge]` → **单独成表** `light_rounds[]` /
+  `per_edge_light_rounds`（不混进按云轮当键的 rounds[] / acc_rounds[]），collect_metrics **schema 9**；
+  `runs_table.grid_series` 把全量 + 轻评估点按有效轮合并算 T_θ 与主列末 10 点；`instrumentation_check --grid` 比开 / 关网格。
+  G2 写好网格但挂 **`g2-scale`**（规模未定）；G1 的网格留给 S6；GPU 探路组 **S5P**（4 run）待交。
+  守卫：`tests/test_eval_grid.py`（规则真值表 + 校验 + 已有配置 sha 不变）/ `test_eval_grid_tf.py`（开 / 关网格 checksum 与全量点数值逐位相同、
+  一次轻评估前后状态清单不变、去掉 random 复原就改变训练的反向锚点）/ `test_collect_eval_grid.py` / `test_stopping.py` §5
+  （R5 逐位不变；pilot D029 flat 旧横轴停 150、网格横轴不停 —— F-052 的第一条数值证据）。
+  > ⚠️ 测试夹具的 `_model()` 调了 `tf.keras.utils.set_random_seed`，之后 clone_model **不**消耗 Python random —— 与 main.py 不同。
+  > 要测随机通道，先 `_prod_seeding`（把 Keras 的种子发生器复位成 None），见 `test_eval_grid_tf.py`。
 
 **留了接口但没有实现的**（不要以为它们能用）：
 - 主动防御（需要客户端配合的防御）：接口齐了（`BaseDefense.layers` /

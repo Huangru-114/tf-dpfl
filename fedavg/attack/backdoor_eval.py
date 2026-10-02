@@ -264,7 +264,7 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
                               malicious_ids, fallback_test_ds=None,
                               batch_size=256, local_model_fn=None,
                               asr_max_samples=0, asr_columns="filtered",
-                              keep_probs=False, n_classes=None):
+                              keep_probs=False, n_classes=None, light=False):
     """
     分别评估三层模型的 ASR 与干净精度（ACC）。
 
@@ -292,6 +292,9 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
                         额外返回 local_asr_benign_unfiltered_mean / local_asr_unfiltered_mean。
         keep_probs    : S9 / D-073：客户端记录里附上 fp16 对数概率（logits 存盘用）。
         n_classes     : 类别数；None → 取被评估模型的输出维度。
+        light         : S5 的轻评估点（D-055 / D-084）：只算主列 ASR —— 跳过 global 探针 / global acc /
+                        edge acc / 客户端干净前向 / S9 细节记录，这几项返回 None（local_acc_mean 也是
+                        None）。分组（same / diff edge、逐 edge）与默认路径共用同一段代码。
 
     Returns:
         dict（见 log_round_metrics 使用的全部字段）。S9 起另有：
@@ -316,10 +319,13 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
         return rates_from_counts(cnt) if cnt is not None else (None, None)
 
     probe_order = []                   # S9：主列 ξ 的随机数按这个顺序、按探针大小抽
-    g_det = {"want_probs": False}
-    global_asr, global_asr_unf = _asr(global_model, global_test_ds, g_det)
-    probe_order.append(("global", -1, g_det.get("n_probe", 0)))
-    global_acc = _acc_on_dataset(global_model, global_test_ds)
+    if light:                          # S5：云轮中间全局模型不变，global 列没有信息
+        global_asr = global_asr_unf = global_acc = None
+    else:
+        g_det = {"want_probs": False}
+        global_asr, global_asr_unf = _asr(global_model, global_test_ds, g_det)
+        probe_order.append(("global", -1, g_det.get("n_probe", 0)))
+        global_acc = _acc_on_dataset(global_model, global_test_ds)
 
     # ── 边缘模型 ──────────────────────────────────────────────────────────
     edge_ids, edge_asr_per_node, edge_accs = [], [], []
@@ -330,7 +336,7 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
         e_det = {"want_probs": False}
         e_asr, _ = _asr(edge.model, e_ds, e_det)
         probe_order.append(("edge", int(edge.edge_id), e_det.get("n_probe", 0)))
-        e_acc = _acc_on_dataset(edge.model, e_ds)
+        e_acc = None if light else _acc_on_dataset(edge.model, e_ds)
         edge_ids.append(int(edge.edge_id))
         edge_asr_per_node.append(e_asr)
         edge_accs.append(e_acc)
@@ -365,7 +371,7 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
         else:
             det = {"keep_probs": bool(keep_probs)}
             asr, asr_unf = _asr(eval_model, ds, det)
-            acc = _acc_on_dataset(eval_model, ds, detail=det)
+            acc = None if light else _acc_on_dataset(eval_model, ds, detail=det)
         local_asrs.append(asr)
         local_unf.append(asr_unf)
         local_accs.append(acc)
@@ -374,9 +380,10 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
 
         edge_id = int(getattr(c, "assigned_edge", -1))
         # S9：同一次前向的细节（fresh-PM 草稿模型下一次 main_pm 就被覆盖，必须此刻取用）
-        client_detail.append(_client_record(
-            det, cid, edge_id, cid in malicious_ids, target_label,
-            n_classes if n_classes is not None else _n_outputs(eval_model), keep_probs))
+        if not light:
+            client_detail.append(_client_record(
+                det, cid, edge_id, cid in malicious_ids, target_label,
+                n_classes if n_classes is not None else _n_outputs(eval_model), keep_probs))
         probe_order.append(("client", cid, 0 if det is None else det.get("n_probe", 0)))
         if cid in malicious_ids:
             malicious_asrs.append(asr)
@@ -438,14 +445,15 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
         "edge_asr_std":           _std(edge_asr_per_node),
         "edge_asr_per_node":      edge_asr_per_node,
         "edge_ids":               edge_ids,
-        "edge_acc_mean":          _mean(edge_accs),
+        "edge_acc_mean":          _mean(edge_accs),           # light：全 None → None
         "local_asr_mean":         _mean(local_asrs),
         "local_asr_std":          _std(local_asrs),
         "local_asr_benign_mean":  _mean(benign_asrs),
         "local_asr_malicious_mean": _mean(malicious_asrs),
         "local_asr_same_edge":    _mean(same_edge_asrs),
         "local_asr_diff_edge":    _mean(diff_edge_asrs),
-        "local_acc_mean":         float(np.nanmean(local_accs)) if local_accs else None,
+        "local_acc_mean":         (float(np.nanmean(local_accs)) if local_accs and not light
+                                   else None),
         "per_edge":               per_edge,
         # A06 / D-019：不过滤口径（four_way 才有；filtered 下为 None）
         "global_asr_unfiltered":             global_asr_unf,

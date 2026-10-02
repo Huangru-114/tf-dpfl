@@ -102,6 +102,19 @@ def test_hierarchical_asr_is_called_with_the_heldout_dataset():
     raise AssertionError("_backdoor_eval 里找不到 evaluate_hierarchical_asr(...) 调用")
 
 
+def test_light_asr_is_called_with_the_heldout_dataset():
+    """S5 的轻评估（`_light_asr`）同一条规矩：探针是留出集，不是 x_test 派生的数组。"""
+    fn = _fn(FEDAVG / "server" / "backdoor_server.py", "_light_asr")
+    calls = [n for n in ast.walk(fn) if isinstance(n, ast.Call)
+             and isinstance(n.func, ast.Name) and n.func.id == "evaluate_hierarchical_asr"]
+    assert len(calls) == 1, "_light_asr 应恰好调用一次 evaluate_hierarchical_asr"
+    args = [ast.unparse(a) for a in calls[0].args]
+    assert "self.test_dataset" in args, f"实参是 {args}，其中应当有 self.test_dataset"
+    joined = " ".join(args + [ast.unparse(k.value) for k in calls[0].keywords])
+    assert "x_test" not in joined and "y_test" not in joined, joined
+    assert any(k.arg == "light" and ast.unparse(k.value) == "True" for k in calls[0].keywords)
+
+
 def test_no_asr_subsampling_over_the_official_test_array():
     """
     旧路径会缓存一份 `_asr_subsample_idx` 对 x_test 做随机子采样。

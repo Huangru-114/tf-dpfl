@@ -12,6 +12,8 @@ server.py  –  层级 FL Cloud 服务器
       → SCAFFOLD 在 cloud 层也做控制变量聚合（维护 c_g）
 """
 
+import random
+
 import numpy as np
 import tensorflow as tf
 import time
@@ -24,8 +26,9 @@ from utils                import tier_split
 from models.cnn           import get_base_head_indices
 from utils.checksum       import weights_checksum
 from .participation       import edge_schedule_order
+from .                    import eval_grid
 from aggregation.fedavg   import aggregate
-from server.stopping     import StoppingRule
+from server.stopping     import StoppingRule, ASR_KEYS
 from aggregation.feddyn   import feddyn_aggregate,   init_h
 from aggregation.scaffold import scaffold_aggregate, init_cv
 from .robust_aggregation  import RobustAggregationMixin
@@ -103,6 +106,16 @@ class CloudServer(RobustAggregationMixin):
         self.stopper = StoppingRule(config.get("stopping"),
                                     edge_rounds=int(_fed.get("edge_rounds", 1) or 1),
                                     n_rounds=int(_fed.get("n_rounds", 0) or 0))
+
+        # ── 统一评估网格（S5 / D-055 / D-084；规则在 server/eval_grid.py）──────────────
+        #   None（缺省）= 旧行为：下面每一处网格分支都不进入。G = 有效轮网格：全量评估在网格上的
+        #   云轮末（两个 eval_interval 由 config_validate 核对 = lcm(G,R)/R），其余网格点在 edge 轮
+        #   之间做轻评估（_light_eval）；停止判据横轴 = eff / G；GM 只在全量点算。
+        self.eval_grid = eval_grid.grid_size(config)
+        if (self.eval_grid and int(_fed.get("edge_rounds", 1) or 1) > 1
+                and get_switch(config, "federation.edge_schedule") != "interleaved"):
+            raise ValueError("evaluation.eval_grid 要求 federation.edge_schedule = interleaved"
+                             "（顺序调度下没有「所有 edge 都跑完第 er 个 edge 轮」的时刻）")
 
         # ── 评估用的 PM（A28 / D-033，开关 evaluation.pm_model）──────────────
         #   stale（旧）：client.model；fresh：[当前 edge body, 自己的私有部分]。
@@ -281,10 +294,16 @@ class CloudServer(RobustAggregationMixin):
             by_id = {int(e.edge_id): e for e in self.edge_servers}
             losses = {eid: [] for eid in by_id}
             times = {eid: [] for eid in by_id}
-            for eid, er in edge_schedule_order(R, list(by_id), "interleaved"):
+            # S5：轻评估点 = 本云轮里 eff % G == 0 且 er < R 的 edge 轮；不开网格 → 空，一字不变
+            ids = list(by_id)
+            light = (eval_grid.light_edge_rounds(self.eval_grid, R, round_idx)
+                     if getattr(self, "eval_grid", None) else ())
+            for eid, er in edge_schedule_order(R, ids, "interleaved"):
                 loss, t = by_id[eid].run_edge_round(round_idx, er)
                 losses[eid].append(loss)
                 times[eid].append(t)
+                if er in light and eid == ids[-1]:        # 第 er 个 edge 轮在所有 edge 上都跑完了
+                    self._light_eval(round_idx, er, (round_idx - 1) * R + er)
             for edge in self.edge_servers:
                 eid = int(edge.edge_id)
                 w, n, loss, t, comm = edge.cloud_upload(losses[eid], times[eid])
@@ -343,27 +362,38 @@ class CloudServer(RobustAggregationMixin):
 
         # ── Phase 3：评估 ────────────────────────────────────────────────
         # 分项计时 → [TimingAcc]（D-054：降频省下多少要量得出来；GM / EM 的单价也是 S5 的依据）
-        _t = time.perf_counter()
-        global_loss, global_acc = self.evaluate_global()
-        t_gm = time.perf_counter() - _t
-
         eval_interval = int(self.config.get("evaluation", {}).get("eval_interval", 10))
         n_rounds      = int(self.config["federation"]["n_rounds"])
         do_pm_eval    = (round_idx % eval_interval == 0) or (round_idx == n_rounds)
+        # S5：开了网格，GM / EM 只在全量点（网格上的云轮末）算；不开 → 每轮都算（旧行为）
+        gm_em_due = (getattr(self, "eval_grid", None) is None) or do_pm_eval
 
+        global_loss = global_acc = t_gm = None
+        if gm_em_due:
+            _t = time.perf_counter()
+            global_loss, global_acc = self.evaluate_global()
+            t_gm = time.perf_counter() - _t
 
-        # Edge model：每轮都测，使用 per-edge 测试集（若已设置），按样本数加权
+        # Edge model：每轮都测（网格下只在全量点），使用 per-edge 测试集（若已设置），按样本数加权。
+        # 不评的轮：每个 edge 记 None、样本数照记 → [Acc] 行照打（em_acc=n/a），不会整条消失。
         _t = time.perf_counter()
         em_losses, em_accs, em_ns = [], [], []
         for edge in self.edge_servers:
+            if not gm_em_due:
+                em_losses.append(None)
+                em_accs.append(None)
+                em_ns.append(edge.n_samples)
+                continue
             e_loss, e_acc = edge.evaluate_on(fallback_dataset=self.test_dataset)
             em_losses.append(e_loss)
             em_accs.append(e_acc)
             em_ns.append(edge.n_samples)
         total_em_n  = sum(em_ns)
-        avg_em_acc  = float(sum(a * n / total_em_n for a, n in zip(em_accs, em_ns)))
-        avg_em_loss = float(sum(l * n / total_em_n for l, n in zip(em_losses, em_ns)))
-        t_em = time.perf_counter() - _t
+        avg_em_acc = avg_em_loss = t_em = None
+        if gm_em_due:
+            avg_em_acc  = float(sum(a * n / total_em_n for a, n in zip(em_accs, em_ns)))
+            avg_em_loss = float(sum(l * n / total_em_n for l, n in zip(em_losses, em_ns)))
+            t_em = time.perf_counter() - _t
 
         # Personalized model：每 eval_interval 轮测一次，按样本数加权
         avg_pm_acc = avg_pm_loss = None
@@ -436,6 +466,8 @@ class CloudServer(RobustAggregationMixin):
             "pm_acc":  avg_pm_acc,
             "pm_loss": avg_pm_loss,
         }
+        if getattr(self, "eval_grid", None) is not None:
+            metrics["full_eval"] = bool(do_pm_eval)       # S5：run() 只在全量点做停止决定
         
         for k, v in metrics.items():
             if k in self.history:
@@ -448,13 +480,20 @@ class CloudServer(RobustAggregationMixin):
             print(format_kv("[Stale]", {"pm_acc": metrics["pm_acc_stale"]}, round_idx=round_idx))
 
         pm_str = (f" PM={avg_pm_acc:.4f}" if avg_pm_acc is not None else "")
-        print(f"  [Cloud] GM={global_acc:.4f} | EM={avg_em_acc:.4f}{pm_str} | "
-            f"loss={global_loss:.4f} | time={elapsed:.1f}s | "
-            f"comm={comm_round/1024/1024:.1f}MB "
-            f"(total={self.total_comm_bytes/1024/1024:.0f}MB)")
+        if global_acc is not None:
+            print(f"  [Cloud] GM={global_acc:.4f} | EM={avg_em_acc:.4f}{pm_str} | "
+                f"loss={global_loss:.4f} | time={elapsed:.1f}s | "
+                f"comm={comm_round/1024/1024:.1f}MB "
+                f"(total={self.total_comm_bytes/1024/1024:.0f}MB)")
+        else:                                  # S5：网格下的非全量轮（GM / EM 不评）
+            print(f"  [Cloud] GM=n/a | EM=n/a{pm_str} | "
+                f"loss=n/a | time={elapsed:.1f}s | "
+                f"comm={comm_round/1024/1024:.1f}MB "
+                f"(total={self.total_comm_bytes/1024/1024:.0f}MB)")
         # 独立的 key=value 行，不动 [Cloud]（全或无的正则）。没评的项是 n/a，不是 0。
         print(format_kv("[TimingAcc]", {
-            "gm": round(t_gm, 2), "em": round(t_em, 2),
+            "gm": None if t_gm is None else round(t_gm, 2),
+            "em": None if t_em is None else round(t_em, 2),
             "pm": None if t_pm is None else round(t_pm, 2),
             "pm_stale": None if t_pm_stale is None else round(t_pm_stale, 2),
         }, round_idx=round_idx, digits=2))
@@ -521,6 +560,98 @@ class CloudServer(RobustAggregationMixin):
         """主口径的 PM（pm_acc 与主 ASR 共用这一个入口）。"""
         return self.pm_model(client, self.pm_kind, slot)
 
+    # ══════════════════════════════════════════════════════════════════════
+    # S5：轻评估（网格点落在 edge 轮之间；D-055 / D-084）
+    # ══════════════════════════════════════════════════════════════════════
+
+    def _light_eval(self, round_idx: int, er: int, eff: int):
+        """
+        网格点 eff 落在第 round_idx 个云轮的第 er 个 edge 轮之后（er < R；所有 edge 都已跑完第 er 轮，
+        edge.model = 本 edge 第 er 轮聚合后的模型 → fresh-PM 与云轮末全量点同一个定义）。
+
+        只算主列：fresh-PM 的 pm_acc（含逐 edge）+ EM 精度；BackdoorCloudServer._light_asr 补
+        local / edge ASR。不算 global（云轮中间全局模型不变）、白盒、陈旧、ASR4、drift。
+
+        **不得改变训练**（D-055 的硬要求）：
+          · 草稿模型用专用槽 light_victim / light_attacker —— 全量评估的草稿模型在开 / 关网格时
+            同一时刻创建（clone_model 的未播种初始化器会消耗 Python random，F-078）；
+          · 整个轻评估包在 random.getstate() / setstate() 里（槽第一次创建时消耗的那一下也复原）；
+          · 结束后清 _edge_w_cache；不动 _eval_seq / history / _last_bd_metrics / _bd_eval_count。
+        结果打 [Light] / [LightEdge]，并喂停止判据（只记不判，横轴 = 网格序号）。
+        """
+        st = random.getstate()
+        t0 = time.perf_counter()
+        try:
+            self.begin_pm_eval()
+            acc = self._light_acc()
+            asr = self._light_asr(round_idx, er, eff) or {}
+        finally:
+            self._edge_w_cache = None
+            random.setstate(st)
+        eval_s = time.perf_counter() - t0
+        self._emit_light(round_idx, er, eff, acc, asr, eval_s)
+        sig = {"pm_acc": acc["pm_acc"]}
+        for k in ASR_KEYS:                       # global_asr 在轻评估点恒为 None（规则跳过）
+            sig[k] = asr.get(k)
+        self.stopper.observe(eval_grid.grid_x(eff, self.eval_grid), sig)
+
+    def _light_acc(self) -> dict:
+        """轻评估的精度：fresh pm_acc（按样本加权，公式同 run_round）、逐 edge pm_acc、EM 精度。"""
+        per_edge = {}
+        pm_accs, pm_ns, em_accs, em_ns = [], [], [], []
+        for edge in self.edge_servers:
+            _, em_a = edge.evaluate_on(fallback_dataset=self.test_dataset)
+            em_accs.append(em_a)
+            em_ns.append(edge.n_samples)
+            e_accs, e_ns = [], []
+            for client in edge.clients:
+                # verbose=False：不打逐类精度行（否则每个轻评估点多 100 行）
+                _, c_acc = client.evaluate_on(fallback_dataset=self.test_dataset,
+                                              model=self.main_pm(client, slot="light_victim"),
+                                              verbose=False)
+                pm_accs.append(c_acc)
+                pm_ns.append(client.n_samples)
+                e_accs.append(c_acc)
+                e_ns.append(client.n_samples)
+            e_tot = sum(e_ns)
+            per_edge[int(edge.edge_id)] = {
+                "pm_acc": (float(sum(a * n / e_tot for a, n in zip(e_accs, e_ns)))
+                           if e_tot else None),
+                "em_acc": float(em_a)}
+        tot, tot_em = sum(pm_ns), sum(em_ns)
+        return {"pm_acc": (float(sum(a * n / tot for a, n in zip(pm_accs, pm_ns)))
+                           if tot else None),
+                "em_acc": (float(sum(a * n / tot_em for a, n in zip(em_accs, em_ns)))
+                           if tot_em else None),
+                "per_edge": per_edge}
+
+    def _light_asr(self, round_idx: int, er: int, eff: int) -> dict:
+        """轻评估的 ASR（BackdoorCloudServer 覆写）；基类没有后门 → 空。"""
+        return {}
+
+    def _emit_light(self, round_idx, er, eff, acc, asr, eval_s):
+        """[Light]（池化）+ 每 edge 的 [LightEdge]。键名 = metrics.json 的字段名（collect_metrics 直接收）。"""
+        print(format_kv("[Light]", {
+            "edge_round": int(er), "effective_round": int(eff),
+            "pm_acc": acc["pm_acc"], "em_acc": acc["em_acc"],
+            "edge_asr": asr.get("edge_asr_mean"),
+            "local_benign_asr": asr.get("local_asr_benign_mean"),
+            "same_edge_asr": asr.get("local_asr_same_edge"),
+            "diff_edge_asr": asr.get("local_asr_diff_edge"),
+            "local_malicious_asr": asr.get("local_asr_malicious_mean"),
+            "eval_s": round(float(eval_s), 2),
+        }, round_idx=round_idx))
+        pe_asr = {int(d["edge_id"]): d for d in asr.get("per_edge") or []}
+        for edge in self.edge_servers:
+            eid = int(edge.edge_id)
+            pe = pe_asr.get(eid, {})
+            print(format_kv("[LightEdge]", {
+                "edge_round": int(er), "effective_round": int(eff),
+                "edge_asr": pe.get("edge_asr"), "client_benign": pe.get("client_benign"),
+                "client_malicious": pe.get("client_malicious"),
+                "pm_acc": acc["per_edge"][eid]["pm_acc"], "em_acc": acc["per_edge"][eid]["em_acc"],
+            }, round_idx=round_idx, edge_id=eid))
+
     def _stopping_signals(self, metrics: dict) -> dict:
         """
         喂给停止规则的观测。基类只有 `pm_acc`；`BackdoorCloudServer` 覆写它补上三层 ASR。
@@ -543,7 +674,16 @@ class CloudServer(RobustAggregationMixin):
                 print(_mem)
             if logger:
                 logger.log_round(r, m)
-            dec = self.stopper.update(r, self._stopping_signals(m))
+            sig = self._stopping_signals(m)
+            if getattr(self, "eval_grid", None) is None:
+                dec = self.stopper.update(r, sig)
+            elif m.get("full_eval"):
+                # S5：横轴 = 网格序号（F-052）；停止决定只在全量点（云轮末、网格上）做，
+                # 轻评估点已在 _light_eval 里 observe 过
+                R = int(self.config["federation"].get("edge_rounds", 1) or 1)
+                dec = self.stopper.update(r, sig, x=eval_grid.grid_x(r * R, self.eval_grid))
+            else:
+                continue
             if dec.stop:
                 # 这一行是硬要求：停在第 32 轮的 run 与跑满的 run 长得一模一样。
                 # collect_metrics 解析它进 metrics.json 的 run 块。

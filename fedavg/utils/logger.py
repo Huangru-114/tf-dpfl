@@ -18,8 +18,6 @@ class FLLogger:
     def log_round(self, round_idx: int, metrics: dict):
         log_dict = {
             "total_epoch":          round_idx * metrics["edge_rounds"] * metrics["local_epochs"],
-            "perf/gm_acc":          metrics["global_acc"],
-            "perf/gm_loss":         metrics["global_loss"],
             "perf/avg_edge_loss":   metrics["avg_edge_loss"],
             "time/round_total_s":   metrics["round_time"],
             "time/client_avg_s":    metrics["avg_client_time"],
@@ -28,6 +26,10 @@ class FLLogger:
             "comm/cloud_edge_mb":   metrics["comm_mb_cloud_edge"],
             "comm/client_edge_mb":  metrics["comm_mb_client_edge"],
         }
+        # S5：开了评估网格时 GM 只在全量点算，其余轮是 None → 跳过（不当 0 传给 wandb）
+        if metrics.get("global_acc") is not None:
+            log_dict["perf/gm_acc"]  = metrics["global_acc"]
+            log_dict["perf/gm_loss"] = metrics["global_loss"]
         # em/pm 仅在 eval_interval 轮次存在，None 时跳过避免 wandb 断点
         if metrics.get("em_acc") is not None:
             log_dict["perf/em_acc"]  = metrics["em_acc"]

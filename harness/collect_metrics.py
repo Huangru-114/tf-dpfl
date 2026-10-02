@@ -84,7 +84,11 @@ from utils.kvline import parse_kv, collect_kv, parse_list   # noqa: E402
 #     [ClientEval]，按列）、dumps（[Dump] manifest：logits 汇总 + 每个快照）。
 # 8 = S4（投毒窗口起点 + 生成器语义，D-078 / D-079）：run.attack_start_round /
 #     run.generator_schedule（[设定7]）。老日志 → 两个都是 None（「不知道」）。
-SCHEMA_VERSION = 8
+# 9 = S5（统一评估网格，D-055 / D-084）：run.eval_grid + run.grid（[设定8]）；轻评估点单独成表
+#     light_rounds[]（[Light]，带 effective_round）与 per_edge_light_rounds（[LightEdge]，紧凑行）——
+#     **不混进** rounds[] / acc_rounds[]（那些都按云轮号当键）；timing_summary.light_eval_total_s；
+#     网格下非全量轮的 [Cloud] 行是 GM=n/a / EM=n/a → acc_rounds[] 里 gm_acc / em_acc 为 null。
+SCHEMA_VERSION = 9
 
 # A4 的副列：key=value 行（utils/kvline.py）→ rounds[] / acc_rounds[] 的字段。
 # 缺行（旧口径、或该列本 run 没开）→ null，**不是 0**。
@@ -103,6 +107,12 @@ ROUND_SIDE_COLUMNS = (
         "flip_other", "cls_asr")}),
 )
 EDGE_DETAIL_COLUMNS = ("edge_id", "margin_p50", "benign_asr_p90", "yt_clean_benign")
+# S5：轻评估点（[Light] 的键名就是这里的字段名，server.CloudServer._emit_light 同源打印）
+LIGHT_COLUMNS = ("round", "edge_round", "effective_round", "pm_acc", "em_acc", "edge_asr",
+                 "local_benign_asr", "same_edge_asr", "diff_edge_asr", "local_malicious_asr",
+                 "eval_s")
+LIGHT_EDGE_COLUMNS = ("edge_id", "edge_asr", "client_benign", "client_malicious", "pm_acc",
+                      "em_acc")
 RE_DUMP_SHA = re.compile(r"\|\s*sha=([0-9a-f]+)\s*(?:\||$)")
 CLIENT_FINAL_COLUMNS = (("ids", "client_id"), ("mal", "malicious"), ("asr", "asr"),
                         ("acc", "acc"), ("yt", "yt_clean"), ("mmed", "margin_med"), ("n", "n"))
@@ -138,14 +148,15 @@ RE_BD = re.compile(
 
 # ── 准确率（PM 只在 eval_interval 轮出现，故可选）─────────────────────────────
 RE_ACC = re.compile(
-    r"\[Cloud\] GM=([\d.]+) \| EM=([\d.]+)(?: PM=([\d.]+))? \|")
+    r"\[Cloud\] GM=([\d.]+|n/a) \| EM=([\d.]+|n/a)(?: PM=([\d.]+))? \|")
 # 单轮墙钟。**故意与 RE_ACC 分开**：RE_ACC 有 25 条现有测试挂着，把 time= 并进去
 # 会让「老日志少一个字段」变成解析失败。这里在同一行上做一次**可选**搜索，
 # 老日志拿到 None，新日志拿到数字。
 # 注意口径：这个 elapsed 测的是 CloudServer.run_round 的 t0→elapsed，
 # 而 BackdoorCloudServer._backdoor_eval 是在 super().run_round() 返回**之后**
 # 才跑的 → round_time **不含**后门评估。两者要相加才是这一轮的墙钟。
-RE_ROUND_TIME = re.compile(r"\[Cloud\] GM=[\d.]+ .*?\| time=([\d.]+)s")
+# S5：网格下非全量轮打 GM=n/a（GM / EM 不评）—— 不放宽的话这一行连 round_time 一起被静默丢掉。
+RE_ROUND_TIME = re.compile(r"\[Cloud\] GM=(?:[\d.]+|n/a) .*?\| time=([\d.]+)s")
 
 # 后门评估的分阶段耗时（BackdoorCloudServer._backdoor_eval 打）。
 # 未启用的阶段是 "n/a" 而不是 0.0 —— 与陷阱 #10/#13 同一约定。
@@ -298,6 +309,7 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
     eval_att = None
     split6 = None
     setg7 = None
+    setg8 = None
     data = None
     data_edges = []
     for ln in lines:
@@ -313,6 +325,9 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
         d = parse_kv(ln, "[设定7]")
         if d is not None:
             setg7 = d
+        d = parse_kv(ln, "[设定8]")
+        if d is not None:
+            setg8 = d
         d = parse_kv(ln, "[Partition]")
         if d is not None:
             data = d
@@ -366,6 +381,12 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
         # generator_schedule None = 老日志 / 无攻击（有攻击的新日志一定是 window / always）。
         "attack_start_round": setg7.get("attack_start_round") if setg7 else None,
         "generator_schedule": setg7.get("generator_schedule") if setg7 else None,
+        # 统一评估网格（S5，[设定8]）。None = 没开网格、或 S5 之前的老日志（两者是同一种 run：
+        # 每个云轮末评、停止判据横轴是云轮号）。grid = 其余字段（period_eff / full_every /
+        # light_per_period / slope_axis / gm_em）；老日志 → None。
+        "eval_grid":         setg8.get("eval_grid") if setg8 else None,
+        "grid":              ({k: v for k, v in setg8.items() if k != "eval_grid"}
+                              if setg8 else None),
         # ── 自适应轮数：这一格跑到第几轮、为什么停 ──────────────────────
         #   全 None = 固定轮数（没配 stopping，或老日志）。
         #   stop_reason='cap_reached' 是 **censored**，不是「收敛在 cap」。
@@ -419,8 +440,8 @@ def _collect_acc(lines: list) -> list:
             t = RE_ROUND_TIME.search(ln)
             out.append({
                 "round":  cur,
-                "gm_acc": float(a.group(1)),
-                "em_acc": float(a.group(2)),
+                "gm_acc": _opt(a.group(1)),          # S5：网格下非全量轮 → null
+                "em_acc": _opt(a.group(2)),
                 "pm_acc": float(a.group(3)) if a.group(3) else None,
                 # 训练 + 常规评估的墙钟；不含后门评估（见 RE_ROUND_TIME 注释）。
                 # 老日志没有 time= 字段时是 None，不是 0.0。
@@ -568,7 +589,7 @@ def _collect_timing(log_text: str) -> list:
     return sorted(out, key=lambda d: d["round"])
 
 
-def _timing_summary(acc_rounds: list, timing_rounds: list) -> dict:
+def _timing_summary(acc_rounds: list, timing_rounds: list, light_rounds=None) -> dict:
     """墙钟拆分：训练+常规评估 vs 后门评估。
 
     这是标定 (local_epochs, n_rounds, eval_interval) 时唯一要读的数。
@@ -629,7 +650,29 @@ def _timing_summary(acc_rounds: list, timing_rounds: list) -> dict:
             "pm":       _acc_total("acc_pm_s"),
             "pm_stale": _acc_total("acc_pm_stale_s"),
         },
+        # S5：轻评估点的耗时合计。**已包含在 round_time_total_s 里**（轻评估在 run_round 的
+        # t0→elapsed 之内，edge 轮之间）—— 不要再与 round_time 相加。没开网格 → None。
+        "n_light_evals":         len(light_rounds or []),
+        "light_eval_total_s":    (round(sum(r["eval_s"] for r in light_rounds
+                                            if r.get("eval_s") is not None), 1)
+                                  if light_rounds else None),
     }
+
+
+def _collect_light(lines) -> list:
+    """[Light] → light_rounds[]：每个轻评估点一行，带显式的 effective_round（S5）。"""
+    return [{c: d.get(c) for c in LIGHT_COLUMNS} for d in collect_kv(lines, "[Light]")]
+
+
+def _collect_light_edge(lines) -> dict:
+    """[LightEdge] → {effective_round: [[edge_id, edge_asr, client_benign, client_malicious,
+    pm_acc, em_acc], …]}（紧凑行：最坏的 e10-R20 有 45 点 × 10 edge）。"""
+    out = {}
+    for d in collect_kv(lines, "[LightEdge]"):
+        out.setdefault(d.get("effective_round"), []).append([d.get(c) for c in LIGHT_EDGE_COLUMNS])
+    for rows in out.values():
+        rows.sort(key=lambda r: (r[0] is None, r[0]))
+    return out
 
 
 def _collect_edge_detail(lines) -> dict:
@@ -722,6 +765,7 @@ def collect(log_text: str) -> dict:
 
     final_pm = RE_FINAL_PM.search(log_text)
     final_acc = dict(acc_rounds[-1]) if acc_rounds else {}
+    light_rounds = _collect_light(lines)
     final_acc["final_pm_weighted"] = float(final_pm.group(1)) if final_pm else None
 
     admitted = _collect_decisions(log_text)
@@ -770,7 +814,7 @@ def collect(log_text: str) -> dict:
         "timing_rounds": timing_rounds,
         # A15：每轮全局权重的 sha256 前 12 位 —— 同 seed 两次 run 逐轮对得上才算确定性
         "checksums": checksums,
-        "timing_summary": _timing_summary(acc_rounds, timing_rounds),
+        "timing_summary": _timing_summary(acc_rounds, timing_rounds, light_rounds),
         # 真实显存峰值（一卡多跑按它定 K，D-052）；没有 GPU / 旧日志 → null
         "gpu_mem": _collect_gpu_mem(lines),
         # S9：逐 edge 的分布量（紧凑行）+ 末个评估点的逐客户端值 + 存盘 manifest
@@ -778,6 +822,11 @@ def collect(log_text: str) -> dict:
         "per_edge_detail_rounds": _collect_edge_detail(lines),
         "client_final": _collect_client_final(lines),
         "dumps": _collect_dumps(lines),
+        # S5：轻评估点（网格点落在 edge 轮之间）单独成表 —— rounds[] / acc_rounds[] 按云轮号当键，
+        # 混进去会被 _merge_side_columns / instrumentation_check 等按轮覆盖。没开网格 → [] / {}。
+        "light_rounds": light_rounds,
+        "per_edge_light_columns": list(LIGHT_EDGE_COLUMNS),
+        "per_edge_light_rounds": _collect_light_edge(lines),
         "admitted": admitted,
         # 只对有客户端级判决的防御求均值；坐标类（admitted=None）不参与，
         # 全是坐标类或无防御时结果是 None —— 0 会被误读成「全部被剔除」。

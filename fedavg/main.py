@@ -1032,10 +1032,15 @@ def _evaluate_test_clients(test_clients, edge_servers, global_model, config,
 
 
 def _print_summary(history: dict):
-    best_idx  = int(np.argmax(history["global_acc"]))
-    best_acc  = history["global_acc"][best_idx]
-    best_round = history["round"][best_idx]
-    final_acc = history["global_acc"][-1]
+    # S5：开了评估网格时，非全量轮的 global_acc 是 None（GM 只在全量点算）→ 只看评过的轮
+    pts = [(r, a) for r, a in zip(history["round"], history["global_acc"]) if a is not None]
+    if not pts:
+        print("\n  （没有评估过全局模型，跳过总结）")
+        return
+    best_idx  = int(np.argmax([a for _, a in pts]))
+    best_acc  = pts[best_idx][1]
+    best_round = pts[best_idx][0]
+    final_acc = pts[-1][1]
 
     print("\n" + "=" * 52)
     print(" Experiment Summary")

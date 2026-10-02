@@ -83,6 +83,9 @@ EXPECT_KEYS = (
     # S4（G5 / G5AB）：起点或生成器语义静默没生效 → run 块与声明不符 → mismatch。
     ("attack_start_round",   "backdoor.attack_start_round"),
     ("generator_schedule",   "backdoor.generator_schedule"),
+    # S5（G2 / S5P）：网格静默没生效（[设定8] 打 n/a）→ run 块的 eval_grid 是 None → mismatch。
+    # 没声明的组 → None → 不核对。
+    ("eval_grid",            "evaluation.eval_grid"),
 )
 
 AUDIT_STATUSES = ("open", "align", "deviate", "done")

@@ -38,6 +38,14 @@ server/stopping.py  —  自适应轮数：地板 + 按需延长（只延长，�
 | 到 cap 仍未满足 | `cap_reached` ← **是 censored，不是「收敛在 cap」** |
 | 评估点数不可能凑够 W（`3c_R40` 只有 5–7 个点） | `grid_too_coarse`，跑满 cap |
 
+## 横轴（S5 / F-052 / D-084）
+
+序列按 `(x, value)` 存，斜率对 x 求。缺省 x = 云轮号（旧行为，逐位不变）——
+于是容差 `pm_slope_tol` 的单位是「每云轮」，折成每有效轮随 R_edge 变（flat 比 R5 宽松 5 倍）。
+开了统一评估网格（`evaluation.eval_grid: G`，`server/eval_grid.py`）时，`CloudServer.run`
+传 x = 网格序号 eff / G：容差的单位变成「每 G 个有效轮」，跨 R 一致；R = G 时 x 就是云轮号。
+轻评估点（云轮中间）用 `observe(x, signals)` 只记不判；停止决定仍只在云轮末的全量点做。
+
 ## 只延长，不早停
 
 `floor_effective` 之前**永不**停，哪怕判据已满足。因此每格都有 ≥ floor 的轨迹，
@@ -117,12 +125,17 @@ class StoppingRule:
         return (cap_rounds // max(1, eval_interval)) < self.pm_window
 
     # ── 主入口 ────────────────────────────────────────────────────────────
-    def update(self, round_idx: int, signals: dict) -> "Decision":
+    def observe(self, x, signals: dict) -> None:
+        """只记观测、不做判定（S5 的轻评估点：云轮中间不能停）。x = 网格序号。"""
         for key, val in (signals or {}).items():
             if val is None:                     # 无定义 → 不记，不当 0
                 continue
-            self._series.setdefault(key, []).append((int(round_idx), float(val)))
+            self._series.setdefault(key, []).append((int(x), float(val)))
             self._bump_crossings(key, float(val))
+
+    def update(self, round_idx: int, signals: dict, x=None) -> "Decision":
+        """云轮末喂一次观测并判定。x：横轴坐标，缺省 = round_idx（旧行为）；网格下 = eff / G。"""
+        self.observe(int(round_idx) if x is None else x, signals)
 
         effective = int(round_idx) * self.edge_rounds
         detail = {

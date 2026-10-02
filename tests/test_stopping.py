@@ -269,3 +269,155 @@ def test_old_log_without_stop_line_still_parses():
     assert run["method"] == "hier_fedrep"          # 老字段没塌
     assert run["stop_reason"] is None
     assert run["stopped_at_round"] is None
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 5. S5：横轴 = 网格序号（F-052 / D-055 / D-084）
+# ══════════════════════════════════════════════════════════════════════════
+#
+# 旧横轴是云轮号 → pm_slope_tol 折成「每有效轮」随 R 变（flat 0.0010、R5 0.0002、R20 0.00005）。
+# 网格下横轴 = eff / G；R = G = 5 时就是云轮号 → R5 一切逐位不变。
+
+PILOT = (ROOT / "experiments" / "attack" / "hfl-mechanism" / "pilot" / "results" / "P1"
+         / "D029")
+D029_FLAT = PILOT / "D029__flat__s42.metrics.json"
+D029_2EDGE = PILOT / "D029__2edge_distributed__s42.metrics.json"
+
+
+def _feed_axis(path, cfg, edge_rounds, n_rounds, grid=None):
+    """同 _feed，但横轴可选：grid=None → 云轮号（旧）；grid=G → 网格序号 r·R / G。"""
+    d = json.loads(Path(path).read_text(encoding="utf-8"))
+    asr = {x["round"]: x for x in d["rounds"]}
+    pm = {x["round"]: x.get("pm_acc") for x in d["acc_rounds"]}
+    rule = StoppingRule(cfg, edge_rounds, n_rounds)
+    last = None
+    for r in sorted(set(asr) | set(pm)):
+        a = asr.get(r, {})
+        sig = {"pm_acc": pm.get(r), "global_asr": a.get("global_asr"),
+               "edge_asr_mean": a.get("edge_asr"),
+               "local_asr_benign_mean": a.get("local_benign_asr")}
+        x = None if grid is None else (r * edge_rounds) // grid
+        dec = rule.update(r, sig, x=x)
+        last = (r, dec)
+        if dec.stop:
+            return r, dec, rule
+    return last[0], last[1], rule
+
+
+@pytest.mark.parametrize("path", [REF, PROBE])
+def test_r5_grid_axis_is_bit_identical(path):
+    """R5：x = 5r / 5 = r → 停轮、判定、斜率逐位等于旧横轴（含两组标定锚点）。"""
+    if not Path(path).exists():
+        pytest.skip(f"缺 {Path(path).name}")
+    for cfg in (CFG, dict(CFG, criteria=["thresholds_crossed"], floor_effective=0),
+                dict(CFG, cap_effective=10 ** 9)):
+        a = _feed_axis(path, cfg, 5, 60)
+        b = _feed_axis(path, cfg, 5, 60, grid=5)
+        assert a[0] == b[0] and repr(a[1]) == repr(b[1])
+        assert a[1].detail == b[1].detail
+        assert a[2].pm_slope() == b[2].pm_slope()
+
+
+def test_d029_flat_no_longer_plateaus_first_under_the_grid_axis():
+    """
+    F-052 的第一条数值证据（S5 规划时回放，单 seed）：
+      旧横轴：pilot D029 flat 停在有效轮 150（converged，= 集群记录的 stopped_at_effective）；
+      网格横轴：150 时末 10 点斜率 0.00028 / 云轮 = 0.0014 / 格 > 0.0010 → 不停（数据到 150 为止）。
+    2edge-R5 同一份回放下仍停在 210（R = G）。
+    """
+    for p in (D029_FLAT, D029_2EDGE):
+        if not p.exists():
+            pytest.skip(f"缺 {p.name}")
+    rec = json.loads(D029_FLAT.read_text(encoding="utf-8"))["run"]
+    r, dec, rule = _feed_axis(D029_FLAT, CFG, 1, 300)
+    assert dec.stop and dec.reason == REASON_CONVERGED and r == 150
+    assert rec["stopped_at_effective"] == 150 and rec["stop_reason"] == REASON_CONVERGED
+    old_slope = rule.pm_slope()
+    r, dec, rule = _feed_axis(D029_FLAT, CFG, 1, 300, grid=5)
+    assert not dec.stop and r == 150
+    assert rule.pm_slope() == pytest.approx(5 * old_slope)
+    assert 0.0012 < rule.pm_slope() < 0.0016
+    for grid in (None, 5):
+        r, dec, _ = _feed_axis(D029_2EDGE, CFG, 5, 60, grid=grid)
+        assert dec.stop and r * 5 == 210
+
+
+def _linear_run(R, s, grid, n_eff=300):
+    """
+    pm_acc = 0.5 + s·eff 的直线，网格 5 有效轮（grid=5）或旧网格（每云轮末一点，grid=None）。
+    网格下云轮中间的点走 observe；只看平台判据（地板 0、上限够大）。返回首次判平的有效轮。
+    """
+    cfg = dict(criteria=["pm_acc_plateau"], floor_effective=0, cap_effective=10 ** 9,
+               pm_window=10, pm_slope_tol=0.0010)
+    rule = StoppingRule(cfg, R, n_eff // R)
+    for g in range(1, n_eff // R + 1):
+        for er in range(1, R + 1):
+            eff = (g - 1) * R + er
+            if grid is None:
+                if er == R:
+                    dec = rule.update(g, {"pm_acc": 0.5 + s * eff})
+                    if dec.stop:
+                        return eff
+                continue
+            if eff % grid:
+                continue
+            if er < R:
+                rule.observe(eff // grid, {"pm_acc": 0.5 + s * eff})
+            else:
+                dec = rule.update(g, {"pm_acc": 0.5 + s * eff}, x=eff // grid)
+                if dec.stop:
+                    return eff
+    return None
+
+
+@pytest.mark.parametrize("s,flat", [(0.00015, True), (0.00025, False)])
+def test_grid_axis_gives_every_r_the_same_tolerance_per_effective_round(s, flat):
+    """
+    网格横轴下容差 = 0.0010 / 5 有效轮 = 0.0002 / 有效轮，与 R 无关：
+    斜率 0.00015 / 有效轮各 R 都判平，0.00025 各 R 都判未平。
+    """
+    from math import lcm
+    for R in (1, 2, 5, 10, 20):
+        got = _linear_run(R, s, grid=5)
+        assert (got is not None) is flat, (R, got)
+        if flat:
+            # 第 10 个网格点在有效轮 50；停止决定只在全量点 → 50 之后第一个 lcm(5,R) 的倍数
+            L = lcm(5, R)
+            assert got == -(-50 // L) * L, (R, got)
+
+
+def test_old_axis_tolerance_depended_on_r():
+    """
+    反向锚点（F-052）：旧横轴下同一条直线（0.00015 / 有效轮）R5 判平，
+    R10 判未平（每点 10 有效轮 → 每云轮斜率 0.0015 > 0.0010），flat 反而更早判平。
+    横轴改回云轮号，上一条测试的 R10 就会变红。
+    """
+    s = 0.00015
+    assert _linear_run(5, s, grid=None) is not None
+    assert _linear_run(10, s, grid=None) is None
+    assert _linear_run(20, s, grid=None) is None
+    assert _linear_run(1, 0.00025, grid=None) is not None          # flat：0.00025 也判平（宽松 5 倍）
+    assert _linear_run(5, 0.00025, grid=None) is None
+
+
+def test_observe_records_but_never_decides():
+    rule = StoppingRule(dict(CFG, floor_effective=0, criteria=["thresholds_crossed"]), 5, 60)
+    hi = {k: 0.9 for k in ASR_KEYS}
+    rule.observe(1, hi)
+    rule.observe(2, hi)                                             # 两点 ≥ θ → 已确认越过
+    assert rule.n_crossed == rule.n_thresholds_total
+    rule.observe(3, {"pm_acc": None, "global_asr": None})           # None 不记
+    assert [x for x, _ in rule._series["global_asr"]] == [1, 2]
+    dec = rule.update(1, {}, x=4)                                   # 判定只在 update 里
+    assert dec.stop and dec.reason == REASON_CONVERGED
+
+
+def test_light_points_count_toward_debounce_on_local_and_edge_only():
+    """global ASR 只有全量点（云轮中间全局模型不变）；local / edge 的去抖含轻评估点。"""
+    rule = StoppingRule(dict(CFG, floor_effective=0), 10, 30)
+    rule.observe(1, {"pm_acc": 0.5, "global_asr": None, "edge_asr_mean": 0.9,
+                     "local_asr_benign_mean": 0.9})
+    rule.update(1, {"pm_acc": 0.5, "global_asr": 0.9, "edge_asr_mean": 0.9,
+                    "local_asr_benign_mean": 0.9}, x=2)
+    crossed = {k for (k, th), v in rule._crossed.items() if v}
+    assert crossed == {"edge_asr_mean", "local_asr_benign_mean"}    # global 只有 1 点，未确认

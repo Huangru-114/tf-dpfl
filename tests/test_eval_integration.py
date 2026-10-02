@@ -75,9 +75,11 @@ def _model():
     return tf.keras.Model(inp, tf.keras.layers.Dense(NCLS, activation="softmax")(x))
 
 
-def _setup(aligned: bool, evaluation: dict | None = None):
+def _setup(aligned: bool, evaluation: dict | None = None, federation: dict | None = None):
+    """federation：S5 的网格测试要 R > 1 + 交错调度（tests/test_eval_grid_tf.py）；缺省 = 原配置。"""
     cfg = _cfg(aligned)
     cfg["evaluation"].update(evaluation or {})
+    cfg["federation"].update(federation or {})
     g = _model()
     Mal = compose_client_class(HierFedRepClient, None, BadPFLMixin)
     shared = build_generator(cfg)

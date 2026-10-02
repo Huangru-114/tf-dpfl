@@ -52,6 +52,11 @@ SIDE_ACC_METRICS = ("pm_acc_stale",)
 DETAIL_METRICS = ("margin_p50", "benign_asr_p90", "yt_clean_benign", "malicious_clean_acc")
 EDGE_DETAIL_METRICS = ("margin_p50", "benign_asr_p90", "yt_clean_benign")
 T_THETA_METRICS = ("global_asr", "edge_asr", "local_benign_asr")
+# S5（D-084）：轻评估点（light_rounds[]，网格点落在 edge 轮之间）有这些主列 —— 它们的终值与 T_θ
+# 按有效轮把全量点与轻评估点合成一条网格序列来算（grid_series）。global ASR 与副列只有全量点。
+LIGHT_METRICS = ("edge_asr", "local_benign_asr", "local_malicious_asr", "same_edge_asr",
+                 "diff_edge_asr", "pm_acc", "em_acc")
+LIGHT_EDGE_METRICS = ("edge_asr", "client_benign", "client_malicious", "pm_acc", "em_acc")
 
 # 实际因素 = 决定「这是哪一格」的 run 块字段（seed 单独一列，不进因素键）。
 FACTOR_KEYS = ("method", "attack", "defense", "n_clients", "n_edges", "edge_rounds",
@@ -59,7 +64,9 @@ FACTOR_KEYS = ("method", "attack", "defense", "n_clients", "n_edges", "edge_roun
                "malicious_placement", "edge_assignment", "local_epochs", "plocal_epochs",
                "attack_stop_round", "attack_start_round", "generator_schedule",
                "edge_shared_blocks",
-               "partition", "partition_condition", "partition_alpha_edge")
+               "partition", "partition_condition", "partition_alpha_edge",
+               "eval_grid")
+# eval_grid（S5，[设定8]）：没开网格打 n/a → None，与 S5 之前的文件同格（不需要 FACTOR_DEFAULTS）。
 # partition*（S3，[Partition] 行）：旧划分不打这一行 → None，与 S3 之前的文件同格。
 # attack_start_round / generator_schedule（S4，[设定7]）：G5 的 t0 与 A/B 臂靠它们区分。
 # 因素的缺省值：等于它就记成 None（「这个因素在本 run 不起作用」）。
@@ -108,6 +115,24 @@ def window_mean(rows, key: str, k: int = LAST_K, anchor: str | None = None):
     return sum(vals) / len(vals), len(vals)
 
 
+def grid_series(m: dict, key: str) -> list:
+    """
+    [(有效轮, 值), …]，按有效轮排序：全量点（rounds[] 或 acc_rounds[]，有效轮 = 云轮 × R）
+    + 轻评估点（light_rounds[]，自带 effective_round；只对 LIGHT_METRICS）。
+
+    没有轻评估点（S5 之前的文件、R5 / flat、没开网格）→ 与 effective_round_series 逐位相同。
+    """
+    run = m.get("run") or {}
+    er = run.get("edge_rounds") or 1
+    src = m.get("acc_rounds") if key in ACC_METRICS else m.get("rounds")
+    pts = effective_round_series(src or [], er, key)
+    light = [(r["effective_round"], r[key]) for r in m.get("light_rounds") or []
+             if key in LIGHT_METRICS and r.get(key) is not None]
+    if light:
+        pts = sorted(pts + light, key=lambda t: t[0])
+    return pts
+
+
 def _factor_value(run_block: dict, k: str):
     v = run_block.get(k)
     if k in FACTOR_DEFAULTS and v == FACTOR_DEFAULTS[k]:
@@ -149,7 +174,10 @@ def summarize_run(m: dict, *, name: str, source: str, legacy_protocol=None) -> d
 
     rounds = m.get("rounds") or []
     for mk in ASR_METRICS:
-        mean, n = last_k_mean([r.get(mk) for r in rounds])
+        # S5：主列的「末 10 个评估点」含轻评估点（网格下 = 末 50 有效轮，与 R 无关）
+        vals = ([v for _, v in grid_series(m, mk)] if mk in LIGHT_METRICS
+                else [r.get(mk) for r in rounds])
+        mean, n = last_k_mean(vals)
         row[f"{mk}_last{LAST_K}"] = mean
         row[f"{mk}_n"] = n
     for mk in SIDE_ASR_METRICS:                       # 副列：末 10 个评估点窗口（D-050）
@@ -162,7 +190,9 @@ def summarize_run(m: dict, *, name: str, source: str, legacy_protocol=None) -> d
         row[f"{mk}_n"] = n
     acc = m.get("acc_rounds") or []
     for mk in ACC_METRICS:
-        mean, n = last_k_mean([r.get(mk) for r in acc])
+        vals = ([v for _, v in grid_series(m, mk)] if mk in LIGHT_METRICS
+                else [r.get(mk) for r in acc])
+        mean, n = last_k_mean(vals)
         row[f"{mk}_last{LAST_K}"] = mean
         row[f"{mk}_n"] = n
     for mk in SIDE_ACC_METRICS:                       # 陈旧 pm_acc：同上（D-054）
@@ -171,7 +201,7 @@ def summarize_run(m: dict, *, name: str, source: str, legacy_protocol=None) -> d
         row[f"{mk}_n"] = n
 
     for mk in T_THETA_METRICS:
-        series = effective_round_series(rounds, er, mk)
+        series = grid_series(m, mk)              # = effective_round_series(rounds, …) 当没有轻评估点
         for th in THETAS:
             c = first_crossing(series, th)
             row[f"t{th}_{mk}"] = c.t_theta
@@ -210,6 +240,19 @@ def series_rows(m: dict, run_name: str) -> list:
                 if e.get(mk) is not None:
                     out.append((run_name, int(rnd) * er, int(rnd), e["edge_id"],
                                 f"edge.{mk}", e[mk]))
+    # S5：轻评估点（同名指标，r_eff 用它自带的 effective_round；cloud_round = 它所在的云轮）
+    for r in m.get("light_rounds") or []:
+        for mk in LIGHT_METRICS:
+            if r.get(mk) is not None:
+                out.append((run_name, r["effective_round"], r["round"], -1, mk, r[mk]))
+    lcols = m.get("per_edge_light_columns") or []
+    for eff, rows in (m.get("per_edge_light_rounds") or {}).items():
+        for vals in rows:
+            d = dict(zip(lcols, vals))
+            for mk in LIGHT_EDGE_METRICS:
+                if d.get(mk) is not None:
+                    out.append((run_name, int(eff), (int(eff) - 1) // er + 1, d["edge_id"],
+                                f"edge.{mk}", d[mk]))
     # S9：紧凑行 [edge_id, margin_p50, benign_asr_p90, yt_clean_benign]（列名随文件给出）
     cols = m.get("per_edge_detail_columns") or []
     for rnd, rows in (m.get("per_edge_detail_rounds") or {}).items():

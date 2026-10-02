@@ -68,7 +68,8 @@ def test_v2_after_the_audit_only_feature_sessions_block():
     S8 之后（2026-09-27）G6 也不再被挡；FLR（D-061，只改配置）从登记起就不被挡；
     S3 之后（2026-09-28）G3 也不再被挡；S9（2026-09-28）登记的 G8 / G6D 不被挡。
     S4 之后（2026-09-29）G0 与新登记的 G5AB / G8F 不被挡；G5 曾被 `g5-schedule` 挡着（D-079），
-    G5AB 判 insensitive 后放行（D-080）。其余 91 个只剩功能会话（S5 / S6）与 reformulate-3.2 的依赖。"""
+    G5AB 判 insensitive 后放行（D-080）。S5 之后（D-084）登记的 S5P 不被挡；G2 被 `g2-scale` 挡着（规模未定）。
+    其余 91 个只剩 g2-scale / S6 与 reformulate-3.2 的依赖。"""
     rep = S.classify(R.Registry(V2))
     assert rep["counts"]["blocked"] == 91
     assert {r["status"] for r in rep["runs"] if r["group"] == "G5"} <= {"todo", "done", "stale", "failed"}
@@ -83,8 +84,8 @@ def test_v2_after_the_audit_only_feature_sessions_block():
     assert {r["status"] for r in rep["runs"] if r["group"] in ("G0", "G5AB", "G8F")} <= {
         "todo", "done", "stale", "failed"}
     assert {r["group"] for r in rep["runs"] if r["status"] != "blocked"} == {
-        "G3", "G6", "G7", "FLR", "G8", "G6D", "G0", "G5AB", "G8F", "G5"}
-    assert sum(rep["counts"][k] for k in ("todo", "done", "stale", "failed")) == 89
+        "G3", "G6", "G7", "FLR", "G8", "G6D", "G0", "G5AB", "G8F", "G5", "S5P"}
+    assert sum(rep["counts"][k] for k in ("todo", "done", "stale", "failed")) == 93
     assert not any("audit" in r["detail"] for r in rep["runs"])
 
 
