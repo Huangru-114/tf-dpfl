@@ -42,8 +42,9 @@ def test_v2_group_sizes_match_plan():
                      "G7": 6,                    # G7：A4 登记（D-025 预处理对比）
                      "G8": 3, "G6D": 3,          # S9（D-075）：G8 衰减 + G6D 分散布点探针
                      "G5AB": 8, "G8F": 3,        # S4（D-079 / D-077）：生成器语义 A/B 对比 + G8 的 flat 对照
-                     "S5P": 4}                   # S5（D-084）：GPU 上开 / 关网格的 checksum 探路
-    assert len({r["run_id"] for r in runs}) == len(runs) == 184
+                     "S5P": 4,                   # S5（D-084）：GPU 上开 / 关网格的 checksum 探路
+                     "G1P": 3}                   # S6a（D-085）：GPU 上开 / 关记录开关的 checksum 探路 + 几何 AUROC
+    assert len({r["run_id"] for r in runs}) == len(runs) == 187
 
 
 def test_v2_run_ids_and_factor_settings():
@@ -53,7 +54,10 @@ def test_v2_run_ids_and_factor_settings():
                         # S3（D-065）：random = 等大小版
                         "federation.partition": "equal_random",
                         "federation.design.n_per_client": 500, "federation.design.clean_per_edge": 500,
-                        "federation.design.alpha_client": 0.5}
+                        "federation.design.alpha_client": 0.5,
+                        # S6a（D-085）：布点 / 轮数（300 有效轮）/ 关停止判据 / 网格
+                        "backdoor.malicious_per_edge": [10, 0, 0, 0], "federation.n_rounds": 30,
+                        "stopping": None, "evaluation.eval_grid": 5}
     assert runs["G4__p1.0_fedavg__s44"]["set"] == {
         "backdoor.poison_ratio": 1.0, "training.drift_correction": "hierfedavg"}
     # D-047（2026-09-27）：G2 flat 补上布点、轮数与评估间隔（原来只有前两项 → 布点 [5,5]、截断在 60 轮）
@@ -242,7 +246,7 @@ def test_materialize_real_v2_registry_only_unblocked_groups_are_generable(tmp_pa
     reg = R.Registry(V2)
     monkeypatch.setattr(reg, "configs_dir", tmp_path / "configs")
     rows = R.materialize(reg)
-    assert sorted(r["group"] for r in rows) == (["FLR"] * 3 + ["G0"] * 15 + ["G3"] * 24
+    assert sorted(r["group"] for r in rows) == (["FLR"] * 3 + ["G0"] * 15 + ["G1P"] * 3 + ["G3"] * 24
                                                + ["G5"] * 15 + ["G5AB"] * 8 + ["G6"] * 9
                                                + ["G6D"] * 3 + ["G7"] * 6 + ["G8"] * 3 + ["G8F"] * 3
                                                + ["S5P"] * 4)
@@ -257,6 +261,7 @@ def test_g2_is_gated_on_its_scale_and_g1_on_s6():
     assert reg.unmet_requires("G2") == ["g2-scale"]
     assert reg.unmet_requires("G1") == ["S6"]
     assert reg.unmet_requires("S5P") == []
+    assert "S6a" in reg.available and reg.unmet_requires("G1P") == []     # S6a：探路组放行，G1 仍缺 S6（= S6b）
 
 
 def test_eligible_group_with_undecided_base_errors(tmp_path):

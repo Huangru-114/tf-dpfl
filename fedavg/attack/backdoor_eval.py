@@ -221,6 +221,33 @@ def evaluate_local_asr(clients, model_fn, trigger_fn, target_label, malicious_id
     return {"benign_mean": _mean(ben), "malicious_mean": _mean(mal)}
 
 
+def evaluate_client_asrs(clients, model_fn, trigger_fn, target_label, fallback_test_ds=None,
+                         asr_max_samples=0, asr_columns="filtered", batch_size=256):
+    """
+    S6a ③：逐客户端的主口径 ASR {client_id: asr 或 None}。口径与 evaluate_hierarchical_asr 的
+    客户端列相同（自己的留出分片；four_way 下取分片前 N 张、数过滤口径）。
+    冻结触发器列用它：只对给定的客户端算一遍，不碰 global / edge / 干净前向。
+    """
+    four = asr_columns == "four_way"
+    out = {}
+    for c in clients:
+        ds = c.test_dataset if getattr(c, "test_dataset", None) is not None \
+            else fallback_test_ds
+        if ds is None:
+            out[int(c.client_id)] = None
+            continue
+        model = model_fn(c)
+        if four:
+            cnt = compute_asr_four_way(model, ds, trigger_fn, target_label,
+                                       asr_max_samples, batch_size)
+            out[int(c.client_id)] = rates_from_counts(cnt)[0] if cnt is not None else None
+        else:
+            a, _ = compute_asr_on_dataset(model, ds, trigger_fn, target_label,
+                                          asr_max_samples, batch_size)
+            out[int(c.client_id)] = a
+    return out
+
+
 def evaluate_backdoor(clients, x_test, y_test, trigger_fn, target_label,
                       malicious_ids, fallback_test_ds=None, batch_size=256,
                       round_idx=None, verbose=True):
@@ -380,10 +407,10 @@ def evaluate_hierarchical_asr(global_model, edge_servers, clients,
 
         edge_id = int(getattr(c, "assigned_edge", -1))
         # S9：同一次前向的细节（fresh-PM 草稿模型下一次 main_pm 就被覆盖，必须此刻取用）
-        if not light:
-            client_detail.append(_client_record(
-                det, cid, edge_id, cid in malicious_ids, target_label,
-                n_classes if n_classes is not None else _n_outputs(eval_model), keep_probs))
+        # S6a ④：轻评估点也取（只读已经算出的概率 / argmax；没有干净前向 → acc / yt_clean 为 None）
+        client_detail.append(_client_record(
+            det, cid, edge_id, cid in malicious_ids, target_label,
+            n_classes if n_classes is not None else _n_outputs(eval_model), keep_probs))
         probe_order.append(("client", cid, 0 if det is None else det.get("n_probe", 0)))
         if cid in malicious_ids:
             malicious_asrs.append(asr)

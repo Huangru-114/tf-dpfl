@@ -225,5 +225,8 @@ def test_light_grouping_equals_the_full_call(monkeypatch):
                                             d["client_malicious"]) for d in full["per_edge"]]
     assert lite["global_asr"] is None and lite["global_acc"] is None
     assert lite["local_acc_mean"] is None and lite["edge_acc_mean"] is None
-    assert lite["client_detail"] == [] and full["client_detail"]
+    # S6a ④：轻评估点也留逐客户端记录（只读已算出的概率），但没有干净前向 → acc / yt_clean 为 None
+    assert len(lite["client_detail"]) == len(full["client_detail"]) > 0
+    assert all(r["acc"] is None and r["yt_clean"] is None for r in lite["client_detail"])
+    assert [r["asr"] for r in lite["client_detail"]] == [r["asr"] for r in full["client_detail"]]
     assert [k for k, *_ in lite["probe_order"]].count("global") == 0

@@ -10,24 +10,30 @@ server/backdoor_server.py  –  后门感知的 Cloud 服务器
 所有指标通过 FLLogger.log_round_metrics 记入 wandb。
 """
 
+import contextlib
 import json
+import random
 import time
 
 import numpy as np
 
-from server.server import CloudServer
+from server.server import (CloudServer, LIGHT_DETAIL_FIELDS,
+                           LIGHT_DETAIL_EDGE_FIELDS)
 from server.stopping import ASR_KEYS
 from attack.backdoor_eval import (evaluate_hierarchical_asr,
                                    evaluate_forgetting_curve,
                                    evaluate_feature_separation,
                                    evaluate_drift,
                                    evaluate_local_asr,
+                                   evaluate_client_asrs,
                                    dataset_to_numpy)
 from attack.eval_detail import EDGE_FIELDS, client_columns, pack_logits, summarize
 from alignment import get_switch
 from utils.dumps import dump_line, dump_root, parse_rounds, run_dir_name, write_npz
 from utils.kvline import fmt_list, format_kv
 from models.cnn import get_base_head_indices
+from models.model_utils import clone_model
+from utils.pm import compose_pm
 from defense import create_post_hoc_defense
 from utils.logger import FLLogger
 
@@ -69,6 +75,13 @@ class BackdoorCloudServer(CloudServer):
         self.history.setdefault("bd_c_acc", [])
         self.history.setdefault("bd_asr", [])
         self._last_bd_metrics = None
+
+        # ── S6a ③：冻结触发器（evaluation.frozen_trigger；只读记录，缺省关）──────────────
+        #   每个云轮开始（广播后）拷下固定攻击者的 fresh-PM 与生成器权重；之后的评估点另算一列
+        #   「冻结触发器」ASR：ξ 在冻结的攻击者 PM 上求、δ 用冻结的生成器 —— 与主列的差 = 触发器漂移。
+        self._frozen_on = bool(get_switch(self.config, "evaluation.frozen_trigger"))
+        self._frozen_pm_w = None
+        self._frozen_gen_w = None
 
         # ── S9：评估细节（常开）+ 两个存盘开关（D-072 / D-073；utils/dumps.py）────────
         #   细节只读主列那一次前向的结果，不多做前向、不碰 RNG → 已有数值逐位不变。
@@ -145,9 +158,11 @@ class BackdoorCloudServer(CloudServer):
         """评估期 PGD 起点噪声：按 (seed, 轮, 列) 键控 —— 不消耗训练流，列之间互不影响。"""
         return np.random.default_rng([self._seed, 0xE7A1, int(round_idx), int(column)])
 
-    def _light_rng(self, eff, column):
-        """S5 轻评估的 PGD 起点噪声：按 (seed, 有效轮, 列) 键控，与全量点的 0xE7A1 键互不重叠。"""
-        return np.random.default_rng([self._seed, 0x11E7, int(eff), int(column)])
+    def _light_rng(self, eff, column, phase="light"):
+        """S5 轻评估的 PGD 起点噪声：按 (seed, 有效轮, 列) 键控，与全量点的 0xE7A1 键互不重叠。
+        S6a：云聚合后评估点（phase="post"）用自己的键 0x9057，与轻评估点互不重叠。"""
+        key = 0x9057 if phase == "post" else 0x11E7
+        return np.random.default_rng([self._seed, key, int(eff), int(column)])
 
     def _attacker_trigger(self, round_idx, column, pm_kind, *, rng=None, slot="attacker"):
         """ξ 在固定攻击者的 PM（pm_kind）上求，δ 用它的生成器；**忽略**被评估的模型。
@@ -163,7 +178,7 @@ class BackdoorCloudServer(CloudServer):
             return x + att.eval_xi(xi_model, x, y, rng=rng) + att.eval_delta(x)
         return trig
 
-    def _light_asr(self, round_idx, er, eff):
+    def _light_asr(self, round_idx, er, eff, phase="light"):
         """
         S5 轻评估点的 ASR：只算主列（fresh-PM 的 local / edge ASR，含逐 edge 分组），
         不算 global / 白盒 / 陈旧 / ASR4 / drift / 细节行 / 存盘。草稿槽与 RNG 键都是轻评估专用的，
@@ -172,7 +187,7 @@ class BackdoorCloudServer(CloudServer):
         """
         fixed = (self.eval_xi_model == "fixed_attacker" and self.eval_attacker is not None)
         trig = (self._attacker_trigger(round_idx, 0, self.pm_kind,
-                                       rng=self._light_rng(eff, 0), slot="light_attacker")
+                                       rng=self._light_rng(eff, 0, phase), slot="light_attacker")
                 if fixed else self.trigger_fn)
         m = evaluate_hierarchical_asr(
             self.global_model, self.edge_servers, self._all_clients,
@@ -181,11 +196,122 @@ class BackdoorCloudServer(CloudServer):
             local_model_fn=lambda c: self.main_pm(c, slot="light_victim"),
             asr_max_samples=self.bd_asr_max,
             asr_columns=self.asr_columns,      # 与全量点同一个口径：four_way 的探针取法与 filtered 不同
+            n_classes=self._n_classes,
             light=True,
         )
-        m.pop("client_detail", None)
+        # S6a ④：同一次前向的细节 → 池化 / 逐 edge 的 margin 分位数、p90、>0.5 比例、flip_other
+        recs = m.pop("client_detail", None) or []
         m.pop("probe_order", None)
+        if recs:
+            pooled = summarize(recs, self.bd_target, self._n_classes)
+            m["detail"] = {k: pooled[k] for k in LIGHT_DETAIL_FIELDS}
+            by_edge = {}
+            for r in recs:
+                by_edge.setdefault(r["edge_id"], []).append(r)
+            m["detail_edge"] = {}
+            for eid, rs in by_edge.items():
+                se = summarize(rs, self.bd_target, self._n_classes)
+                m["detail_edge"][int(eid)] = {k: se[k] for k in LIGHT_DETAIL_EDGE_FIELDS}
         return m
+
+    # ══════════════════════════════════════════════════════════════════════
+    # S6a ③：冻结触发器列
+    # ══════════════════════════════════════════════════════════════════════
+
+    def _malicious_now(self):
+        return set(self.malicious_ids)
+
+    def _write_geo_dump(self, round_idx, arrays):
+        """S6a ①：本云轮的 CountSketch 草图（fp16）→ dumps；git 里只有 [Dump] manifest。"""
+        self._write_dump(round_idx, "sketch", f"sketch_r{int(round_idx):03d}.npz", arrays)
+
+    def _freeze_trigger(self, round_idx):
+        """云广播后：拷下固定攻击者的 fresh-PM（新全局 body + 它的私有部分）与生成器权重。只读副本。"""
+        if not self._frozen_on or self.eval_attacker is None:
+            return
+        att = self.eval_attacker
+        gen = getattr(att, "_atk_generator", None)
+        self._frozen_gen_w = None if gen is None else [np.array(w, copy=True)
+                                                       for w in gen.get_weights()]
+        idx, val = att.private_state()
+        w = self.edge_of(att).model.get_weights()
+        self._frozen_pm_w = (compose_pm(w, [np.array(v, copy=True) for v in val], idx)
+                             if idx else w)
+
+    @contextlib.contextmanager
+    def _frozen_state(self):
+        """
+        进入：冻结的攻击者 PM 装进草稿槽 `frozen_attacker`（yield 它，ξ 在它上面求）、冻结的生成器权重
+        临时换进真生成器（δ 用它）。退出：生成器原样换回（含 BN moving 统计量 —— official 模式下 eval_delta
+        以 training=True 调它，会改统计量）。槽第一次创建会消耗 Python random → 调用方要包 random 围栏。
+        """
+        att = self.eval_attacker
+        gen = att._atk_generator
+        saved = [np.array(w, copy=True) for w in gen.get_weights()]
+        try:
+            if "frozen_attacker" not in self._pm_scratch:
+                self._pm_scratch["frozen_attacker"] = clone_model(self.global_model)
+            xm = self._pm_scratch["frozen_attacker"]
+            xm.set_weights(self._frozen_pm_w)
+            gen.set_weights(self._frozen_gen_w)
+            yield xm
+        finally:
+            gen.set_weights(saved)
+
+    def _frozen_eval(self, round_idx, er, eff, phase):
+        """
+        冻结触发器列：对每个良性客户端的 fresh-PM（与主列同一个 PM 入口）测 ASR，ξ 在冻结的攻击者 PM
+        上求、δ 用冻结的生成器（评估期间临时换进生成器，结束后原样换回 —— 含 BN 统计量，所以
+        official 模式下 eval_delta 以 training=True 调它也不留痕迹）。打 [FrozenASR] / [FrozenASREdge]。
+
+        **不得改变训练**：草稿槽 frozen_attacker / frozen_victim 专用、PGD 噪声用专用键 (seed, 0xF20E, eff,
+        phase)、整段包在 random.getstate()/setstate() 里（槽第一次创建会消耗 Python random，F-078）。
+        """
+        if (not self._frozen_on or self._frozen_pm_w is None or self._frozen_gen_w is None
+                or self.eval_attacker is None):
+            return None
+        att = self.eval_attacker
+        gen = getattr(att, "_atk_generator", None)
+        if gen is None:
+            return None
+        st = random.getstate()
+        t0 = time.perf_counter()
+        try:
+            with self._frozen_state() as xm:
+                rng = np.random.default_rng(
+                    [self._seed, 0xF20E, int(eff), {"post": 0, "light": 1, "full": 2}[phase]])
+
+                def trig(model, x, y=None):
+                    x = np.asarray(x, np.float32)
+                    return x + att.eval_xi(xm, x, y, rng=rng) + att.eval_delta(x)
+                benign = [c for c in self._all_clients
+                          if int(c.client_id) not in self.malicious_ids]
+                asrs = evaluate_client_asrs(
+                    benign, lambda c: self.main_pm(c, slot="frozen_victim"), trig, self.bd_target,
+                    fallback_test_ds=self.test_dataset, asr_max_samples=self.bd_asr_max,
+                    asr_columns=self.asr_columns)
+        finally:
+            random.setstate(st)
+        eval_s = time.perf_counter() - t0
+
+        def _mean(xs):
+            v = [x for x in xs if x is not None]
+            return float(np.mean(v)) if v else None
+        by_edge = {}
+        for c in benign:
+            by_edge.setdefault(int(getattr(c, "assigned_edge", -1)), []).append(
+                asrs[int(c.client_id)])
+        print(format_kv("[FrozenASR]", {
+            "phase": phase, "edge_round": int(er), "effective_round": int(eff),
+            "local_benign": _mean(list(asrs.values())), "eval_s": round(float(eval_s), 2),
+        }, round_idx=round_idx))
+        for edge in self.edge_servers:
+            eid = int(edge.edge_id)
+            print(format_kv("[FrozenASREdge]", {
+                "phase": phase, "edge_round": int(er), "effective_round": int(eff),
+                "client_benign": _mean(by_edge.get(eid, [])),
+            }, round_idx=round_idx, edge_id=eid))
+        return asrs
 
     def _side_columns(self, round_idx, metrics, fixed):
         """
@@ -453,6 +579,10 @@ class BackdoorCloudServer(CloudServer):
         t_asr_main = time.perf_counter() - _t0
         t_side = self._side_columns(round_idx, metrics, fixed)
         t_asr = time.perf_counter() - _t0
+        # S6a ③：冻结触发器列（在 t_asr 之后：不计入 [Timing] asr；关时是空操作）
+        self._frozen_eval(round_idx, int(self.config["federation"].get("edge_rounds", 1) or 1),
+                          round_idx * int(self.config["federation"].get("edge_rounds", 1) or 1),
+                          "full")
         # S9：细节行与 logits 存盘放在计时之后 —— [Timing] asr / [TimingASR] main 与改动前可比
         self._emit_detail(round_idx, metrics, keep_probs)
 

@@ -17,6 +17,10 @@ harness/instrumentation_check.py  —  「新仪表没有改变任何已有的�
   网格下非全量轮的 GM / EM 不评（null）—— 这些字段记为「网格下不评」单独计数，不算分歧；
   其余照旧逐位比。另报新文件的轻评估点数（light_rounds）。训练侧 checksum 必须逐轮相同。
 
+S6a（D-085）：G1P 的开 / 关两格（coll-off = 参照、coll-on = 三个记录开关全开）直接比，不需要 --grid
+（两边网格相同）。参照有 light_rounds[] 时，两边共有的轻评估点（按 effective_round 对齐）上
+**参照有的列**也逐位比 —— 新开的 post-agg / 冻结列 / margin 列是新文件多出来的，不比。
+
 用途（S9 的两次验收）：
   · DET：`--upto 5`，参照 = pilot/results/P1/DET/DET__rep1__s42.metrics.json（F-045 的 checksum）；
   · G8 vs G6(a) 同 seed：`--upto 30`（G8 在第 31 轮才停止投毒，之前配置只差停止轮与 n_rounds）。
@@ -107,6 +111,24 @@ def compare(ref: dict, new: dict, upto: int | None = None, grid: bool = False) -
                     n_fields += 1
                     if o.get(k) != v:
                         diffs.append((f"{key}[{r}][edge{e.get('edge_id')}].{k}", v, o.get(k)))
+
+    # S6a：轻评估点（单独成表，按有效轮对齐）。参照有的列逐位比（计时列除外）；新文件多出的列不比。
+    new_light = {row.get("effective_round"): row for row in (new.get("light_rounds") or [])}
+    for row in ref.get("light_rounds") or []:
+        r = row.get("round")
+        if r is None or r > upto:
+            continue
+        eff = row.get("effective_round")
+        other = new_light.get(eff)
+        if other is None:
+            missing.append(f"light_rounds[effective_round={eff}]")
+            continue
+        for k, v in row.items():
+            if _is_timing(k) or k in ("round", "effective_round"):
+                continue
+            n_fields += 1
+            if other.get(k) != v:
+                diffs.append((f"light_rounds[effective_round={eff}].{k}", v, other.get(k)))
 
     n_ck = sum(1 for r in range(1, upto + 1) if r in ck_ref and r in ck_new)
     return {"upto": upto, "n_checksums": n_ck, "n_fields": n_fields,

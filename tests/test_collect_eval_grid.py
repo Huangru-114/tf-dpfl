@@ -75,30 +75,44 @@ def _grid_log(n=2, R=20, G=5):
 # ══════════════════════════════════════════════════════════════════════════
 # 上游 ↔ 下游同源
 # ══════════════════════════════════════════════════════════════════════════
-def _emit_keys(tag):
+def _server_ast():
     src = (ROOT / "fedavg" / "server" / "server.py").read_text(encoding="utf-8")
-    fn = next(n for n in ast.walk(ast.parse(src))
+    return ast.parse(src)
+
+
+def _const_tuple(name):
+    for n in _server_ast().body:
+        if isinstance(n, ast.Assign) and getattr(n.targets[0], "id", "") == name:
+            return [e.value for e in n.value.elts]
+    raise AssertionError(f"server.py 没有常量 {name}")
+
+
+def _emit_keys(var):
+    """_emit_light 里把字段塞进 format_kv 的那个 dict 字面量（S6a 起写成 fields / ef 两个变量）。"""
+    fn = next(n for n in ast.walk(_server_ast())
               if isinstance(n, ast.FunctionDef) and n.name == "_emit_light")
-    for call in ast.walk(fn):
-        if (isinstance(call, ast.Call) and getattr(call.func, "id", "") == "format_kv"
-                and isinstance(call.args[0], ast.Constant) and call.args[0].value == tag):
-            return [k.value for k in call.args[1].keys]
-    raise AssertionError(f"_emit_light 没有打印 {tag}")
+    for node in ast.walk(fn):
+        if (isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") == var
+                and isinstance(node.value, ast.Dict)):
+            return [k.value for k in node.value.keys]
+    raise AssertionError(f"_emit_light 没有字典 {var}")
 
 
 def test_light_line_keys_are_the_metrics_field_names():
-    assert ["round", *_emit_keys("[Light]")] == list(CM.LIGHT_COLUMNS)
-    edge = _emit_keys("[LightEdge]")
+    assert ["round", *_emit_keys("fields"), *_const_tuple("LIGHT_DETAIL_FIELDS")] \
+        == list(CM.LIGHT_COLUMNS)
+    edge = _emit_keys("ef")
     assert edge[:2] == ["edge_round", "effective_round"]
-    assert ["edge_id", *edge[2:]] == list(CM.LIGHT_EDGE_COLUMNS)
+    assert ["edge_id", *edge[2:], *_const_tuple("LIGHT_DETAIL_EDGE_FIELDS")] \
+        == list(CM.LIGHT_EDGE_COLUMNS)
 
 
 # ══════════════════════════════════════════════════════════════════════════
 # collect_metrics
 # ══════════════════════════════════════════════════════════════════════════
-def test_schema_is_9():
-    assert CM.SCHEMA_VERSION == 9
-    assert CM.collect("\n".join(HEAD))["schema_version"] == 9
+def test_schema_is_10():
+    assert CM.SCHEMA_VERSION == 10
+    assert CM.collect("\n".join(HEAD))["schema_version"] == 10
 
 
 def test_settings8_round_trips_into_the_run_block():
@@ -157,7 +171,7 @@ def test_cloud_line_with_na_gm_still_parses_including_round_time():
 
 
 def test_light_payload_fits_the_size_budget():
-    """最坏的 G2 格 e10-R20：45 个轻评估点 × 10 edge。新增字段 ≤ 30 KB（S9 的总预算是 70 KB）。"""
+    """最坏的 G2 格 e10-R20：45 个轻评估点 × 10 edge。新增字段 ≤ 60 KB（S5 时 30 KB；S6a ④ 给轻评估行加了 6 + 2 列，null 也占键名，真值再多几位数字）。"""
     L = HEAD + [GRID8]
     for g in range(1, 16):
         L.append(f"[Round {g:>3}] Broadcasting to 10 edges...")
@@ -168,7 +182,7 @@ def test_light_payload_fits_the_size_budget():
     m = CM.collect("\n".join(L))
     size = len(json.dumps({k: m[k] for k in ("light_rounds", "per_edge_light_rounds",
                                              "per_edge_light_columns")}))
-    assert len(m["light_rounds"]) == 45 and size < 30_000, size
+    assert len(m["light_rounds"]) == 45 and size < 60_000, size
 
 
 # ══════════════════════════════════════════════════════════════════════════

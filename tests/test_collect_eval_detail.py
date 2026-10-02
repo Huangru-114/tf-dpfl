@@ -70,7 +70,7 @@ def _log(rounds=(1, 2), sha="123456e78901"):
 def test_rounds_get_the_pooled_distribution_columns():
     text, recs = _log()
     m = CM.collect(text)
-    assert m["schema_version"] == 9
+    assert m["schema_version"] == 10
     want = ED.summarize(recs, T, K)
     row = m["rounds"][0]
     assert row["round"] == 1
@@ -121,6 +121,7 @@ def test_old_logs_give_null_not_zero():
     assert m["per_edge_detail_rounds"] == {}
     assert m["client_final"] is None
     assert m["dumps"] == {"logits": {"count": 0, "bytes": 0, "dir": None},
+                          "sketch": {"count": 0, "bytes": 0, "dir": None},
                           "snapshots": [], "errors": []}
 
 

@@ -104,6 +104,21 @@ EXTRA_SWITCHES = (
     # config_validate §4b' 检查。
     Switch("evaluation.eval_grid",         None,         None,
            (),                                      "A28", "D-055", None),
+    # S6a / D-085：G1 的「便宜记录」。都是**只读记录**，不得改变训练（开 / 关 [Checksum] 逐轮相同）；
+    # 默认关，只在登记表组的 set: 里开。前提（eval_grid 已开、interleaved、hier_fedrep；post_agg /
+    # frozen 另要 badpfl + fixed_attacker）由 config_validate §4g 检查；类型也在那里显式检查。
+    #   update_geometry：逐上传更新的 body-only 范数 / 留一余弦 + CountSketch（server/update_geometry.py）
+    #   update_sketch_dim：草图维数
+    #   post_agg_eval：云聚合广播后、第 1 个 edge 轮前一次轻评估（Δ_jump）
+    #   frozen_trigger：每云轮开始冻结攻击者生成器 + 其 fresh-PM，另算一列「冻结触发器」ASR
+    Switch("evaluation.update_geometry",   False,        None,
+           (),                                      "A28", "D-085", "hier_fedrep"),
+    Switch("evaluation.update_sketch_dim", 4096,         None,
+           (),                                      "A28", "D-085", "hier_fedrep"),
+    Switch("evaluation.post_agg_eval",     False,        None,
+           (),                                      "A28", "D-085", "badpfl"),
+    Switch("evaluation.frozen_trigger",    False,        None,
+           (),                                      "A28", "D-085", "badpfl"),
 )
 
 ALL = {s.key: s for s in SWITCHES + EXTRA_SWITCHES}

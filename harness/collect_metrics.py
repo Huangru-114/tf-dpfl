@@ -88,7 +88,14 @@ from utils.kvline import parse_kv, collect_kv, parse_list   # noqa: E402
 #     light_rounds[]（[Light]，带 effective_round）与 per_edge_light_rounds（[LightEdge]，紧凑行）——
 #     **不混进** rounds[] / acc_rounds[]（那些都按云轮号当键）；timing_summary.light_eval_total_s；
 #     网格下非全量轮的 [Cloud] 行是 GM=n/a / EM=n/a → acc_rounds[] 里 gm_acc / em_acc 为 null。
-SCHEMA_VERSION = 9
+# 10 = S6a（G1 的便宜记录，D-085）：run.update_geometry / update_sketch_dim / post_agg_eval /
+#     frozen_trigger（[设定9]：四个记录开关，平铺成标量好让 status 核对）；新表
+#     update_geometry（[UpdateGeo]，紧凑行）/ post_agg_rounds[] + per_edge_post_agg_rounds（[PostAgg*]，
+#     云聚合后评估点，有效轮 (g−1)·R，**单独成表**不进 grid_series）/ frozen_rounds[] + frozen_edge_rounds
+#     （[FrozenASR*]，冻结触发器列，phase = post / light / full）；light_rounds[] 加 margin / p90 / gt50 /
+#     flip_other 列、per_edge_light 加 margin_p50 / benign_asr_p90；dumps.sketch（CountSketch 草图 manifest）；
+#     timing_summary 加 post_agg_eval_total_s / frozen_eval_total_s。老日志 → 空表 / None。
+SCHEMA_VERSION = 10
 
 # A4 的副列：key=value 行（utils/kvline.py）→ rounds[] / acc_rounds[] 的字段。
 # 缺行（旧口径、或该列本 run 没开）→ null，**不是 0**。
@@ -110,9 +117,19 @@ EDGE_DETAIL_COLUMNS = ("edge_id", "margin_p50", "benign_asr_p90", "yt_clean_beni
 # S5：轻评估点（[Light] 的键名就是这里的字段名，server.CloudServer._emit_light 同源打印）
 LIGHT_COLUMNS = ("round", "edge_round", "effective_round", "pm_acc", "em_acc", "edge_asr",
                  "local_benign_asr", "same_edge_asr", "diff_edge_asr", "local_malicious_asr",
-                 "eval_s")
+                 "eval_s",
+                 # S6a ④：同一次触发前向的分布量（server.LIGHT_DETAIL_FIELDS，同源）
+                 "margin_p10", "margin_p50", "margin_p90", "benign_asr_p90", "benign_asr_gt50",
+                 "flip_other")
 LIGHT_EDGE_COLUMNS = ("edge_id", "edge_asr", "client_benign", "client_malicious", "pm_acc",
-                      "em_acc")
+                      "em_acc", "margin_p50", "benign_asr_p90")
+# S6a ①：[UpdateGeo] 的紧凑行（"/" 连接的列表字段解析成列表）
+UPDATE_GEO_COLUMNS = ("round", "edge_id", "edge_round", "cid", "mal", "norm", "cos_edge",
+                      "cos_global")
+UPDATE_GEO_LISTS = ("cid", "mal", "norm", "cos_edge", "cos_global")
+# S6a ③：[FrozenASR]（池化）与 [FrozenASREdge]（紧凑行）
+FROZEN_COLUMNS = ("round", "phase", "edge_round", "effective_round", "local_benign", "eval_s")
+FROZEN_EDGE_COLUMNS = ("round", "phase", "effective_round", "edge_id", "client_benign")
 RE_DUMP_SHA = re.compile(r"\|\s*sha=([0-9a-f]+)\s*(?:\||$)")
 CLIENT_FINAL_COLUMNS = (("ids", "client_id"), ("mal", "malicious"), ("asr", "asr"),
                         ("acc", "acc"), ("yt", "yt_clean"), ("mmed", "margin_med"), ("n", "n"))
@@ -310,6 +327,7 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
     split6 = None
     setg7 = None
     setg8 = None
+    setg9 = None
     data = None
     data_edges = []
     for ln in lines:
@@ -328,6 +346,9 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
         d = parse_kv(ln, "[设定8]")
         if d is not None:
             setg8 = d
+        d = parse_kv(ln, "[设定9]")
+        if d is not None:
+            setg9 = d
         d = parse_kv(ln, "[Partition]")
         if d is not None:
             data = d
@@ -387,6 +408,11 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
         "eval_grid":         setg8.get("eval_grid") if setg8 else None,
         "grid":              ({k: v for k, v in setg8.items() if k != "eval_grid"}
                               if setg8 else None),
+        # S6a 记录开关（[设定9]）。None = 老日志（不知道）；全 false = 开关都没开。
+        "update_geometry":   setg9.get("update_geometry") if setg9 else None,
+        "update_sketch_dim": setg9.get("update_sketch_dim") if setg9 else None,
+        "post_agg_eval":     setg9.get("post_agg_eval") if setg9 else None,
+        "frozen_trigger":    setg9.get("frozen_trigger") if setg9 else None,
         # ── 自适应轮数：这一格跑到第几轮、为什么停 ──────────────────────
         #   全 None = 固定轮数（没配 stopping，或老日志）。
         #   stop_reason='cap_reached' 是 **censored**，不是「收敛在 cap」。
@@ -675,6 +701,56 @@ def _collect_light_edge(lines) -> dict:
     return out
 
 
+def _s6_timing(lines) -> dict:
+    """S6a 新增评估点的耗时合计（都已包含在 round_time_total_s 里；没开 → None）。
+    post_agg：[PostAgg] 的 eval_s（含其内的冻结列）；frozen：[FrozenASR] 的 eval_s（post / light 两类
+    已在前者 / light_eval_total_s 之内，full 类在 [Timing] asr 之后、不在 round_time 里）。"""
+    def _tot(tag, phases=None):
+        vals = [d.get("eval_s") for d in collect_kv(lines, tag)
+                if d.get("eval_s") is not None and (phases is None or d.get("phase") in phases)]
+        return round(sum(vals), 1) if vals else None
+    return {"post_agg_eval_total_s": _tot("[PostAgg]"), "frozen_eval_total_s": _tot("[FrozenASR]")}
+
+
+def _collect_update_geometry(lines) -> dict:
+    """[UpdateGeo] → {columns, rows}：每个 (云轮, edge, edge 轮) 一行，列表字段解析成列表（S6a ①）。"""
+    rows = []
+    for d in collect_kv(lines, "[UpdateGeo]"):
+        row = []
+        for c in UPDATE_GEO_COLUMNS:
+            v = d.get(c)
+            row.append(parse_list(v) if c in UPDATE_GEO_LISTS else v)
+        rows.append(row)
+    return {"columns": list(UPDATE_GEO_COLUMNS), "rows": rows}
+
+
+def _collect_post_agg(lines) -> list:
+    """[PostAgg] → post_agg_rounds[]：云聚合后评估点（S6a ②）。列同 light_rounds。"""
+    return [{c: d.get(c) for c in LIGHT_COLUMNS} for d in collect_kv(lines, "[PostAgg]")]
+
+
+def _collect_post_agg_edge(lines) -> dict:
+    """[PostAggEdge] → {round: [[edge_id, …LIGHT_EDGE_COLUMNS 其余], …]}（以云轮号为键）。"""
+    out = {}
+    for d in collect_kv(lines, "[PostAggEdge]"):
+        out.setdefault(d.get("round"), []).append([d.get(c) for c in LIGHT_EDGE_COLUMNS])
+    for rows in out.values():
+        rows.sort(key=lambda r: (r[0] is None, r[0]))
+    return out
+
+
+def _collect_frozen(lines) -> list:
+    """[FrozenASR] → frozen_rounds[]（S6a ③）；phase = post / light / full。"""
+    return [{c: d.get(c) for c in FROZEN_COLUMNS} for d in collect_kv(lines, "[FrozenASR]")]
+
+
+def _collect_frozen_edge(lines) -> dict:
+    """[FrozenASREdge] → {columns, rows}：紧凑行。"""
+    return {"columns": list(FROZEN_EDGE_COLUMNS),
+            "rows": [[d.get(c) for c in FROZEN_EDGE_COLUMNS]
+                     for d in collect_kv(lines, "[FrozenASREdge]")]}
+
+
 def _collect_edge_detail(lines) -> dict:
     """[EvalDetailEdge] → {round: [[edge_id, margin_p50, benign_asr_p90, yt_clean_benign], …]}。"""
     out = {}
@@ -707,6 +783,7 @@ def _collect_client_final(lines) -> dict | None:
 def _collect_dumps(lines) -> dict:
     """[Dump] → {logits: {count, bytes, dir}, snapshots: [...], errors: [...]}（相对路径）。"""
     logits = {"count": 0, "bytes": 0, "dir": None}
+    sketch = {"count": 0, "bytes": 0, "dir": None}      # S6a ①：CountSketch 草图（每云轮一个 npz）
     snaps, errors = [], []
     for ln in lines:
         d = parse_kv(ln, "[Dump]")
@@ -722,10 +799,14 @@ def _collect_dumps(lines) -> dict:
             logits["count"] += 1
             logits["bytes"] += int(d.get("bytes") or 0)
             logits["dir"] = str(d.get("path", "")).rsplit("/", 1)[0] or None
+        elif d.get("kind") == "sketch":
+            sketch["count"] += 1
+            sketch["bytes"] += int(d.get("bytes") or 0)
+            sketch["dir"] = str(d.get("path", "")).rsplit("/", 1)[0] or None
         elif d.get("kind") == "snapshot":
             snaps.append({"round": d.get("round"), "path": d.get("path"),
                           "bytes": d.get("bytes"), "sha": d.get("sha")})
-    return {"logits": logits, "snapshots": snaps, "errors": errors}
+    return {"logits": logits, "sketch": sketch, "snapshots": snaps, "errors": errors}
 
 
 def _collect_gpu_mem(lines) -> dict | None:
@@ -814,7 +895,8 @@ def collect(log_text: str) -> dict:
         "timing_rounds": timing_rounds,
         # A15：每轮全局权重的 sha256 前 12 位 —— 同 seed 两次 run 逐轮对得上才算确定性
         "checksums": checksums,
-        "timing_summary": _timing_summary(acc_rounds, timing_rounds, light_rounds),
+        "timing_summary": {**_timing_summary(acc_rounds, timing_rounds, light_rounds),
+                           **_s6_timing(lines)},
         # 真实显存峰值（一卡多跑按它定 K，D-052）；没有 GPU / 旧日志 → null
         "gpu_mem": _collect_gpu_mem(lines),
         # S9：逐 edge 的分布量（紧凑行）+ 末个评估点的逐客户端值 + 存盘 manifest
@@ -827,6 +909,12 @@ def collect(log_text: str) -> dict:
         "light_rounds": light_rounds,
         "per_edge_light_columns": list(LIGHT_EDGE_COLUMNS),
         "per_edge_light_rounds": _collect_light_edge(lines),
+        # S6a（schema 10）：①逐更新几何（紧凑）②云聚合后评估点 ③冻结触发器列。都是独立的表，不进 rounds[]。
+        "update_geometry": _collect_update_geometry(lines),
+        "post_agg_rounds": _collect_post_agg(lines),
+        "per_edge_post_agg_rounds": _collect_post_agg_edge(lines),
+        "frozen_rounds": _collect_frozen(lines),
+        "frozen_edge_rounds": _collect_frozen_edge(lines),
         "admitted": admitted,
         # 只对有客户端级判决的防御求均值；坐标类（admitted=None）不参与，
         # 全是坐标类或无防御时结果是 None —— 0 会被误读成「全部被剔除」。

@@ -31,6 +31,8 @@
 #     G2 的 set 加 eval_grid: 5、R2 三格的两个 eval_interval 改 5（= lcm(5,2)/2）；但 G2 的 requires 里的
 #     `g2-scale` 是故意的 —— 规模未定（D-056 / D-083），用户定了再放行。G1 仍缺 S6，网格留给 S6 定（用户）。
 #     登记 S5P（GPU 上开 / 关网格的 checksum 探路 + 轻评估点单价，4 run）。已有配置的 sha 不变
+#   · 2026-10-02 S6a 完成（逐更新几何 / 云聚合后评估点 / 冻结触发器列，D-085）→ `available` 加 S6a：
+#     登记探路组 G1P（3 run）；G1 的 set 补齐布点 / 轮数 / 网格，仍缺 S6（= S6b）。
 # 功能会话完成时，把它的 token 加进 `available`，并补上对应组的 `set:`。
 # **补 `set:` 时核对三件**（G2 就是漏了这三件，test_registry 守着）：
 #   malicious_per_edge 的长度 = n_edges；n_rounds × edge_rounds ≥ cap_effective；各格评估网格（有效轮）一致。
@@ -44,7 +46,7 @@ base: base.yaml       # A4（2026-09-26）
 overlays:
   - ../../../fedavg/config/alignment_p2.yaml   # 「P2 对齐」模板：每个对齐开关都打开
 audit: AUDIT.md
-available: [S8, S3, S9, S4, g5-schedule, S5]   # 已完成的功能会话（S3：新划分 D-062 … D-068；S9：评估仪表 + 存盘开关 D-071 … D-075；S4：投毒窗口起点 + 生成器语义 D-078 / D-079）；g5-schedule：G5AB 判 insensitive → G5 用 A（D-080）；S5：统一评估网格（D-084）
+available: [S8, S3, S9, S4, g5-schedule, S5, S6a]   # S6a：G1 的便宜记录（D-085）； 已完成的功能会话（S3：新划分 D-062 … D-068；S9：评估仪表 + 存盘开关 D-071 … D-075；S4：投毒窗口起点 + 生成器语义 D-078 / D-079）；g5-schedule：G5AB 判 insensitive → G5 用 A（D-080）；S5：统一评估网格（D-084）
 
 groups:
   G0:
@@ -67,20 +69,44 @@ groups:
 
   G1:
     purpose: "3-C 锯齿、3-D 可观测性（详细记录：逐 edge 轮评估 + 更新日志）；3-A 的一部分"
-    requires: [audit, S3, S5, S6]
+    requires: [audit, S3, S5, S6]   # S6 = S6b 之后（D-085）：在线 c_k / g1_verdict / 规模等 G1P 回传再定，此组继续 blocked
     seeds: [42, 43, 44]
-    # S3 补 partition 的 set（等大小 random / 固定设计 C1）；布点、轮数、评估网格留给 S5。
-    set: {federation.n_edges: 4, federation.design.n_per_client: 500, federation.design.clean_per_edge: 500, federation.design.alpha_client: 0.5}
+    # S3 补 partition 的 set（等大小 random / 固定设计 C1）。
+    # S6a（2026-10-02，D-085）顺带补齐布点 / 轮数 / 网格（规模不动）：4 edge 集中 [10,0,0,0] / 分散 [3,3,2,2]；
+    # 每格固定 300 有效轮（R10 → 30 云轮、R20 → 15 云轮），stopping 关；统一网格 G=5（两个 eval_interval 取 base 的 1
+    # = lcm(5,R)/R）。S6a 的记录开关（update_geometry / post_agg_eval / frozen_trigger）要等 G1P 回传后再决定是否打开。
+    set: {federation.n_edges: 4, federation.design.n_per_client: 500, federation.design.clean_per_edge: 500, federation.design.alpha_client: 0.5,
+          stopping: null, evaluation.eval_grid: 5}
     factors:
       partition:
         - {label: random, set: {federation.partition: equal_random}}
         - {label: C1, set: {federation.partition: designed, federation.design.condition: C1, federation.design.strength: 0.25}}
       placement:
-        - {label: collocated}
-        - {label: distributed}
+        - {label: collocated,  set: {backdoor.malicious_per_edge: [10, 0, 0, 0]}}
+        - {label: distributed, set: {backdoor.malicious_per_edge: [3, 3, 2, 2]}}
       r_edge:
-        - {label: R10, set: {federation.edge_rounds: 10}}
-        - {label: R20, set: {federation.edge_rounds: 20}}
+        - {label: R10, set: {federation.edge_rounds: 10, federation.n_rounds: 30}}
+        - {label: R20, set: {federation.edge_rounds: 20, federation.n_rounds: 15}}
+
+  G1P:
+    purpose: "S6a 探路（D-085）：(1) GPU 上开 / 关 S6a 记录开关，训练侧 [Checksum] 逐轮相同；(2) 实测三个记录的单价与显存；(3) 几何分数在全局 / edge 视角下的 AUROC（先回答「这种攻击在几何上分不分得开」）"
+    requires: [audit, S5, S6a]
+    seeds: [42]
+    # C1 × 4 edge × R10，100 有效轮（10 云轮），stopping 关，网格 G=5。**手工交一个 K=3 的合包**（同卡，开 / 关比较排除跨节点差别；
+    # submit.sh 会拆成三个 k=1 探路包，所以不用它交本组，命令见 current-focus.md）。
+    # coll-on 与 coll-off 只差三个记录开关；dist-on 看分散布点下的几何（每个 edge 都有攻击者）。
+    # 验收：python3 harness/instrumentation_check.py <off> <on> --grid（checksum + 全量点数值逐位相同）。
+    # 陷阱 #23：GPU 上才会抛的东西先用几分钟的作业试 —— 本组就是这个探路。
+    set: {federation.n_edges: 4, federation.edge_rounds: 10, federation.n_rounds: 10,
+          federation.partition: designed, federation.design.condition: C1, federation.design.strength: 0.25,
+          federation.design.n_per_client: 500, federation.design.clean_per_edge: 500, federation.design.alpha_client: 0.5,
+          stopping: null, evaluation.eval_grid: 5}
+    cells:
+      - {cell: coll-on,  set: {backdoor.malicious_per_edge: [10, 0, 0, 0],
+                               evaluation.update_geometry: true, evaluation.post_agg_eval: true, evaluation.frozen_trigger: true}}
+      - {cell: coll-off, set: {backdoor.malicious_per_edge: [10, 0, 0, 0]}}
+      - {cell: dist-on,  set: {backdoor.malicious_per_edge: [3, 3, 2, 2],
+                               evaluation.update_geometry: true, evaluation.post_agg_eval: true, evaluation.frozen_trigger: true}}
 
   G2:
     purpose: "3-A 结构扫描：flat vs HFL 的 T50 比值（主结论，5 seed）；去掉 G1 已覆盖的 4edge×R{10,20}"

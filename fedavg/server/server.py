@@ -27,6 +27,7 @@ from models.cnn           import get_base_head_indices
 from utils.checksum       import weights_checksum
 from .participation       import edge_schedule_order
 from .                    import eval_grid
+from .update_geometry     import UpdateGeometry
 from aggregation.fedavg   import aggregate
 from server.stopping     import StoppingRule, ASR_KEYS
 from aggregation.feddyn   import feddyn_aggregate,   init_h
@@ -52,6 +53,12 @@ def gpu_mem_line(round_idx: int):
     return format_kv("[GPUMem]", {"peak_mib": round(info["peak"] / mib, 1),
                                   "current_mib": round(info["current"] / mib, 1)},
                      round_idx=round_idx, digits=1)
+
+
+# S6a ④：轻评估 / 云聚合后评估点上多打的细节字段（从同一次触发前向取；没有干净前向 → 没有 yt_clean）
+LIGHT_DETAIL_FIELDS = ("margin_p10", "margin_p50", "margin_p90",
+                       "benign_asr_p90", "benign_asr_gt50", "flip_other")
+LIGHT_DETAIL_EDGE_FIELDS = ("margin_p50", "benign_asr_p90")
 
 
 class CloudServer(RobustAggregationMixin):
@@ -116,6 +123,15 @@ class CloudServer(RobustAggregationMixin):
                 and get_switch(config, "federation.edge_schedule") != "interleaved"):
             raise ValueError("evaluation.eval_grid 要求 federation.edge_schedule = interleaved"
                              "（顺序调度下没有「所有 edge 都跑完第 er 个 edge 轮」的时刻）")
+
+        # ── S6a ①：逐更新几何记录（evaluation.update_geometry；只读，缺省关）────────────
+        self._geo = None
+        if get_switch(config, "evaluation.update_geometry"):
+            self._geo = UpdateGeometry(
+                (), int(get_switch(config, "evaluation.update_sketch_dim")))
+            for _e in edge_servers:
+                _e.update_observer = self._geo
+        self.post_agg_eval = bool(get_switch(config, "evaluation.post_agg_eval"))
 
         # ── 评估用的 PM（A28 / D-033，开关 evaluation.pm_model）──────────────
         #   stale（旧）：client.model；fresh：[当前 edge body, 自己的私有部分]。
@@ -302,8 +318,16 @@ class CloudServer(RobustAggregationMixin):
                 loss, t = by_id[eid].run_edge_round(round_idx, er)
                 losses[eid].append(loss)
                 times[eid].append(t)
+                if eid == ids[-1] and self._geo is not None:     # S6a ①：这个 edge 轮的几何（只读）
+                    self._geo.malicious_ids = self._malicious_now()
+                    for _ln in self._geo.flush(round_idx, er):
+                        print(_ln)
                 if er in light and eid == ids[-1]:        # 第 er 个 edge 轮在所有 edge 上都跑完了
                     self._light_eval(round_idx, er, (round_idx - 1) * R + er)
+            if self._geo is not None:                       # S6a ①：本云轮的草图落盘（子类实现）
+                _arr = self._geo.take_round_arrays()
+                if _arr is not None:
+                    self._write_geo_dump(round_idx, _arr)
             for edge in self.edge_servers:
                 eid = int(edge.edge_id)
                 w, n, loss, t, comm = edge.cloud_upload(losses[eid], times[eid])
@@ -352,6 +376,7 @@ class CloudServer(RobustAggregationMixin):
 
         print(f"\n[Round {round_idx:>3}] Broadcasting to {len(self.edge_servers)} edges...")
         self.broadcast_to_edges()
+        self._on_round_broadcast(round_idx)
 
         # ── Phase 1+2：edge 聚合 + 全局聚合 ──────────────────────────────
         avg_edge_loss, avg_ct, comm_ce = self.collect_and_aggregate(round_idx, prev_gw)
@@ -561,6 +586,52 @@ class CloudServer(RobustAggregationMixin):
         return self.pm_model(client, self.pm_kind, slot)
 
     # ══════════════════════════════════════════════════════════════════════
+    # S6a：云广播之后的钩子（冻结触发器、云聚合后评估点）与几何落盘
+    # ══════════════════════════════════════════════════════════════════════
+
+    def _malicious_now(self) -> set:
+        """当前的恶意端 id（BackdoorCloudServer 用构造时给的集合；基类从客户端标记读）。"""
+        return set(int(c.client_id) for e in self.edge_servers for c in e.clients
+                   if getattr(c, "is_malicious", False))
+
+    def _write_geo_dump(self, round_idx, arrays):
+        """草图落盘（BackdoorCloudServer 实现；基类没有存盘通道 → 丢弃）。"""
+
+    def _on_round_broadcast(self, round_idx: int):
+        """云广播刚做完（edge 模型 = 新全局 body）。S6a：先冻结触发器，再（第 2 个云轮起）做云聚合后评估点。"""
+        self._freeze_trigger(round_idx)
+        if self.post_agg_eval and round_idx >= 2:
+            self._post_agg_eval(round_idx)
+
+    def _freeze_trigger(self, round_idx: int):
+        """基类没有后门 → 空（BackdoorCloudServer 覆写）。"""
+
+    def _post_agg_eval(self, round_idx: int):
+        """
+        云聚合后评估点（Δ_jump，S6a ②）：云广播之后、第 1 个 edge 轮之前，edge.model = 新全局 body，
+        fresh-PM = 新 body + 各端 head。有效轮号 = 上一个云轮末（(g−1)·R）—— 与那个全量点相减就是
+        聚合造成的跳变。**不喂停止判据**、**不进 grid_series**（同一有效轮会出现两次）。
+        与轻评估同一套围栏（random 状态复原、专用草稿槽 / RNG 键、清缓存、不动 _eval_seq / history）。
+        """
+        R = int(self.config["federation"].get("edge_rounds", 1) or 1)
+        eff = (int(round_idx) - 1) * R
+        st = random.getstate()
+        t0 = time.perf_counter()
+        try:
+            self.begin_pm_eval()
+            acc = self._light_acc()
+            asr = self._light_asr(round_idx, 0, eff, phase="post") or {}
+            self._frozen_eval(round_idx, 0, eff, "post")
+        finally:
+            self._edge_w_cache = None
+            random.setstate(st)
+        eval_s = time.perf_counter() - t0
+        self._emit_light(round_idx, 0, eff, acc, asr, eval_s, tag="[PostAgg]")
+
+    def _frozen_eval(self, round_idx: int, er: int, eff: int, phase: str):
+        """冻结触发器列（BackdoorCloudServer 覆写；基类没有后门 → 空）。须在 begin_pm_eval 之后调用。"""
+
+    # ══════════════════════════════════════════════════════════════════════
     # S5：轻评估（网格点落在 edge 轮之间；D-055 / D-084）
     # ══════════════════════════════════════════════════════════════════════
 
@@ -585,6 +656,7 @@ class CloudServer(RobustAggregationMixin):
             self.begin_pm_eval()
             acc = self._light_acc()
             asr = self._light_asr(round_idx, er, eff) or {}
+            self._frozen_eval(round_idx, er, eff, "light")     # S6a ③：开关关时是空操作
         finally:
             self._edge_w_cache = None
             random.setstate(st)
@@ -625,13 +697,19 @@ class CloudServer(RobustAggregationMixin):
                            if tot_em else None),
                 "per_edge": per_edge}
 
-    def _light_asr(self, round_idx: int, er: int, eff: int) -> dict:
+    def _light_asr(self, round_idx: int, er: int, eff: int, phase: str = "light") -> dict:
         """轻评估的 ASR（BackdoorCloudServer 覆写）；基类没有后门 → 空。"""
         return {}
 
-    def _emit_light(self, round_idx, er, eff, acc, asr, eval_s):
-        """[Light]（池化）+ 每 edge 的 [LightEdge]。键名 = metrics.json 的字段名（collect_metrics 直接收）。"""
-        print(format_kv("[Light]", {
+    def _emit_light(self, round_idx, er, eff, acc, asr, eval_s, tag="[Light]"):
+        """
+        [Light]（池化）+ 每 edge 的 [LightEdge]；tag="[PostAgg]" 时打 [PostAgg] / [PostAggEdge]。
+        键名 = metrics.json 的字段名（collect_metrics 直接收）。
+        S6a ④：asr["detail"]（池化）/ asr["detail_edge"]（逐 edge）有值时多打 margin 分位数 /
+        良性 ASR p90 / ASR>0.5 比例 / flip_other（同一次前向的结果，没有额外前向）。
+        """
+        det = asr.get("detail") or {}
+        fields = {
             "edge_round": int(er), "effective_round": int(eff),
             "pm_acc": acc["pm_acc"], "em_acc": acc["em_acc"],
             "edge_asr": asr.get("edge_asr_mean"),
@@ -640,17 +718,27 @@ class CloudServer(RobustAggregationMixin):
             "diff_edge_asr": asr.get("local_asr_diff_edge"),
             "local_malicious_asr": asr.get("local_asr_malicious_mean"),
             "eval_s": round(float(eval_s), 2),
-        }, round_idx=round_idx))
+        }
+        for k in LIGHT_DETAIL_FIELDS:
+            if k in det:
+                fields[k] = det[k]
+        print(format_kv(tag, fields, round_idx=round_idx))
         pe_asr = {int(d["edge_id"]): d for d in asr.get("per_edge") or []}
+        de = asr.get("detail_edge") or {}
         for edge in self.edge_servers:
             eid = int(edge.edge_id)
             pe = pe_asr.get(eid, {})
-            print(format_kv("[LightEdge]", {
+            ef = {
                 "edge_round": int(er), "effective_round": int(eff),
                 "edge_asr": pe.get("edge_asr"), "client_benign": pe.get("client_benign"),
                 "client_malicious": pe.get("client_malicious"),
                 "pm_acc": acc["per_edge"][eid]["pm_acc"], "em_acc": acc["per_edge"][eid]["em_acc"],
-            }, round_idx=round_idx, edge_id=eid))
+            }
+            for k in LIGHT_DETAIL_EDGE_FIELDS:
+                if eid in de and k in de[eid]:
+                    ef[k] = de[eid][k]
+            print(format_kv("[PostAggEdge]" if tag == "[PostAgg]" else "[LightEdge]", ef,
+                            round_idx=round_idx, edge_id=eid))
 
     def _stopping_signals(self, metrics: dict) -> dict:
         """

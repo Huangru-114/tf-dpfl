@@ -441,6 +441,35 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
   > ⚠️ 测试夹具的 `_model()` 调了 `tf.keras.utils.set_random_seed`，之后 clone_model **不**消耗 Python random —— 与 main.py 不同。
   > 要测随机通道，先 `_prod_seeding`（把 Keras 的种子发生器复位成 None），见 `test_eval_grid_tf.py`。
 
+- **S6a G1 的「便宜记录」**（2026-10-02，Exp3 改版 S6a；DECISIONS D-085 方案 / D-086 实现取舍；方案全文 `hfl-mechanism/S6a-PLAN.md`）。
+  四个**只读记录**开关（`alignment.EXTRA_SWITCHES`，缺省关，只在组的 `set:` 里开；前提由 `config_validate` §4g 核对：
+  eval_grid 已开 + 交错调度 + `hier_fedrep`；post_agg / frozen 另要 Bad-PFL 固定攻击者），**记录不得改变训练**：
+  - ① `evaluation.update_geometry`（+`update_sketch_dim`）：edge 收齐上传后、`robust_mean` 之前，对每个上传的 body-only 更新
+    Δ = w[base] − edge_w[base] 在线精确算 ‖Δ‖、对本 edge / 对全体 edge 其余更新的**留一余弦**（用「和」算，None = 无「其余」），
+    另做 CountSketch 草图（常量种子的独立 Generator，fp16 进 `tfdpfl-dumps/<run>/sketch_rNNN.npz`）。纯算术在
+    `server/update_geometry.py`（**不 import TF**）；挂点 `HierFedRepEdgeServer.update_observer`；打 `[UpdateGeo]`；
+  - ② `evaluation.post_agg_eval`：云广播后、第 1 个 edge 轮前一次轻评估（`CloudServer._post_agg_eval`，第 2 个云轮起，有效轮记 (g−1)·R），
+    与上一个全量点相减 = Δ_jump。**单独成表** `post_agg_rounds[]`，不进 grid_series、不喂停止判据、不动 `_eval_seq` / history；
+  - ③ `evaluation.frozen_trigger`：每云轮广播后冻结固定攻击者的 fresh-PM 与生成器权重（`BackdoorCloudServer._freeze_trigger`），
+    在 post / light / full 三类点上对良性端另算一列「冻结触发器」ASR（ξ 在冻结 PM 上求、δ 用冻结生成器；**换权重**实现，
+    退出后原样换回含 BN 统计量）→ 把「受害 body 变了」和「触发器漂移」分开。`[FrozenASR]` / `[FrozenASREdge]`；
+  - ④ 常开：轻评估点从同一次触发前向多取 margin 分位数 / 良性 ASR p90 / >0.5 比例 / flip_other（`[Light]` 加列）；
+  - ⑤ 防呆：`stopping` 开着且 `eval_grid ∉ {None, 5}` → 拒绝启动（斜率容差按 5 有效轮标定，F-052）。
+  自描述 `[设定9]` → `run.update_geometry / update_sketch_dim / post_agg_eval / frozen_trigger`（平铺标量，好让 `status` 核对）；
+  collect_metrics **schema 10**（新表 `update_geometry` / `post_agg_rounds` / `per_edge_post_agg_rounds` / `frozen_rounds` /
+  `frozen_edge_rounds`，`dumps.sketch`，`timing_summary.post_agg_eval_total_s / frozen_eval_total_s`）。
+  三类新评估各用专用草稿槽 + 专用 PGD 噪声键（0x9057 / 0xF20E）并包在 `random.getstate()/setstate()` 里（F-078 的 Python random 通道）。
+  **G8 快照上的 c_k 预检**：`fedavg/analysis/functional_score.py`（纯 numpy：NCM、c_k、AUROC）+ `ck_snapshot.py`（TF）+
+  `hfl-mechanism/ck_precheck.sbatch`（回传 `analysis/ck_precheck.json`）；**判读阈值还没预注册**，回传前先写进 FINDINGS。
+  **探路组 G1P**（3 run，C1 × R10 × s42 × 100 有效轮：`coll-on` / `coll-off` / `dist-on`，约 1 GPU-h，没有实测）：
+  开 / 关 checksum 与全量点、轻评估点数值逐位相同（`instrumentation_check coll-off coll-on`，现在也比 `light_rounds[]` 的参照列）+ 几何 AUROC。
+  G1 的 `set:` 已补齐（布点 / 300 有效轮 / 网格），**不开记录开关**，仍挂 `S6`（= S6b：在线 c_k，等 G1P 回传再定）。
+  守卫：`tests/test_update_geometry.py`（手算值 + 不碰全局 RNG + AST）/ `test_s6_tf.py`（开 / 关 checksum 与已有行逐字相同、状态清单不变、
+  **去掉 random 围栏就改变训练的反向锚点**、冻结触发器 == 主触发器直到生成器被训动）/ `test_s6_switches.py` / `test_collect_s6.py` /
+  `test_functional_score.py` / `test_ck_snapshot_tf.py`。
+  > ⚠️ `python3 harness/registry.py … --materialize --group X` 会把 `INDEX.tsv` **整个重写成只含 X**（其余行丢失 → 这些格子失去 config_sha 核对：实测 G7 的 6 个 stale 被悄悄判成 done，done 87 → 93）。
+  > 要补一个新组的配置，**不带 `--group`** 全量 materialize（已有配置字节不变，只多新行）。
+
 **留了接口但没有实现的**（不要以为它们能用）：
 - 主动防御（需要客户端配合的防御）：接口齐了（`BaseDefense.layers` /
   `client_mixin` / `make_control` + 客户端侧 `set_control` / `get_aux`），无任何实现。

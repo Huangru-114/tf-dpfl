@@ -482,6 +482,41 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
                 f"evaluation.eval_grid 下 {', '.join(_side)} 只按全量点计数（间隔 = 每 "
                 f"{_period} 个有效轮的倍数，仍随 edge_rounds 变）：副列与存盘不纳入网格（D-084）。")
 
+    # ── 4g. S6a 记录开关（D-085）：update_geometry / post_agg_eval / frozen_trigger ──────
+    #   都是只读记录，写错的每一种都会静默记错或静默不记：类型不对（1 == True）、没开网格
+    #   （轻评估的围栏与草稿槽是网格那套）、顺序调度（没有「所有 edge 都跑完第 er 轮」的时刻）、
+    #   方法不是 hier_fedrep（update_geometry 要 body 索引）、post_agg / frozen 要 Bad-PFL 固定攻击者。
+    #   另：停止判据的容差是按 5 有效轮标定的（F-052）→ 开着停止判据时网格只能是 5。
+    from alignment import get_switch as _gs
+    _s6 = {k: ev_cfg.get(k) for k in ("update_geometry", "post_agg_eval", "frozen_trigger")
+           if ev_cfg.get(k) is not None}
+    for _k, _v in _s6.items():
+        if not isinstance(_v, bool):
+            _fail(f"evaluation.{_k} 必须是 bool，收到 {_v!r}")
+    _dim = ev_cfg.get("update_sketch_dim", None)
+    if _dim is not None and (isinstance(_dim, bool) or not isinstance(_dim, int) or _dim < 1):
+        _fail(f"evaluation.update_sketch_dim 必须是 ≥ 1 的整数，收到 {_dim!r}")
+    _s6_on = [k for k in ("update_geometry", "post_agg_eval", "frozen_trigger") if _s6.get(k)]
+    if _s6_on:
+        _names = ", ".join(f"evaluation.{k}" for k in _s6_on)
+        if _gs(config, "evaluation.eval_grid") is None:
+            _fail(f"{_names} 要求 evaluation.eval_grid 已开：记录开关复用网格那套轻评估的围栏"
+                  f"（评估不得改变训练）。")
+        if _gs(config, "federation.edge_schedule") != "interleaved":
+            _fail(f"{_names} 要求 federation.edge_schedule = interleaved：逐 edge 轮的记录要在"
+                  f"「所有 edge 都跑完第 er 个 edge 轮」的时刻做。")
+    if _s6.get("update_geometry") and method != "hier_fedrep":
+        _fail("evaluation.update_geometry 只对 hier_fedrep 实现（需要 body 索引）。")
+    if (_s6.get("post_agg_eval") or _s6.get("frozen_trigger")):
+        if not (bd_enabled and str(bd.get("malicious_strategy", "vanilla")).lower() == "badpfl"):
+            _fail("evaluation.post_agg_eval / frozen_trigger 要求 backdoor.malicious_strategy = badpfl。")
+        if _gs(config, "backdoor.eval_xi_model") != "fixed_attacker":
+            _fail("evaluation.post_agg_eval / frozen_trigger 要求 backdoor.eval_xi_model = fixed_attacker。")
+    _grid_now = _gs(config, "evaluation.eval_grid")
+    if config.get("stopping") and _grid_now is not None and _grid_now != 5:
+        _fail(f"stopping 与 evaluation.eval_grid={_grid_now} 不能同开：停止判据的斜率容差 0.0010 是按"
+              f" 5 有效轮的网格标定的（F-052）；G=1 时等于放宽 5 倍，G>5 时更严。")
+
     # ── 4c. 对齐开关（A4；fedavg/alignment.py + config/alignment_p2.yaml）──
     #   三种写错都会静默跑错：取值拼错（回退旧行为）、P2 配置少开一项（与其他
     #   P2 格子不可比）、方法专属开关开在别的方法上（什么也不发生）。
@@ -703,4 +738,12 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
     #   （停止判据横轴是云轮号）、gm_em=every_round —— 与 S5 之前的 run 是同一种 run。
     from server.eval_grid import describe as _grid_describe
     print(format_kv("[设定8]", _grid_describe(config)))
+    # ── 6g. S6a 记录开关（[设定9]，D-085）────────────────────────────────
+    #   独立 kv 行，不扩 [设定8]。没写 = 全关（与 S6a 之前的 run 是同一种 run）。
+    print(format_kv("[设定9]", {
+        "update_geometry": bool(_gs(config, "evaluation.update_geometry")),
+        "update_sketch_dim": int(_gs(config, "evaluation.update_sketch_dim")),
+        "post_agg_eval": bool(_gs(config, "evaluation.post_agg_eval")),
+        "frozen_trigger": bool(_gs(config, "evaluation.frozen_trigger")),
+    }))
     return warnings

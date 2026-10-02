@@ -1253,3 +1253,26 @@ R20 开网格的 fresh pm_acc：
 - 云聚合后的第一个点（25）比前一个全量点低 0.03。这是 3-C 的 Δ_jump 的样子：第 1 云轮末，全局模型的 GM 精度 0.496 < EM 0.625，edge 拿到全局模型后从更差的起点出发。
 - edge ASR 逐点很吵：0.056 / 0.179 / 0.123 / 0.320 | 0.415 / 0.286 / 0.782 / 0.962。
 - 对停止判据的含义：R20 的 10 点窗口跨 2.5 个云周期，斜率里混着锯齿。**幅度够不够影响判定，没有证据**；要等 G2 的 R10 / R20 格的完整轨迹。
+
+## 2026-10-02（S6a 实现，D-085 / D-086）
+
+### F-080 `confirmed`（CPU：单测 + main.py 端到端替身；**GPU 待 G1P → F-081**）—— S6a 的三个记录开关不改变训练，已有数值逐位不变
+
+- **单测**（`tests/test_s6_tf.py`，TF 2.15.1 CPU，小 HFL：2 edge × 3 FedRep 客户端、2 个 Bad-PFL 恶意端、official BN、固定攻击者、fresh-PM，R=4、G=2、3 云轮）：
+  - 三个开关全开 vs 全关：逐轮 `[Checksum]` 相同；全量点上已有评估行（`[Backdoor]` `[ASR4]` `[Acc]` `[Stale]` `[StaleASR]` `[Cloud]`）逐字相同；轻评估点上已有的 7 个数相同；`_eval_seq` 与 history（去掉墙钟）相同；
+  - **反向锚点**：去掉 `random.setstate` 复原 → 开关就改变训练（`[Checksum]` 不同）。证明上一条测得到 F-078 的通道（冻结槽第一次创建推进 Python random，legacy 管线的洗牌随之变）；
+  - 一次 `_post_agg_eval` + 一次 `_frozen_eval` 前后，训练可见的状态清单（客户端 / edge / 全局权重、各 rng、Python random、生成器权重与 Adam、服务器计数器）逐位相同；
+  - 冻结的 ξ + δ 在生成器没动时与主列的触发器**逐位相同**；生成器被扰动后冻结值不变、主列的值变了；退出 `_frozen_state` 后真生成器逐位复原（含 BN 统计量）。
+- **main.py 端到端替身**（N-005 的做法：随机数据 3000 / 600 张，G1P 配置缩到 20 客户端 / 4 edge / 恶意端 [3,0,0,0] / local_epochs 1 / 2 云轮；`taskset -c 0-3`；驱动在 scratch、不入库）：
+  | 比较 | checksum | 已有数值字段 | 其他 |
+  |---|---|---|---|
+  | R=5：`coll-off` vs `coll-on`（`instrumentation_check --grid`） | 2 轮逐位相同 | 152 个逐位相同 | on：`[UpdateGeo]` 40 行、草图 2 个 npz（20 × 4096 fp16）、`[PostAgg]` 1 点、`[FrozenASR]` 3 点 |
+  | R=10：同上 | 2 轮逐位相同 | **180 个逐位相同（含 2 个轻评估点的 `light_rounds[]` 参照列）** | on：几何 80 行、草图 2 个、post-agg 1 点、冻结 5 点（light 5 / 15、full 10 / 20、post 10）；`client_failures` 空、攻击者参与 [1, 2] |
+  - 墙钟（**CPU + 随机数据 + 缩小规模，不代表 GPU**）：R=10 on 比 off 的 `round_time_total_s` 多约 25%（550 → 689 s），其中冻结列合计 42 s、post-agg 29 s、轻评估点各多约 10 s（冻结列在其内）、其余 ≈ 几何记录。GPU 单价看 G1P。
+- 回归基线（同一环境，改动前 → 后）：本地无 TF 1487 / 44 / 3 → **1537 / 47 / 3**；TF 2.15.1 CPU 1651 / 23 / 3 / 2 failed → **1713 / 24 / 3 / 2 failed**（只剩陷阱 #4 的 2 条）。`status.py`：done 87 / stale 6 不变，G1P 3 格 todo；已 materialize 的配置 sha 不变。
+- 有意改变的已有测试（都是上游行为被我们改了、不是放宽）：`test_collect_eval_grid` 的列同源测试按新的 `_emit_light` 写法重写（AST 读 `fields` / `ef` 字典 + `LIGHT_DETAIL_*` 常量）、轻评估体积预算 30 → 60 KB（多 6 + 2 列，null 也占键名）、`test_light_grouping_equals_the_full_call` 的 `client_detail == []` 改为「有记录但 acc / yt_clean 为 None」（④ 的本意）、schema pin 9 → 10 共 5 处、登记表计数。
+- **没有证据的部分**：
+  - **GPU 上**开 / 关逐位相同 —— 由 G1P 的 `coll-off` vs `coll-on` 回答（`instrumentation_check`）；
+  - 真实数据上这四类记录的**数值**（冻结列与主列差多少、几何分数能不能分开攻击者）—— 替身是随机数据，数字没有意义；
+  - 草图 25 MB / run、几何记录的 GPU 单价 —— 外推，G1P 测；
+  - c_k 预检（`analysis/ck_snapshot.py`）只在小模型上单测（ε = 0 退化为 NCM、确定性、不碰全局 RNG、快照往返），**没有在 G8 的真快照上跑过**（要集群）。

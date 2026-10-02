@@ -1,50 +1,82 @@
 # current-focus —— Experiment 3（改版）· 交接
 
-> 本文件是 `CLAUDE.md`「新会话开场第 3 步」要读的那一份。**写于 2026-10-02**（G1 / S6 规划会话结束时）。
+> 本文件是 `CLAUDE.md`「新会话开场第 3 步」要读的那一份。**写于 2026-10-02**（S6a 实现会话结束时）。
 >
-> **下一会话 = S6a**（D-085）：按 **`S6a-PLAN.md`** 实现。那份文件就是方案（一 … 五）+ 给用户的说明（附录 A–E）。
-> 开工前先按 CLAUDE.md 交互约定把改动清单给用户过目，用户说「开始改」再动代码。
+> **S6a 已实现**（D-086；方案 `S6a-PLAN.md`，实现取舍与方案的差别见 D-086）：四个只读记录开关 + 轻评估点 margin / 尾部 +
+> 防呆 + G8 快照 c_k 预检 + 探路组 **G1P**（3 run 已登记、已 materialize、`status` = todo）。**GPU 上还没跑过** —— 下一步是用户交作业。
 >
-> - **S6a 的范围**：
->   - ① 逐更新几何日志（标量进 metrics.json、CountSketch 草图进 dumps）；
->   - ② 云聚合后的评估点（Δ_jump）；
->   - ③ 冻结触发器列（把「受害 body 变了」和「触发器漂移」分开）；
->   - ④ 轻评估点带 margin / 尾部（常开，同一次前向）；
->   - ⑤ 「停止判据开着且 eval_grid ≠ 5」的防呆；
->   - 另有 G8 快照上的 c_k 离线预检（只读，约 0.1 GPU-h）；
->   - 登记探路组 **G1P**（3 run，约 1 GPU-h），顺带修 G1 的 `set:`（布点 / 轮数 / 网格，规模不动）。
-> - **硬要求同 S5**：记录不得改变训练（开 / 关 `[Checksum]` 逐轮相同 + 反向锚点）。
-> - **不在 S6a 里**：在线 c_k（S6b）、`harness/g1_verdict.py`、G1 规模 —— 都等 G1P 回来再定。
+> **下一步（用户，集群）**
+> ```bash
+> git pull && bash run_l1.sh 2>&1 | tail -3        # 记下当天的 L1 数字；多出来的红才是回归
+> # 探路组 G1P：**手工交一个 K=3 的合包**（开 / 关两格必须同卡，跨节点会混进别的差别）。
+> # submit.sh 会把三格各交成一个 k=1 的探路包（`--dry-run` 已核对）—— 不要用它交 G1P。
+> M=experiments/attack/hfl-mechanism
+> sbatch -c 12 --mem=72G --job-name=exp3v2-pack3 \
+>     --comment=exp3v2:G1P__coll-on__s42,G1P__coll-off__s42,G1P__dist-on__s42 \
+>     $M/pack.sbatch G1P__mix-coll-on+coll-off+dist-on__pack-k3-s42 \
+>     $M/configs/G1P__coll-on__s42.yaml  G1P__coll-on__s42  $M/results/P2/G1P/G1P__coll-on__s42.metrics.json \
+>     $M/configs/G1P__coll-off__s42.yaml G1P__coll-off__s42 $M/results/P2/G1P/G1P__coll-off__s42.metrics.json \
+>     $M/configs/G1P__dist-on__s42.yaml  G1P__dist-on__s42  $M/results/P2/G1P/G1P__dist-on__s42.metrics.json
+> sbatch experiments/attack/hfl-mechanism/ck_precheck.sbatch                          # G8 快照上的 c_k 预检（约 10–20 min，没有实测）
+> ```
+> 回传：`results/P2/G1P/*.metrics.json`（+ `.gpu.json`）与 `analysis/ck_precheck.json`。
+>
+> **回传后（下一个会话）按这个顺序读，全部用已有脚本，没有新的统计量**
+> 1. `python3 harness/status.py experiments/attack/hfl-mechanism/registry.yaml` → G1P 3 格 done（exit_code 0 且 config_sha 一致）；
+>    先看 `client_failures` 与攻击者参与（陷阱 #23：GPU 上才会抛的东西）；
+> 2. **开 / 关逐位相同**：`python3 harness/instrumentation_check.py results/P2/G1P/G1P__coll-off__s42.metrics.json results/P2/G1P/G1P__coll-on__s42.metrics.json`
+>    （checksum 逐轮相同 + 已有数值字段 + `light_rounds[]` 参照列逐位相同）→ 记 **F-081**（F-080 是 CPU 部分）。**有 ❌**：先看最早的 checksum 分歧在哪一轮、两份 run 是否同卡（F-047），**不要**改代码掩盖；
+> 3. **几何能不能分开攻击者**：`python3 harness/g1p_geometry.py results/P2/G1P/G1P__coll-on__s42.metrics.json results/P2/G1P/G1P__dist-on__s42.metrics.json --json analysis/g1p_geometry.json`
+>    （池化 AUROC：norm / −cos_global；edge 视角只在「同一 edge 轮里恶意与良性都在」的更新上算 —— 集中布点没有这样的组，是结构不是 bug）；
+>    顺带读 Δ_jump 与冻结列 − 主列。**这是描述性读数，不是判定** —— 阈值没有预注册；要变成 3-D 的判定，先在 FINDINGS 写规则、再写 `g1_verdict.py`（D-081 的纪律）；
+> 4. **c_k 预检**：`analysis/ck_precheck.json` 里每个 seed × 轮 × edge 的 c_0…c_9 与 `contrast`（E0 的 c_{y_t} vs 其余 edge 的均值）。
+>    **判读规则要在读数之前写进 FINDINGS**（本会话没写，留给下一会话和用户一起定）；
+> 5. 单价与显存：`timing_summary.post_agg_eval_total_s / frozen_eval_total_s`、`gpu_mem.peak_mib`、`dumps.sketch.bytes` → 重算 G1 的机时（`S6a-PLAN.md` 附录 E 是外推）。
+>
+> **然后才是那三个决定**（D-085 ⑤）：S6b（在线 c_k 做不做）、G1 规模（附录 E 的 A / B / C）、3-C 去留。G1 的 24 run 在这之前保持 blocked（`requires` 含 `S6`）。
 >
 > **全局概况看 `REPORT.md`**：§0 结果图一览；§9.1 还没做的实验；§9.2 待用户定的事。
 >
 > **现在在哪**（`python3 harness/status.py experiments/attack/hfl-mechanism/registry.yaml`，2026-10-02 实测）：
-> todo 0 / done 87（含 S5P 4）/ stale 6（G7，D-053 默认不重交）/ blocked 91
-> （G1 24 缺 S6、G2 55 挂 `g2-scale`、G4 12 搁置）。集群上没有在跑的作业；已用约 100 GPU-h（S5P 0.6）。
+> todo 3（G1P）/ done 87 / stale 6（G7，D-053 默认不重交）/ blocked 91（G1 24 缺 S6、G2 55 挂 `g2-scale`、G4 12 搁置）。
 >
-> **已判定**：
-> - 3.1 不成立（F-073）；
-> - 3.3 `not_gated` 并**收尾**（F-076 / D-082）；
-> - 3-E 两臂 `blocks`（F-077，精度代价 ≤ 0.02 只对 fresh 口径成立）；
-> - 3-C 衰减 `user_decides` → 用户判「退回 floor」（D-076）；
-> - 3-B 在天花板下判不出（F-073 / F-075）。
->
-> **待用户定**（REPORT §9.2）：
-> ① 3-B 的出路；
-> ② git 瘦身（**改写历史要用户单独明确同意**）；
-> ③ **G2 的规模**（用户 2026-10-02：「先不做 G2」；3-A 的 s45 / s46 也随它定，D-085）；
-> ④ ~~S6 的范围~~ → 已定分两步（D-085）；G1 规模等 G1P 回来；
-> ⑤ G8 存盘的离线分析与删除时机（S6a 的 c_k 预检是它的第一个消费者）。
+> **待用户定**（REPORT §9.2）：① 3-B 的出路；② git 瘦身（**改写历史要用户单独明确同意**）；③ G2 规模（用户 2026-10-02：「先不做 G2」；3-A 的 s45 / s46 也随它定）；
+> ④ G1 的规模与 S6b（等 G1P）；⑤ G8 存盘的离线分析与删除时机（c_k 预检是它的第一个消费者）。
 >
 > **分支**：继续在 `claude/federated-learning-experiment-review-pt5j1b` 上工作（用户定「先不合并」；`origin/main` 停在 `cf40b13`，2026-08-26）。
-> 本地 L1 基线（S5 之后，2026-10-01 实测；本会话只改文档，见下）：
-> - 没有 matplotlib：**1487 passed / 44 skipped / 3 xfailed**；
-> - 装了 matplotlib：1490 / 41 / 3；
-> - TF 2.15.1 CPU（scratch venv，`pytest tests/`）：1647 passed / 26 skipped / 3 xfailed / **2 failed**（只有陷阱 #4）。
->
+> **L1 基线（S6a 之后，2026-10-02 实测）**：
+> - 本地无 TF（装了 pytest / numpy / pyyaml）：**1537 passed / 47 skipped / 3 xfailed**（S6a 之前 1487 / 44 / 3）；
+> - TF 2.15.1 CPU（scratch venv，`pytest tests/`）：**1713 passed / 24 skipped / 3 xfailed / 2 failed**（S6a 之前 1651 / 23 / 3 / 2；只有陷阱 #4 的 2 条）。
 > 集群 GPU 节点 5 条红、没有 GPU 的 TF 节点 2 条红（F-067），多出来的才是回归。
 
-## 本会话（G1 / S6 规划，2026-10-02）做了什么
+## 本会话（S6a 实现，2026-10-02）做了什么
+
+**请求**（用户）：「拉取最新分支，阅读交接文档，让我们开始进行 S6，完成 G1」→ 开工前说明：本会话只能做到 S6a + 探路 G1P（G1 的 24 run 要等 G1P 回传、S6b、规模；D-085）→ 用户：「开始改」。
+
+**交付**（改动清单见开工前给用户的语义 diff 表）：
+
+| 交付 | 内容 |
+|---|---|
+| `fedavg/server/update_geometry.py`（新，不 import TF） | 逐更新几何：body-only Δ、范数、留一余弦（对本 edge / 全体 edge）、CountSketch；`UpdateGeometry.observe / flush / take_round_arrays` |
+| `alignment.py` / `config_validate.py` §4g / §6g | 四个开关（EXTRA_SWITCHES）；类型与前提核对；防呆 ⑤；`[设定9]` |
+| `server.py` / `backdoor_server.py` / `hier_fedrep.py` / `attack/backdoor_eval.py` | `update_observer` 挂点；`_on_round_broadcast`（冻结 + 云聚合后评估点）；`_post_agg_eval`；`_frozen_state / _frozen_eval / _freeze_trigger`；轻评估点的 margin / p90 / gt50 / flip_other（`LIGHT_DETAIL_FIELDS`）；`evaluate_client_asrs` |
+| `fedavg/analysis/`（新） | `functional_score.py`（纯 numpy：NCM、c_k、AUROC、edge_contrast）、`ck_snapshot.py`（TF：载入 G8 快照、重建划分、NCM + 定向 PGD） |
+| `hfl-mechanism/ck_precheck.sbatch`（新）、`harness/g1p_geometry.py`（新） | c_k 预检作业；G1P 的描述性读数 |
+| harness | collect_metrics **schema 10**；`registry.py` EXPECT_KEYS 加 4 键；`instrumentation_check` 比 `light_rounds[]` 的参照列 |
+| 登记表 | `available` 加 S6a；登记 **G1P**（3 run，已 materialize）；G1 的 `set:` 补齐布点 / 300 有效轮 / `stopping: null` / `eval_grid: 5`（不开记录开关，仍挂 S6） |
+| 测试 | 新增 `test_update_geometry` / `test_s6_tf` / `test_s6_switches` / `test_collect_s6` / `test_functional_score` / `test_ck_snapshot_tf` / `test_g1p_geometry`；改了几处被有意改变的已有断言（见 F-080） |
+| 文档 | D-086、F-080、CLAUDE.md「当前地基」S6a 一条、PLAN §5 S6 行、README、REPORT §9 |
+
+**验证**：F-080（单测 + main.py 端到端 CPU 替身：开 / 关 checksum 与 152 / 180 个已有字段逐位相同；去掉 random 围栏的反向锚点会改变训练）。**GPU 上没有证据** → G1P。
+
+**踩到的坑**：
+- `registry.py --materialize --group X` 会把 INDEX.tsv 整个重写成只含 X（见 CLAUDE.md S6a 一条的 ⚠️）。已用全量 materialize 恢复（已有行字节不变）。
+- 冻结触发器不能逐 PGD 噪声比 ASR（主列的 ξ 随机数按「global → 各 edge → clients」的顺序抽，冻结列只评客户端、抽法不同）→ 「冻结 == 主列」的正向锚点放在**触发器层**（同一个 rng、同一批 x，逐位相同），不放在 ASR 层。
+- 非凸模型上 PGD 不保证对每个 (类, 样本) 单调（ε 越大 reached 越多）→ `test_ck_snapshot_tf` 只断言均值更低。
+
+**没做的**：S6b（在线 c_k）、`harness/g1_verdict.py`、G1 规模、c_k 预检的判读规则（要在数据之前预注册）、3-A 补 seed、真实快照上跑 c_k（要集群）。
+
+## 历史：G1 / S6 规划会话（2026-10-02，已完成 → S6a 已实现）做了什么
 
 **请求**（用户）：
 1. 「S5P 结果已回传」→ 核对（F-079，`43e297c`）；

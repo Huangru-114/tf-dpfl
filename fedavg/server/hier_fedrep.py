@@ -44,6 +44,8 @@ class HierFedRepEdgeServer(EdgeServerBase):
         # 3-E：edge 段（edge 内共享、不上云）。空 = FedRep 基线
         self._edge_seg_idx = split["edge_weight_indices"]
         self._edge_seg_received = False
+        # S6a ①：逐更新几何记录器（由 CloudServer 在 evaluation.update_geometry 开时挂上；缺省 None = 什么都不做）
+        self.update_observer = None
 
     # ══════════════════════════════════════════════════════════════════════
     # 接收 cloud 广播（3-E：edge 段不被覆盖）
@@ -87,6 +89,9 @@ class HierFedRepEdgeServer(EdgeServerBase):
         # 防御对完整权重列表运算，再仅取 backbone 索引覆盖（head 索引结果弃用）。
         total_n    = sum(n for _, n, *_ in client_updates)
         edge_w     = self.model.get_weights()
+        if self.update_observer is not None:       # S6a ①：只读（edge_w 是 get_weights 的副本）
+            self.update_observer.observe(self.edge_id, edge_round_idx, client_updates,
+                                         edge_w, self._base_w_idx)
         robust_full = self.robust_mean(client_updates, edge_w)
         new_w = [w.copy() for w in edge_w]
         for j in self._base_w_idx:

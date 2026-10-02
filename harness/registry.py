@@ -86,6 +86,12 @@ EXPECT_KEYS = (
     # S5（G2 / S5P）：网格静默没生效（[设定8] 打 n/a）→ run 块的 eval_grid 是 None → mismatch。
     # 没声明的组 → None → 不核对。
     ("eval_grid",            "evaluation.eval_grid"),
+    # S6a（G1P / G1）：记录开关静默没生效（[设定9] 打 false / 缺行）→ run 块与声明不符 → mismatch。
+    # 声明了才核对；没声明的组 → None → 不核对。
+    ("update_geometry",      "evaluation.update_geometry"),
+    ("update_sketch_dim",    "evaluation.update_sketch_dim"),
+    ("post_agg_eval",        "evaluation.post_agg_eval"),
+    ("frozen_trigger",       "evaluation.frozen_trigger"),
 )
 
 AUDIT_STATUSES = ("open", "align", "deviate", "done")
