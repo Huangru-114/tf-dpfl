@@ -433,7 +433,8 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
   自描述 `[设定8]` → `run.eval_grid` / `run.grid`；轻评估点 `[Light]` / `[LightEdge]` → **单独成表** `light_rounds[]` /
   `per_edge_light_rounds`（不混进按云轮当键的 rounds[] / acc_rounds[]），collect_metrics **schema 9**；
   `runs_table.grid_series` 把全量 + 轻评估点按有效轮合并算 T_θ 与主列末 10 点；`instrumentation_check --grid` 比开 / 关网格。
-  G2 写好网格但挂 **`g2-scale`**（规模未定）；G1 的网格留给 S6；GPU 探路组 **S5P**（4 run）待交。
+  G2 写好网格但挂 **`g2-scale`**（规模未定）；G1 的网格留给 S6。GPU 探路组 **S5P** 已回传（2026-10-02）：
+  开 / 关网格 checksum 与全量点数值逐位相同，轻评估点约 35 s ≈ 全量点（约 78 s）的 45%（F-079）。
   守卫：`tests/test_eval_grid.py`（规则真值表 + 校验 + 已有配置 sha 不变）/ `test_eval_grid_tf.py`（开 / 关网格 checksum 与全量点数值逐位相同、
   一次轻评估前后状态清单不变、去掉 random 复原就改变训练的反向锚点）/ `test_collect_eval_grid.py` / `test_stopping.py` §5
   （R5 逐位不变；pilot D029 flat 旧横轴停 150、网格横轴不停 —— F-052 的第一条数值证据）。

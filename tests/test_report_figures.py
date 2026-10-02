@@ -171,7 +171,7 @@ def test_status_figure_gpu_hours_match_the_report_budget_table():
     d = _real(R.data_status)
     got = {g: round(c["gpu_h_used"], 1) for g, c in d["groups"].items()}
     want = {"G0": 12.2, "G3": 18.5, "G5": 6.4, "G6": 15.6, "FLR": 3.0, "G8": 3.1, "G6D": 3.2,
-            "G5AB": 4.8, "G8F": 4.6, "G7": 11.7}
+            "G5AB": 4.8, "G8F": 4.6, "G7": 11.7, "S5P": 0.6}
     if any(d["groups"][g]["done"] + d["groups"][g]["stale"] == 0 for g in want):
         pytest.skip("结果不全")
     assert {g: got[g] for g in want} == want
