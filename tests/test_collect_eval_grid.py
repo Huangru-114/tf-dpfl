@@ -191,6 +191,8 @@ def test_light_payload_fits_the_size_budget():
 def test_grid_series_equals_the_old_series_when_there_are_no_light_points():
     for f in sorted((ROOT / "experiments/attack/hfl-mechanism/results/P2").rglob("*.metrics.json"))[:20]:
         m = json.loads(f.read_text(encoding="utf-8"))
+        if m.get("light_rounds"):           # 本条只管「没有轻评估点」的老文件（S5P / G1P 有）
+            continue
         er = m["run"].get("edge_rounds") or 1
         for k in ("local_benign_asr", "edge_asr", "global_asr"):
             assert T.grid_series(m, k) == effective_round_series(m["rounds"], er, k), f.name

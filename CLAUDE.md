@@ -461,7 +461,7 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
   三类新评估各用专用草稿槽 + 专用 PGD 噪声键（0x9057 / 0xF20E）并包在 `random.getstate()/setstate()` 里（F-078 的 Python random 通道）。
   **G8 快照上的 c_k 预检**：`fedavg/analysis/functional_score.py`（纯 numpy：NCM、c_k、AUROC）+ `ck_snapshot.py`（TF）+
   `hfl-mechanism/ck_precheck.sbatch`（回传 `analysis/ck_precheck.json`）；**判读阈值还没预注册**，回传前先写进 FINDINGS。
-  **探路组 G1P**（3 run，C1 × R10 × s42 × 100 有效轮：`coll-on` / `coll-off` / `dist-on`，约 1 GPU-h，没有实测）：
+  **探路组 G1P**（3 run，C1 × R10 × s42 × 100 有效轮：`coll-on` / `coll-off` / `dist-on`，约 1.08 GPU-h，**已实测 F-081**）：
   开 / 关 checksum 与全量点、轻评估点数值逐位相同（`instrumentation_check coll-off coll-on`，现在也比 `light_rounds[]` 的参照列）+ 几何 AUROC。
   G1 的 `set:` 已补齐（布点 / 300 有效轮 / 网格），**不开记录开关**，仍挂 `S6`（= S6b：在线 c_k，等 G1P 回传再定）。
   守卫：`tests/test_update_geometry.py`（手算值 + 不碰全局 RNG + AST）/ `test_s6_tf.py`（开 / 关 checksum 与已有行逐字相同、状态清单不变、

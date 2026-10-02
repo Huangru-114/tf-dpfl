@@ -5,40 +5,22 @@
 > **S6a 已实现**（D-086；方案 `S6a-PLAN.md`，实现取舍与方案的差别见 D-086）：四个只读记录开关 + 轻评估点 margin / 尾部 +
 > 防呆 + G8 快照 c_k 预检 + 探路组 **G1P**（3 run 已登记、已 materialize、`status` = todo）。**GPU 上还没跑过** —— 下一步是用户交作业。
 >
-> **下一步（用户，集群）**
-> ```bash
-> git pull && bash run_l1.sh 2>&1 | tail -3        # 记下当天的 L1 数字；多出来的红才是回归
-> # 探路组 G1P：**手工交一个 K=3 的合包**（开 / 关两格必须同卡，跨节点会混进别的差别）。
-> # submit.sh 会把三格各交成一个 k=1 的探路包（`--dry-run` 已核对）—— 不要用它交 G1P。
-> M=experiments/attack/hfl-mechanism
-> sbatch -c 12 --mem=72G --job-name=exp3v2-pack3 \
->     --comment=exp3v2:G1P__coll-on__s42,G1P__coll-off__s42,G1P__dist-on__s42 \
->     $M/pack.sbatch G1P__mix-coll-on+coll-off+dist-on__pack-k3-s42 \
->     $M/configs/G1P__coll-on__s42.yaml  G1P__coll-on__s42  $M/results/P2/G1P/G1P__coll-on__s42.metrics.json \
->     $M/configs/G1P__coll-off__s42.yaml G1P__coll-off__s42 $M/results/P2/G1P/G1P__coll-off__s42.metrics.json \
->     $M/configs/G1P__dist-on__s42.yaml  G1P__dist-on__s42  $M/results/P2/G1P/G1P__dist-on__s42.metrics.json
-> sbatch experiments/attack/hfl-mechanism/ck_precheck.sbatch                          # G8 快照上的 c_k 预检（约 10–20 min，没有实测）
-> ```
-> 回传：`results/P2/G1P/*.metrics.json`（+ `.gpu.json`）与 `analysis/ck_precheck.json`。
+> **G1P 与 c_k 预检已回传并核对（2026-10-02，F-081）**：
+> - GPU 上开 / 关记录开关 **逐位相同**（10 checksum + 900 字段）；单价 +31% round_time（云聚合后评估点约 56 s / 点最贵）；显存 16.8 GiB / run；草图 8.2 MB / run；
+> - 几何：恶意更新的**范数**可分（AUROC 0.83 / 0.91），**余弦**分不开（≈ 0.5）；edge 视角 ≈ 全局视角（ΔAUROC ≈ 0）—— 单 seed、描述性；
+> - 锯齿（单 seed）：受害 edge 的 ASR 在一个云周期内平均下降 0.17（高 ASR 时 0.2–0.34），不是触发器漂移；
+> - c_k（body 级）：攻击中**所有** edge 的 c_{y_t} ≈ 0（后门在），衰减后升回；**E0 与受害 edge 分不开**；单更新级的 c_k 没有检验。
 >
-> **回传后（下一个会话）按这个顺序读，全部用已有脚本，没有新的统计量**
-> 1. `python3 harness/status.py experiments/attack/hfl-mechanism/registry.yaml` → G1P 3 格 done（exit_code 0 且 config_sha 一致）；
->    先看 `client_failures` 与攻击者参与（陷阱 #23：GPU 上才会抛的东西）；
-> 2. **开 / 关逐位相同**：`python3 harness/instrumentation_check.py results/P2/G1P/G1P__coll-off__s42.metrics.json results/P2/G1P/G1P__coll-on__s42.metrics.json`
->    （checksum 逐轮相同 + 已有数值字段 + `light_rounds[]` 参照列逐位相同）→ 记 **F-081**（F-080 是 CPU 部分）。**有 ❌**：先看最早的 checksum 分歧在哪一轮、两份 run 是否同卡（F-047），**不要**改代码掩盖；
-> 3. **几何能不能分开攻击者**：`python3 harness/g1p_geometry.py results/P2/G1P/G1P__coll-on__s42.metrics.json results/P2/G1P/G1P__dist-on__s42.metrics.json --json analysis/g1p_geometry.json`
->    （池化 AUROC：norm / −cos_global；edge 视角只在「同一 edge 轮里恶意与良性都在」的更新上算 —— 集中布点没有这样的组，是结构不是 bug）；
->    顺带读 Δ_jump 与冻结列 − 主列。**这是描述性读数，不是判定** —— 阈值没有预注册；要变成 3-D 的判定，先在 FINDINGS 写规则、再写 `g1_verdict.py`（D-081 的纪律）；
-> 4. **c_k 预检**：`analysis/ck_precheck.json` 里每个 seed × 轮 × edge 的 c_0…c_9 与 `contrast`（E0 的 c_{y_t} vs 其余 edge 的均值）。
->    **判读规则要在读数之前写进 FINDINGS**（本会话没写，留给下一会话和用户一起定）；
-> 5. 单价与显存：`timing_summary.post_agg_eval_total_s / frozen_eval_total_s`、`gpu_mem.peak_mib`、`dumps.sketch.bytes` → 重算 G1 的机时（`S6a-PLAN.md` 附录 E 是外推）。
->
-> **然后才是那三个决定**（D-085 ⑤）：S6b（在线 c_k 做不做）、G1 规模（附录 E 的 A / B / C）、3-C 去留。G1 的 24 run 在这之前保持 blocked（`requires` 含 `S6`）。
+> **下一步 = 用户决定三件事**（D-085 ⑤）：
+> 1. **S6b（在线 c_k）做不做**：body 级 c_k 能看出「有没有后门」但分不开 edge；是否值得去测单个更新（成本：每个上传更新一次定向 PGD；`S6a-PLAN.md` 附录 E 估 c_k 每 run 约 0.3 h，**没有实测**）。几何里范数已经分得开，可以先拿范数当 3-D 的第一个分数；
+> 2. **G1 的规模与是否开记录开关**：按 G1P 单价，24 run × 约 1.1 GPU-h ≈ 26–30 GPU-h（开三个开关；R20 未测、外推）；关掉三个开关约 20；
+> 3. **3-C 去留**：锯齿信号真实存在（上面），可以只用 G1 的轻评估点 + 云聚合后一点 + 冻结列，不需要额外实验。
+> 另：**判读规则要在读数前预注册**（几何 AUROC 的阈值、c_k 的 contrast 阈值都没有）—— 下个会话先和用户定规则、写进 FINDINGS，再写 `g1_verdict.py`。
 >
 > **全局概况看 `REPORT.md`**：§0 结果图一览；§9.1 还没做的实验；§9.2 待用户定的事。
 >
 > **现在在哪**（`python3 harness/status.py experiments/attack/hfl-mechanism/registry.yaml`，2026-10-02 实测）：
-> todo 3（G1P）/ done 87 / stale 6（G7，D-053 默认不重交）/ blocked 91（G1 24 缺 S6、G2 55 挂 `g2-scale`、G4 12 搁置）。
+> todo 0 / done 90（含 G1P 3）/ stale 6（G7，D-053 默认不重交）/ blocked 91（G1 24 缺 S6、G2 55 挂 `g2-scale`、G4 12 搁置）。
 >
 > **待用户定**（REPORT §9.2）：① 3-B 的出路；② git 瘦身（**改写历史要用户单独明确同意**）；③ G2 规模（用户 2026-10-02：「先不做 G2」；3-A 的 s45 / s46 也随它定）；
 > ④ G1 的规模与 S6b（等 G1P）；⑤ G8 存盘的离线分析与删除时机（c_k 预检是它的第一个消费者）。
