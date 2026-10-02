@@ -1,17 +1,17 @@
 # current-focus —— Experiment 3（改版）· 交接
 
-> 本文件是 `CLAUDE.md`「新会话开场第 3 步」要读的那一份。**写于 2026-10-01**（3.3 收尾、交接 S5 时）。
+> 本文件是 `CLAUDE.md`「新会话开场第 3 步」要读的那一份。**写于 2026-10-01**（S5 会话结束时）。
 >
-> **下一会话 = S5**（用户 2026-10-01 定，D-083）。**唯一要回答的问题与判据见下一节「S5 交接」**。
+> **S5 已完成**（统一评估网格，D-084）。**下一会话的题目用户还没定** —— 候选见下面「下一步」。
 >
 > **全局概况看 `REPORT.md`**：
 > - §0 结果图一览（14 张，附中文读法）；
 > - §9.1 还没做的实验；
 > - §9.2 待用户定的事。
 >
-> **现在在哪**（`python3 harness/status.py experiments/attack/hfl-mechanism/registry.yaml`，2026-09-30 实测）：
-> todo 0 / done 83 / stale 6（G7，D-053 默认不重交）/ blocked 91（G1 24 缺 S5 + S6、G2 55 缺 S5、G4 12 搁置）。
-> 集群上没有在跑的作业；已用约 99 GPU-h。
+> **现在在哪**（`python3 harness/status.py experiments/attack/hfl-mechanism/registry.yaml`，2026-10-01 实测）：
+> todo 4（= **S5P**，GPU 探路，待交）/ done 83 / stale 6（G7，D-053 默认不重交）/ blocked 91
+> （G1 24 缺 S6、G2 55 挂 `g2-scale`、G4 12 搁置）。集群上没有在跑的作业；已用约 99 GPU-h。
 >
 > **已判定**：
 > - 3.1 不成立（F-073）；
@@ -23,18 +23,99 @@
 > **待用户定**（REPORT §9.2）：
 > ① 3-B 的出路；
 > ② git 瘦身（**改写历史要用户单独明确同意**）；
-> ③ G2 的规模（S5 不依赖它，见下）；
-> ④ S6 的范围（G1 的另一个前提）；
+> ③ **G2 的规模**（S5 已完成，G2 挂着 `g2-scale`；先看 S5P 实测的轻评估点单价）；
+> ④ S6 的范围（G1 的另一个前提；G1 的网格也在那时定）；
 > ⑤ G8 存盘的离线分析与删除时机。
 >
 > **分支**：继续在 `claude/federated-learning-experiment-review-pt5j1b` 上工作（用户定「先不合并」；`origin/main` 停在 `cf40b13`，2026-08-26）。
-> 本地 L1 基线：
-> - 没有 matplotlib：**1414 passed / 43 skipped / 3 xfailed**；
-> - 装了 matplotlib：1417 / 40 / 3。
+> 本地 L1 基线（S5 之后，2026-10-01 实测）：
+> - 没有 matplotlib：**1487 passed / 44 skipped / 3 xfailed**；
+> - 装了 matplotlib：1490 / 41 / 3；
+> - TF 2.15.1 CPU（scratch venv，`pytest tests/`）：1647 passed / 26 skipped / 3 xfailed / **2 failed**（只有陷阱 #4）。
 >
 > 集群 GPU 节点 5 条红、没有 GPU 的 TF 节点 2 条红（F-067），多出来的才是回归。
 
-## S5 交接（2026-10-01 写；下一会话从这里开始）
+## 下一步（S5 之后）
+
+**① 用户（集群）：拉代码、跑 L1，然后交 S5P**（约 1 GPU-h，**没有实测**；在仓库根目录执行）。
+
+推荐手工交两个 K=2 的合包：同一个 R 的开 / 关两格放在同一张卡上，开 / 关的比较就排除了跨节点的差别。tag 用合包格式（D-060），`_cell_k` 认得这份显存记录。
+
+```bash
+M=experiments/attack/hfl-mechanism
+for R in R2 R20; do
+  sbatch -c 8 --mem=48G --job-name=exp3v2-pack2 \
+      --comment=exp3v2:S5P__${R}-off__s42,S5P__${R}-on__s42 \
+      $M/pack.sbatch S5P__mix-${R}-off+${R}-on__pack-k2-s42 \
+      $M/configs/S5P__${R}-off__s42.yaml S5P__${R}-off__s42 $M/results/P2/S5P/S5P__${R}-off__s42.metrics.json \
+      $M/configs/S5P__${R}-on__s42.yaml  S5P__${R}-on__s42  $M/results/P2/S5P/S5P__${R}-on__s42.metrics.json
+done
+```
+
+也可以 `PACK=3 RUN_GROUPS="S5P" bash $M/submit.sh`：每格只有 1 个 seed、都没有显存记录 → 4 个 k=1 的探路包（`--dry-run` 已核对）。
+
+**② 回传后（Claude 或用户）**：
+
+```bash
+python3 harness/status.py experiments/attack/hfl-mechanism/registry.yaml        # 期望 S5P 4 格 done
+for R in R2 R20; do
+  python3 harness/instrumentation_check.py \
+      experiments/attack/hfl-mechanism/results/P2/S5P/S5P__${R}-off__s42.metrics.json \
+      experiments/attack/hfl-mechanism/results/P2/S5P/S5P__${R}-on__s42.metrics.json --grid
+done
+```
+
+- 判据：两对都 ✅（checksum 逐轮相同 + 全量点数值逐位相同）→ GPU 上的「评估不改变训练」成立，写进 FINDINGS（F-078 的 GPU 部分）。
+- 有 ❌：先看最早的 checksum 分歧在哪一轮、两份 run 是否同卡（F-047：核数也要相同）。**不要**自行改代码掩盖，带着分歧位置回来讨论。
+- 顺带读 `timing_summary.light_eval_total_s / n_light_evals` 得轻评估点的单价，与全量点的 `[TimingASR].main` + `[TimingAcc]` 对比 → 算 G2 的机时（R2 省、R10 / R20 多，flat 判据严 5 倍可能跑到 cap 300）。
+- 按相位（`light_rounds[].edge_round`）比较 pm_acc / edge ASR 的均值：看云周期内的锯齿会不会干扰停止判据的斜率（D-084 ⑦，复核 M3；**没有证据**）。
+
+**③ 用户拍板 G2 规模** → 改 `registry.yaml` 的 G2（seed / 格子），把 `g2-scale` 加进 `available`，materialize，交。
+
+## 本会话（S5，2026-10-01）做了什么
+
+**请求**（用户）：「阅读交接文档，开始准备 S5」。开场问了两件事：G2 挂 `g2-scale` 闸门（用户：加）；G1 的 R10 / R20 是否同样上网格（用户：推迟到 S6）。
+用户还要求先讲清楚「S5 要干什么、能做哪些分析、对防御设计的意义」以及「之前做没做过」—— 已在对话里回答（要点：S5 是测量工具，本身不产生结论；它解锁的 3-A（G2）与 3-C 锯齿（G1）在 P2 下都没做过；P1 的 R 扫描已作废）。
+
+| 交付 | 内容 |
+|---|---|
+| `fedavg/server/eval_grid.py`（新，不 import TF） | 网格规则：全量 = 网格上的云轮末（eval_interval = lcm(G,R)/R）、轻评估点、网格序号、`[设定8]` 字段 |
+| `alignment.py` / `config_validate.py` §4b' / §6f | 开关 `evaluation.eval_grid`（EXTRA_SWITCHES）；校验收窄到 P2 路径（D-084 ⑤）；`[设定8]` |
+| `server.py` / `backdoor_server.py` / `attack/backdoor_eval.py` | 交错循环里插轻评估（`_light_eval`：专用草稿槽 + 独立 RNG 键 + Python random 复原）；GM / EM 只在全量点；`evaluate_hierarchical_asr(light=True)`；`run()` 只在全量点做停止决定 |
+| `stopping.py` | `update(..., x=)` + `observe()`；横轴 = 网格序号 |
+| `main.py` / `utils/logger.py` | `global_acc` 为 None 的轮跳过 |
+| harness | collect_metrics **schema 9**（`run.eval_grid` / `run.grid`、`light_rounds[]`、`per_edge_light_rounds`、`[Cloud] GM=n/a`、`light_eval_total_s`）；`runs_table.grid_series`（T_θ 与主列末 10 点含轻评估点）；`eval_grid` 进因素键 / 配对键 / EXPECT_KEYS；`instrumentation_check --grid` |
+| 登记表 | `available` 加 S5；G2 写网格 + 挂 `g2-scale`；登记 **S5P**（4 run，已 materialize）；已有 89 个配置的 sha 不变 |
+| 测试 | 新 `test_eval_grid.py`（47）、`test_eval_grid_tf.py`（9，TF）、`test_collect_eval_grid.py`（14）；`test_stopping.py` §5（+7）；`test_no_test_leakage` +1；`test_registry` / `test_status` / 4 个 schema 号的钉子 |
+| 文档 | D-084（D-055 / D-083 状态）、F-078、CLAUDE.md「当前地基」S5 一条、PLAN / README（5d）/ REPORT §9 |
+
+**验证**（同一环境改动前 → 后，实测）：
+- L1（本地无 TF）：1414 / 43 / 3 → **1487 / 44 / 3**（PASS；+1 skip = 新的 TF 模块）。装了 matplotlib：1417 / 40 / 3 → 1490 / 41 / 3。
+- TF 2.15.1 CPU：冻结 HEAD 1562 / 28 / 3 / 3 failed（陷阱 #4 ×2 + `git archive` 副本里没有 `.git` 的假红）→ 改动后 **1647 / 26 / 3 / 2 failed**（只剩陷阱 #4）。
+- `status.py`：done 83 / stale 6 不变；INDEX.tsv 只多 4 行 S5P。
+- `runs_table` 对 89 个已回传 run：`series.csv` 逐字节相同；`runs.csv` 只多一列空的 `eval_grid`（另有 source 路径因运行目录不同而不同）。
+- 反向锚点（实测）：
+  - `update()` 忽略 x → `test_stopping` 2 条红；
+  - 去掉轻评估前后的 random 复原 → 开网格就改变训练（`test_without_the_fence_grid_on_changes_training` 断言 checksum 不同，它是绿的 = 通道真实存在）；
+  - 夹具若不复位 Keras 的种子发生器（`_prod_seeding`），clone_model 不消耗 random，测不到这条通道。
+- **L2 CPU 替身**（F-078 ④；N-005 的做法：随机数据，S5P 缩到 20 端 / 2 edge / [1,1]，`taskset -c 0-3`，驱动在 scratch、不入库）：
+
+  | 比较 | checksum | 已有数值字段 | 其他 |
+  |---|---|---|---|
+  | R2 开网格 vs 关网格（`--grid`） | 10 轮逐位相同 | 184 个逐位相同 | 32 个 GM / EM 字段按设计不评；轻评估点在有效轮 5 / 15 |
+  | R20 开网格 vs 关网格 | 2 轮相同 | 104 个相同 | 6 个轻评估点 |
+  | 关网格 vs 改动前冻结 HEAD | R2 10 轮、R20 2 轮相同 | R2 216 个、R20 104 个相同 | — |
+
+  6 个 run 的 `errors` / `client_failures` 都为空，攻击者都参与了。**GPU 上没有证据** → S5P。
+
+**踩到的坑**：
+- 测试夹具 `test_eval_integration._model()` 调了 `tf.keras.utils.set_random_seed`，之后 `clone_model` **不**消耗 Python random；main.py 只调 `tf.random.set_seed`，会消耗 → 测随机通道时必须先 `_prod_seeding`。
+- `asr_columns` 必须与全量点相同（four_way 的探针取法与 filtered 不同：edge 探针约 3125 张 > 2000 上限时取的样本不一样）。
+- 做完变异测试先删 `__pycache__`。
+
+**没做的**：series.csv 的 `kind` 列（方案里有，实现时判断不需要：metrics.json 里轻评估点单独成表，series.csv 按有效轮合并；D-084 ⑨）；S5P 没交（用户的事）；G2 / G1 不动。
+
+## 历史：S5 交接（2026-10-01 写；✅ 已完成，D-084）
 
 **本会话唯一要回答的问题**：实现 S5 —— **统一评估网格**（按有效轮）+ **轻评估点** + **停止判据横轴改为网格序号**；开了网格后 GM / EM 精度也只在网格点上算。
 它是 G2（3-A，55 run）与 G1（3-C 锯齿 + 3-D，24 run，另缺 S6）的前提（`registry.yaml` 的 `requires`）。

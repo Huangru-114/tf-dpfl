@@ -1158,3 +1158,51 @@ G5AB 2.9k / 3.0k / 5.2k / 6.2k s、**G8F 16.7k s（4.6 GPU-h，估计是 3.5）*
 
 这批图都没有新增结论，只把已有数字画出来。唯一的新读法是「G3 里受害 edge 偏低的不只 C2，还有最异质的 hdir」，这是**探索性**的（hdir 没有 floor，F-075）。
 
+## 2026-10-01 / 02（S5 统一评估网格，D-084）
+
+### F-078 `confirmed`（CPU：TF 2.15.1 单测 + 替身）/ 无证据（GPU，待 S5P）—— 统一评估网格不改变训练；Python random 是真实的扰动通道；统一横轴后 flat 不再先判平
+
+**① `clone_model` 会消耗 Python `random`，取决于播种方式**（TF 2.15.1 / Keras 2.15 CPU，实测）：
+
+| 播种方式 | `tf.keras.models.clone_model` 前后 `random.getstate()` |
+|---|---|
+| main.py 式：`random.seed` / `np.random.seed` / `tf.random.set_seed` 分别调 | **变了**（未播种初始化器经 `random.randint` 取种子） |
+| `tf.keras.utils.set_random_seed`（测试夹具 `test_eval_integration._model()` 用它） | 不变（Keras 用自己的种子发生器） |
+
+- 轻评估第一次建草稿模型时就会推进 Python random；legacy 取数管线的训练用它洗牌（`random.shuffle`）。
+- 对策（D-084 ⑤⑥）：轻评估用专用草稿槽，并把整个轻评估包在 `random.getstate()/setstate()` 里；`config_validate` 拒绝 legacy 管线与非共享生成器。
+- 测试夹具要先 `_prod_seeding`（把 Keras 的种子发生器复位成 None），否则测不到这条通道。
+
+**② TF 单测**（`tests/test_eval_grid_tf.py`，夹具是 2 edge × 3 FedRep 客户端、2 个 Bad-PFL 恶意端，official BN、固定攻击者、fresh-PM、**legacy 管线**）：
+
+| 检查 | 结果 |
+|---|---|
+| 开 / 关网格逐轮 `[Checksum]`：R4 / G2 / 2 云轮、R2 / G3 / 3 云轮 | 相同 |
+| 全量点上已有的评估行（`[Backdoor]` `[ASR4]` `[Acc]` `[Stale]` `[StaleASR]` `[Cloud]`） | 逐字相同 |
+| 轻评估的位置 = `eval_grid.eval_points` | 相同 |
+| **去掉 random 的复原**（反向锚点） | checksum **不同** → 通道真实存在，上一行的测试测得到它 |
+| 一次轻评估前后的状态清单（客户端 / edge / 全局权重、各 rng、Python random、生成器权重与 Adam、服务器计数器） | 逐位相同；全量评估用的草稿槽没有被提前创建 |
+| 生成器 BN 的 moving 统计量（official 模式，`eval_delta` 以 training=True 调生成器） | **确实变了** —— 训练不读它们，由上面的 checksum 判定（D-055 要求「不预设」） |
+
+**③ 停止判据横轴**（F-052 的第一条数值证据；纯 python 回放，单 seed）：
+- 旧横轴下，pilot `D029__flat__s42` 停在有效轮 150（`converged`，等于集群的 `stopped_at_effective`）。
+- 换成网格横轴，150 时末 10 点的斜率是 0.00028 / 云轮 = 0.0014 / 格 > 0.0010，**不停**（数据只到 150）。
+- `D029__2edge_distributed__s42`（R5）两种横轴下都停在 210（R = G，逐位不变）。
+- 推论：G2 的 flat 格在网格下可能比 pilot 跑得更久、甚至到 cap 300。**没有** G2 的数据。
+
+**④ L2 CPU 替身**（N-005 的做法：随机数据，S5P 缩到 20 端 / 2 edge / [1,1] / n_per_client 40 / local_epochs 1，`taskset -c 0-3`，驱动在 scratch、不入库）：
+
+| 比较 | checksum | 已有数值字段 | 其他 |
+|---|---|---|---|
+| R2（10 云轮）开网格 vs 关网格，`instrumentation_check --grid` | 10 轮逐位相同 | 184 个逐位相同 | 32 个 GM / EM 字段按设计不评；轻评估点在有效轮 5 / 15 |
+| R20（2 云轮）开网格 vs 关网格 | 2 轮相同 | 104 个相同 | 轻评估点在 5 / 10 / 15 / 25 / 30 / 35 |
+| 关网格 vs 改动前冻结 HEAD（`git archive`） | R2 10 轮、R20 2 轮相同 | R2 216 个、R20 104 个相同 | — |
+
+- 6 个 run 的 `errors` / `client_failures` 都为空；攻击者确实参与了（R2 第 2 / 3 / 6 / 7 / 9 轮，R20 第 1 / 2 轮）。
+- CPU 上每个轻评估点 11–14 s，只作参考。
+- 替身走的是 P2 的 per_epoch 管线，训练不读 Python random → ① 的通道在这里碰不到，由②覆盖。
+
+**没有证据的**：
+- GPU 上开 / 关网格是否同样逐位相同 —— 交 S5P（4 run），`instrumentation_check --grid` 比；
+- 轻评估点的 GPU 单价；
+- 云周期内的锯齿（轻评估点在 er < R，全量点在 er = R）会不会干扰停止判据的斜率与去抖（D-084 ⑦，复核 M3）。
