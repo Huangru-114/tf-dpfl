@@ -517,6 +517,35 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
         _fail(f"stopping 与 evaluation.eval_grid={_grid_now} 不能同开：停止判据的斜率容差 0.0010 是按"
               f" 5 有效轮的网格标定的（F-052）；G=1 时等于放宽 5 倍，G>5 时更严。")
 
+    # ── 4h. S6b 在线 c_k（D-087）：evaluation.update_ck(+ _every / _n / _steps) ─────────────
+    #   只读记录，写错的每一种都会静默记错：类型不对（1 == True）、没有 edge 干净集（旧划分不切）、
+    #   没开网格 / 不是交错调度 / 不是 hier_fedrep（评分挂在 edge 轮的上传收齐处，要 body 索引）、
+    #   PGD 图片数超过干净集。
+    _ck_ints = {k: ev_cfg.get(k) for k in ("update_ck_every", "update_ck_n", "update_ck_steps")
+                if ev_cfg.get(k) is not None}
+    for _k, _v in _ck_ints.items():
+        if isinstance(_v, bool) or not isinstance(_v, int) or _v < 1:
+            _fail(f"evaluation.{_k} 必须是 ≥ 1 的整数，收到 {_v!r}")
+    _ck_on = ev_cfg.get("update_ck")
+    if _ck_on is not None and not isinstance(_ck_on, bool):
+        _fail(f"evaluation.update_ck 必须是 bool，收到 {_ck_on!r}")
+    if _ck_on:
+        if _gs(config, "evaluation.eval_grid") is None:
+            _fail("evaluation.update_ck 要求 evaluation.eval_grid 已开（评分复用网格那套「评估不得改变训练」的围栏）。")
+        if _gs(config, "federation.edge_schedule") != "interleaved":
+            _fail("evaluation.update_ck 要求 federation.edge_schedule = interleaved。")
+        if method != "hier_fedrep":
+            _fail("evaluation.update_ck 只对 hier_fedrep 实现（需要 body 索引）。")
+        if str(fed.get("partition", "")) not in ("designed", "hdir", "equal_random"):
+            _fail("evaluation.update_ck 要求 S3 划分（federation.partition ∈ designed / hdir / equal_random）："
+                  "只有它们会切出每个 edge 的干净集（D-064）；旧划分没有干净集可用。")
+        _clean = int((fed.get("design") or {}).get("clean_per_edge", 0) or 0)
+        _n_ck = int(_gs(config, "evaluation.update_ck_n"))
+        if _clean < 1:
+            _fail("evaluation.update_ck 要求 federation.design.clean_per_edge ≥ 1（edge 干净集）。")
+        if _n_ck > _clean:
+            _fail(f"evaluation.update_ck_n={_n_ck} 超过 federation.design.clean_per_edge={_clean}：PGD 的图片取自 edge 干净集。")
+
     # ── 4c. 对齐开关（A4；fedavg/alignment.py + config/alignment_p2.yaml）──
     #   三种写错都会静默跑错：取值拼错（回退旧行为）、P2 配置少开一项（与其他
     #   P2 格子不可比）、方法专属开关开在别的方法上（什么也不发生）。
@@ -745,5 +774,14 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
         "update_sketch_dim": int(_gs(config, "evaluation.update_sketch_dim")),
         "post_agg_eval": bool(_gs(config, "evaluation.post_agg_eval")),
         "frozen_trigger": bool(_gs(config, "evaluation.frozen_trigger")),
+    }))
+
+    # ── 6h. S6b 在线 c_k（[设定10]，D-087）──────────────────────────────
+    #   独立 kv 行，不扩 [设定9]。没写 = update_ck 关（与 S6b 之前的 run 是同一种 run）。
+    print(format_kv("[设定10]", {
+        "update_ck": bool(_gs(config, "evaluation.update_ck")),
+        "update_ck_every": int(_gs(config, "evaluation.update_ck_every")),
+        "update_ck_n": int(_gs(config, "evaluation.update_ck_n")),
+        "update_ck_steps": int(_gs(config, "evaluation.update_ck_steps")),
     }))
     return warnings

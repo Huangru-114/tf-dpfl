@@ -95,7 +95,12 @@ from utils.kvline import parse_kv, collect_kv, parse_list   # noqa: E402
 #     （[FrozenASR*]，冻结触发器列，phase = post / light / full）；light_rounds[] 加 margin / p90 / gt50 /
 #     flip_other 列、per_edge_light 加 margin_p50 / benign_asr_p90；dumps.sketch（CountSketch 草图 manifest）；
 #     timing_summary 加 post_agg_eval_total_s / frozen_eval_total_s。老日志 → 空表 / None。
-SCHEMA_VERSION = 10
+# 11 = S6b（在线 c_k + 几何拆分，D-087）：run.update_ck / update_ck_every / update_ck_n / update_ck_steps
+#     （[设定10]，平铺标量）；新表 ck_scores（[CkScore]：每个上传更新一行，含原始 c_0…c_{K−1} 与 NCM 干净精度）/
+#     ck_before（[CkBefore]：本 edge 轮下发模型的 c_k）；update_geometry 加 norm_w / norm_s / cos_edge_w /
+#     cos_global_w（可训练权重部分 / BN 统计量部分，旧列仍是整个 body）；timing_summary.ck_eval_total_s。
+#     老日志 → 空表 / None。
+SCHEMA_VERSION = 11
 
 # A4 的副列：key=value 行（utils/kvline.py）→ rounds[] / acc_rounds[] 的字段。
 # 缺行（旧口径、或该列本 run 没开）→ null，**不是 0**。
@@ -125,8 +130,13 @@ LIGHT_EDGE_COLUMNS = ("edge_id", "edge_asr", "client_benign", "client_malicious"
                       "em_acc", "margin_p50", "benign_asr_p90")
 # S6a ①：[UpdateGeo] 的紧凑行（"/" 连接的列表字段解析成列表）
 UPDATE_GEO_COLUMNS = ("round", "edge_id", "edge_round", "cid", "mal", "norm", "cos_edge",
-                      "cos_global")
-UPDATE_GEO_LISTS = ("cid", "mal", "norm", "cos_edge", "cos_global")
+                      "cos_global", "norm_w", "norm_s", "cos_edge_w", "cos_global_w")
+UPDATE_GEO_LISTS = ("cid", "mal", "norm", "cos_edge", "cos_global", "norm_w", "norm_s",
+                    "cos_edge_w", "cos_global_w")
+# S6b：在线 c_k（[CkScore] / [CkBefore]，列表字段 c = "/" 连接的 K 个 c_k，None → na）
+CK_SCORE_COLUMNS = ("round", "edge_id", "edge_round", "effective_round", "cid", "mal", "ncm_acc", "c")
+CK_BEFORE_COLUMNS = ("round", "edge_id", "edge_round", "effective_round", "n_proto", "n_attack",
+                     "ncm_acc", "c")
 # S6a ③：[FrozenASR]（池化）与 [FrozenASREdge]（紧凑行）
 FROZEN_COLUMNS = ("round", "phase", "edge_round", "effective_round", "local_benign", "eval_s")
 FROZEN_EDGE_COLUMNS = ("round", "phase", "effective_round", "edge_id", "client_benign")
@@ -328,6 +338,7 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
     setg7 = None
     setg8 = None
     setg9 = None
+    setg10 = None
     data = None
     data_edges = []
     for ln in lines:
@@ -349,6 +360,9 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
         d = parse_kv(ln, "[设定9]")
         if d is not None:
             setg9 = d
+        d = parse_kv(ln, "[设定10]")
+        if d is not None:
+            setg10 = d
         d = parse_kv(ln, "[Partition]")
         if d is not None:
             data = d
@@ -413,6 +427,11 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
         "update_sketch_dim": setg9.get("update_sketch_dim") if setg9 else None,
         "post_agg_eval":     setg9.get("post_agg_eval") if setg9 else None,
         "frozen_trigger":    setg9.get("frozen_trigger") if setg9 else None,
+        # S6b 在线 c_k（[设定10]）。None = 老日志（不知道）；update_ck false = 没开。
+        "update_ck":         setg10.get("update_ck") if setg10 else None,
+        "update_ck_every":   setg10.get("update_ck_every") if setg10 else None,
+        "update_ck_n":       setg10.get("update_ck_n") if setg10 else None,
+        "update_ck_steps":   setg10.get("update_ck_steps") if setg10 else None,
         # ── 自适应轮数：这一格跑到第几轮、为什么停 ──────────────────────
         #   全 None = 固定轮数（没配 stopping，或老日志）。
         #   stop_reason='cap_reached' 是 **censored**，不是「收敛在 cap」。
@@ -709,7 +728,14 @@ def _s6_timing(lines) -> dict:
         vals = [d.get("eval_s") for d in collect_kv(lines, tag)
                 if d.get("eval_s") is not None and (phases is None or d.get("phase") in phases)]
         return round(sum(vals), 1) if vals else None
-    return {"post_agg_eval_total_s": _tot("[PostAgg]"), "frozen_eval_total_s": _tot("[FrozenASR]")}
+    return {"post_agg_eval_total_s": _tot("[PostAgg]"), "frozen_eval_total_s": _tot("[FrozenASR]"),
+            "ck_eval_total_s": _tot_ck(lines)}
+
+
+def _tot_ck(lines):
+    """S6b：[TimingCk] 的 ck_s 合计（在线 c_k 的耗时，在 round_time_total_s 之内）；没开 → None。"""
+    vals = [d.get("ck_s") for d in collect_kv(lines, "[TimingCk]") if d.get("ck_s") is not None]
+    return round(sum(vals), 1) if vals else None
 
 
 def _collect_update_geometry(lines) -> dict:
@@ -722,6 +748,22 @@ def _collect_update_geometry(lines) -> dict:
             row.append(parse_list(v) if c in UPDATE_GEO_LISTS else v)
         rows.append(row)
     return {"columns": list(UPDATE_GEO_COLUMNS), "rows": rows}
+
+
+def _collect_ck_scores(lines) -> dict:
+    """[CkScore] → {columns, rows}：每个被评分的上传更新一行，c 解析成 K 个值的列表（S6b）。"""
+    rows = []
+    for d in collect_kv(lines, "[CkScore]"):
+        rows.append([parse_list(d.get(c)) if c == "c" else d.get(c) for c in CK_SCORE_COLUMNS])
+    return {"columns": list(CK_SCORE_COLUMNS), "rows": rows}
+
+
+def _collect_ck_before(lines) -> dict:
+    """[CkBefore] → {columns, rows}：本 edge 轮下发模型（θ_before）的 c_k。"""
+    rows = []
+    for d in collect_kv(lines, "[CkBefore]"):
+        rows.append([parse_list(d.get(c)) if c == "c" else d.get(c) for c in CK_BEFORE_COLUMNS])
+    return {"columns": list(CK_BEFORE_COLUMNS), "rows": rows}
 
 
 def _collect_post_agg(lines) -> list:
@@ -911,6 +953,8 @@ def collect(log_text: str) -> dict:
         "per_edge_light_rounds": _collect_light_edge(lines),
         # S6a（schema 10）：①逐更新几何（紧凑）②云聚合后评估点 ③冻结触发器列。都是独立的表，不进 rounds[]。
         "update_geometry": _collect_update_geometry(lines),
+        "ck_scores": _collect_ck_scores(lines),
+        "ck_before": _collect_ck_before(lines),
         "post_agg_rounds": _collect_post_agg(lines),
         "per_edge_post_agg_rounds": _collect_post_agg_edge(lines),
         "frozen_rounds": _collect_frozen(lines),

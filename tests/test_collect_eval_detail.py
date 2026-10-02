@@ -70,7 +70,7 @@ def _log(rounds=(1, 2), sha="123456e78901"):
 def test_rounds_get_the_pooled_distribution_columns():
     text, recs = _log()
     m = CM.collect(text)
-    assert m["schema_version"] == 10
+    assert m["schema_version"] == 11
     want = ED.summarize(recs, T, K)
     row = m["rounds"][0]
     assert row["round"] == 1

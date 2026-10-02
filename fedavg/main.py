@@ -773,6 +773,16 @@ def run_experiment(config_path="config/config.yaml"):
     for edge in edge_servers:
         edge.clean_indices = (s3_out["clean_indices"][edge.edge_id]
                               if "clean_indices" in s3_out else None)
+    # S6b（D-087）：在线 c_k 要在 edge 干净集上跑 NCM + PGD → 开关开时把干净集图像 / 标签挂到 edge 上
+    # （x_all 已是模型输入空间；顺序 = clean_indices 的顺序，取前 n 张是确定性的）。
+    if get_switch(config, "evaluation.update_ck"):
+        for edge in edge_servers:
+            if edge.clean_indices is None or len(edge.clean_indices) == 0:
+                raise ValueError(f"evaluation.update_ck：edge {edge.edge_id} 没有干净集"
+                                 f"（federation.partition 须是 S3 划分且 clean_per_edge ≥ 1）")
+            _ci = np.asarray(edge.clean_indices)
+            edge.clean_x = np.asarray(x_all[_ci], dtype=np.float32)
+            edge.clean_y = np.asarray(y_all[_ci]).reshape(-1).astype(np.int64)
 
     # 为每个 edge 注入与其训练分布匹配的测试集（EM 评估用）。
     # superclass_pathological：使用预定义的超类细粒度类集合。

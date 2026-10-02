@@ -14,6 +14,12 @@ server/update_geometry.py  —  逐更新几何日志（S6a ①；DECISIONS D-08
 留一余弦用「和」算：Δ_i·(S − Δ_i)，‖S − Δ_i‖² = ‖S‖² − 2 S·Δ_i + ‖Δ_i‖²，不需要两两内积。
 float64 累加；Δ 本身存 float32。只有 1 个更新时无「其他」→ None（陷阱 #13：无定义不是 0）。
 
+S6b（D-087）更正一个混杂：base 索引**包含 BN 的 moving_mean / moving_variance**，FedRep 下统计量私有（A27），
+上传的 body Δ 里因此混着客户端自己的 BN 统计量（恶意端的投毒样本会改统计量）。现在把 Δ 拆成
+「可训练权重部分」（γ/β/卷积核）与「BN 统计量部分」：多记 `norm_w` / `norm_s` / `cos_edge_w` / `cos_global_w`
+（旧列 `norm` / `cos_edge` / `cos_global` 仍是整个 body，逐位不变）；草图另存权重部分 `sketch_w`
+（统计量部分 = `sketch` − `sketch_w`，同一个哈希）。没有统计量索引（缺省）→ 新列为 None。
+
 **硬约束：记录不得改变训练。** 本模块不碰任何全局 RNG（草图的哈希与符号来自常量种子的独立
 Generator）、不修改传入的权重（只读 `get_weights()` 返回的副本）。**不 import TF。**
 守卫：tests/test_update_geometry.py。
@@ -51,6 +57,14 @@ def body_delta(client_weights, edge_weights, base_idx) -> np.ndarray:
     parts = [(np.asarray(client_weights[j], np.float64)
               - np.asarray(edge_weights[j], np.float64)).reshape(-1) for j in base_idx]
     return np.concatenate(parts).astype(np.float32) if parts else np.zeros(0, np.float32)
+
+
+def stat_mask(edge_weights, base_idx, stat_idx) -> np.ndarray:
+    """body Δ（按 base_idx 顺序展平）里属于 BN 统计量的坐标 → 布尔掩码。stat_idx 为空 → 全 False。"""
+    sset = set(int(i) for i in (stat_idx or ()))
+    parts = [np.full(int(np.asarray(edge_weights[j]).size), int(j) in sset, dtype=bool)
+             for j in base_idx]
+    return np.concatenate(parts) if parts else np.zeros(0, dtype=bool)
 
 
 def _loo_cos(delta_dot_S: float, norm2: float, S_norm2: float):
@@ -101,15 +115,19 @@ class UpdateGeometry:
     （算几何、打 `[UpdateGeo]`、清缓冲）。缓冲只在一个 edge 轮内存在（约 10 个更新 × 19.6 MB）。
     """
 
-    def __init__(self, malicious_ids=(), sketch_dim: int = DEFAULT_SKETCH_DIM):
+    def __init__(self, malicious_ids=(), sketch_dim: int = DEFAULT_SKETCH_DIM, stat_idx=()):
         self.malicious_ids = set(int(i) for i in malicious_ids)
         self.sketch_dim = int(sketch_dim)
+        self.stat_idx = tuple(int(i) for i in (stat_idx or ()))
+        self._mask = None              # 统计量坐标掩码（第一次 observe 时按形状建一次）
         self._sketch = None
         self._buf = {}                 # edge_id → [(client_id, Δ)]
         self._round_sketches = []      # 本云轮累积：(edge_id, edge_round, [cid], [草图])
 
     def observe(self, edge_id, edge_round, client_updates, edge_weights, base_idx):
         """只读。client_updates 的 `.client_id` 必须存在（ClientUpdate）。"""
+        if self._mask is None and self.stat_idx:
+            self._mask = stat_mask(edge_weights, base_idx, self.stat_idx)
         rows = []
         for u in client_updates:
             rows.append((int(u.client_id), body_delta(u[0], edge_weights, base_idx)))
@@ -121,37 +139,53 @@ class UpdateGeometry:
             return []
         groups = {eid: [d for _, d in rows] for eid, rows in self._buf.items()}
         geo = geometry(groups)
+        mask = self._mask
+        has_split = mask is not None and bool(mask.any())
+        if has_split:
+            geo_w = geometry({eid: [d[~mask] for d in ds] for eid, ds in groups.items()})
         lines = []
         for eid in sorted(self._buf):
             rows = self._buf[eid]
             g = geo[eid]
-            lines.append(format_kv("[UpdateGeo]", {
+            fields = {
                 "edge_round": int(edge_round),
                 "cid": fmt_list([c for c, _ in rows]),
                 "mal": fmt_list([int(c in self.malicious_ids) for c, _ in rows]),
                 "norm": fmt_list(g["norm"]),
                 "cos_edge": fmt_list(g["cos_edge"]),
                 "cos_global": fmt_list(g["cos_global"]),
-            }, round_idx=round_idx, edge_id=eid))
+            }
+            if has_split:                       # S6b：权重部分 / 统计量部分（旧列不变）
+                gw = geo_w[eid]
+                fields["norm_w"] = fmt_list(gw["norm"])
+                fields["norm_s"] = fmt_list([float(np.linalg.norm(d[mask].astype(np.float64)))
+                                             for _, d in rows])
+                fields["cos_edge_w"] = fmt_list(gw["cos_edge"])
+                fields["cos_global_w"] = fmt_list(gw["cos_global"])
+            lines.append(format_kv("[UpdateGeo]", fields, round_idx=round_idx, edge_id=eid))
             if rows:
                 if self._sketch is None:
                     self._sketch = CountSketch(rows[0][1].shape[0], self.sketch_dim)
                 self._round_sketches.append(
                     (eid, int(edge_round), [c for c, _ in rows],
-                     [self._sketch.apply(d) for _, d in rows]))
+                     [self._sketch.apply(d) for _, d in rows],
+                     [self._sketch.apply(np.where(mask, 0.0, d)) for _, d in rows]
+                     if has_split else None))
         self._buf = {}
         return lines
 
     def take_round_arrays(self):
-        """本云轮累积的草图 → npz 数组字典（没有 → None），并清空。"""
+        """本云轮累积的草图 → npz 数组字典（没有 → None），并清空。有统计量拆分时另存 sketch_w（权重部分）。"""
         if not self._round_sketches:
             return None
-        edge, er, cid, sk = [], [], [], []
-        for eid, e_r, cids, sks in self._round_sketches:
-            for c, s in zip(cids, sks):
-                edge.append(eid); er.append(e_r); cid.append(c); sk.append(s)
+        edge, er, cid, sk, skw = [], [], [], [], []
+        for eid, e_r, cids, sks, sksw in self._round_sketches:
+            for i, (c, s_) in enumerate(zip(cids, sks)):
+                edge.append(eid); er.append(e_r); cid.append(c); sk.append(s_)
+                if sksw is not None:
+                    skw.append(sksw[i])
         self._round_sketches = []
-        return {
+        out = {
             "sketch": np.stack(sk).astype(np.float16),
             "client_id": np.array(cid, np.int32),
             "edge_id": np.array(edge, np.int16),
@@ -159,3 +193,6 @@ class UpdateGeometry:
             "malicious": np.array([c in self.malicious_ids for c in cid], np.bool_),
             "sketch_dim": np.array(self.sketch_dim, np.int32),
         }
+        if skw:
+            out["sketch_w"] = np.stack(skw).astype(np.float16)
+        return out

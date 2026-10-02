@@ -46,6 +46,10 @@ class HierFedRepEdgeServer(EdgeServerBase):
         self._edge_seg_received = False
         # S6a ①：逐更新几何记录器（由 CloudServer 在 evaluation.update_geometry 开时挂上；缺省 None = 什么都不做）
         self.update_observer = None
+        # S6b：在线 c_k 评分器 + 本 edge 干净集（main.py 在 evaluation.update_ck 开时挂上）
+        self.score_observer = None
+        self.clean_x = None
+        self.clean_y = None
 
     # ══════════════════════════════════════════════════════════════════════
     # 接收 cloud 广播（3-E：edge 段不被覆盖）
@@ -92,6 +96,9 @@ class HierFedRepEdgeServer(EdgeServerBase):
         if self.update_observer is not None:       # S6a ①：只读（edge_w 是 get_weights 的副本）
             self.update_observer.observe(self.edge_id, edge_round_idx, client_updates,
                                          edge_w, self._base_w_idx)
+        if self.score_observer is not None:        # S6b：只读（在线 c_k；评分点以外什么也不做）
+            self.score_observer.score(self, global_round_idx, edge_round_idx, client_updates,
+                                      edge_w, self._base_w_idx)
         robust_full = self.robust_mean(client_updates, edge_w)
         new_w = [w.copy() for w in edge_w]
         for j in self._base_w_idx:

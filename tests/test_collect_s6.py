@@ -76,8 +76,8 @@ def _log():
     return "\n".join(L)
 
 
-def test_schema_is_10():
-    assert CM.SCHEMA_VERSION == 10
+def test_schema_is_11():
+    assert CM.SCHEMA_VERSION == 11
 
 
 def test_settings9_becomes_four_scalars_in_the_run_block():
@@ -176,3 +176,87 @@ def test_instrumentation_check_compares_light_points_on_reference_columns():
     assert [d[0] for d in IC.compare(base, bad)["diffs"]] == ["light_rounds[effective_round=5].edge_asr"]
     gone = {**base, "light_rounds": []}
     assert IC.compare(base, gone)["missing"] == ["light_rounds[effective_round=5]"]
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# S6b（schema 11）：在线 c_k 的回程 + 几何拆分列
+# ══════════════════════════════════════════════════════════════════════════
+S10 = "[设定10] update_ck=true | update_ck_every=5 | update_ck_n=64 | update_ck_steps=5"
+
+
+def _ck_log():
+    L = list(HEAD) + [S10]
+    for e in (0, 1):
+        L.append(format_kv("[CkBefore]", {"edge_round": 5, "effective_round": 5, "n_proto": 500,
+                                          "n_attack": 64, "ncm_acc": 0.8,
+                                          "c": "0.1000/0.2000/na/0.4000"}, round_idx=1, edge_id=e))
+        for cid, mal in ((3 + e, 0), (20 + e, 1)):
+            L.append(format_kv("[CkScore]", {"edge_round": 5, "effective_round": 5, "cid": cid,
+                                             "mal": mal, "ncm_acc": 0.75,
+                                             "c": "0.1000/0.2000/na/0.1000"}, round_idx=1, edge_id=e))
+        L.append(format_kv("[TimingCk]", {"edge_round": 5, "effective_round": 5, "n_updates": 2,
+                                          "ck_s": 3.25}, round_idx=1, edge_id=e, digits=2))
+    return "\n".join(L)
+
+
+def test_settings10_flat_scalars_and_old_logs():
+    run = CM.collect(_ck_log())["run"]
+    assert (run["update_ck"], run["update_ck_every"], run["update_ck_n"], run["update_ck_steps"]) \
+        == (True, 5, 64, 5)
+    run = CM.collect("\n".join(HEAD))["run"]
+    assert (run["update_ck"], run["update_ck_every"], run["update_ck_n"], run["update_ck_steps"]) \
+        == (None, None, None, None)
+
+
+def test_ck_tables_parse_lists_with_undefined_classes_as_none():
+    m = CM.collect(_ck_log())
+    t = m["ck_scores"]
+    assert t["columns"] == list(CM.CK_SCORE_COLUMNS) and len(t["rows"]) == 4
+    r = dict(zip(t["columns"], t["rows"][1]))
+    assert (r["round"], r["edge_id"], r["cid"], r["mal"]) == (1, 0, 20, 1)
+    assert r["c"] == [0.1, 0.2, None, 0.1]                           # na → None，不是 0
+    b = m["ck_before"]
+    rb = dict(zip(b["columns"], b["rows"][0]))
+    assert rb["n_proto"] == 500 and rb["c"] == [0.1, 0.2, None, 0.4]
+    assert m["timing_summary"]["ck_eval_total_s"] == 6.5
+    old = CM.collect("\n".join(HEAD))
+    assert old["ck_scores"]["rows"] == [] and old["ck_before"]["rows"] == []
+    assert old["timing_summary"]["ck_eval_total_s"] is None
+
+
+def test_ck_lines_print_the_columns_the_parser_reads():
+    """上游：update_ck.py 打印的键 = 解析器认的列（AST）。"""
+    import ast
+    tree = ast.parse((ROOT / "fedavg" / "server" / "update_ck.py").read_text(encoding="utf-8"))
+    fn = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "score")
+    got = {}
+    for call in ast.walk(fn):
+        if (isinstance(call, ast.Call) and getattr(call.func, "id", "") == "format_kv"
+                and isinstance(call.args[0], ast.Constant)):
+            tag, d = call.args[0].value, call.args[1]
+            keys = []
+            for k, v in zip(d.keys, d.values):
+                if k is None:                                       # {**base, ...}：base 的键
+                    keys += ["edge_round", "effective_round"]
+                else:
+                    keys.append(k.value)
+            got[tag] = keys
+    assert set(CM.CK_SCORE_COLUMNS) - {"round", "edge_id"} <= set(got["[CkScore]"])
+    assert set(CM.CK_BEFORE_COLUMNS) - {"round", "edge_id"} <= set(got["[CkBefore]"])
+    assert "ck_s" in got["[TimingCk]"]
+
+
+def test_update_geo_split_columns_round_trip():
+    L = list(HEAD) + [format_kv("[UpdateGeo]", {
+        "edge_round": 3, "cid": "0/1", "mal": "0/1", "norm": "5.0000/1.0000", "cos_edge": "0.1000/0.1000",
+        "cos_global": "0.2000/0.2000", "norm_w": "3.0000/1.0000", "norm_s": "4.0000/0.0000",
+        "cos_edge_w": "0.0000/0.0000", "cos_global_w": "0.7071/0.1000"}, round_idx=4, edge_id=0)]
+    t = CM.collect("\n".join(L))["update_geometry"]
+    r = dict(zip(t["columns"], t["rows"][0]))
+    assert r["norm_w"] == [3.0, 1.0] and r["norm_s"] == [4.0, 0.0] and r["cos_global_w"] == [0.7071, 0.1]
+    # 老格式（没有新列）→ None，其余列照读
+    old = CM.collect("\n".join(list(HEAD) + [format_kv("[UpdateGeo]", {
+        "edge_round": 3, "cid": "0", "mal": "0", "norm": "1.0000", "cos_edge": "na",
+        "cos_global": "na"}, round_idx=1, edge_id=0)]))["update_geometry"]
+    r = dict(zip(old["columns"], old["rows"][0]))
+    assert r["norm"] == [1.0] and r["norm_w"] is None and r["cos_global_w"] is None

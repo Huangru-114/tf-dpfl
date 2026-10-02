@@ -33,6 +33,9 @@
 #     登记 S5P（GPU 上开 / 关网格的 checksum 探路 + 轻评估点单价，4 run）。已有配置的 sha 不变
 #   · 2026-10-02 S6a 完成（逐更新几何 / 云聚合后评估点 / 冻结触发器列，D-085）→ `available` 加 S6a：
 #     登记探路组 G1P（3 run）；G1 的 set 补齐布点 / 轮数 / 网格，仍缺 S6（= S6b）。
+#   · 2026-10-02 S6b 完成（在线 c_k + 几何拆分，D-087）→ `available` 加 S6b；G1 的 set 开 update_geometry / post_agg_eval /
+#     update_ck（frozen 关），新登记 G1R5（R5 桥，3 run）。G1 / G1R5 另挂 `g1-prereg`：判读规则（FINDINGS N-007）
+#     用户确认之前不放行、不 materialize（同 g2-scale 的做法）；放行 = 把 `g1-prereg` 加进 `available` 再全量 materialize。
 # 功能会话完成时，把它的 token 加进 `available`，并补上对应组的 `set:`。
 # **补 `set:` 时核对三件**（G2 就是漏了这三件，test_registry 守着）：
 #   malicious_per_edge 的长度 = n_edges；n_rounds × edge_rounds ≥ cap_effective；各格评估网格（有效轮）一致。
@@ -46,7 +49,7 @@ base: base.yaml       # A4（2026-09-26）
 overlays:
   - ../../../fedavg/config/alignment_p2.yaml   # 「P2 对齐」模板：每个对齐开关都打开
 audit: AUDIT.md
-available: [S8, S3, S9, S4, g5-schedule, S5, S6a]   # S6a：G1 的便宜记录（D-085）； 已完成的功能会话（S3：新划分 D-062 … D-068；S9：评估仪表 + 存盘开关 D-071 … D-075；S4：投毒窗口起点 + 生成器语义 D-078 / D-079）；g5-schedule：G5AB 判 insensitive → G5 用 A（D-080）；S5：统一评估网格（D-084）
+available: [S8, S3, S9, S4, g5-schedule, S5, S6a, S6b]   # S6b：在线 c_k + 几何拆分（D-087）；S6a：G1 的便宜记录（D-085）； 已完成的功能会话（S3：新划分 D-062 … D-068；S9：评估仪表 + 存盘开关 D-071 … D-075；S4：投毒窗口起点 + 生成器语义 D-078 / D-079）；g5-schedule：G5AB 判 insensitive → G5 用 A（D-080）；S5：统一评估网格（D-084）
 
 groups:
   G0:
@@ -68,15 +71,18 @@ groups:
         - {label: C4, set: {federation.partition: designed, federation.design.condition: C4, federation.design.strength: 0.25}}
 
   G1:
-    purpose: "3-C 锯齿、3-D 可观测性（详细记录：逐 edge 轮评估 + 更新日志）；3-A 的一部分"
-    requires: [audit, S3, S5, S6]   # S6 = S6b 之后（D-085）：在线 c_k / g1_verdict / 规模等 G1P 回传再定，此组继续 blocked
+    purpose: "3-C 锯齿、3-D 可观测性（详细记录：逐 edge 轮评估 + 更新日志 + 在线 c_k）；3-A 的一部分"
+    requires: [audit, S3, S5, S6a, S6b, g1-prereg]   # g1-prereg：判读规则 N-007 用户确认之前不放行（D-087）
     seeds: [42, 43, 44]
     # S3 补 partition 的 set（等大小 random / 固定设计 C1）。
-    # S6a（2026-10-02，D-085）顺带补齐布点 / 轮数 / 网格（规模不动）：4 edge 集中 [10,0,0,0] / 分散 [3,3,2,2]；
-    # 每格固定 300 有效轮（R10 → 30 云轮、R20 → 15 云轮），stopping 关；统一网格 G=5（两个 eval_interval 取 base 的 1
-    # = lcm(5,R)/R）。S6a 的记录开关（update_geometry / post_agg_eval / frozen_trigger）要等 G1P 回传后再决定是否打开。
+    # S6a（2026-10-02，D-085）补齐布点 / 轮数 / 网格：4 edge 集中 [10,0,0,0] / 分散 [3,3,2,2]；每格固定 300 有效轮
+    # （R10 → 30 云轮、R20 → 15 云轮），stopping 关；统一网格 G=5（两个 eval_interval 取 base 的 1 = lcm(5,R)/R）。
+    # S6b（D-087）：开几何记录（含 BN 统计量拆分）、云聚合后评估点、在线 c_k（每 5 个有效轮、n=64、5 步；ε = badpfl_epsilon）。
+    #   **frozen_trigger 不开**：G1P 里冻结列在第 2–10 云轮只比主列高约 0.02（F-081），省约 15% 机时；R20 没测过。
     set: {federation.n_edges: 4, federation.design.n_per_client: 500, federation.design.clean_per_edge: 500, federation.design.alpha_client: 0.5,
-          stopping: null, evaluation.eval_grid: 5}
+          stopping: null, evaluation.eval_grid: 5,
+          evaluation.update_geometry: true, evaluation.post_agg_eval: true,
+          evaluation.update_ck: true, evaluation.update_ck_every: 5, evaluation.update_ck_n: 64, evaluation.update_ck_steps: 5}
     factors:
       partition:
         - {label: random, set: {federation.partition: equal_random}}
@@ -87,6 +93,21 @@ groups:
       r_edge:
         - {label: R10, set: {federation.edge_rounds: 10, federation.n_rounds: 30}}
         - {label: R20, set: {federation.edge_rounds: 20, federation.n_rounds: 15}}
+
+  G1R5:
+    purpose: "G1 的 R5 桥（D-087）：C1 × 集中 × R5 —— 精确对照是 G3-C1（同划分 / 布点 / R / ρ，差别只在 G3 自适应停轮、没有网格与记录）；与 G8（旧 noniid 划分、中途停投毒）只能近似比较"
+    requires: [audit, S3, S5, S6a, S6b, g1-prereg]
+    seeds: [42, 43, 44]
+    # 同 G1 的记录开关；R5 下网格 = 云轮（G = R = 5）→ 没有轻评估点，云聚合后评估点与在线 c_k 仍在。
+    # 验收：前若干轮 [Checksum] 应等于 G3__C1__s4x（instrumentation_check，取共同轮数；预期、未验证）。
+    set: {federation.n_edges: 4, backdoor.malicious_per_edge: [10, 0, 0, 0],
+          federation.partition: designed, federation.design.condition: C1, federation.design.strength: 0.25,
+          federation.design.n_per_client: 500, federation.design.clean_per_edge: 500, federation.design.alpha_client: 0.5,
+          federation.edge_rounds: 5, federation.n_rounds: 60, stopping: null, evaluation.eval_grid: 5,
+          evaluation.update_geometry: true, evaluation.post_agg_eval: true,
+          evaluation.update_ck: true, evaluation.update_ck_every: 5, evaluation.update_ck_n: 64, evaluation.update_ck_steps: 5}
+    cells:
+      - {cell: C1-collocated-R5}
 
   G1P:
     purpose: "S6a 探路（D-085）：(1) GPU 上开 / 关 S6a 记录开关，训练侧 [Checksum] 逐轮相同；(2) 实测三个记录的单价与显存；(3) 几何分数在全局 / edge 视角下的 AUROC（先回答「这种攻击在几何上分不分得开」）"

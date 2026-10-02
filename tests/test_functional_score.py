@@ -76,3 +76,17 @@ def test_module_does_not_import_tf():
         if isinstance(n, (ast.Import, ast.ImportFrom)):
             mods = [a.name for a in n.names] if isinstance(n, ast.Import) else [n.module or ""]
             assert not any(m.split(".")[0] in ("tensorflow", "keras") for m in mods)
+
+
+def test_update_score_hand_values():
+    # Δ = c_before − c_i = [0, 0, 0.4, 0.1, −0.1]：median 0，MAD = median(|Δ|) = 0.1，max = 0.4 → s = 4
+    s_, k = FS.update_score([0.5, 0.5, 0.5, 0.5, 0.5], [0.5, 0.5, 0.1, 0.4, 0.6])
+    assert k == 2 and s_ == pytest.approx(0.4 / (0.1 + 1e-6))
+    # 无定义的类（None）不参与：只剩 3 个有定义的类仍可算
+    s2, k2 = FS.update_score([0.5, None, 0.5, 0.5], [0.5, 0.0, 0.1, 0.5])
+    assert k2 == 2 and s2 is not None
+
+
+def test_update_score_needs_three_defined_classes():
+    assert FS.update_score([0.5, None, 0.5], [0.1, 0.1, None]) == (None, None)
+    assert FS.update_score([], []) == (None, None)

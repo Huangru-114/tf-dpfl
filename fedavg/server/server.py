@@ -23,11 +23,12 @@ from alignment            import get_switch
 from utils.pm             import compose_pm
 from utils.kvline         import format_kv
 from utils                import tier_split
-from models.cnn           import get_base_head_indices
+from models.cnn           import get_base_head_indices, get_bn_stat_indices
 from utils.checksum       import weights_checksum
 from .participation       import edge_schedule_order
 from .                    import eval_grid
 from .update_geometry     import UpdateGeometry
+from .update_ck           import UpdateCk
 from aggregation.fedavg   import aggregate
 from server.stopping     import StoppingRule, ASR_KEYS
 from aggregation.feddyn   import feddyn_aggregate,   init_h
@@ -128,9 +129,17 @@ class CloudServer(RobustAggregationMixin):
         self._geo = None
         if get_switch(config, "evaluation.update_geometry"):
             self._geo = UpdateGeometry(
-                (), int(get_switch(config, "evaluation.update_sketch_dim")))
+                (), int(get_switch(config, "evaluation.update_sketch_dim")),
+                stat_idx=get_bn_stat_indices(global_model))     # S6b：拆「权重 / BN 统计量」（D-087）
             for _e in edge_servers:
                 _e.update_observer = self._geo
+        # ── S6b：在线 c_k（evaluation.update_ck；只读，缺省关）──────────────────────────
+        self._ck = None
+        if get_switch(config, "evaluation.update_ck"):
+            self._ck = UpdateCk(config, global_model, stat_idx=get_bn_stat_indices(global_model),
+                                malicious_fn=lambda: self._malicious_now())
+            for _e in edge_servers:
+                _e.score_observer = self._ck
         self.post_agg_eval = bool(get_switch(config, "evaluation.post_agg_eval"))
 
         # ── 评估用的 PM（A28 / D-033，开关 evaluation.pm_model）──────────────

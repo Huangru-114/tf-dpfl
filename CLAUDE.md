@@ -470,6 +470,28 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
   > ⚠️ `python3 harness/registry.py … --materialize --group X` 会把 `INDEX.tsv` **整个重写成只含 X**（其余行丢失 → 这些格子失去 config_sha 核对：实测 G7 的 6 个 stale 被悄悄判成 done，done 87 → 93）。
   > 要补一个新组的配置，**不带 `--group`** 全量 materialize（已有配置字节不变，只多新行）。
 
+- **S6b 在线 c_k + G1 登记**（2026-10-02，Exp3 改版 S6b；DECISIONS D-087；方案 `hfl-mechanism/S6b-PLAN.md`）。
+  - 开关 `evaluation.update_ck`（+ `update_ck_every`=5 有效轮 / `update_ck_n`=64 张 / `update_ck_steps`=5 步；EXTRA_SWITCHES，缺省关；
+    `config_validate` §4h：eval_grid + 交错调度 + hier_fedrep + S3 划分 + `clean_per_edge` ≥ n）。**只读记录，不得改变训练**。
+  - `server/update_ck.py`（TF）`UpdateCk`：挂在 `HierFedRepEdgeServer.run_edge_round` 收齐上传后、`robust_mean` 前（`score_observer`）；
+    评分点 = 有效轮 eff % every == 0 的 edge 轮。θ_before = 本轮下发的 edge_w，θ_i = edge_w 上换入上传的**可训练权重**，
+    **BN moving 统计量保持 edge_w 的**；每个模型用 edge 干净集（`edge.clean_x / clean_y`，main.py 在开关开时由 `clean_indices` 取出）的类均值做 NCM head；
+    c_k = 前 n 张的定向 PGD（`analysis/ck_snapshot.ck_reached_batched`：K 个类摞成一批；ε = `badpfl_epsilon`、无随机起点）失败率。
+    专用评分模型第一次评分才创建（clone_model 推进 Python random）→ 整段包 `random.getstate()/setstate()`（F-078）。
+    打 `[CkBefore]` / `[CkScore]`（每更新一行：cid / mal / ncm_acc / c = K 个值，无定义的类 `na`）/ `[TimingCk]`；
+    **s_i（原文 §7 公式）不在线算**：`analysis/functional_score.update_score` 在 `harness/g1_scores.py` 里离线算。
+  - **几何记录的混杂已拆开**：base 索引含 BN moving 统计量（A27 下私有），S6a 的 ‖Δ‖ / 余弦把「权重变化」和「客户端数据造成的统计量差」混在一起
+    （F-081 补注：norm AUROC 可能部分来自统计量）。`UpdateGeometry(stat_idx=…)` 现在多记 `norm_w / norm_s / cos_edge_w / cos_global_w`（旧列逐位不变）+ 草图 `sketch_w`。
+  - 自描述 `[设定10]` → `run.update_ck / update_ck_every / update_ck_n / update_ck_steps`（平铺标量，`status` 核对）；collect_metrics **schema 11**
+    （`ck_scores` / `ck_before` 紧凑表、`update_geometry` 新列、`timing_summary.ck_eval_total_s`）。
+  - **G1 登记（27 run）**：G1 24（{random, C1} × {集中 [10,0,0,0], 分散 [3,3,2,2]} × R{10, 20} × s42–44）+ **G1R5** 3（C1 × 集中 × R5）；
+    固定 300 有效轮、网格 5、开 update_geometry / post_agg_eval / update_ck，**frozen 关**，不加 s45 / s46。G1R5 的精确对照是 G3-C1（不是 G8）。
+    两组挂 **`g1-prereg`**：判读规则 FINDINGS **N-007**（预注册）用户确认之前不放行；放行 = 把 `g1-prereg` 加进 `available` 再**全量** materialize。
+  - 开销（外推，c_k 部分没有实测）：记录约 0.95 GPU-h / run，c_k 约 +20%（范围 +5 … +20 GPU-h）；合计典型约 31 GPU-h。先交探路包（`PROBE_K=2`）。
+  - 守卫：`tests/test_update_ck_tf.py`（开 / 关 checksum 逐轮相同、**去掉 random 围栏就改变训练的反向锚点**、θ_i = 上传的权重 + edge 的统计量与 head、
+    Δ = 0 时 c_i == c_before、一次评分不改任何权重 / RNG、批量 PGD == 逐类 PGD）/ `test_update_geometry.py`（拆分的手算值）/ `test_g1_scores.py` /
+    `test_collect_s6.py`（schema 11）/ `test_s6_switches.py`（§4h + G1 27 run 的配置自洽）。
+
 **留了接口但没有实现的**（不要以为它们能用）：
 - 主动防御（需要客户端配合的防御）：接口齐了（`BaseDefense.layers` /
   `client_mixin` / `make_control` + 客户端侧 `set_control` / `get_aux`），无任何实现。

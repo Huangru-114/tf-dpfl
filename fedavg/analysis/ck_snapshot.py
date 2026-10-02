@@ -82,6 +82,47 @@ def ck_reached(feat, protos, x, eps_in, steps, lo, hi, n_classes, batch=128):
     return reached
 
 
+def ck_reached_batched(feat, protos, x, eps_in, steps, lo, hi, n_classes, max_batch=1024):
+    """
+    `ck_reached` 的批量版（S6b 在线评分用）：把「推向每个类 k」摞成一个 K·n 张的批，每步只做一次前向 + 反向，
+    而不是 K 次小批（GPU 上 eager 小批的启动开销占大头）。推理模式下样本互不影响，loss 按样本求和 →
+    每个 (类, 样本) 的梯度与单独算相同；ε = 0 时与 `ck_reached` 逐位相同（就是 NCM 预测）。
+    K·n 超过 max_batch 时按类分块。没有原型的类整列 False。无随机起点，不碰任何 RNG。
+    """
+    p = tf.constant(np.nan_to_num(protos, nan=0.0), tf.float32)
+    miss = tf.constant(np.where(np.isnan(protos[:, 0]), -1e9, 0.0), tf.float32)
+    eps_t = tf.constant(np.broadcast_to(eps_in, (3,)), tf.float32)
+    lo_t, hi_t = tf.constant(lo, tf.float32), tf.constant(hi, tf.float32)
+    alpha = 2.5 / float(steps) * eps_t
+
+    def logits(f):
+        d2 = tf.reduce_sum(tf.square(f[:, None, :] - p[None, :, :]), axis=2)
+        return -d2 + miss
+
+    n = len(x)
+    reached = np.zeros((n, n_classes), dtype=bool)
+    valid = [k for k in range(n_classes) if not np.isnan(protos[k, 0])]
+    per = max(1, int(max_batch) // max(n, 1))
+    for c0 in range(0, len(valid), per):
+        ks = valid[c0:c0 + per]
+        x0 = tf.constant(np.tile(np.asarray(x, np.float32), (len(ks), 1, 1, 1)))
+        tgt = tf.constant(np.repeat(np.asarray(ks, np.int32), n))
+        xa = x0
+        for _ in range(int(steps)):
+            with tf.GradientTape() as tape:
+                tape.watch(xa)
+                loss = tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(
+                    labels=tgt, logits=logits(feat(xa, training=False))))
+            g = tape.gradient(loss, xa)
+            xa = xa - alpha * tf.sign(g)
+            xa = tf.clip_by_value(xa, x0 - eps_t, x0 + eps_t)
+            xa = tf.clip_by_value(xa, lo_t, hi_t)
+        pred = tf.argmax(logits(feat(xa, training=False)), axis=1).numpy().reshape(len(ks), n)
+        for r, k in enumerate(ks):
+            reached[:, k] = pred[r] == k
+    return reached
+
+
 def edge_ck(model, weights, x_proto, y_proto, x_att, y_att, eps_in, steps, lo, hi, n_classes):
     """一个 edge 的 body：装权重 → NCM 原型 → c_k。返回可 JSON 化的 dict。"""
     model.set_weights(weights)

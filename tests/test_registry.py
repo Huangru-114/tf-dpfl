@@ -43,8 +43,9 @@ def test_v2_group_sizes_match_plan():
                      "G8": 3, "G6D": 3,          # S9（D-075）：G8 衰减 + G6D 分散布点探针
                      "G5AB": 8, "G8F": 3,        # S4（D-079 / D-077）：生成器语义 A/B 对比 + G8 的 flat 对照
                      "S5P": 4,                   # S5（D-084）：GPU 上开 / 关网格的 checksum 探路
-                     "G1P": 3}                   # S6a（D-085）：GPU 上开 / 关记录开关的 checksum 探路 + 几何 AUROC
-    assert len({r["run_id"] for r in runs}) == len(runs) == 187
+                     "G1P": 3,                   # S6a（D-085）：GPU 上开 / 关记录开关的 checksum 探路 + 几何 AUROC
+                     "G1R5": 3}                  # S6b（D-087）：G1 的 R5 桥（C1 × 集中 × R5）
+    assert len({r["run_id"] for r in runs}) == len(runs) == 190
 
 
 def test_v2_run_ids_and_factor_settings():
@@ -57,7 +58,11 @@ def test_v2_run_ids_and_factor_settings():
                         "federation.design.alpha_client": 0.5,
                         # S6a（D-085）：布点 / 轮数（300 有效轮）/ 关停止判据 / 网格
                         "backdoor.malicious_per_edge": [10, 0, 0, 0], "federation.n_rounds": 30,
-                        "stopping": None, "evaluation.eval_grid": 5}
+                        "stopping": None, "evaluation.eval_grid": 5,
+                        # S6b（D-087）：几何 / 云聚合后评估点 / 在线 c_k（frozen 不开）
+                        "evaluation.update_geometry": True, "evaluation.post_agg_eval": True,
+                        "evaluation.update_ck": True, "evaluation.update_ck_every": 5,
+                        "evaluation.update_ck_n": 64, "evaluation.update_ck_steps": 5}
     assert runs["G4__p1.0_fedavg__s44"]["set"] == {
         "backdoor.poison_ratio": 1.0, "training.drift_correction": "hierfedavg"}
     # D-047（2026-09-27）：G2 flat 补上布点、轮数与评估间隔（原来只有前两项 → 布点 [5,5]、截断在 60 轮）
@@ -254,12 +259,14 @@ def test_materialize_real_v2_registry_only_unblocked_groups_are_generable(tmp_pa
         R.materialize(reg, groups=["G1", "G2"])
 
 
-def test_g2_is_gated_on_its_scale_and_g1_on_s6():
+def test_g2_is_gated_on_its_scale_and_g1_on_prereg():
     """S5 进了 available 之后，G2 只剩 `g2-scale`（用户定规模后才放行，D-083 / D-084）；G1 只剩 S6。"""
     reg = R.Registry(V2)
     assert "S5" in reg.available
     assert reg.unmet_requires("G2") == ["g2-scale"]
-    assert reg.unmet_requires("G1") == ["S6"]
+    assert "S6b" in reg.available
+    assert reg.unmet_requires("G1") == ["g1-prereg"]                  # S6b 之后：只剩判读规则（N-007）待用户确认
+    assert reg.unmet_requires("G1R5") == ["g1-prereg"]
     assert reg.unmet_requires("S5P") == []
     assert "S6a" in reg.available and reg.unmet_requires("G1P") == []     # S6a：探路组放行，G1 仍缺 S6（= S6b）
 

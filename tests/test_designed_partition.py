@@ -209,7 +209,7 @@ def test_partition_lines_are_parsed_by_collect_metrics():
     sp = D.designed_partition(LABELS, _cfg("designed", {"condition": "C3"}))
     lines = D.data_lines(sp, malicious_ids=range(10))
     m = collect("\n".join(["[Config] loading x.yaml", *lines, "[Round 1]"]) + "\n")
-    assert m["schema_version"] == 10
+    assert m["schema_version"] == 11
     run = m["run"]
     assert run["partition"] == "designed" and run["partition_condition"] == "C3"
     assert run["partition_n"] == 500 and run["partition_alpha_edge"] is None

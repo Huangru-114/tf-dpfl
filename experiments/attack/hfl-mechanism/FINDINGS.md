@@ -1297,3 +1297,43 @@ R20 开网格的 fresh pm_acc：
   - 但 **E0（攻击者 edge）与受害 edge 分不开**：第 30 轮 `contrast.diff` = +0.004 / +0.025 / +0.002（三个 seed 同号，但都在地板上、差一个量级小于 0.03）；第 70 轮 −0.007 / −0.042 / +0.036（符号不一致）。原因很可能是 edge 模型在云聚合后共享同一个 body（G8 是 R5，快照在云轮末），地板效应又压住了差别 —— 这是推断。
   - 这只证明了「整个 body 一级」；**单个客户端更新上的 c_k（S6b 要做的）没有被检验**。
 - **没有证据的部分**：几何 AUROC 与锯齿幅度只有 1 个 seed；R20 没测；锯齿里 lr 衰减的贡献没分离；c_k 的 ε / 步数没做敏感性；c_k 在单个更新上是否分得开。
+
+
+## 2026-10-02（S6b 实现，D-087）
+
+### F-081 补注 `provisional` —— norm AUROC 可能混了 BN 统计量；S6b 的拆分是为了回答这一条
+- `get_base_head_indices` 的 base 索引**包含 BN 的 moving_mean / moving_variance**（`models/cnn.py` docstring），FedRep 下统计量私有（A27），客户端上传的是自己的统计量。S6a 的 `body_delta` 因此把「权重的变化」和「统计量的差」都算进了 ‖Δ‖ 与余弦。
+- 恶意端在投毒样本上训练，BN 统计量会变；所以 F-081 的「恶意更新范数更大（AUROC 0.83 / 0.91）」**可能是数据统计量信号而不是权重信号**，**这一条我没有证据判断占多少**（G1P 的 `update_geometry` 只记了合并后的范数，拆不开）。
+- 旁证（只是量级，不是结论）：CPU 替身（随机数据、第 1 云轮）里 ‖Δ‖ ≈ 16.0，其中统计量部分 15.99、权重部分 0.69 —— 统计量部分可以主导整个范数。真实 G1P 第 1 云轮良性范数 9.8 ± 11，之后稳定在 5.7 ± 0.8，恶意约 7–8。
+- **S6b 的拆分会在 G1 里直接回答**：`norm_w`（权重）、`norm_s`（统计量）、`cos_*_w`（权重部分的余弦）分别算 AUROC（`harness/g1_scores.py`）。在那之前，F-081 里关于几何的两句（「范数分得开、余弦分不开」）保留为 provisional。
+
+### N-007 `待用户确认` —— G1 的判读规则（预注册；**确认前 `g1-prereg` 不放行，G1 / G1R5 不交**）
+> 规则写在数据之前（D-081 的纪律）。阈值「没有证据」的地方明说。G1P 的单 seed 数据只用来看量级，不用来调阈值。
+
+**分数**（越大越可疑；每个上传更新一个值）：`s_ck`（原文 §7：Δ_k = c_k(θ_before) − c_k(θ_i)，s = (max Δ − median Δ) / (MAD Δ + 1e-6)，只在评分点上有）、`norm_w`、`neg_cos_global_w`、`neg_cos_edge_w`（权重部分）；`norm`、`norm_s`、`cos_*`（整个 body）作诊断。
+**视角**（等池大小，实现 = `harness/g1_scores.py`）：窗口 = 20 个有效轮；edge 视角 = 本窗口本 edge 的全部更新求稳健 z（median / MAD）；全局视角（等池）= 从本窗口全部 edge 的更新里随机抽同样多个求稳健 z（固定种子、重复 50 次取平均）；池化后算恶意 vs 良性的 AUROC，**ΔAUROC = edge − 全局（等池）**。
+**分析单元**：一个 run（seed）一个 AUROC；3 个 seed 做 bootstrap（`verdicts.bootstrap_mean_ci`）→ 「CI 全 > 0 ⇔ 三个 seed 都 > 0」（3 seed 的性质，见 REPORT §2）。
+
+**3-D 判定**（对每个分数、每个周期长度 R 分别判）：
+- 判读格 = **C1·分散**（R10、R20）。edge 内恶意与良性混合，edge 视角才有意义。
+- **有效性闸**（任一不过 → `invalid`，不判方向）：① 对应的 **random·分散** 零对照上三个 seed 的 |ΔAUROC| 均值 < 0.05（random 下各 edge 可交换，Δ ≈ 0 是构造出来的；不过说明视角的构造本身有偏）；② `client_failures` 空、攻击者参与、exit 0；③ 对该分数，C1·分散格的全局（等池）AUROC ≥ 0.7，否则 `undetectable`（两种视角都 ≈ 0.5，ΔAUROC 没有意义）。
+- `edge_better`：三个 seed 的 ΔAUROC 都 > 0.05；`no_edge_gain`：三个 seed 的 |ΔAUROC| 都 < 0.05；其余 `mixed`。**0.05 没有证据**（取自「单点噪声的量级」，G1 回传后要用 seed 间 SD 复核，复核结果另记、不回头改本判定）。
+- 集中格（C1·集中、random·集中）：E0 全是恶意端，edge 视角在攻击者 edge 内没有良性对照 —— 只报告，**不进判定**。
+- 次要读数（必报，不进判定）：FPR = 5% 时的 TPR（两种视角）；`norm_w` vs `norm_s` 的 AUROC（回答 F-081 补注）；`s_ck` 的 k*（argmax 的类）是不是目标类 0 的比例。
+- **已知没有检验的混淆**：原文 §7 说「y_t 富集的良性客户端也会降低 c_{y_t}，用 C2 设计专门测」。G1 只有 C1（均衡）和 random，**这个误报来源本轮不测**；结论里要写明。
+
+**3-C 判定**（受害 edge E1–E3 的良性端 ASR，集中布点格）：
+- 量：**Δ_jump** = 第 g 云轮云聚合后评估点 − 第 g−1 云轮末的全量点；**r_down** = (第 g 云轮云聚合后评估点 − 第 g 云轮末全量点) / 一个周期的有效轮数（正 = 周期内洗掉）。g 取 2 … ⌊n_rounds / 2⌋（**只取前半程周期**：lr 按有效轮衰减，后半程周期内本来就动得少，S6a-PLAN 附录 D）。
+- `self_cleaning`：三个 seed 的 r_down 都 ≥ 0.005 / 有效轮；`no_cleaning`：三个 seed 都 ≤ 0.001；其余 `user_decides`。**0.005 / 0.001 没有证据**（量级取自 G8 的净衰减 0.003–0.008 与 G1P 单 seed 的约 0.017，后者**不用来调阈值**）。
+- 与 G8 的关系：G1R5 的 r_down 是**总洗掉率**，G8 是攻击者离开后的**净衰减**（全局 body 仍在重新灌入）；两者不直接相减。G1R5 与 G3-C1 同配置，用来检验「记录不改变训练」与周期内分辨率的增量。
+
+**验收（GPU，不需要额外作业）**：`instrumentation_check`：`G1__C1_collocated_R10__s42` 前 10 云轮 vs `G1P__coll-off__s42`（两者只差记录开关）；`G1R5__C1-collocated-R5__s4x` 前若干轮 vs `G3__C1__s4x`（G3 自适应停轮，取共同轮数；预期逐位相同，**未验证**）。
+
+### F-082 `confirmed`（CPU：单测 + main.py 端到端替身；**GPU 待 G1 探路包**）—— 在线 c_k 与几何拆分不改变训练
+- **单测**（`tests/test_update_ck_tf.py`，TF 2.15.1 CPU，小 HFL，R=4、G=2、评分间隔 2）：`update_ck` 开 vs 关逐轮 `[Checksum]` 相同、已有评估行逐字相同；**去掉 `random.setstate` 复原 → 开关就改变训练**（反向锚点，F-078 的通道）；θ_i 的可训练权重 = 上传、BN 统计量与 head 位置 = edge_w（逐位）；上传 == edge_w（Δ = 0）时 c_i == c_before；一次评分不改任何权重 / 上传 / 全局 RNG；批量 PGD（K 个类摞成一批）与逐类 PGD 在 ε = 0 时逐位相同、分块与不分块逐位相同。
+- **main.py 端到端替身**（N-005 的做法：随机数据，G1P 缩到 20 客户端 / 4 edge / [3,0,0,0] / R=10 / 2 云轮，`taskset -c 0-3`；c_k 用 n=32、3 步以省时；驱动在 scratch）：`coll-off` vs `coll-on`（开 c_k + 几何 + 云聚合后评估点）`instrumentation_check`：**2 个 checksum + 180 个已有字段逐位一致**；`ck_scores` 16 行 / `ck_before` 16 行（评分点 = edge 轮 5 与 10 × 4 edge × 2 云轮）、`update_ck` 四个标量回到 run 块；`client_failures` 空、攻击者参与 [1, 2]。
+- 单价（**CPU + 随机数据 + 缩小规模 + n=32 / 3 步，不代表 GPU，也不代表生产参数**）：`ck_eval_total_s` 163 s / 16 个评分点 ≈ 10 s / 点，`round_time_total_s` 414 → 666 s（+61%）。生产参数（n=64、5 步）的计算量约 3.3 倍，GPU 上多快没有证据 —— 这正是先交探路包的原因。
+- 几何拆分（替身，第 1 云轮）：同一个更新的 ‖Δ‖ = 16.0，其中统计量部分 15.99、权重部分 0.69 —— 统计量部分可以主导整个范数（F-081 补注的旁证）。
+- 回归基线（改动前 → 后）：本地无 TF 1537 / 47 / 3 → **1558 / 48 / 3**；TF 2.15.1 CPU 1713 / 24 / 3 / 2 failed → **1742 / 24 / 3 / 2 failed**（只剩陷阱 #4 的 2 条）。`status.py`：done 90 / stale 6 不变，blocked 91 → 94（G1 24 + G1R5 3，挂 `g1-prereg`）；已 materialize 的配置 sha 不变。
+- 有意改变的已有断言：schema pin 10 → 11（6 处）、登记表计数（G1R5 +3、blocked 94）、G1 的 set 断言改为 S6b 形态。
+- **没有证据的部分**：GPU 上开 / 关逐位相同（由 G1 探路包 + `G1__C1_collocated_R10__s42` 前 10 轮 vs `G1P__coll-off__s42`、`G1R5` vs `G3-C1` 回答）；c_k 的 GPU 单价与显存；c_k 在**单个更新**上有没有信号（G1 才能回答）；拆分后 norm_w 与 norm_s 各自的 AUROC。

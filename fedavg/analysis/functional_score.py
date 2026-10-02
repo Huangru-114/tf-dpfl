@@ -97,3 +97,21 @@ def edge_contrast(c_by_edge: dict, ref_edge: int, k: int):
     om = float(np.mean(others)) if others else None
     return {"ref": ref, "others_mean": om,
             "diff": None if (ref is None or om is None) else float(om - ref)}
+
+
+def update_score(c_before, c_i, eps: float = 1e-6):
+    """
+    一个上传更新的功能分数（原文 §7）：Δ_k = c_k(θ_before) − c_k(θ_i)（越大 = 越被推向类 k），
+        s_i = (max_k Δ_k − median_k Δ_k) / (MAD_k Δ_k + eps)，
+    k* = argmax_k Δ_k。无定义的类（None）不参与；有定义的类 < 3 个 → (None, None)（MAD 没有意义）。
+    返回 (s_i, k*)。
+    """
+    d = [(k, a - b) for k, (a, b) in enumerate(zip(c_before, c_i)) if a is not None and b is not None]
+    if len(d) < 3:
+        return None, None
+    ks = [k for k, _ in d]
+    v = np.array([x for _, x in d], dtype=np.float64)
+    med = float(np.median(v))
+    mad = float(np.median(np.abs(v - med)))
+    j = int(np.argmax(v))
+    return float((v[j] - med) / (mad + eps)), int(ks[j])

@@ -119,6 +119,18 @@ EXTRA_SWITCHES = (
            (),                                      "A28", "D-085", "badpfl"),
     Switch("evaluation.frozen_trigger",    False,        None,
            (),                                      "A28", "D-085", "badpfl"),
+    # S6b / D-087：在线 c_k（功能分数，3-D 的第二类分数；模块 B 的打分器）。只读记录，不得改变训练。
+    #   update_ck：评分点（有效轮 eff % update_ck_every == 0 的 edge 轮）上，对本 edge 轮每个上传更新算
+    #     c_k（定向 PGD 失败率，NCM head，edge 干净集），原始 c_0…c_{K−1} 全落盘（server/update_ck.py）
+    #   update_ck_every：评分间隔（有效轮）；update_ck_n：PGD 的图片数；update_ck_steps：PGD 步数
+    Switch("evaluation.update_ck",         False,        None,
+           (),                                      "A28", "D-087", "hier_fedrep"),
+    Switch("evaluation.update_ck_every",   5,            None,
+           (),                                      "A28", "D-087", "hier_fedrep"),
+    Switch("evaluation.update_ck_n",       64,           None,
+           (),                                      "A28", "D-087", "hier_fedrep"),
+    Switch("evaluation.update_ck_steps",   5,            None,
+           (),                                      "A28", "D-087", "hier_fedrep"),
 )
 
 ALL = {s.key: s for s in SWITCHES + EXTRA_SWITCHES}

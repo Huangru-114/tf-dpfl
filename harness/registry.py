@@ -92,6 +92,11 @@ EXPECT_KEYS = (
     ("update_sketch_dim",    "evaluation.update_sketch_dim"),
     ("post_agg_eval",        "evaluation.post_agg_eval"),
     ("frozen_trigger",       "evaluation.frozen_trigger"),
+    # S6b（G1 / G1R5）：在线 c_k 静默没开（[设定10] 缺行 / false）→ run 块与声明不符 → mismatch。
+    ("update_ck",            "evaluation.update_ck"),
+    ("update_ck_every",      "evaluation.update_ck_every"),
+    ("update_ck_n",          "evaluation.update_ck_n"),
+    ("update_ck_steps",      "evaluation.update_ck_steps"),
 )
 
 AUDIT_STATUSES = ("open", "align", "deviate", "done")

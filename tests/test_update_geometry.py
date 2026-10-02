@@ -138,3 +138,45 @@ def test_observer_flush_prints_lines_and_clears_the_buffer():
     assert arr["client_id"].tolist() == [0, 1, 5] and arr["malicious"].tolist() == [False, True, False]
     assert arr["edge_round"].tolist() == [2, 2, 2]
     assert obs.take_round_arrays() is None
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# S6b（D-087）：把 body Δ 拆成「可训练权重」与「BN 统计量」两部分
+# ══════════════════════════════════════════════════════════════════════════
+def test_stat_mask_marks_exactly_the_stat_tensors_in_base_order():
+    ew = [np.zeros((2, 2)), np.zeros(3), np.zeros(1), np.zeros(2)]
+    m = UG.stat_mask(ew, [0, 1, 3], [1])                 # 索引 2 不在 base；索引 1 是统计量
+    assert m.tolist() == [False] * 4 + [True] * 3 + [False] * 2
+    assert not UG.stat_mask(ew, [0, 1, 3], []).any()
+
+
+def test_split_columns_are_hand_values_and_old_columns_are_unchanged():
+    # base = {0: 权重 2 个坐标, 1: BN 统计量 2 个坐标}；Δ = [权重 | 统计量]
+    edge_w = [np.zeros(2, np.float32), np.zeros(2, np.float32), np.zeros(1, np.float32)]
+
+    def upd(cid, w, st):
+        return ClientUpdate([np.asarray(w, np.float32), np.asarray(st, np.float32),
+                             np.zeros(1, np.float32)], 5, 0.1, 0.0, client_id=cid)
+    obs = UG.UpdateGeometry(malicious_ids={1}, sketch_dim=8, stat_idx=[1])
+    obs.observe(0, 1, [upd(0, [3, 0], [0, 4]), upd(1, [0, 1], [0, 0])], edge_w, [0, 1])
+    obs.observe(1, 1, [upd(2, [1, 0], [0, 0])], edge_w, [0, 1])
+    rows = collect_kv(obs.flush(1, 1), "[UpdateGeo]")
+    r0 = rows[0]
+    assert parse_list(r0["norm"]) == [5.0, 1.0]                      # 旧列：整个 body（3-4-5）
+    assert parse_list(r0["norm_w"]) == [3.0, 1.0]                    # 权重部分
+    assert parse_list(r0["norm_s"]) == [4.0, 0.0]                    # 统计量部分
+    # edge 0 的权重部分：[3,0] 与 [0,1] 正交
+    assert parse_list(r0["cos_edge_w"]) == pytest.approx([0.0, 0.0], abs=1e-4)
+    # 全局（权重部分）：Δ0=[3,0] vs [0,1]+[1,0]=[1,1] → 1/√2
+    assert parse_list(r0["cos_global_w"])[0] == pytest.approx(1 / np.sqrt(2), abs=1e-4)
+    arr = obs.take_round_arrays()
+    assert arr["sketch_w"].shape == arr["sketch"].shape == (3, 8)
+
+
+def test_no_stat_idx_means_no_split_columns_and_no_sketch_w():
+    obs = UG.UpdateGeometry(malicious_ids=(), sketch_dim=8)          # S6a 的用法：不拆
+    ew = [np.zeros(4, np.float32), np.zeros(1, np.float32)]
+    obs.observe(0, 1, [_upd(0, [1, 0, 0, 0]), _upd(1, [0, 1, 0, 0])], ew, [0])
+    row = collect_kv(obs.flush(1, 1), "[UpdateGeo]")[0]
+    assert "norm_w" not in row and "norm_s" not in row
+    assert "sketch_w" not in obs.take_round_arrays()

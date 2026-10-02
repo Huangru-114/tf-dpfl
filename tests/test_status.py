@@ -69,9 +69,9 @@ def test_v2_after_the_audit_only_feature_sessions_block():
     S3 之后（2026-09-28）G3 也不再被挡；S9（2026-09-28）登记的 G8 / G6D 不被挡。
     S4 之后（2026-09-29）G0 与新登记的 G5AB / G8F 不被挡；G5 曾被 `g5-schedule` 挡着（D-079），
     G5AB 判 insensitive 后放行（D-080）。S5 之后（D-084）登记的 S5P、S6a 之后（D-085）登记的 G1P 不被挡；G2 被 `g2-scale` 挡着（规模未定）。
-    其余 91 个只剩 g2-scale / S6 与 reformulate-3.2 的依赖。"""
+    其余 94 个只剩 g2-scale / g1-prereg（G1 24 + G1R5 3）与 reformulate-3.2 的依赖。"""
     rep = S.classify(R.Registry(V2))
-    assert rep["counts"]["blocked"] == 91
+    assert rep["counts"]["blocked"] == 94
     assert {r["status"] for r in rep["runs"] if r["group"] == "G5"} <= {"todo", "done", "stale", "failed"}
     # G7：结果回来之前是 todo，回来之后是 done（`5edd4df`）；base.yaml 加了评估降频之后
     # 重新 materialize → 旧结果的 config_sha 不符 = stale（D-053，默认不重交）
