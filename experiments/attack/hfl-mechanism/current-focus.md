@@ -1,36 +1,48 @@
 # current-focus —— Experiment 3（改版）· 交接
 
-> 本文件是 `CLAUDE.md`「新会话开场第 3 步」要读的那一份。**写于 2026-10-02**（S6b 实现会话结束时）。
+> 本文件是 `CLAUDE.md`「新会话开场第 3 步」要读的那一份。**写于 2026-10-03**（S6b / G1 探路包回传会话结束时）。
 >
-> **S6b 已实现**（D-087；方案 `S6b-PLAN.md`）：在线 c_k + 几何拆成「可训练权重 / BN 统计量」+ G1 登记（G1 24 run + **G1R5** 3 run，frozen 关，不加 s45 / s46）。
-> L1 / TF / CPU 替身全绿；**GPU 上还没跑过**。G1 / G1R5 **挂 `g1-prereg`，现在是 blocked** —— 下一步是你确认判读规则。
+> **现在的状态**：S6b 已实现并**已在 GPU 上验证**（F-082 / F-083）；N-007（G1 判读规则）已由用户确认（2026-10-03 把 `g1-prereg` 加进 `available`）；
+> G1 的 **16 / 24 个 run 已回传**（8 格 × seed 42 / 43，K=2 探路包，21.6 GPU-h）；**seed 44（8 个 run）与 G1R5（3 个 run）还没交**。
+> `status.py`：todo 11 / done 106 / stale 6 / blocked 67。
 >
-> **下一步（用户）**
-> 1. **读并确认（或改）FINDINGS `N-007`**：G1 的判读规则（预注册：分数、视角定义、有效性闸、3-D 与 3-C 的判定与阈值；0.05 / 0.005 / 0.001 都**没有证据**）。
->    确认前 G1 / G1R5 不交（D-081 的纪律：规则在数据之前）。
-> 2. 确认后放行：`registry.yaml` 的 `available` 加 `g1-prereg`，**全量** materialize（**不带 `--group`**，见 CLAUDE.md 的 ⚠️）：
->    `python3 harness/registry.py experiments/attack/hfl-mechanism/registry.yaml --materialize`；`status.py` 应显示 G1 24 + G1R5 3 = 27 todo。
-> 3. **先交探路包**（c_k 的单价没有实测；显存没测过的新配置类型写 `PROBE_K=2`）：
->    `PACK=3 PROBE_K=2 RUN_GROUPS="G1" bash experiments/attack/hfl-mechanism/submit.sh --dry-run`（先看，去掉 `--dry-run` 才真交）；
->    第一个包回来后读 `timing_summary.ck_eval_total_s`、`gpu_mem.peak_mib`，再放行其余（`submit.sh` 的 held 机制）。
-> 4. **回传后验收**（不需要额外作业）：`instrumentation_check` ——
->    `G1__C1_collocated_R10__s42` 前 10 云轮 vs `G1P__coll-off__s42`；`G1R5__C1-collocated-R5__s4x` 前若干轮 vs `G3__C1__s4x`（取共同轮数；预期逐位相同，**未验证**）。
-> 5. 描述性读数：`python3 harness/g1_scores.py results/P2/G1/*.metrics.json results/P2/G1R5/*.metrics.json --json analysis/g1_scores.json`；
->    判定脚本 `harness/g1_verdict.py` 在 N-007 确认后、数据回来前写（脚本写于数据之前）。
+> **G1 探路包的结论（F-083；seed 42 / 43，描述性，N-007 要 3 个 seed 才判定）**
+> - **记录不改变训练**：前 10 云轮 10 个 checksum + 900 字段逐位相同（含在线 c_k）；
+> - **c_k 的单价比估的低 5 倍**：约 300–360 s / run（约 4% round_time；我估的是 +20%），显存不变（16.8–16.95 GiB / run）→ K=3 安全；
+> - **3-D**：`norm` 的可分性**主要是 BN 统计量**（`norm_s` ≈ `norm`；权重部分 `norm_w` 0.62–0.86、随 seed 摆动，余弦 ≈ 0.5）；
+>   **edge 视角 ≈ 等池全局视角**（分散布点 |ΔAUROC| ≤ 0.031；`random·分散` 零对照 ≤ 0.018，有效性闸过）；集中布点 edge 视角塌了（结构原因，不进判定）；
+>   **单更新的在线 c_k（n=64、5 步、ε=4/255）几乎没有信号**（AUROC 0.50–0.66），参数敏感性没测；
+> - **3-C**：受害 edge 的 r_down 前半程周期 R10 约 0.02、R20 约 0.006 / 有效轮，8 个值都 ≥ 0.005（倾向 `self_cleaning`，0.0053 贴线）；
+>   洗掉量次线性（R10 ≈ 0.2 / 周期、R20 ≈ 0.13）；**但后期「云聚合后 ≈ 1.0、周期末 0.73–0.98」—— 洗掉不阻止饱和**；C1 与 random 无差别。
 >
-> **已判定 / 已知**（详见 REPORT §2）：3.1 不成立；3.3 `not_gated`（收尾）；3-E 两臂 `blocks`；3-C 衰减 `user_decides` → 用户判「退回 floor」；3-B 在天花板下判不出；
-> **G1P（F-081）**：GPU 上开 / 关记录开关逐位相同；单价 +31% round_time；锯齿第一条数据（单 seed）：受害 edge ASR 在一个云周期内平均降 0.17；
-> body 级 c_k 能看出「有没有后门」但分不开 E0 与受害 edge；**F-081 里「范数可分、余弦不可分」可能混了 BN 统计量（F-081 补注）—— S6b 的拆分会回答。**
+> **下一步（用户，集群）**
+> 1. **交剩下的 11 个 run**：现在每个 G1 格都有显存数据（16.95 GiB / run），G1R5 是新格子。建议
+>    `PACK=3 PROBE_K=3 RUN_GROUPS="G1 G1R5" bash experiments/attack/hfl-mechanism/submit.sh --dry-run`（先看；去掉 `--dry-run` 才真交）。
+>    预期：8 个 seed 44 经余数跨格子合包（D-060，峰值相差 ≤ 10%）合成 3 + 3 + 2；G1R5 的 3 个 seed 一个 K=3 包。约 11–12 GPU-h。
+>    （`PROBE_K=3` 的依据：c_k 没增加显存、G1P 的 K=3 包已跑通；若你仍想保守可写 `PROBE_K=2`。）
+> 2. **回传后（下一个会话）**：
+>    - `status.py`：G1 24 + G1R5 3 全 done；
+>    - **GPU 验收**：`instrumentation_check results/P2/G3/G3__C1__s4x.metrics.json results/P2/G1R5/G1R5__C1-collocated-R5__s4x.metrics.json`（取共同轮数；预期逐位相同，**未验证**；G3 自适应停轮）；
+>    - **写 `harness/g1_verdict.py`，严格按 N-007**（规则已预注册；脚本写于 2 / 3 个 seed 的描述性读数**之后**，要在 F 条目里如实写明）：`g1_scores.py` 已实现视角与 AUROC，
+>      还缺 N-007 列了的「FPR = 5% 时的 TPR」与 `s_ck` 的 k*（argmax 类）统计、3 个 seed 的 bootstrap（`verdicts.bootstrap_mean_ci`）与 3-C 的 r_down / Δ_jump 判定；
+>    - 把 G1R5（R5 桥）读进 3-C：R5 的 r_down 与 R10 / R20 比（总洗掉率 vs 周期长度），并与 G3-C1 对照。
+> 3. **等你定的事（看完全部 3 个 seed 之后再定，不必现在）**：
+>    a. **在线 c_k 要不要继续**：本轮参数下单更新 AUROC 0.5–0.66。选项：(i) 到此为止，记为负结果（模块 B 的功能打分器没有依据，改走统计量 / 权重几何）；(ii) 做参数敏感性（ε、n、步数）—— 需要新跑 run，因为只存了草图、没存完整更新；(iii) 转去「edge 干净集上的软加权」之类不依赖单更新 c_k 的设计。
+>    b. **BN 统计量这条线**：`norm_s` 的 AUROC 0.88–0.92，是目前最强的单更新信号。要不要把它当成 3-D 的主分数、并检验自适应攻击者能否抹掉它（阶段三必须面对自适应攻击者）？
+>    c. G2 规模 / s45–s46（仍是「先不做」）、3-B 出路、git 瘦身、G8 存盘删除时机（c_k 预检已消费过它）。
 >
-> **S6b 的两处更正**（D-087 ④⑤）：G1R5 的精确对照是 **G3-C1** 而不是 G8（G8 用旧 noniid 划分、中途停投毒）；S6a 几何里的 body Δ **含 BN 统计量**。
+> **对阶段三（edge 原生防御）的含义（推断，不是判定）**：3-C 说明「edge 内自清洁」存在但追不上云聚合的灌入 → 单靠隔离 / 时间窗不够，模块 A（上传前主动加固）有必要；
+> 3-D 说明 edge 视角相对全局视角没有检测优势、单更新 c_k 没有信号 → 模块 B（软加权）目前没有证据；3-E 的个性化边界（edge 段不上云）仍是已证 `blocks` 的杠杆。
+>
+> **已判定 / 已知**（详见 REPORT §2）：3.1 不成立；3.3 `not_gated`；3-E 两臂 `blocks`；3-C 衰减 `user_decides` → 「退回 floor」；3-B 在天花板下判不出。
 
 > **全局概况看 `REPORT.md`**：§0 结果图一览；§9.1 还没做的实验；§9.2 待用户定的事。
 >
 > **现在在哪**（`python3 harness/status.py experiments/attack/hfl-mechanism/registry.yaml`，2026-10-02 实测）：
-> todo 0 / done 90（含 G1P 3）/ stale 6（G7，D-053 默认不重交）/ blocked 94（G1 24 + G1R5 3 挂 `g1-prereg`、G2 55 挂 `g2-scale`、G4 12 搁置）。
+> todo 11（G1 的 seed 44 ×8 + G1R5 ×3）/ done 106（含 G1 16、G1P 3）/ stale 6（G7，D-053 默认不重交）/ blocked 67（G2 55 挂 `g2-scale`、G4 12 搁置）。
 >
 > **待用户定**（REPORT §9.2）：① 3-B 的出路；② git 瘦身（**改写历史要用户单独明确同意**）；③ G2 规模（用户 2026-10-02：「先不做 G2」；3-A 的 s45 / s46 也随它定）；
-> ④ **N-007 判读规则**（G1 / G1R5 的放行条件）；⑤ G8 存盘的离线分析与删除时机（c_k 预检是它的第一个消费者）。
+> ④ ~~N-007 判读规则~~ 已确认（2026-10-03）；⑤ G8 存盘的离线分析与删除时机（c_k 预检是它的第一个消费者）。
 >
 > **分支**：继续在 `claude/federated-learning-experiment-review-pt5j1b` 上工作（用户定「先不合并」；`origin/main` 停在 `cf40b13`，2026-08-26）。
 > **L1 基线（S6b 之后，2026-10-02 实测）**：
@@ -38,7 +50,16 @@
 > - TF 2.15.1 CPU（scratch venv，`pytest tests/`）：**1742 passed / 24 skipped / 3 xfailed / 2 failed**（S6b 之前 1713 / 24 / 3 / 2；只有陷阱 #4 的 2 条）。
 > 集群 GPU 节点 5 条红、没有 GPU 的 TF 节点 2 条红（F-067），多出来的才是回归。
 
-## 本会话（S6b 实现，2026-10-02）做了什么
+## 本会话（G1 探路包回传核对，2026-10-03）做了什么
+
+**请求**（用户）：「结果已经回传，整理结果，然后准备结束本会话，做好交接」。
+
+- `status.py` 核对：G1 16 个 done（8 格 × s42 / s43）、s44 与 G1R5 todo；16 个 run 全部 `exit 0`、`client_failures` 空、攻击者参与、`errors` 空；
+- GPU 验收（`instrumentation_check`，三对）：逐位一致；单价 / 显存 / 体积（F-083）；
+- 描述性读数：`harness/g1_scores.py` → `analysis/g1_scores.json`；3-C 的 r_down / Δ_jump 按 N-007 手算（没有判定脚本，F-083 里写明）；
+- **没有动代码**；文档：FINDINGS F-083、本文件、CLAUDE.md S6b 条、REPORT。
+
+## 历史：S6b 实现会话（2026-10-02）做了什么
 
 **请求**（用户）：读 G1P / c_k 预检 → 讲解三个待决事项 → 「决定 1：c」「规模加 R5，关 frozen，不加两个种子，参数按你的办」→ 开始改。
 

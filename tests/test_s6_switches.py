@@ -157,7 +157,7 @@ def test_g1_set_is_complete_and_consistent():
         assert cfg["federation"]["edge_rounds"] == 5 and cfg["federation"]["partition"] == "designed"
         assert cfg["federation"]["design"]["condition"] == "C1"
         assert cfg["backdoor"]["malicious_per_edge"] == [10, 0, 0, 0]
-    assert reg.unmet_requires("G1") == ["g1-prereg"]                 # 仍 blocked：判读规则 N-007 待用户确认
+    assert reg.unmet_requires("G1") == []                            # S6b 完成 + N-007 用户已确认（2026-10-03）→ 放行
 
 
 # ══════════════════════════════════════════════════════════════════════════

@@ -251,22 +251,22 @@ def test_materialize_real_v2_registry_only_unblocked_groups_are_generable(tmp_pa
     reg = R.Registry(V2)
     monkeypatch.setattr(reg, "configs_dir", tmp_path / "configs")
     rows = R.materialize(reg)
-    assert sorted(r["group"] for r in rows) == (["FLR"] * 3 + ["G0"] * 15 + ["G1P"] * 3 + ["G3"] * 24
+    assert sorted(r["group"] for r in rows) == (["FLR"] * 3 + ["G0"] * 15 + ["G1"] * 24 + ["G1P"] * 3 + ["G1R5"] * 3 + ["G3"] * 24
                                                + ["G5"] * 15 + ["G5AB"] * 8 + ["G6"] * 9
                                                + ["G6D"] * 3 + ["G7"] * 6 + ["G8"] * 3 + ["G8F"] * 3
                                                + ["S5P"] * 4)
     with pytest.raises(R.RegistryError, match="不写 INDEX.tsv"):
-        R.materialize(reg, groups=["G1", "G2"])
+        R.materialize(reg, groups=["G2"])
 
 
 def test_g2_is_gated_on_its_scale_and_g1_on_prereg():
-    """S5 进了 available 之后，G2 只剩 `g2-scale`（用户定规模后才放行，D-083 / D-084）；G1 只剩 S6。"""
+    """S5 进了 available 之后，G2 只剩 `g2-scale`（用户定规模后才放行，D-083 / D-084）；G1 / G1R5 已放行（S6b 完成 + N-007 确认）。"""
     reg = R.Registry(V2)
     assert "S5" in reg.available
     assert reg.unmet_requires("G2") == ["g2-scale"]
     assert "S6b" in reg.available
-    assert reg.unmet_requires("G1") == ["g1-prereg"]                  # S6b 之后：只剩判读规则（N-007）待用户确认
-    assert reg.unmet_requires("G1R5") == ["g1-prereg"]
+    assert "g1-prereg" in reg.available                               # N-007 用户已确认（2026-10-03）
+    assert reg.unmet_requires("G1") == [] and reg.unmet_requires("G1R5") == []
     assert reg.unmet_requires("S5P") == []
     assert "S6a" in reg.available and reg.unmet_requires("G1P") == []     # S6a：探路组放行，G1 仍缺 S6（= S6b）
 

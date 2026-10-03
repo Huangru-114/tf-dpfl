@@ -486,8 +486,11 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
     （`ck_scores` / `ck_before` 紧凑表、`update_geometry` 新列、`timing_summary.ck_eval_total_s`）。
   - **G1 登记（27 run）**：G1 24（{random, C1} × {集中 [10,0,0,0], 分散 [3,3,2,2]} × R{10, 20} × s42–44）+ **G1R5** 3（C1 × 集中 × R5）；
     固定 300 有效轮、网格 5、开 update_geometry / post_agg_eval / update_ck，**frozen 关**，不加 s45 / s46。G1R5 的精确对照是 G3-C1（不是 G8）。
-    两组挂 **`g1-prereg`**：判读规则 FINDINGS **N-007**（预注册）用户确认之前不放行；放行 = 把 `g1-prereg` 加进 `available` 再**全量** materialize。
-  - 开销（外推，c_k 部分没有实测）：记录约 0.95 GPU-h / run，c_k 约 +20%（范围 +5 … +20 GPU-h）；合计典型约 31 GPU-h。先交探路包（`PROBE_K=2`）。
+    两组原挂 **`g1-prereg`**：判读规则 FINDINGS **N-007**（预注册），**用户已确认并放行（2026-10-03）**。
+  - **开销（G1 探路包实测，F-083）**：在线 c_k 约 300–360 s / run（约 4% round_time，**比估的 +20% 低 5 倍**），显存不变（16.8–16.95 GiB / run）；
+    云聚合后评估点约 39 s / 点；每 run 墙钟约 2.4–2.8 h；K=2 的 8 个包共 21.6 GPU-h（16 个 run）。K=3 安全。
+  - **G1 探路包已回传（2026-10-03，16 / 24 个 run，seed 42 / 43）**：GPU 上开 / 关逐位相同（含 c_k）；seed 44 与 G1R5 待交；
+    `g1_verdict.py` 要等 3 个 seed 到齐后严格按 N-007 写。读数（描述性）：norm 的可分性主要来自 BN 统计量；edge 视角 ≈ 等池全局视角；单更新 c_k 几乎没有信号（AUROC 0.50–0.66）；3-C 的 r_down 8 个值都 ≥ 0.005 但洗掉不阻止饱和。
   - 守卫：`tests/test_update_ck_tf.py`（开 / 关 checksum 逐轮相同、**去掉 random 围栏就改变训练的反向锚点**、θ_i = 上传的权重 + edge 的统计量与 head、
     Δ = 0 时 c_i == c_before、一次评分不改任何权重 / RNG、批量 PGD == 逐类 PGD）/ `test_update_geometry.py`（拆分的手算值）/ `test_g1_scores.py` /
     `test_collect_s6.py`（schema 11）/ `test_s6_switches.py`（§4h + G1 27 run 的配置自洽）。
