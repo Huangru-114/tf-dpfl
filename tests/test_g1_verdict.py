@@ -38,6 +38,23 @@ def _run_block(part, place, R, n, seed):
             "update_ck": True, "provenance": {"run_id": V.g1_run_id(part, place, R, seed)}}
 
 
+GEO_COLS = ["round", "edge_id", "edge_round", "cid", "mal", "norm", "cos_edge", "cos_global",
+            "norm_w", "norm_s", "cos_edge_w", "cos_global_w"]
+
+
+def _fill_geo(m):
+    """补齐 update_geometry：每个 (云轮, edge, edge 轮) 至少一行（空更新列表），过 table_reasons 的完整性检查。"""
+    run = m["run"]
+    geo = m.setdefault("update_geometry", {"columns": GEO_COLS, "rows": []})
+    have = {(r[0], r[1], r[2]) for r in geo["rows"]}
+    for g in range(1, run["n_rounds"] + 1):
+        for e in range(4):
+            for er in range(1, run["edge_rounds"] + 1):
+                if (g, e, er) not in have:
+                    geo["rows"].append([g, e, er] + [[] for _ in GEO_COLS[3:]])
+    return m
+
+
 def _sawtooth_run(part="C1", R=10, n=None, seed=42, *, post=0.9, full=0.7, e0=1.0, late=None):
     """集中布点：受害 edge 在每个云轮的云聚合后 = post、云轮末 = full（E0 = e0，不该进量）。
     late：后半程周期改成这个 (post, full)，用来证明后半程不计。"""
@@ -49,9 +66,9 @@ def _sawtooth_run(part="C1", R=10, n=None, seed=42, *, post=0.9, full=0.7, e0=1.
                             + [{"edge_id": e, "client_benign": f} for e in V.VICTIMS])
         if g >= 2:
             post_agg[str(g)] = [[e, 0.0, (e0 if e == 0 else p), None, 0.5, 0.5, 0.0, 0.0] for e in range(4)]
-    return {"exit_code": 0, "client_failures": [], "n_malicious_participations": n,
-            "run": _run_block(part, "collocated", R, n, seed), "per_edge_rounds": per_edge,
-            "per_edge_post_agg_rounds": post_agg, "per_edge_light_columns": LIGHT}
+    return _fill_geo({"exit_code": 0, "client_failures": [], "n_malicious_participations": n,
+                      "run": _run_block(part, "collocated", R, n, seed), "per_edge_rounds": per_edge,
+                      "per_edge_post_agg_rounds": post_agg, "per_edge_light_columns": LIGHT})
 
 
 def _readout(delta, gm, edge=None, raw=0.8):
@@ -224,6 +241,53 @@ def test_run_reasons_catch_switches_and_factors_that_did_not_take_effect(mutate,
     assert any(needle in r for r in V.run_reasons(m, "C1", "collocated", 10, 30))
 
 
+def test_run_reasons_reject_a_missing_exit_code():
+    """pilot_a4.invalid_reasons 放过 exit_code 缺失 / null；N-007 闸 ② 要求 exit 0（G1 对抗式审查发现）。"""
+    for bad in (None, "drop"):
+        m = _sawtooth_run()
+        if bad == "drop":
+            del m["exit_code"]
+        else:
+            m["exit_code"] = None
+        assert any("exit_code" in r for r in V.run_reasons(m, "C1", "collocated", 10, 30))
+
+
+def test_kstar_ties_are_split_not_given_to_the_first_index():
+    """c_k 是量化的比例，Δ 的最大值常有并列；np.argmax 取第一个 → 偏向类 0（= 目标类）。均分后才是无偏的比例。"""
+    ups = [{"s_ck": 1.0, "mal": True, "ck_kstar": 0, "ck_kstar_ties": [0, 3]},        # 并列：0 与 3 → 0.5
+           {"s_ck": 1.0, "mal": True, "ck_kstar": 0, "ck_kstar_ties": [0]},           # 唯一：0 → 1
+           {"s_ck": 1.0, "mal": True, "ck_kstar": 2, "ck_kstar_ties": [2]},           # 唯一：2 → 0
+           {"s_ck": 1.0, "mal": True, "ck_kstar": 0, "ck_kstar_ties": [0, 1, 2, 3]},  # 四个并列 → 0.25
+           {"s_ck": None, "mal": True, "ck_kstar": 0, "ck_kstar_ties": [0]}]          # 无分数：不计
+    k = V.kstar_stats(ups)["malicious"]
+    assert k["n"] == 4 and k["n_tied"] == 2
+    assert k["frac_target_first_idx"] == pytest.approx(3 / 4)
+    assert k["frac_target"] == pytest.approx((0.5 + 1 + 0 + 0.25) / 4)
+    from analysis.functional_score import update_argmax_ties, update_score
+    cb, ci = [0.5, 0.5, 0.5, 0.5], [0.3, 0.5, 0.3, 0.5]          # Δ = 0.2, 0, 0.2, 0 → 类 0 与 2 并列
+    assert update_score(cb, ci)[1] == 0 and update_argmax_ties(cb, ci) == [0, 2]
+    assert update_argmax_ties([0.5, None], [0.4, 0.4]) == []
+
+
+def test_run_reasons_check_the_seed_and_table_completeness():
+    """G1 对抗式审查：seed 与文件名对不上、3-D 的记录表被截断，原来都会静默进判定。"""
+    m = _sawtooth_run(seed=42)
+    assert V.run_reasons(m, "C1", "collocated", 10, 30, seed=42) == []
+    assert any("seed" in r for r in V.run_reasons(m, "C1", "collocated", 10, 30, seed=43))
+    m["update_geometry"]["rows"] = [r for r in m["update_geometry"]["rows"] if r[0] <= 15]
+    assert any("update_geometry" in r for r in V.run_reasons(m, "C1", "collocated", 10, 30))
+    m = _sawtooth_run()
+    m["run"]["update_ck_every"] = 5
+    m["ck_before"] = {"columns": ["round", "edge_id", "edge_round", "effective_round", "n_proto", "n_attack", "ncm_acc", "c"],
+                      "rows": [[1, e, 5, 5, 500, 64, 0.5, [0.5] * 10] for e in range(4)]}
+    assert any("ck_before" in r for r in V.run_reasons(m, "C1", "collocated", 10, 30))
+    m = _sawtooth_run()
+    del m["per_edge_light_columns"]
+    runs = {s: _sawtooth_run(seed=s) for s in V.SEEDS}
+    del runs[42]["per_edge_light_columns"]
+    assert V.judge_3c_cell(runs, "C1", 10, 30)["verdict"] == "invalid"
+
+
 def test_run_reasons_attacker_must_participate():
     m = _sawtooth_run()
     m["n_malicious_participations"] = 0
@@ -257,7 +321,7 @@ def _geo_run(part, place, R, seed, offsets, bump=3.0, n_per=10, rounds=4):
     m = _sawtooth_run(part=part, R=R, seed=seed)
     m["run"] = _run_block(part, place, R, n, seed)
     m["update_geometry"] = {"columns": GEO, "rows": rows}
-    return m
+    return _fill_geo(m)
 
 
 def test_judge_end_to_end_on_synthetic_runs():
@@ -274,8 +338,10 @@ def test_judge_end_to_end_on_synthetic_runs():
     assert res["overall"]["3D"]["R10"]["norm_w"] == "edge_better"
     assert res["overall"]["3D"]["R20"]["norm_w"] == "edge_better"
     assert res["overall"]["3D"]["R10"]["s_ck"] == "invalid"          # 合成数据没有 c_k → 无定义 → 不判方向
-    assert res["overall"]["3C"] == {c: "self_cleaning" for c in res["3C"]}
+    assert res["overall"]["3C"] == {c: "self_cleaning" for c in res["3C"] if c != "C1_collocated_R5"}
+    assert res["overall"]["3C_bridge"] == {"C1_collocated_R5": "self_cleaning"}     # 桥单独列，不混进 G1 的格
     assert res["3C"]["C1_collocated_R5"]["bridge"] is True
+    assert any("C2" in c for c in res["untested_confounds"])
     assert not res["invalid_runs"] and not res["missing_runs"]
     assert set(res["cells"]) == {f"{p}_{pl}_R{R}" for p in V.PARTITIONS for pl in V.PLACEMENTS for R in V.G1_ROUNDS}
     json.dumps(res)                                                   # 可序列化

@@ -18,7 +18,9 @@ harness/g1_scores.py  —  G1 的逐更新分数读数：几何 + 功能分数�
   · **全局视角（等池）**：从本窗口内**全部 edge** 的更新里随机抽 m 个（固定种子、重复 `--resamples` 次取平均）求 median / MAD；
   · 把全体更新的 z 池化后算恶意 vs 良性的 AUROC（秩和，平局取一半）；ΔAUROC = edge − 全局（等池）。
   另报 raw（不归一化）与「全局（整池）」。池里没有恶意或没有良性 → AUROC 为 None（陷阱 #13）。
-集中布点（[10,0,0,0]）下 E0 全是恶意端：edge 视角在 E0 里没有良性对照，归一化会把攻击者 edge 的「整体偏高」抹掉 —— 这是结构，不是 bug。
+集中布点（[10,0,0,0]）下 E0 有 15 个良性端 + 10 个攻击者（约 40% 的更新是恶意的）：本 edge 的参照池被污染，
+median / MAD 被拉向恶意端，恶意更新在 edge 视角里显得不那么离群 —— 这是结构，不是 bug。
+（N-007 / F-083 原写「E0 全是恶意端、没有良性对照」，不对；F-085 更正。）
 
 纯标准库 + numpy，不 import TF。
 """
@@ -34,7 +36,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "fedavg"))
-from analysis.functional_score import auroc, update_score      # noqa: E402  纯 numpy
+from analysis.functional_score import auroc, update_argmax_ties, update_score   # noqa: E402  纯 numpy
 
 SCORES = ("s_ck", "norm", "norm_w", "norm_s", "neg_cos_global_w", "neg_cos_edge_w")
 DIAG_EXTRA = ("neg_cos_global", "neg_cos_edge")    # 整个 body 的余弦（N-007 的诊断量）；不进 readout 的缺省表
@@ -75,7 +77,7 @@ def collect_updates(m: dict) -> list:
                  "neg_cos_edge_w": None if ne is None else -ne, "s_ck": None,
                  # 诊断（N-007：整个 body 的余弦，含 BN 统计量）与 s_ck 的 k*（argmax 的类）
                  "neg_cos_global": None if ncb is None else -ncb,
-                 "neg_cos_edge": None if neb is None else -neb, "ck_kstar": None}
+                 "neg_cos_edge": None if neb is None else -neb, "ck_kstar": None, "ck_kstar_ties": None}
             by_key[(d["round"], d["edge_id"], d["edge_round"], cid)] = u
     # 功能分数：ck_scores 与 ck_before 按 (云轮, edge, edge 轮) 配对
     cb = m.get("ck_before") or {}
@@ -93,10 +95,12 @@ def collect_updates(m: dict) -> list:
         if u is None:       # 没有几何记录（开关没开）：也留下功能分数
             u = {"round": d["round"], "edge": d["edge_id"], "er": d["edge_round"],
                  "eff": d["effective_round"], "cid": d["cid"], "mal": bool(d["mal"]),
-                 **{k: None for k in SCORES + DIAG_EXTRA}, "ck_kstar": None}
+                 **{k: None for k in SCORES + DIAG_EXTRA}, "ck_kstar": None, "ck_kstar_ties": None}
             by_key[key] = u
         u["s_ck"] = s
         u["ck_kstar"] = kstar
+        u["ck_kstar_ties"] = (update_argmax_ties(c0, d["c"]) if (c0 is not None and d.get("c") is not None)
+                              else None)
     return sorted(by_key.values(), key=lambda u: (u["eff"], u["edge"], u["cid"]))
 
 

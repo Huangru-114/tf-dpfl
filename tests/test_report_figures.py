@@ -221,6 +221,62 @@ def test_pilot_panel_is_pilot_a4_and_pack_test():
     assert round(d["pack"]["per_k"][3]["speedup"], 2) == 2.86
 
 
+# ── 第三批（2026-10-03）：G1 锯齿（3-C）/ edge vs 全局视角（3-D）─────────────────
+
+def test_g1_sawtooth_vertical_segments_are_the_verdict_jumps():
+    """F3 锯齿图上每一段竖线（上一云轮末 → 云聚合后）就是判定里的 Δ_jump；周期内的下降就是 r_down。"""
+    pytest.importorskip("numpy")
+    import g1_verdict as GV
+    d = _real(R.data_g1_sawtooth)
+    assert d["verdict"] == GV.judge_3c(*GV.load())
+    for r_edge, cell in ((5, "C1_collocated_R5"), (10, "C1_collocated_R10"), (20, "C1_collocated_R20")):
+        per_seed = d["verdict"][cell]["per_seed"]
+        assert len(d["series"][r_edge]["victims"]) == 3
+        for curve, s in zip(d["series"][r_edge]["victims"], (42, 43, 44)):
+            pts = dict(curve)
+            for pg in per_seed[f"s{s}"]["per_g"]:
+                g = pg["g"]
+                post, prev, full = pts[(g - 1) * r_edge + 0.01], pts[(g - 1) * r_edge], pts[g * r_edge]
+                assert post - prev == pytest.approx(pg["d_jump"], abs=1e-5)
+                assert (post - full) / r_edge == pytest.approx(pg["r_down"], abs=1e-6)
+
+
+def test_g1_phase_profile_endpoints_are_the_first_half_means():
+    pytest.importorskip("numpy")
+    import g1_verdict as GV
+    d = _real(R.data_g1_sawtooth)
+    g1, g1r5 = GV.load()
+    for r_edge, runs in ((5, g1r5), (10, {s: g1[("C1", "collocated", 10, s)] for s in R.SEEDS})):
+        n = GV.G1R5_ROUNDS if r_edge == 5 else GV.G1_ROUNDS[r_edge]
+        post = [sum(GV.victim_post(m)[g] for g in range(2, n // 2 + 1)) / (n // 2 - 1) for m in runs.values()]
+        full = [sum(GV.victim_full(m)[g] for g in range(2, n // 2 + 1)) / (n // 2 - 1) for m in runs.values()]
+        prof = dict(d["phase"][r_edge]["asr"])
+        assert prof[0.0] == pytest.approx(sum(post) / 3, abs=1e-3)
+        assert prof[1.0] == pytest.approx(sum(full) / 3, abs=1e-3)
+
+
+def test_g1_views_figure_reads_the_committed_verdict_and_it_reproduces():
+    """F5 读的是入库的 analysis/g1_verdict.json：3-C 部分整段重算相同；3-D 抽一个 run 重算相同；
+    ROC 在 FPR = 5% 处 = 判定的 TPR@5%（三个 seed 的均值）。"""
+    pytest.importorskip("numpy")
+    import json
+    import g1_verdict as GV
+    d = _real(R.data_g1_views)
+    v = d["verdict"]
+    g1, g1r5 = GV.load()
+    assert json.loads(json.dumps(GV.judge_3c(g1, g1r5))) == v["3C"]
+    rd = GV.score_readouts(g1[("C1", "distributed", 10, 42)])
+    cell = v["cells"]["C1_distributed_R10"]
+    for key in GV.MAIN_SCORES + GV.DIAG_SCORES:
+        for f, x in rd["scores"][key].items():
+            assert cell["s42"]["scores"][key][f] == (round(x, 4) if isinstance(x, float) else x), (key, f)
+    i5 = d["grid"].index(0.05)
+    for key in ("norm_w", "s_ck"):
+        for view in ("raw", "edge", "global_matched"):
+            want = sum(cell[f"s{s}"]["scores"][key][f"tpr5_{view}"] for s in R.SEEDS) / 3
+            assert d["roc"][key][view][i5] == pytest.approx(want, abs=1e-3), (key, view)
+
+
 # ── 出图 ───────────────────────────────────────────────────────────────────
 
 def test_every_figure_renders(tmp_path):

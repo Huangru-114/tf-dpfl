@@ -133,3 +133,13 @@ def update_score(c_before, c_i, eps: float = 1e-6):
     mad = float(np.median(np.abs(v - med)))
     j = int(np.argmax(v))
     return float((v[j] - med) / (mad + eps)), int(ks[j])
+
+
+def update_argmax_ties(c_before, c_i):
+    """update_score 的 k* 的**全部**并列者：Δ_k = c_k(before) − c_k(i) 取到最大值的所有类（c_k 是量化的比例，
+    并列常见；np.argmax 只取第一个，会偏向小编号的类 —— 目标类恰好是 0，G1 审查发现）。有定义的类 < 3 个 → []。"""
+    d = [(k, a - b) for k, (a, b) in enumerate(zip(c_before, c_i)) if a is not None and b is not None]
+    if len(d) < 3:
+        return []
+    mx = max(x for _, x in d)
+    return [k for k, x in d if x == mx]

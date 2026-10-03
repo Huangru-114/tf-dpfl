@@ -489,8 +489,19 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
     两组原挂 **`g1-prereg`**：判读规则 FINDINGS **N-007**（预注册），**用户已确认并放行（2026-10-03）**。
   - **开销（G1 探路包实测，F-083）**：在线 c_k 约 300–360 s / run（约 4% round_time，**比估的 +20% 低 5 倍**），显存不变（16.8–16.95 GiB / run）；
     云聚合后评估点约 39 s / 点；每 run 墙钟约 2.4–2.8 h；K=2 的 8 个包共 21.6 GPU-h（16 个 run）。K=3 安全。
-  - **G1 探路包已回传（2026-10-03，16 / 24 个 run，seed 42 / 43）**：GPU 上开 / 关逐位相同（含 c_k）；seed 44 与 G1R5 待交；
-    `g1_verdict.py` 要等 3 个 seed 到齐后严格按 N-007 写。读数（描述性）：norm 的可分性主要来自 BN 统计量；edge 视角 ≈ 等池全局视角；单更新 c_k 几乎没有信号（AUROC 0.50–0.66）；3-C 的 r_down 8 个值都 ≥ 0.005 但洗掉不阻止饱和。
+  - **G1 / G1R5 全部回传（2026-10-03，27 个 run）**：GPU 上开 / 关逐位相同（含 c_k；G1R5 与 G3-C1 逐位相同，F-084）。
+
+- **G1 判定 + Experiment 3 终版报告**（2026-10-03；DECISIONS D-088；FINDINGS F-084 … F-086）。
+  - `harness/g1_verdict.py` 严格实现 N-007（**先冻结在 `1c3119e`、再打开 seed 44 与 G1R5**）：
+    3-C 4 / 5 格 `self_cleaning`（random·R20 `user_decides`，G1R5 是 `3C_bridge`）；3-D `norm_w` `no_edge_gain`，余弦与在线 c_k `undetectable`。
+    两份盲算的独立实现 + 三个视角的对抗式审查（F-085）：判定标签全部相同。
+  - `harness/g1_scores.py` 拆出 `view_arrays` / `aurocs_from_arrays`（g1_scores.json 逐字节复现）；`analysis/functional_score.py` 加 `tpr_at_fpr` / `update_argmax_ties`
+    （k* 并列均分：np.argmax 偏向类 0 = 目标类）。`harness/g1_explore.py` = 探索性读数（不进判定）。
+  - ⚠ N-007 / F-083 里「集中布点 E0 全是恶意端」是错的：E0 = 15 良性 + 10 攻击者，edge 视角塌掉是参照池被污染（F-085 更正）。
+  - 图 `F3_sawtooth_G1.png` / `F5_3D_views_G1.png`（`report_figures.py` 的 G1S / G1V）。`REPORT.md` 是**终版**（§1 结论一览、§5.12–§5.14、§9.4 防御含义、§10 综合讨论）。
+  - **阶段三计划草案** `experiments/defense/edge-native/PLAN-draft.md`（未拍板；D-008 仍生效）。
+  - 守卫：`tests/test_g1_verdict.py`（合成数据覆盖每个分支；真实数据只钉 s42 / s43 的 F-083 数与已入库的 g1_scores.json；阈值反向锚点）/
+    `test_g1_explore.py` / `test_report_figures.py`（图上的竖线 = 判定的 Δ_jump；ROC 在 FPR 5% 处 = 判定的 TPR）。
   - 守卫：`tests/test_update_ck_tf.py`（开 / 关 checksum 逐轮相同、**去掉 random 围栏就改变训练的反向锚点**、θ_i = 上传的权重 + edge 的统计量与 head、
     Δ = 0 时 c_i == c_before、一次评分不改任何权重 / RNG、批量 PGD == 逐类 PGD）/ `test_update_geometry.py`（拆分的手算值）/ `test_g1_scores.py` /
     `test_collect_s6.py`（schema 11）/ `test_s6_switches.py`（§4h + G1 27 run 的配置自洽）。

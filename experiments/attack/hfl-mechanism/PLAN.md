@@ -88,8 +88,8 @@ P1 的用途（FINDINGS F-002/F-008/F-009）：同 seed 噪声的实测、效应
 | 3.1 | floor_gen = ρ=0 影子攻击者下 benign ASR 的终值 | floor_gen ≥ 0.3 → 「平台期主要来自对抗脆弱性」（原文阈值）。**先由 FLR（D-061）给出量级**：FLR 判 `negligible` 时 3.1 直接由它回答 | ≥3 |
 | 3-A | 比值 r = T50(HFL)/T50(flat)，benign，有效轮，按 seed 配对 | log r 的 CI 全 > 0 → 结构性延迟；CI 落在 [log 0.9, log 1.1] 内 → 约等于 1（⚠待确认 ±10% 等效区间）；其余 → 不确定 | 5 |
 | 3-B | **差中差**（D-062，机构式比例表下受害 edge 不再完全可交换）：[E3 − E1/E2 均值]_{C3} − [同]_{C1}，按 seed 配对；ASR 用 excess（FLR 判 `negligible` 时用原始 ASR 并注明上界，D-061） | CI 全 < 0 → 迁移依赖目标类的自然特征；CI 含 0 → 无差异（**2026-09-29 结果**：CI 全 > 0、天花板下的机械结果，两支都没落上，F-073 / F-075；`harness/g3_did.py`，脚本写于数据之后） | 3 |
-| 3-C | r_down = 干净 edge 在一个云周期内 fresh-PM ASR 的逐 edge 轮斜率（取负） | CI 全 > 0 → edge 级隔离可用；CI 含 0 → 后门进入 body 后冲不掉 | 3 |
-| 3-D | ΔAUROC = AUROC(edge 视角) − AUROC(全局视角)，**等池大小** | CI 全 > 0 → edge 的价值包含检测 | 3 |
+| 3-C | r_down = 干净 edge 在一个云周期内 fresh-PM ASR 的逐 edge 轮斜率（取负）；**细化为 N-007**（受害 E1–E3、前半程周期、(云聚合后 − 周期末) / R） | CI 全 > 0 → edge 级隔离可用；CI 含 0 → 后门进入 body 后冲不掉。N-007：三个 seed 都 ≥ 0.005 → self_cleaning；都 ≤ 0.001 → no_cleaning | 3；✅ **4 / 5 格 `self_cleaning`、random·R20 `user_decides`**；洗掉追不上灌入（F-085 / F-086，`harness/g1_verdict.py`） |
+| 3-D | ΔAUROC = AUROC(edge 视角) − AUROC(全局视角)，**等池大小** | CI 全 > 0 → edge 的价值包含检测。**细化为 N-007**（C1·分散；零对照 / 全局 AUROC ≥ 0.7 两道闸；±0.05） | 3；✅ `norm_w` **no_edge_gain**、余弦与在线 c_k **undetectable**（F-085） |
 | 3-E | 受害 edge（E1–E3）的**原始** benign ASR（fresh-PM）：(b)/(c) 相对 (a)，按 seed 配对（D-059：不等 S4 的 floor；「三臂 floor 相同」无证据，注明）；MTA 损失（**判定用 fresh 列**，D-071；陈旧列另报） | ASR 下降的 CI 全 > 0，且 MTA 下降 ≤ 0.02（D-071：维持 0.02，另报 ΔASR–ΔMTA 权衡；更高门槛只能事后标注） | 3 |
 | 3.2 | ρ=1 时恶意端自身干净精度、body 更新范数；FedRep vs FedAvg 的 benign ASR | 按原文 §3.2 的三条预测逐条判定 | 3 |
 | 3.3 | 良性端池化 fresh-PM ASR：窗口内 4 个评估点的最大值（植入峰值）、t0 + 65 / 70 / 75 有效轮三点的均值（稀释），都减同有效轮的 G0-random floor（D-078），随 t0 的变化 | 峰值随 t0 单调上升的秩相关 CI > 0 → 植入受收敛门控（口径细节 D-081：逐 seed Spearman、按 seed bootstrap、`anti_gated` 单独报；`harness/g5_verdict.py`） | 3；✅ **收尾：`not_gated`**（F-076 / D-082） |
@@ -103,7 +103,7 @@ P1 的用途（FINDINGS F-002/F-008/F-009）：同 seed 噪声的实测、效应
 |---|---|---|---|
 | FLR floor 验证（D-061） | G6 臂 (a) 原样 × ρ=0 影子攻击者 × 3 seed，与 G6(a) 按 seed 配对；预注册判定 `harness/flr_verdict.py` | 定 G0 的规模；兼作 3-E 臂 (a) 的 floor | A4（只改配置）→ **可交** |
 | G0 下限主干 | 划分 {随机, C1, C2, C3, C4} × ρ=0 影子攻击者 × 3 seed；4 edge 集中 [10,0,0,0]、R5（D-066）；**固定 60 云轮**（D-078）。~~规模等 FLR~~ **FLR 判 floor 不可忽略（F-065）→ 逐划分测** | 3.1 下限、3-B 逐 edge 下限、3.3 对照 | ✅ 已回传：floor 跟着 y_t 占比走、floor_gen < 0.3（F-073） |
-| G1 主攻击（详细记录；**按「退回 floor」一支重新规划**，D-076） | 4 edge；划分 {随机, C1} × 放置 {collocated, distributed} × R_edge {10, 20} × 3 seed；逐 edge 轮评估；更新日志 | 3-C（**保留，主量用 margin，另报尾部**，D-076；**只当副产品**、加冻结触发器列，D-085）、3-D、3-A 的一部分 | A4 + S3 + S5 + S6。**D-085**：先 S6a + 探路 G1P（约 1 GPU-h），规模等它回来再定（`S6a-PLAN.md`） |
+| G1 主攻击（详细记录；**按「退回 floor」一支重新规划**，D-076） | 4 edge；划分 {随机, C1} × 放置 {collocated, distributed} × R_edge {10, 20} × 3 seed；逐 edge 轮评估；更新日志 | 3-C（**保留，主量用 margin，另报尾部**，D-076；**只当副产品**、加冻结触发器列，D-085）、3-D、3-A 的一部分 | A4 + S3 + S5 + S6。**D-085**：先 S6a + 探路 G1P（约 1 GPU-h），规模等它回来再定（`S6a-PLAN.md`）。✅ **已回传（2026-10-03）**：G1 24 + G1R5 3，判定见 F-085 / REPORT §5.12–§5.13 |
 | G2 结构扫描（规模未定，D-056；S5 已完成 → 挂 `g2-scale`，D-084） | flat + edge {2, 4, 10} × R_edge {2, 5, 10, 20}，去掉 G1 已覆盖的格子 × 5 seed（布点 / 轮数 2026-09-27 补齐，D-047）；**先跑 G2P 一致性复测**（pilot 表，seed42 的 4 格），结果回来再定 G2 规模 —— G2P 已回来（`consistent`，F-049），**规模尚未定**，由用户定 | 3-A | A4 + S5 ✅ + `g2-scale` |
 | G3 目标类条件 | **C1**（D-062 新增，差中差的基准）/ C2 / C3 / C4 + 层级 Dirichlet α_e {0.1, 0.3, 1, 10}（社区口径，D-063）× 3 seed；4 edge 集中 [10,0,0,0]、R5；比例表 r = 0.25、E3 = deer + horse（D-067） | 3-B | A4 + S3 ✅ → **可交**（24 run） |
 | G4 私有头（**搁置**，D-047） | ρ {0.25, 1.0} × {FedRep, FedAvg} × 3 seed。用户：FedAvg 臂会被立刻攻陷、给不出结论；等 3.2 按 N-003 重新表述时一起重设计对照臂 | 3.2 | A4 + S6 + 重新表述 |
@@ -138,7 +138,7 @@ P1 的用途（FINDINGS F-002/F-008/F-009）：同 seed 噪声的实测、效应
 | **S4**（2026-09-29 ✅，D-078 / D-079） | ρ=0 影子攻击者 L1（生成器确实在训、评估触发器用生成器）、`attack_start_round` + `generator_schedule`（`attack/attack_window.py`，不 import TF；`[设定7]`，schema 8）；~~ξ-only 下限~~ 不做（D-078；δ-only / ξ-only 逐点消融列也不做，D-051） | → G0 / G5AB（G5 等 G5AB） |
 | ~~S5~~ ✅（2026-10-01，D-084；预案 D-055） | 统一评估网格 `evaluation.eval_grid: G`（`fedavg/server/eval_grid.py`）：全量评估在网格上的云轮末（两个 eval_interval = lcm(G,R)/R），其余网格点在 edge 轮之间做**轻评估**（只算主列：fresh-PM 的 local / edge ASR + pm_acc + EM 精度）；停止判据横轴 = eff / G（R5 逐位不变）；GM 只在全量点。collect_metrics schema 9（`light_rounds[]` / `per_edge_light_rounds`）。G2 写好网格但挂 `g2-scale`；G1 的网格留给 S6；探路组 **S5P** 已回传：GPU 上开 / 关网格逐位相同、轻评估点约 35 s（F-079） | → G1 / G2 |
 | S6 → ~~S6a~~ ✅（2026-10-02，D-085 / D-086）/ ~~S6b~~ ✅（2026-10-02，D-087） | S6a：逐更新几何日志、云聚合后评估点、冻结触发器列、轻评估点带 margin / 尾部、停止横轴防呆、G8 快照 c_k 预检 + G1P（GPU 已验证，F-081）。**S6b**：在线 c_k（每 5 个有效轮、n=64、5 步 PGD、NCM head、edge 干净集；原始 c_0…c_9 落盘，s_i 离线算）+ 几何拆成「可训练权重 / BN 统计量」（修 F-081 的混杂）+ G1 登记（24 run + G1R5 3 run，frozen 关）。G1 / G1R5 挂 `g1-prereg`（判读规则 N-007 待用户确认）。方案 `S6b-PLAN.md` | → G1 / G1R5 / G4 |
-| S7（**部分完成**，2026-09-30） | 各子实验的判定代码补全 + 出图。✅ 3-E 判定 `harness/g6_verdict.py`（F-077，两臂 `blocks`）；✅ 已回传各组的结果图 `harness/report_figures.py`（REPORT §0）。剩下：等 G1 / G2 / G4 的数据（F2 / F3 锯齿 / F5 / F6） | — |
+| S7（**部分完成**，2026-09-30 / 10-03） | 各子实验的判定代码补全 + 出图。✅ 3-E 判定 `harness/g6_verdict.py`（F-077，两臂 `blocks`）；✅ 已回传各组的结果图 `harness/report_figures.py`（REPORT §0）；✅ **G1 判定 `harness/g1_verdict.py`（F-085）+ F3 锯齿 / F5 视角图**（2026-10-03）。剩下：等 G2 / G4（F2 / F6），两组都没放行 | — |
 | **S9**（2026-09-28 ✅，D-071 … D-075） | 评估仪表（常开：逐客户端、margin、y_t 偏置、按类 ASR、非目标翻转率；schema 7）+ 两个存盘开关（logits / 快照，默认关）+ `harness/decay_verdict.py` / `instrumentation_check.py`；登记 G8 / G6D | → G8 / G6D；G1 待 FLR + G8 重新规划（D-074） |
 | **S8**（2026-09-27 ✅，D-057 … D-059） | 3-E 三层个性化 | → G6 |
 
@@ -151,9 +151,9 @@ P1 的用途（FINDINGS F-002/F-008/F-009）：同 seed 噪声的实测、效应
 | F0 | 各划分的 (H_inter, H_intra) 散点 | §2 | ✅ `F0_partitions.png`（`partition_preview.py --plot`） |
 | F1 | ASR 与 floor_gen 随有效轮的曲线，三层（~~floor_ξ~~ 不做，D-078） | 3.1 | ✅ `F1_floor_G0_FLR.png`（池化 floor 曲线 + 逐 edge floor vs y_t + FLR） |
 | F2 | T50(HFL)/T50(flat) 森林图，按 (n_edges, R_edge) 分组 | 3-A | 等 G2（pilot 版：`G2P_T50_ratio.png`，单 seed） |
-| F3 | 逐 edge × 有效轮的 fresh-PM ASR 热条，标出云聚合时刻，叠加锯齿 | 3-C | 衰减版 ✅ `F3_decay_G8_G8F.png`（G8 / G8F）；锯齿热条等 G1 |
+| F3 | 逐 edge × 有效轮的 fresh-PM ASR 热条，标出云聚合时刻，叠加锯齿 | 3-C | 衰减版 ✅ `F3_decay_G8_G8F.png`（G8 / G8F）；锯齿版 ✅ `F3_sawtooth_G1.png`（G1 + G1R5；画成逐点时间序列，竖线 = 云聚合） |
 | F4 | C1–C4 逐 edge 的 excess ASR 与 MTA | 3-B | ✅ `F4_3B_G3.png`（C1 / C3 逐 edge 原始 vs floor + 差中差分解；MTA 未画） |
-| F5 | edge 视角 vs 全局视角的 ROC（等池大小） | 3-D | 等 G1（S6） |
+| F5 | edge 视角 vs 全局视角的 ROC（等池大小） | 3-D | ✅ `F5_3D_views_G1.png`（AUROC 汇总 + ΔAUROC + ROC + 逐窗口） |
 | F6 | ρ × {FedRep, FedAvg}：benign ASR、恶意端干净精度、body 更新范数 | 3.2 | 等 G4（搁置） |
 | F7 | t0 窗口网格：峰值 ASR 与 +50 轮的 ASR | 3.3 | ✅ `F7_G5_convergence_gating.png` |
 

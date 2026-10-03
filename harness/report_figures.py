@@ -19,6 +19,8 @@ harness/report_figures.py  —  REPORT.md 的结果图（Experiment 3 改版，P
 | G8   | F3_decay_G8_G8F.png          | 3-C | decay_verdict（含 --flat 分支） |
 | G7   | G7_preprocessing.png         | 背景 | g7_posthoc |
 | G2P  | G2P_T50_ratio.png            | 背景（pilot，单 seed） | pilot_a4 |
+| G1S  | F3_sawtooth_G1.png           | 3-C 锯齿 | g1_verdict.judge_3c + g1_explore（相位剖面，探索性） |
+| G1V  | F5_3D_views_G1.png           | 3-D | analysis/g1_verdict.json + g1_scores.view_arrays（ROC）+ g1_explore（逐窗口，探索性） |
 F0（划分散点）由现有的 `partition_preview.py --plot` 出，不在这里。
 """
 
@@ -773,6 +775,99 @@ def data_pilot(registry: Path = STUDY / "pilot/registry.yaml") -> dict | None:
     return {"d029": res["D-029"], "d031": res["D-031"], "det": res["A15-determinism"], "pack": pack}
 
 
+# ── G1（3-C 锯齿 / 3-D 视角）：判定数取自 g1_verdict（N-007），相位剖面与逐窗口 AUROC 取自 g1_explore（探索性）──
+# 这两个模块要 numpy → 在函数里 import（其余图不受影响）。
+G1_VERDICT_JSON = STUDY / "analysis/g1_verdict.json"
+G1_SAWTOOTH_RS = (5, 10, 20)
+ROC_GRID = tuple(i / 100 for i in range(101))
+SHORT = {"norm_w": "norm_w", "neg_cos_global_w": "-cos_glob_w", "neg_cos_edge_w": "-cos_edge_w", "s_ck": "s_ck"}
+
+
+def g1_timeline(m: dict, edges, col: str = "client_benign") -> list:
+    """一个 run 的逐点时间序列 [(x, y)]：云轮末全量点 x = g·R、轻评估点 x = 有效轮、
+    云聚合后评估点 x = (g−1)·R + 0.01（紧贴上一云轮末之后 → 画出来是一条竖线，长度 = Δ_jump）。
+    y = edges 的均值；任一 edge 缺 → 不出点。"""
+    import g1_explore as GE
+    R = _eff(m)
+    out = []
+    for (g, er), vals in GE.point_tables(m, col).items():
+        v = [vals.get(e) for e in edges]
+        if any(x is None for x in v):
+            continue
+        out.append(((g - 1) * R + er + (0.01 if er == 0 else 0.0), sum(v) / len(v)))
+    return sorted(out)
+
+
+def data_g1_sawtooth(results_dir: Path = RESULTS) -> dict | None:
+    """3-C：C1·集中 × R5（G1R5）/ R10 / R20 的逐点时间序列 + 前半程相位剖面 + 判定（judge_3c 原样）。"""
+    import g1_explore as GE
+    import g1_verdict as GV
+    g1, g1r5 = GV.load(results_dir)
+    if all(v is None for v in list(g1.values()) + list(g1r5.values())):
+        return None
+    runs_by_r = {5: g1r5, **{R: {s: g1[("C1", "collocated", R, s)] for s in SEEDS} for R in (10, 20)}}
+    series, phase = {}, {}
+    for R, runs in runs_by_r.items():
+        ms = [m for m in runs.values() if m is not None]
+        series[R] = {"victims": [g1_timeline(m, GV.VICTIMS) for m in ms],
+                     "e0": [g1_timeline(m, (0,)) for m in ms]}
+        phase[R] = {}
+        for col, key in (("client_benign", "asr"), ("margin_p50", "margin")):
+            profs = [GE.cycle_profile(m, col)["first"] for m in ms]
+            ers = sorted(set.intersection(*(set(p) for p in profs))) if profs else []
+            phase[R][key] = [(er / R, _mean([p[er]["victims"] for p in profs])) for er in ers]
+    return {"verdict": GV.judge_3c(g1, g1r5), "series": series, "phase": phase,
+            "thresholds": (GV.SELF_CLEAN, GV.NO_CLEAN)}
+
+
+def roc_on_grid(pos, neg, grid=ROC_GRID) -> list:
+    """阶梯 ROC：每个 FPR 网格点上的 TPR（= tpr_at_fpr，严格大于阈值判阳、实际 FPR ≤ 网格值）。"""
+    sys.path.insert(0, str(ROOT / "fedavg"))
+    from analysis.functional_score import tpr_at_fpr
+    return [tpr_at_fpr(pos, neg, f) for f in grid]
+
+
+def data_g1_views(path: Path = G1_VERDICT_JSON, results_dir: Path = RESULTS) -> dict | None:
+    """3-D：判定（analysis/g1_verdict.json，g1_verdict 的原样输出）+ C1·分散·R10 的 ROC（三个 seed 的均值，
+    与判定同一个 view_arrays）+ 逐窗口 AUROC（探索性）。"""
+    import numpy as np
+    import g1_explore as GE
+    import g1_scores as GS
+    import g1_verdict as GV
+    v = _load(path)
+    if v is None:
+        return None
+    g1, _ = GV.load(results_dir)
+    roc = {}
+    for key in ("norm_w", "s_ck"):
+        per = {"edge": [], "global_matched": [], "raw": []}
+        for s in SEEDS:
+            m = g1.get(("C1", "distributed", 10, s))
+            if m is None:
+                continue
+            a = GS.view_arrays(GS.collect_updates(m), key, GV.WINDOW, GV.RESAMPLES, (m.get("run") or {}).get("seed") or 0)
+            if a is None:
+                continue
+            mal = a["mal"]
+            per["raw"].append(roc_on_grid(a["x"][mal], a["x"][~mal]))
+            per["edge"].append(roc_on_grid(a["z_edge"][mal], a["z_edge"][~mal]))
+            per["global_matched"].append(list(np.mean(
+                [roc_on_grid(z[mal & ~np.isnan(z)], z[~mal & ~np.isnan(z)]) for z in a["z_matched"]], axis=0)))
+        roc[key] = {view: [float(x) for x in np.mean(c, axis=0)] if c else [] for view, c in per.items()}
+    windows = {}
+    for part in GV.PARTITIONS:
+        for R in GV.G1_ROUNDS:
+            curves = []
+            for s in SEEDS:
+                m = g1.get((part, "distributed", R, s))
+                if m is not None:
+                    curves.append([(r["eff_from"] + GV.WINDOW / 2 - 0.5, r["raw"])
+                                   for r in GE.window_aurocs(m, keys=("norm_w",))["norm_w"] if r["raw"] is not None])
+            windows[f"{part}_R{R}"] = curves
+    return {"verdict": v, "roc": roc, "grid": list(ROC_GRID), "windows": windows,
+            "scores": list(GV.MAIN_SCORES) + ["norm_s", "norm"]}
+
+
 def plot_status(d: dict, out: Path):
     plt = _plt()
     fig, axes = _fig(plt, 1, 2, (14, 4.8))
@@ -824,7 +919,7 @@ def plot_status(d: dict, out: Path):
     ax.set_xlim(0, 62)
     used = sum(r[1] for r in rows)
     left = sum(r[2] for r in rows)
-    _panel_title(ax, f"(b) GPU-hours: ~{used:.0f} used so far; >= ~{left:.0f} more for G1 / G2 / G4 (extrapolated)")
+    _panel_title(ax, f"(b) GPU-hours: ~{used:.0f} used so far; >= ~{left:.0f} more for the blocked groups (extrapolated)")
     return _save(fig, out, "What has been run and what is left (P2 registry)")
 
 
@@ -1031,6 +1126,155 @@ def plot_pilot(d: dict, out: Path):
     return _save(fig, out, "A4 pilot (P1 protocol, background): feasibility checks before P2")
 
 
+def plot_g1_sawtooth(d: dict, out: Path):
+    plt = _plt()
+    fig, axes = _fig(plt, 3, 2, (15, 11))
+    vcol, ecol = SERIES[0], SERIES[1]
+    rcol = {5: SERIES[2], 10: SERIES[3], 20: SERIES[6]}
+    for i, R in enumerate(G1_SAWTOOTH_RS):
+        ax = axes[i][0]
+        _style(ax, "effective rounds", "benign fresh-PM ASR")
+        ends = []
+        for key, col, lab in (("victims", vcol, "victim edges E1-E3 (mean)"), ("e0", ecol, "attacker edge E0")):
+            end = _band_line(ax, d["series"][R][key], col, lab, lw=1.3, alpha=0.18)
+            if end:
+                ends.append((end[0], end[1], "victims" if key == "victims" else "E0"))
+        ax.set_xlim(0, 300)
+        ax.set_ylim(-0.02, 1.04)
+        _direct_labels(ax, ends)
+        _legend(ax, loc="lower right")
+        cell = d["verdict"].get(f"C1_collocated_R{R}", {})
+        _panel_title(ax, f"({'ace'[i]}) C1 collocated, R={R}{' (G1R5 bridge)' if R == 5 else ''}: "
+                         f"vertical segment = one cloud aggregation; band = seed min-max\n"
+                         f"     verdict {cell.get('verdict')}: r_down {cell.get('r_down_mean')} /eff. round, "
+                         f"jump {cell.get('d_jump_mean')}")
+    # (b) 相位剖面：ASR
+    for j, (key, ylab, title) in enumerate((
+            ("asr", "victim benign ASR (mean of E1-E3)",
+             "(b) inside one cloud period (mean over first-half periods): ASR falls through the period"),
+            ("margin", "victim margin median: log p(y_t) - max log p(other)",
+             "(d) same profile for the margin (keeps moving when ASR saturates)"))):
+        ax = axes[j][1]
+        _style(ax, "position inside the cloud period (edge round / R; 0 = right after aggregation)", ylab)
+        ends = []
+        for R in G1_SAWTOOTH_RS:
+            pts = d["phase"][R][key]
+            if pts:
+                xs, ys = zip(*pts)
+                ax.plot(xs, ys, color=rcol[R], linewidth=2, marker="o", markersize=5, label=f"R={R}")
+                ends.append((xs[-1], ys[-1], f"R={R}"))
+        _direct_labels(ax, ends)
+        _legend(ax, loc="upper right")
+        _panel_title(ax, title)
+    # (f) 判定：逐 seed r_down
+    ax = axes[2][1]
+    _style(ax, "", "r_down per effective round")
+    hi, lo = d["thresholds"]
+    cells = [c for c in ("C1_collocated_R5", "C1_collocated_R10", "C1_collocated_R20",
+                         "random_collocated_R10", "random_collocated_R20") if c in d["verdict"]]
+    for x, c in enumerate(cells):
+        v = d["verdict"][c]
+        for s in SEEDS:
+            ps = v["per_seed"].get(f"s{s}")
+            if ps:
+                ax.plot(x, ps["r_down"], marker=MARKERS[s], color=INK_2, markersize=7, linestyle="none",
+                        label=f"seed {s}" if x == 0 else None)
+        ax.annotate(v["verdict"], (x, 0), xytext=(0, -26), textcoords="offset points", ha="center",
+                    fontsize=7, color=INK, annotation_clip=False)
+    ax.axhline(hi, color=FLOOR, linestyle="--", linewidth=1.2)
+    ax.axhline(lo, color=FLOOR, linestyle=":", linewidth=1.2)
+    ax.text(-0.55, hi, f"self_cleaning if all >= {hi}", fontsize=7, color=INK_2, va="bottom", ha="left")
+    ax.text(-0.55, lo, f"no_cleaning if all <= {lo}", fontsize=7, color=INK_2, va="bottom", ha="left")
+    ax.set_xticks(range(len(cells)))
+    ax.set_xticklabels([c.replace("_collocated_", " ") for c in cells], fontsize=8, color=INK_2)
+    ax.set_xlim(-0.6, len(cells) - 0.4)
+    ax.set_ylim(0, None)
+    _legend(ax, loc="upper right")
+    _panel_title(ax, "(f) pre-registered 3-C verdict (N-007): r_down per seed, first-half periods only")
+    return _save(fig, out, "3-C sawtooth (G1 + G1R5, collocated [10,0,0,0]): edges self-clean inside a period, "
+                           "but each aggregation pushes them back up")
+
+
+def plot_g1_views(d: dict, out: Path):
+    plt = _plt()
+    fig, axes = _fig(plt, 2, 3, (17, 9.5))
+    v = d["verdict"]
+    vcol = {"edge": SERIES[0], "global_matched": SERIES[1], "raw": SERIES[2]}
+    vlab = {"edge": "edge view", "global_matched": "global view (equal pool)", "raw": "raw score (no normalisation)"}
+    scores = d["scores"]
+    for j, R in enumerate((10, 20)):
+        ax = axes[0][j]
+        _style(ax, "AUROC (malicious vs benign uploads), C1 distributed", "")
+        cell = v["cells"].get(f"C1_distributed_R{R}", {})
+        for i, key in enumerate(scores):
+            for off, view in ((0.15, "edge"), (-0.15, "global_matched")):
+                vals = [cell[f"s{s}"]["scores"][key][view] for s in SEEDS
+                        if f"s{s}" in cell and cell[f"s{s}"]["scores"][key][view] is not None]
+                if not vals:
+                    continue
+                ax.plot([min(vals), max(vals)], [i + off] * 2, color=vcol[view], linewidth=1.2)
+                ax.plot(_mean(vals), i + off, marker="o" if view == "edge" else "s", color=vcol[view],
+                        markersize=7, linestyle="none", label=vlab[view] if i == 0 else None)
+        ax.axvline(0.5, color=FLOOR, linestyle=":", linewidth=1)
+        ax.axvline(0.7, color=FLOOR, linestyle="--", linewidth=1)
+        ax.set_yticks(range(len(scores)))
+        ax.set_yticklabels([f"{k}  [{(v['overall']['3D'].get(f'R{R}') or {}).get(k, 'diagnostic')}]" for k in scores],
+                           fontsize=8, color=INK_2)
+        ax.set_xlim(0.3, 1.0)
+        _legend(ax, loc="center left")
+        _panel_title(ax, f"({'ab'[j]}) R={R}: dot = seed mean, bar = seed min-max; dashed = gate 3 (0.7)")
+    # (c) ΔAUROC：C1 vs random 零对照
+    ax = axes[0][2]
+    _style(ax, "", "delta AUROC = edge view - global view (equal pool)")
+    keys = list(v["3D"]["R10"])
+    xt = []
+    for x, (R, key) in enumerate([(R, k) for R in (10, 20) for k in keys]):
+        vv = v["3D"][f"R{R}"][key]
+        for part, col, dx in (("C1", SERIES[0], -0.12), ("random", FLOOR, 0.12)):
+            ds = vv.get(f"delta_{part}") or {}
+            for s in SEEDS:
+                if ds.get(f"s{s}") is not None:
+                    ax.plot(x + dx, ds[f"s{s}"], marker=MARKERS[s], color=col, markersize=6, linestyle="none",
+                            label=(f"{'C1 (judged)' if part == 'C1' else 'random (null control)'}" if (x == 0 and s == 42) else None))
+        xt.append(f"R{R} {SHORT.get(key, key)}")
+    ax.axhspan(-0.05, 0.05, color=GRID, alpha=0.6, linewidth=0)
+    ax.axhline(0, color=INK_2, linewidth=0.8)
+    ax.set_xticks(range(len(xt)))
+    ax.set_xticklabels(xt, fontsize=7, color=INK_2, rotation=40, ha="right")
+    _legend(ax, loc="upper right")
+    _panel_title(ax, "(c) delta per seed (o 42, s 43, ^ 44)\n     shaded = +-0.05")
+    # (d)(e) ROC
+    grid = d["grid"]
+    for j, key in enumerate(("norm_w", "s_ck")):
+        ax = axes[1][j]
+        _style(ax, "false positive rate", "true positive rate")
+        for view in ("raw", "edge", "global_matched"):
+            ys = d["roc"].get(key, {}).get(view)
+            if ys:
+                ax.plot(grid, ys, color=vcol[view], linewidth=2, label=vlab[view])
+        ax.plot([0, 1], [0, 1], color=FLOOR, linestyle=":", linewidth=1)
+        ax.axvline(0.05, color=FLOOR, linestyle="--", linewidth=1)
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1.01)
+        _legend(ax, loc="lower right")
+        _panel_title(ax, f"({'de'[j]}) ROC, {key}, C1 distributed R=10 (mean of 3 seeds); dashed = FPR 5%")
+    # (f) 逐窗口 AUROC（探索性）
+    ax = axes[1][2]
+    _style(ax, "effective rounds (20-round windows)", "raw AUROC of norm_w")
+    wcol = {"C1_R10": SERIES[0], "C1_R20": SERIES[3], "random_R10": SERIES[2], "random_R20": SERIES[6]}
+    ends = []
+    for k, curves in d["windows"].items():
+        end = _band_line(ax, curves, wcol[k], k.replace("_", " "), lw=1.6, alpha=0.12)
+        if end:
+            ends.append((end[0], end[1], k.replace("_", " ")))
+    ax.axhline(0.5, color=FLOOR, linestyle=":", linewidth=1)
+    ax.set_ylim(0.4, 1.02)
+    _legend(ax, loc="lower left")
+    _panel_title(ax, "(f) exploratory: highest while the attack ramps up")
+    return _save(fig, out, "3-D observability (G1, distributed [3,3,2,2]): the edge view does not detect better "
+                           "than an equal-size global pool")
+
+
 # ══════════════════════════════════════════════════════════════════════════
 # 入口
 # ══════════════════════════════════════════════════════════════════════════
@@ -1049,6 +1293,8 @@ FIGURES = {
     "G6V":  ("3E_verdict_G6.png", data_g6_verdict, plot_g6_verdict),
     "G8M":  ("F3b_decay_margin_tail.png", data_g8_margin, plot_g8_margin),
     "PILOT": ("pilot_A4.png", data_pilot, plot_pilot),
+    "G1S":  ("F3_sawtooth_G1.png", data_g1_sawtooth, plot_g1_sawtooth),
+    "G1V":  ("F5_3D_views_G1.png", data_g1_views, plot_g1_views),
 }
 
 

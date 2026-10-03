@@ -103,11 +103,13 @@ def g1r5_run_id(seed: int) -> str:
 # 有效性（闸 ②）
 # ══════════════════════════════════════════════════════════════════════════
 
-def run_reasons(m: dict | None, part: str, place: str, R: int, n_rounds: int) -> list:
+def run_reasons(m: dict | None, part: str, place: str, R: int, n_rounds: int, seed: int | None = None) -> list:
     """一个 run 能不能进判定：D-044 的 invalid_reasons + 因素与登记一致 + 攻击者参与 + 记录开关都开了。"""
     if m is None:
         return ["缺"]
     reasons = list(invalid_reasons(m))
+    if m.get("exit_code") is None:                     # invalid_reasons 放过缺失 / null（pilot 的约定）；N-007 要求 exit 0
+        reasons.append("exit_code 缺失（N-007 闸 ② 要求 exit 0）")
     run = m.get("run") or {}
     want_part, want_cond = PARTITIONS[part]
     if run.get("partition") != want_part or (want_cond is not None and run.get("partition_condition") != want_cond):
@@ -121,7 +123,40 @@ def run_reasons(m: dict | None, part: str, place: str, R: int, n_rounds: int) ->
             reasons.append(f"run.{sw}={run.get(sw)!r}（记录开关没生效 = 陷阱 #7 同类）")
     if not (m.get("n_malicious_participations") or 0) > 0:
         reasons.append("攻击者一次都没参与（n_malicious_participations = 0）")
+    if seed is not None and run.get("seed") != seed:
+        reasons.append(f"run.seed={run.get('seed')!r} ≠ 文件名里的 seed {seed}")
+    reasons += table_reasons(m, R, n_rounds)
     return reasons
+
+
+def table_reasons(m: dict, R: int, n_rounds: int, n_edges: int = 4) -> list:
+    """3-D 的记录表是否完整（G1 对抗式审查：3-C 有缺点检查，3-D 原来没有）：
+    update_geometry 每个 (云轮, edge, edge 轮) 一行；ck_before 每个评分点 × edge 一行；ck_scores 都能配上 ck_before。"""
+    out = []
+    geo = m.get("update_geometry") or {}
+    gc = geo.get("columns") or []
+    if not gc:
+        return ["没有 update_geometry 表"]
+    keys = {(r[gc.index("round")], r[gc.index("edge_id")], r[gc.index("edge_round")]) for r in geo.get("rows") or []}
+    want = n_rounds * R * n_edges
+    if len(keys) != want:
+        out.append(f"update_geometry 只有 {len(keys)} / {want} 个 (云轮, edge, edge 轮)")
+    run = m.get("run") or {}
+    every = run.get("update_ck_every")
+    cb, cs = m.get("ck_before") or {}, m.get("ck_scores") or {}
+    if every:
+        bcols = cb.get("columns") or []
+        before = {(r[bcols.index("round")], r[bcols.index("edge_id")], r[bcols.index("edge_round")])
+                  for r in cb.get("rows") or []} if bcols else set()
+        want_ck = (n_rounds * R // int(every)) * n_edges
+        if len(before) != want_ck:
+            out.append(f"ck_before 只有 {len(before)} / {want_ck} 个评分点 × edge")
+        scols = cs.get("columns") or []
+        orphan = sum((r[scols.index("round")], r[scols.index("edge_id")], r[scols.index("edge_round")]) not in before
+                     for r in cs.get("rows") or []) if scols else 0
+        if orphan:
+            out.append(f"ck_scores 有 {orphan} 行配不上 ck_before")
+    return out
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -147,12 +182,21 @@ def _tprs(a: dict | None) -> dict:
 
 
 def kstar_stats(ups: list, target: int = TARGET) -> dict:
-    """s_ck 的 k*（Δ_k 最大的类）是目标类的比例，恶意 / 良性分开（N-007 次要读数）。"""
+    """s_ck 的 k*（Δ_k 最大的类）是目标类的比例，恶意 / 良性分开（N-007 次要读数）。
+
+    frac_target            = 并列时按**均分**计（每个并列类得 1/并列数）—— 报告用这一列；
+    frac_target_first_idx  = np.argmax 取第一个并列者（commit 1c3119e 的读法；目标类 0 恰是最小编号，
+                             并列时偏向它 → 偏高，G1 对抗式审查发现，F-085）。"""
     out = {}
     for name, flag in (("malicious", True), ("benign", False)):
-        ks = [u["ck_kstar"] for u in ups if u.get("s_ck") is not None and u["mal"] is flag
-              and u.get("ck_kstar") is not None]
-        out[name] = {"n": len(ks), "frac_target": (sum(k == target for k in ks) / len(ks)) if ks else None}
+        sel = [u for u in ups if u.get("s_ck") is not None and u["mal"] is flag and u.get("ck_kstar") is not None]
+        n = len(sel)
+        first = sum(u["ck_kstar"] == target for u in sel)
+        split = sum((1.0 / len(u["ck_kstar_ties"])) if target in (u.get("ck_kstar_ties") or []) else 0.0
+                    for u in sel)
+        n_tied = sum(len(u.get("ck_kstar_ties") or []) > 1 for u in sel)
+        out[name] = {"n": n, "frac_target": (split / n) if n else None,
+                     "frac_target_first_idx": (first / n) if n else None, "n_tied": n_tied}
     return out
 
 
@@ -276,7 +320,9 @@ def cell_table(readouts: dict) -> dict:
                         "n_updates": rd["n_updates"],
                         "scores": {k: {kk: (_r(vv) if isinstance(vv, float) else vv) for kk, vv in v.items()}
                                    for k, v in rd["scores"].items()},
-                        "kstar": {k: {"n": v["n"], "frac_target": _r(v["frac_target"])} for k, v in rd["kstar"].items()}}
+                        "kstar": {k: {"n": v["n"], "frac_target": _r(v["frac_target"]),
+                                      "frac_target_first_idx": _r(v["frac_target_first_idx"]), "n_tied": v["n_tied"]}
+                                  for k, v in rd["kstar"].items()}}
     return out
 
 
@@ -358,11 +404,13 @@ def judge_3c_cell(runs: dict, part: str, R: int, n_rounds: int, bridge: bool = F
         m = runs.get(s)
         if m is None:
             continue
-        bad = run_reasons(m, part, "collocated", R, n_rounds)
+        bad = run_reasons(m, part, "collocated", R, n_rounds, seed=s)
         if not m.get("per_edge_post_agg_rounds"):
             bad.append("没有 per_edge_post_agg_rounds（云聚合后评估点）")
         cols = m.get("per_edge_light_columns")
-        if cols is not None and list(cols) != list(LIGHT_EDGE_COLUMNS):
+        if cols is None:                                # 缺列名就没法核对按位置读的列序（G1 对抗式审查）
+            bad.append("没有 per_edge_light_columns（无法核对云聚合后点的列序）")
+        elif list(cols) != list(LIGHT_EDGE_COLUMNS):
             bad.append(f"per_edge_light_columns {cols} ≠ {list(LIGHT_EDGE_COLUMNS)}（列序变了）")
         q = sawtooth(m) if not bad else None
         if q is not None and q["n_g_used"] < q["n_g_expected"]:
@@ -421,7 +469,7 @@ def judge(g1_runs: dict, g1r5_runs: dict, window: int = WINDOW, resamples: int =
                     m = g1_runs.get((part, place, R, s))
                     if m is None:
                         continue
-                    reasons = run_reasons(m, part, place, R, n)
+                    reasons = run_reasons(m, part, place, R, n, seed=s)
                     readouts[(part, place, R, s)] = {
                         "reasons": reasons,
                         "readout": score_readouts(m, window, resamples) if not reasons else None}
@@ -435,7 +483,13 @@ def judge(g1_runs: dict, g1r5_runs: dict, window: int = WINDOW, resamples: int =
         "params": {"window": window, "resamples": resamples, "fpr": FPR, "d_edge": D_EDGE, "null_max": NULL_MAX,
                    "detect_min": DETECT_MIN, "self_clean": SELF_CLEAN, "no_clean": NO_CLEAN, "target": TARGET},
         "overall": {"3D": {R: {k: v["verdict"] for k, v in d.items()} for R, d in v3d.items()},
-                    "3C": {c: v["verdict"] for c, v in v3c.items()}},
+                    "3C": {c: v["verdict"] for c, v in v3c.items() if not v["bridge"]},
+                    "3C_bridge": {c: v["verdict"] for c, v in v3c.items() if v["bridge"]}},
+        "untested_confounds": [
+            "3-D：y_t 富集的良性客户端也可能降低 c_{y_t}（N-007 原文；要 C2 设计测，G1 只有 C1 与 random，本轮没测）",
+            "3-D：所有分数都是在非自适应攻击者下测的；norm_s 所在的 BN 统计量通道不进任何受害者的模型，攻击者可零代价伪造（代码路径证据）",
+            "3-C：lr 按有效轮衰减与 ASR 的水平效应（前半程贴 floor / 后半程贴天花板）都会改变 r_down，没有分离",
+            "3-C bridge：r_down 以每有效轮计，R5 的周期短，同样的每周期洗掉量在 R5 下更容易越过 0.005"],
         "3D": v3d, "3C": v3c,
         "threshold_review": threshold_review(readouts),
         "norm_split": norm_split_summary(table),

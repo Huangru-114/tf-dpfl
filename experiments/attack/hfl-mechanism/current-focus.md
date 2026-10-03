@@ -1,5 +1,44 @@
 # current-focus —— Experiment 3（改版）· 交接
 
+> 本文件是 `CLAUDE.md`「新会话开场第 3 步」要读的那一份。**写于 2026-10-03**（Experiment 3 收尾会话结束时）。
+>
+> **现在的状态：Experiment 3 里放行的实验全部回传、全部判定，终版报告已写**（`REPORT.md`，D-088）。
+> `status.py`：todo 0 / done 117 / stale 6（G7）/ blocked 67（G2 55 挂 `g2-scale`、G4 12 搁置）—— 剩下的都是你没放行的。
+> 集群上没有在跑的作业，也没有待交的作业。
+>
+> **本会话的结论**（F-084 … F-086；REPORT §1 / §5.12 / §5.13 / §10）：
+> - **3-C 锯齿**：4 / 5 格 `self_cleaning`（R5 桥 / C1·R10 / C1·R20 / random·R10）；random·R20 `user_decides`（s44 r_down 0.00487，差 0.00013）。
+>   但洗掉追不上云聚合的灌入，受害 edge 的周期末值每个周期都在升 → 仍走向饱和。
+> - **3-D**：`norm_w` `no_edge_gain`（R10 / R20），余弦与在线 c_k `undetectable`。
+>   范数的可分性主要来自 BN 统计量（`norm_s` 0.90），而这个通道不进任何受害者的模型 → 可零代价伪造。
+> - **独立复核**：两份盲算的独立实现，13 个判定标签全部相同；三个视角（规则 / 接线 / 统计）的对抗式审查，没有改变判定的发现。修了两个次要缺陷（k* 并列、exit_code 缺失），更正了 N-007 的一句理由（E0 不是全恶意）。
+>
+> **下一步（等你定，REPORT §9.2）**：
+> 1. **阶段三的范围**：要不要解除 D-008、开始 edge 原生防御。草案 `experiments/defense/edge-native/PLAN-draft.md`（含主线、第一个探针、预注册判定草稿、机时外推、待拍板事项）；
+> 2. 在线 c_k 要不要继续（(i) 记负结果 / (ii) 参数敏感性 / (iii) 转 body 级）；
+> 3. random·R20 的 3-C `user_decides` 怎么记；
+> 4. 其余照旧：3-B 出路、G2 规模、git 瘦身、G8 存盘、合并 main。
+>
+> **分支**：继续在 `claude/federated-learning-experiment-review-pt5j1b` 上工作（用户定「先不合并」；`origin/main` 停在 `cf40b13`）。
+> **L1 基线（本会话结束时，本地无 TF，装了 numpy / pytest / pyyaml / matplotlib）**：见本会话「验证」一节；本会话没有改 `fedavg/` 的 TF 代码（只加了 `analysis/functional_score.py` 的两个纯 numpy 函数），所以 TF 侧基线不变（1742 / 24 / 3 / 2 failed，陷阱 #4）。
+
+## 本会话（Experiment 3 收尾：G1 判定 + 终版报告 + 阶段三草案，2026-10-03）做了什么
+
+**请求**（用户）：「拉取最新分支，阅读交接文档。现在实验 3 我认可做的实验都做完了，对吗？开始对 G1 等组别数据的分析、可视化……最终呈现一份完整的分析与报告，并讨论下一步防御机制设计的计划」→ 选「升级 REPORT.md 为终版」「判定 + 必报读数 + 探索性」「计划草案 + 待决清单」→「开始改」。
+
+| 交付 | 内容 |
+|---|---|
+| GPU 验收（F-084） | `instrumentation_check` G3-C1 vs G1R5：32 / 38 / 43 轮、113 个 checksum + 7345 个字段逐位相同 |
+| `harness/g1_verdict.py`（新）+ `tests/test_g1_verdict.py` | N-007 的判定；**先冻结（`1c3119e`）再打开 s44 / G1R5**；→ `analysis/g1_verdict.json` |
+| `harness/g1_scores.py` / `fedavg/analysis/functional_score.py` | `view_arrays` / `aurocs_from_arrays`（逐字节不变）；`tpr_at_fpr`、`update_argmax_ties`；`analysis/g1_scores.json` 扩到 27 个 run（原 16 条不变） |
+| `harness/g1_explore.py`（新）+ `tests/test_g1_explore.py` | 探索性读数（相位剖面 / margin / 前后半程 / E0 反向锯齿 / 逐窗口 AUROC）→ `analysis/g1_explore.json` |
+| `harness/report_figures.py` + `tests/test_report_figures.py` | `F3_sawtooth_G1.png`、`F5_3D_views_G1.png`；`status_progress.png` 重画 |
+| 独立复核（Workflow） | 两份盲算实现 + 三个视角的对抗式审查（F-085 列出全部发现与处理） |
+| 阶段三（Workflow） | 三份不同主线的方案 + 两个评审 → `experiments/defense/edge-native/PLAN-draft.md` |
+| 文档 | REPORT 终版、FINDINGS F-084 … F-086、DECISIONS D-088、PLAN §3 / §4 / §5 / §6、README 5b、CLAUDE.md「当前地基」一条 |
+
+## 历史：G1 探路包回传核对会话（2026-10-03 上午）的开头快照
+
 > 本文件是 `CLAUDE.md`「新会话开场第 3 步」要读的那一份。**写于 2026-10-03**（S6b / G1 探路包回传会话结束时）。
 >
 > **现在的状态**：S6b 已实现并**已在 GPU 上验证**（F-082 / F-083）；N-007（G1 判读规则）已由用户确认（2026-10-03 把 `g1-prereg` 加进 `available`）；

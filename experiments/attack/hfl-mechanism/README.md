@@ -61,6 +61,8 @@ python3 harness/g5ab_verdict.py  --json experiments/attack/hfl-mechanism/analysi
 python3 harness/g5_verdict.py    --json experiments/attack/hfl-mechanism/analysis/g5_verdict.json       # G5（D-081，回传前写定；not_gated，F-076）
 python3 harness/g3_did.py        --json experiments/attack/hfl-mechanism/analysis/g3_did.json           # 3-B 差中差 + 分解（F-075；脚本写于数据之后）
 python3 harness/g6_verdict.py    --json experiments/attack/hfl-mechanism/analysis/g6_verdict.json       # 3-E（S7，D-059 / D-071；脚本写于数据之后；blocks，F-077）
+python3 harness/g1_verdict.py    --json experiments/attack/hfl-mechanism/analysis/g1_verdict.json       # 3-C 锯齿 + 3-D（N-007；脚本写于 s42 / s43 之后、s44 之前；F-085）
+python3 harness/g1_explore.py    --json experiments/attack/hfl-mechanism/analysis/g1_explore.json       # G1 的探索性读数（不进判定，F-086）
 
 # 5c. 「新仪表没有改变任何已有的数」（S9）：只比 checksum 与改动前就有的数值字段，前 R 轮
 python3 harness/instrumentation_check.py experiments/attack/hfl-mechanism/results/P2/G6/G6__a__s42.metrics.json \
