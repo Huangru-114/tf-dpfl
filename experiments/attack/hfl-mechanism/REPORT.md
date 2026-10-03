@@ -917,6 +917,7 @@ EOF
 **不需要 GPU、还没做的分析**：
 - G8 存盘（logits + 快照，约 0.81 GB，在集群 `tfdpfl-dumps/`）：c_k 预检已经消费过一次（F-081）；长尾客户端复算、迁移 baseline 还没做。**删不删由你定**（D-073：分析做完再删）。
 - 图目录还缺 F2（T50 森林图，等 G2）与 F6（3.2 对照，等 G4）。
+- 阶段三草案 `experiments/defense/edge-native/PLAN-draft.md` 已写（三份方案 + 两个评审；主线模块 A，第一步是 G8 快照上的零训练判死探针 → **G8 存盘请先别删**）。
 - `experiments/METRICS.md` 里「ξ 用 mal[0]」一句要按 D-015 + D-033 改（该文件与 Bad-PFL 库双份同步，由你改）。
 
 ### 9.2 待你决定

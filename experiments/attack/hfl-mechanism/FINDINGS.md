@@ -1437,3 +1437,10 @@ R20 开网格的 fresh pm_acc：
 - 前 / 后半程的 r_down 主要跟着 ASR 水平走（R20 前半程贴 floor，后半程反而更大；R5 / R10 后半程贴天花板），lr 衰减的贡献读不出。
 - `norm_w` 逐窗口 raw AUROC：攻击上升期（有效轮 20–60）最高（seed 均值约 0.9–0.95），之后 0.7–0.8；random·R20·s43 降到约 0.5。
 - 输出 `analysis/g1_explore.json`；图 `figures/final/F3_sawtooth_G1.png` (b)(d)、`F5_3D_views_G1.png` (f)。
+
+### F-081 更正（2026-10-03，阶段三评审发现，代码核对）—— G8 快照里各 edge **不是**共享同一个 body
+- F-081 写「E0 与受害 edge 分不开……原因很可能是 edge 模型在云聚合后共享同一个 body（快照在云轮末）」，并标为推断。代码与此相反：
+  `fedavg/server/backdoor_server.py` 的 `run_round` 在 `super().run_round()`（edge 训练 + 云聚合）**之后**调 `_snapshot`，广播在**下一轮开头**才发生 →
+  快照里每个 edge 的模型是它**自己的上传前 body**（各差 R 个 edge 轮的训练）。
+- 含义：F-081 第 30 轮的 E0 − 受害 edge c_0 对比（+0.004 / +0.025 / +0.002）是在**不同的** body 上测的 → 这是 edge 级 c_k 信号的**弱反面证据**，而不是「测不出来」。
+  阶段三的 P0 离线探针（`experiments/defense/edge-native/PLAN-draft.md`）依赖这一点：反事实 G' = FedAvg(H(各 edge)) 是良定义的。
