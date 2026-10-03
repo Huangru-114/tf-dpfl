@@ -11,6 +11,7 @@ analysis/functional_score.py  —  「功能分数」c_k 的纯 numpy 部分（S
   · class_prototypes / ncm_logits：原型与最近均值打分；
   · ck_from_reached：由「PGD 之后是否被判成 k」的布尔矩阵得 c_k（只在真实类 ≠ k 的样本上算）；
   · auroc：秩 AUROC（平局取一半），G1P 离线读几何分数时也用它；
+  · tpr_at_fpr：FPR ≤ 5% 时的 TPR（G1 判定的次要读数）；
   · edge_contrast：某个 edge 与其余 edge 在 c_k 上的差。
 空组 → None（陷阱 #13：无定义不是 0）。TF 部分在 analysis/ck_snapshot.py。
 """
@@ -84,6 +85,23 @@ def auroc(pos, neg):
         i = j + 1
     u = ranks[:a.size].sum() - a.size * (a.size + 1) / 2.0
     return float(u / (a.size * b.size))
+
+
+def tpr_at_fpr(pos, neg, fpr: float = 0.05):
+    """
+    FPR ≤ fpr 时的 TPR（N-007 的次要读数）。阈值 t = 负类从大到小第 ⌊fpr·n_neg⌋ + 1 个值；
+    **严格大于 t 才判阳**，所以实际 FPR = #{neg > t} / n_neg ≤ ⌊fpr·n_neg⌋ / n_neg ≤ fpr，
+    与 t 平局的一律判阴（保守，平局多时 TPR 偏低）。返回 #{pos > t} / n_pos；任一组为空 → None。
+    """
+    a = np.asarray(pos, dtype=np.float64).reshape(-1)
+    b = np.asarray(neg, dtype=np.float64).reshape(-1)
+    if a.size == 0 or b.size == 0:
+        return None
+    k = int(np.floor(float(fpr) * b.size + 1e-12))
+    if k >= b.size:                              # 允许全部负类判阳 → 阈值在负类之下
+        return 1.0
+    t = np.sort(b)[::-1][k]
+    return float((a > t).mean())
 
 
 def edge_contrast(c_by_edge: dict, ref_edge: int, k: int):

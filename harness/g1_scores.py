@@ -37,6 +37,7 @@ sys.path.insert(0, str(ROOT / "fedavg"))
 from analysis.functional_score import auroc, update_score      # noqa: E402  纯 numpy
 
 SCORES = ("s_ck", "norm", "norm_w", "norm_s", "neg_cos_global_w", "neg_cos_edge_w")
+DIAG_EXTRA = ("neg_cos_global", "neg_cos_edge")    # 整个 body 的余弦（N-007 的诊断量）；不进 readout 的缺省表
 EPS = 1e-9
 
 
@@ -65,11 +66,16 @@ def collect_updates(m: dict) -> list:
                 return v[i] if isinstance(v, list) and i < len(v) else None
             nc = at("cos_global_w")
             ne = at("cos_edge_w")
+            ncb = at("cos_global")
+            neb = at("cos_edge")
             u = {"round": d["round"], "edge": d["edge_id"], "er": d["edge_round"],
                  "eff": (d["round"] - 1) * R + d["edge_round"], "cid": cid, "mal": bool(at("mal")),
                  "norm": at("norm"), "norm_w": at("norm_w"), "norm_s": at("norm_s"),
                  "neg_cos_global_w": None if nc is None else -nc,
-                 "neg_cos_edge_w": None if ne is None else -ne, "s_ck": None}
+                 "neg_cos_edge_w": None if ne is None else -ne, "s_ck": None,
+                 # 诊断（N-007：整个 body 的余弦，含 BN 统计量）与 s_ck 的 k*（argmax 的类）
+                 "neg_cos_global": None if ncb is None else -ncb,
+                 "neg_cos_edge": None if neb is None else -neb, "ck_kstar": None}
             by_key[(d["round"], d["edge_id"], d["edge_round"], cid)] = u
     # 功能分数：ck_scores 与 ck_before 按 (云轮, edge, edge 轮) 配对
     cb = m.get("ck_before") or {}
@@ -81,28 +87,30 @@ def collect_updates(m: dict) -> list:
     for row in cs.get("rows") or []:
         d = dict(zip(cs.get("columns") or [], row))
         c0 = before.get((d["round"], d["edge_id"], d["edge_round"]))
-        s, _ = update_score(c0, d["c"]) if (c0 is not None and d.get("c") is not None) else (None, None)
+        s, kstar = update_score(c0, d["c"]) if (c0 is not None and d.get("c") is not None) else (None, None)
         key = (d["round"], d["edge_id"], d["edge_round"], d["cid"])
         u = by_key.get(key)
         if u is None:       # 没有几何记录（开关没开）：也留下功能分数
             u = {"round": d["round"], "edge": d["edge_id"], "er": d["edge_round"],
                  "eff": d["effective_round"], "cid": d["cid"], "mal": bool(d["mal"]),
-                 **{k: None for k in SCORES}}
+                 **{k: None for k in SCORES + DIAG_EXTRA}, "ck_kstar": None}
             by_key[key] = u
         u["s_ck"] = s
+        u["ck_kstar"] = kstar
     return sorted(by_key.values(), key=lambda u: (u["eff"], u["edge"], u["cid"]))
 
 
-def view_aurocs(updates: list, key: str, window: int = 20, resamples: int = 50, seed=0) -> dict:
-    """某个分数在三种参照下的 AUROC：raw / edge 视角 / 全局视角（整池 与 等池）及 ΔAUROC（edge − 等池全局）。"""
+def view_arrays(updates: list, key: str, window: int = 20, resamples: int = 50, seed=0) -> dict | None:
+    """某个分数在三种参照下的 z（未池化前的逐更新值）：raw x、edge 视角、全局（整池）、全局（等池，每次重抽一份）。
+
+    view_aurocs 与 g1_verdict 的 TPR@FPR 都从这里取，**随机数的消耗顺序与旧实现逐位相同**
+    （`tests/test_g1_verdict.py` 用已入库的 analysis/g1_scores.json 守着）。没有可用更新 → None。
+    """
     ups = [u for u in updates if u.get(key) is not None]
-    out = {"n": len(ups), "n_malicious": sum(u["mal"] for u in ups),
-           "raw": None, "edge": None, "global_full": None, "global_matched": None, "delta": None}
     if not ups:
-        return out
+        return None
     mal = np.array([u["mal"] for u in ups])
     x = np.array([u[key] for u in ups], dtype=np.float64)
-    out["raw"] = auroc(x[mal], x[~mal])
     block = np.array([(u["eff"] - 1) // int(window) for u in ups])
     edge = np.array([u["edge"] for u in ups])
     z_edge, z_gfull = np.full(len(ups), np.nan), np.full(len(ups), np.nan)
@@ -115,12 +123,9 @@ def view_aurocs(updates: list, key: str, window: int = 20, resamples: int = 50, 
     for (b, e), idx in pools.items():
         idx = np.array(idx)
         z_edge[idx] = _rz(x[idx], x[idx])
-    ok = ~np.isnan(z_edge)
-    out["edge"] = auroc(z_edge[ok & mal], z_edge[ok & ~mal])
-    out["global_full"] = auroc(z_gfull[ok & mal], z_gfull[ok & ~mal])
     # 等池全局：对每个 (窗口, edge) 池，从本窗口全部更新里抽同样大小的参照池
     rng = np.random.default_rng([0x91, int(seed)])
-    vals = []
+    z_matched = []
     for _ in range(int(resamples)):
         z = np.full(len(ups), np.nan)
         for (b, e), idx in pools.items():
@@ -128,6 +133,29 @@ def view_aurocs(updates: list, key: str, window: int = 20, resamples: int = 50, 
             gi = np.where(block == b)[0]
             ref = rng.choice(gi, size=min(len(idx), len(gi)), replace=False)
             z[idx] = _rz(x[idx], x[ref])
+        z_matched.append(z)
+    return {"n": len(ups), "mal": mal, "x": x, "z_edge": z_edge, "z_gfull": z_gfull,
+            "z_matched": z_matched}
+
+
+def view_aurocs(updates: list, key: str, window: int = 20, resamples: int = 50, seed=0) -> dict:
+    """某个分数在三种参照下的 AUROC：raw / edge 视角 / 全局视角（整池 与 等池）及 ΔAUROC（edge − 等池全局）。"""
+    return aurocs_from_arrays(view_arrays(updates, key, window, resamples, seed))
+
+
+def aurocs_from_arrays(a: dict | None) -> dict:
+    """`view_arrays` 的输出 → AUROC 表（view_aurocs 的计算部分；g1_verdict 复用同一份数组再算 TPR）。"""
+    out = {"n": 0 if a is None else a["n"], "n_malicious": 0 if a is None else int(a["mal"].sum()),
+           "raw": None, "edge": None, "global_full": None, "global_matched": None, "delta": None}
+    if a is None:
+        return out
+    mal, x, z_edge, z_gfull = a["mal"], a["x"], a["z_edge"], a["z_gfull"]
+    out["raw"] = auroc(x[mal], x[~mal])
+    ok = ~np.isnan(z_edge)
+    out["edge"] = auroc(z_edge[ok & mal], z_edge[ok & ~mal])
+    out["global_full"] = auroc(z_gfull[ok & mal], z_gfull[ok & ~mal])
+    vals = []
+    for z in a["z_matched"]:
         v = auroc(z[mal & ~np.isnan(z)], z[~mal & ~np.isnan(z)])
         if v is not None:
             vals.append(v)
