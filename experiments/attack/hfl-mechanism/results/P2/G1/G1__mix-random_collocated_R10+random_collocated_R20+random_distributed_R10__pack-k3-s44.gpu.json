@@ -1,0 +1,25 @@
+{
+  "k": 3,
+  "runs": [
+    "G1__random_collocated_R10__s44",
+    "G1__random_collocated_R20__s44",
+    "G1__random_distributed_R10__s44"
+  ],
+  "wall_s": 10841,
+  "n_samples": 723,
+  "util_mean": 78.9,
+  "util_max": 99.0,
+  "mem_max_mib": 96232.0,
+  "mem_total_mib": 97871.0,
+  "run_peak_max_mib": 16772.1,
+  "n_oom": 0,
+  "n_host_oom": 0,
+  "mem_req_mb": 73728,
+  "n_mem_warnings": 0,
+  "run_peak_mib": [
+    16766.2,
+    16772.1,
+    16764.4
+  ],
+  "oom_runs": []
+}
