@@ -2,6 +2,8 @@
 
 > 本文件是 `CLAUDE.md`「新会话开场第 3 步」要读的那一份。**写于 2026-10-03**（Experiment 3 收尾会话结束时）。
 >
+> ⚠ **下一个会话讨论阶段三** → 先读 `experiments/defense/edge-native/current-focus.md`（交接在那里）；本文件只记 Experiment 3 的收尾状态。
+>
 > **现在的状态：Experiment 3 里放行的实验全部回传、全部判定，终版报告已写**（`REPORT.md`，D-088）。
 > `status.py`：todo 0 / done 117 / stale 6（G7）/ blocked 67（G2 55 挂 `g2-scale`、G4 12 搁置）—— 剩下的都是你没放行的。
 > 集群上没有在跑的作业，也没有待交的作业。
