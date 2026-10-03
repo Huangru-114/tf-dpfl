@@ -49,7 +49,7 @@ base: base.yaml       # A4（2026-09-26）
 overlays:
   - ../../../fedavg/config/alignment_p2.yaml   # 「P2 对齐」模板：每个对齐开关都打开
 audit: AUDIT.md
-available: [S8, S3, S9, S4, g5-schedule, S5, S6a, S6b]   # S6b：在线 c_k + 几何拆分（D-087）；S6a：G1 的便宜记录（D-085）； 已完成的功能会话（S3：新划分 D-062 … D-068；S9：评估仪表 + 存盘开关 D-071 … D-075；S4：投毒窗口起点 + 生成器语义 D-078 / D-079）；g5-schedule：G5AB 判 insensitive → G5 用 A（D-080）；S5：统一评估网格（D-084）
+available: [S8, S3, S9, S4, g5-schedule, S5, S6a, S6b, g1-prereg]   # S6b：在线 c_k + 几何拆分（D-087）；S6a：G1 的便宜记录（D-085）； 已完成的功能会话（S3：新划分 D-062 … D-068；S9：评估仪表 + 存盘开关 D-071 … D-075；S4：投毒窗口起点 + 生成器语义 D-078 / D-079）；g5-schedule：G5AB 判 insensitive → G5 用 A（D-080）；S5：统一评估网格（D-084）
 
 groups:
   G0:
