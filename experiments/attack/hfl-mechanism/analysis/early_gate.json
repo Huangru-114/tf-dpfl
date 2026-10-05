@@ -1,0 +1,5132 @@
+{
+ "purpose": "检查 2（探索性，看过数据之后）：前 60 有效轮的早期轨迹与收敛门控",
+ "theta": 0.5,
+ "near_floor": 0.1,
+ "horizon": 60,
+ "cells": {
+  "G3-C1": {
+   "group": "G3",
+   "floor_run": "G0/G0__C1__s{s}",
+   "floor_exact": true,
+   "runs": {
+    "42": {
+     "R": 5,
+     "collocated": true,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.936,
+      "floor_atk": 0.046,
+      "victim": 0.08166666666666667,
+      "pm_acc": 0.4582
+     },
+     "first_cross": {
+      "eff": 5,
+      "atk_benign": 0.936,
+      "floor_atk": 0.046,
+      "victim": 0.08166666666666667,
+      "pm_acc": 0.4582,
+      "pm_acc_eff": 5
+     },
+     "shape": "crossed_at_first_point",
+     "before_cross": {
+      "n": 0,
+      "max": null,
+      "max_excess": null
+     },
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.936,
+       "victim": 0.082,
+       "pm_acc": 0.458,
+       "floor_atk": 0.046,
+       "floor_victim": 0.088
+      },
+      {
+       "eff": 10,
+       "atk_benign": 0.963,
+       "victim": 0.139,
+       "pm_acc": 0.475,
+       "floor_atk": 0.233,
+       "floor_victim": 0.139
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.716,
+       "victim": 0.122,
+       "pm_acc": 0.506,
+       "floor_atk": 0.11,
+       "floor_victim": 0.127
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.915,
+       "victim": 0.145,
+       "pm_acc": 0.523,
+       "floor_atk": 0.037,
+       "floor_victim": 0.125
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.998,
+       "victim": 0.227,
+       "pm_acc": 0.569,
+       "floor_atk": 0.098,
+       "floor_victim": 0.216
+      },
+      {
+       "eff": 30,
+       "atk_benign": 0.824,
+       "victim": 0.197,
+       "pm_acc": 0.642,
+       "floor_atk": 0.013,
+       "floor_victim": 0.117
+      },
+      {
+       "eff": 35,
+       "atk_benign": 0.885,
+       "victim": 0.146,
+       "pm_acc": 0.662,
+       "floor_atk": 0.017,
+       "floor_victim": 0.042
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.806,
+       "victim": 0.118,
+       "pm_acc": 0.636,
+       "floor_atk": 0.053,
+       "floor_victim": 0.02
+      },
+      {
+       "eff": 45,
+       "atk_benign": 0.993,
+       "victim": 0.416,
+       "pm_acc": 0.661,
+       "floor_atk": 0.071,
+       "floor_victim": 0.165
+      },
+      {
+       "eff": 50,
+       "atk_benign": 0.908,
+       "victim": 0.268,
+       "pm_acc": 0.672,
+       "floor_atk": 0.029,
+       "floor_victim": 0.072
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.971,
+       "victim": 0.376,
+       "pm_acc": 0.711,
+       "floor_atk": 0.037,
+       "floor_victim": 0.073
+      },
+      {
+       "eff": 60,
+       "atk_benign": 1.0,
+       "victim": 0.361,
+       "pm_acc": 0.722,
+       "floor_atk": 0.064,
+       "floor_victim": 0.087
+      }
+     ]
+    },
+    "43": {
+     "R": 5,
+     "collocated": true,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.762,
+      "floor_atk": 0.025,
+      "victim": 0.036,
+      "pm_acc": 0.484
+     },
+     "first_cross": {
+      "eff": 5,
+      "atk_benign": 0.762,
+      "floor_atk": 0.025,
+      "victim": 0.036,
+      "pm_acc": 0.484,
+      "pm_acc_eff": 5
+     },
+     "shape": "crossed_at_first_point",
+     "before_cross": {
+      "n": 0,
+      "max": null,
+      "max_excess": null
+     },
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.762,
+       "victim": 0.036,
+       "pm_acc": 0.484,
+       "floor_atk": 0.025,
+       "floor_victim": 0.041
+      },
+      {
+       "eff": 10,
+       "atk_benign": 0.741,
+       "victim": 0.029,
+       "pm_acc": 0.464,
+       "floor_atk": 0.265,
+       "floor_victim": 0.026
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.868,
+       "victim": 0.12,
+       "pm_acc": 0.584,
+       "floor_atk": 0.129,
+       "floor_victim": 0.135
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.826,
+       "victim": 0.106,
+       "pm_acc": 0.549,
+       "floor_atk": 0.013,
+       "floor_victim": 0.084
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.979,
+       "victim": 0.193,
+       "pm_acc": 0.602,
+       "floor_atk": 0.103,
+       "floor_victim": 0.057
+      },
+      {
+       "eff": 30,
+       "atk_benign": 0.856,
+       "victim": 0.102,
+       "pm_acc": 0.632,
+       "floor_atk": 0.035,
+       "floor_victim": 0.029
+      },
+      {
+       "eff": 35,
+       "atk_benign": 0.964,
+       "victim": 0.253,
+       "pm_acc": 0.669,
+       "floor_atk": 0.11,
+       "floor_victim": 0.056
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.668,
+       "victim": 0.293,
+       "pm_acc": 0.683,
+       "floor_atk": 0.013,
+       "floor_victim": 0.047
+      },
+      {
+       "eff": 45,
+       "atk_benign": 1.0,
+       "victim": 0.182,
+       "pm_acc": 0.69,
+       "floor_atk": 0.066,
+       "floor_victim": 0.003
+      },
+      {
+       "eff": 50,
+       "atk_benign": 0.991,
+       "victim": 0.275,
+       "pm_acc": 0.703,
+       "floor_atk": 0.074,
+       "floor_victim": 0.012
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.998,
+       "victim": 0.31,
+       "pm_acc": 0.722,
+       "floor_atk": 0.012,
+       "floor_victim": 0.008
+      },
+      {
+       "eff": 60,
+       "atk_benign": 0.999,
+       "victim": 0.4,
+       "pm_acc": 0.744,
+       "floor_atk": 0.005,
+       "floor_victim": 0.011
+      }
+     ]
+    },
+    "44": {
+     "R": 5,
+     "collocated": true,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.996,
+      "floor_atk": 0.021,
+      "victim": 0.03233333333333333,
+      "pm_acc": 0.4542
+     },
+     "first_cross": {
+      "eff": 5,
+      "atk_benign": 0.996,
+      "floor_atk": 0.021,
+      "victim": 0.03233333333333333,
+      "pm_acc": 0.4542,
+      "pm_acc_eff": 5
+     },
+     "shape": "crossed_at_first_point",
+     "before_cross": {
+      "n": 0,
+      "max": null,
+      "max_excess": null
+     },
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.996,
+       "victim": 0.032,
+       "pm_acc": 0.454,
+       "floor_atk": 0.021,
+       "floor_victim": 0.037
+      },
+      {
+       "eff": 10,
+       "atk_benign": 0.924,
+       "victim": 0.092,
+       "pm_acc": 0.468,
+       "floor_atk": 0.033,
+       "floor_victim": 0.098
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.652,
+       "victim": 0.07,
+       "pm_acc": 0.532,
+       "floor_atk": 0.042,
+       "floor_victim": 0.071
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.639,
+       "victim": 0.188,
+       "pm_acc": 0.598,
+       "floor_atk": 0.027,
+       "floor_victim": 0.168
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.915,
+       "victim": 0.225,
+       "pm_acc": 0.577,
+       "floor_atk": 0.094,
+       "floor_victim": 0.141
+      },
+      {
+       "eff": 30,
+       "atk_benign": 1.0,
+       "victim": 0.125,
+       "pm_acc": 0.653,
+       "floor_atk": 0.085,
+       "floor_victim": 0.05
+      },
+      {
+       "eff": 35,
+       "atk_benign": 0.999,
+       "victim": 0.473,
+       "pm_acc": 0.672,
+       "floor_atk": 0.04,
+       "floor_victim": 0.227
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.999,
+       "victim": 0.406,
+       "pm_acc": 0.651,
+       "floor_atk": 0.042,
+       "floor_victim": 0.073
+      },
+      {
+       "eff": 45,
+       "atk_benign": 0.99,
+       "victim": 0.517,
+       "pm_acc": 0.673,
+       "floor_atk": 0.057,
+       "floor_victim": 0.188
+      },
+      {
+       "eff": 50,
+       "atk_benign": 1.0,
+       "victim": 0.46,
+       "pm_acc": 0.684,
+       "floor_atk": 0.039,
+       "floor_victim": 0.066
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.998,
+       "victim": 0.357,
+       "pm_acc": 0.725,
+       "floor_atk": 0.012,
+       "floor_victim": 0.027
+      },
+      {
+       "eff": 60,
+       "atk_benign": 0.995,
+       "victim": 0.483,
+       "pm_acc": 0.702,
+       "floor_atk": 0.013,
+       "floor_victim": 0.051
+      }
+     ]
+    }
+   }
+  },
+  "G6-a": {
+   "group": "G6",
+   "floor_run": "FLR/FLR__g6a__s{s}",
+   "floor_exact": true,
+   "runs": {
+    "42": {
+     "R": 5,
+     "collocated": true,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.919,
+      "floor_atk": 0.132,
+      "victim": 0.039,
+      "pm_acc": 0.4423
+     },
+     "first_cross": {
+      "eff": 5,
+      "atk_benign": 0.919,
+      "floor_atk": 0.132,
+      "victim": 0.039,
+      "pm_acc": 0.4423,
+      "pm_acc_eff": 5
+     },
+     "shape": "crossed_at_first_point",
+     "before_cross": {
+      "n": 0,
+      "max": null,
+      "max_excess": null
+     },
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.919,
+       "victim": 0.039,
+       "pm_acc": 0.442,
+       "floor_atk": 0.132,
+       "floor_victim": 0.044
+      },
+      {
+       "eff": 10,
+       "atk_benign": 1.0,
+       "victim": 0.153,
+       "pm_acc": 0.491,
+       "floor_atk": 0.029,
+       "floor_victim": 0.165
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.808,
+       "victim": 0.074,
+       "pm_acc": 0.515,
+       "floor_atk": 0.129,
+       "floor_victim": 0.054
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.982,
+       "victim": 0.111,
+       "pm_acc": 0.517,
+       "floor_atk": 0.41,
+       "floor_victim": 0.03
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.998,
+       "victim": 0.323,
+       "pm_acc": 0.584,
+       "floor_atk": 0.034,
+       "floor_victim": 0.115
+      },
+      {
+       "eff": 30,
+       "atk_benign": 0.984,
+       "victim": 0.137,
+       "pm_acc": 0.63,
+       "floor_atk": 0.017,
+       "floor_victim": 0.009
+      },
+      {
+       "eff": 35,
+       "atk_benign": 0.883,
+       "victim": 0.289,
+       "pm_acc": 0.59,
+       "floor_atk": 0.057,
+       "floor_victim": 0.036
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.964,
+       "victim": 0.38,
+       "pm_acc": 0.666,
+       "floor_atk": 0.017,
+       "floor_victim": 0.029
+      },
+      {
+       "eff": 45,
+       "atk_benign": 0.963,
+       "victim": 0.395,
+       "pm_acc": 0.665,
+       "floor_atk": 0.044,
+       "floor_victim": 0.024
+      },
+      {
+       "eff": 50,
+       "atk_benign": 0.949,
+       "victim": 0.269,
+       "pm_acc": 0.668,
+       "floor_atk": 0.026,
+       "floor_victim": 0.034
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.959,
+       "victim": 0.353,
+       "pm_acc": 0.693,
+       "floor_atk": 0.023,
+       "floor_victim": 0.006
+      },
+      {
+       "eff": 60,
+       "atk_benign": 0.999,
+       "victim": 0.27,
+       "pm_acc": 0.721,
+       "floor_atk": 0.053,
+       "floor_victim": 0.015
+      }
+     ]
+    },
+    "43": {
+     "R": 5,
+     "collocated": true,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.384,
+      "floor_atk": 0.166,
+      "victim": 0.062,
+      "pm_acc": 0.4361
+     },
+     "first_cross": {
+      "eff": 15,
+      "atk_benign": 0.555,
+      "floor_atk": 0.022,
+      "victim": 0.14366666666666666,
+      "pm_acc": 0.5125,
+      "pm_acc_eff": 15
+     },
+     "shape": "rising_from_first_point",
+     "before_cross": {
+      "n": 2,
+      "max": 0.384,
+      "max_excess": 0.218
+     },
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.384,
+       "victim": 0.062,
+       "pm_acc": 0.436,
+       "floor_atk": 0.166,
+       "floor_victim": 0.063
+      },
+      {
+       "eff": 10,
+       "atk_benign": 0.184,
+       "victim": 0.135,
+       "pm_acc": 0.496,
+       "floor_atk": 0.102,
+       "floor_victim": 0.117
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.555,
+       "victim": 0.144,
+       "pm_acc": 0.512,
+       "floor_atk": 0.022,
+       "floor_victim": 0.154
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.816,
+       "victim": 0.054,
+       "pm_acc": 0.54,
+       "floor_atk": 0.081,
+       "floor_victim": 0.045
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.625,
+       "victim": 0.043,
+       "pm_acc": 0.564,
+       "floor_atk": 0.023,
+       "floor_victim": 0.024
+      },
+      {
+       "eff": 30,
+       "atk_benign": 0.742,
+       "victim": 0.08,
+       "pm_acc": 0.622,
+       "floor_atk": 0.03,
+       "floor_victim": 0.041
+      },
+      {
+       "eff": 35,
+       "atk_benign": 0.705,
+       "victim": 0.137,
+       "pm_acc": 0.636,
+       "floor_atk": 0.115,
+       "floor_victim": 0.045
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.582,
+       "victim": 0.095,
+       "pm_acc": 0.664,
+       "floor_atk": 0.118,
+       "floor_victim": 0.043
+      },
+      {
+       "eff": 45,
+       "atk_benign": 0.811,
+       "victim": 0.078,
+       "pm_acc": 0.666,
+       "floor_atk": 0.017,
+       "floor_victim": 0.012
+      },
+      {
+       "eff": 50,
+       "atk_benign": 0.779,
+       "victim": 0.188,
+       "pm_acc": 0.64,
+       "floor_atk": 0.086,
+       "floor_victim": 0.028
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.952,
+       "victim": 0.256,
+       "pm_acc": 0.716,
+       "floor_atk": 0.058,
+       "floor_victim": 0.068
+      },
+      {
+       "eff": 60,
+       "atk_benign": 0.915,
+       "victim": 0.149,
+       "pm_acc": 0.709,
+       "floor_atk": 0.003,
+       "floor_victim": 0.026
+      }
+     ]
+    },
+    "44": {
+     "R": 5,
+     "collocated": true,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.899,
+      "floor_atk": 0.061,
+      "victim": 0.07233333333333332,
+      "pm_acc": 0.4003
+     },
+     "first_cross": {
+      "eff": 5,
+      "atk_benign": 0.899,
+      "floor_atk": 0.061,
+      "victim": 0.07233333333333332,
+      "pm_acc": 0.4003,
+      "pm_acc_eff": 5
+     },
+     "shape": "crossed_at_first_point",
+     "before_cross": {
+      "n": 0,
+      "max": null,
+      "max_excess": null
+     },
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.899,
+       "victim": 0.072,
+       "pm_acc": 0.4,
+       "floor_atk": 0.061,
+       "floor_victim": 0.083
+      },
+      {
+       "eff": 10,
+       "atk_benign": 0.918,
+       "victim": 0.072,
+       "pm_acc": 0.476,
+       "floor_atk": 0.067,
+       "floor_victim": 0.067
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.265,
+       "victim": 0.119,
+       "pm_acc": 0.504,
+       "floor_atk": 0.04,
+       "floor_victim": 0.113
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.731,
+       "victim": 0.089,
+       "pm_acc": 0.5,
+       "floor_atk": 0.304,
+       "floor_victim": 0.072
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.893,
+       "victim": 0.051,
+       "pm_acc": 0.57,
+       "floor_atk": 0.282,
+       "floor_victim": 0.034
+      },
+      {
+       "eff": 30,
+       "atk_benign": 0.983,
+       "victim": 0.045,
+       "pm_acc": 0.584,
+       "floor_atk": 0.009,
+       "floor_victim": 0.02
+      },
+      {
+       "eff": 35,
+       "atk_benign": 0.966,
+       "victim": 0.051,
+       "pm_acc": 0.623,
+       "floor_atk": 0.049,
+       "floor_victim": 0.014
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.945,
+       "victim": 0.152,
+       "pm_acc": 0.677,
+       "floor_atk": 0.011,
+       "floor_victim": 0.05
+      },
+      {
+       "eff": 45,
+       "atk_benign": 0.815,
+       "victim": 0.081,
+       "pm_acc": 0.67,
+       "floor_atk": 0.042,
+       "floor_victim": 0.045
+      },
+      {
+       "eff": 50,
+       "atk_benign": 0.991,
+       "victim": 0.219,
+       "pm_acc": 0.703,
+       "floor_atk": 0.034,
+       "floor_victim": 0.014
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.966,
+       "victim": 0.391,
+       "pm_acc": 0.721,
+       "floor_atk": 0.022,
+       "floor_victim": 0.044
+      },
+      {
+       "eff": 60,
+       "atk_benign": 0.996,
+       "victim": 0.4,
+       "pm_acc": 0.738,
+       "floor_atk": 0.01,
+       "floor_victim": 0.013
+      }
+     ]
+    }
+   }
+  },
+  "G1R5-C1-coll": {
+   "group": "G1R5",
+   "floor_run": "G0/G0__C1__s{s}",
+   "floor_exact": true,
+   "runs": {
+    "42": {
+     "R": 5,
+     "collocated": true,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.936,
+      "floor_atk": 0.046,
+      "victim": 0.08166666666666667,
+      "pm_acc": 0.4582
+     },
+     "first_cross": {
+      "eff": 5,
+      "atk_benign": 0.936,
+      "floor_atk": 0.046,
+      "victim": 0.08166666666666667,
+      "pm_acc": 0.4582,
+      "pm_acc_eff": 5
+     },
+     "shape": "crossed_at_first_point",
+     "before_cross": {
+      "n": 0,
+      "max": null,
+      "max_excess": null
+     },
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.936,
+       "victim": 0.082,
+       "pm_acc": 0.458,
+       "floor_atk": 0.046,
+       "floor_victim": 0.088
+      },
+      {
+       "eff": 10,
+       "atk_benign": 0.963,
+       "victim": 0.139,
+       "pm_acc": 0.475,
+       "floor_atk": 0.233,
+       "floor_victim": 0.139
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.716,
+       "victim": 0.122,
+       "pm_acc": 0.506,
+       "floor_atk": 0.11,
+       "floor_victim": 0.127
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.915,
+       "victim": 0.145,
+       "pm_acc": 0.523,
+       "floor_atk": 0.037,
+       "floor_victim": 0.125
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.998,
+       "victim": 0.227,
+       "pm_acc": 0.569,
+       "floor_atk": 0.098,
+       "floor_victim": 0.216
+      },
+      {
+       "eff": 30,
+       "atk_benign": 0.824,
+       "victim": 0.197,
+       "pm_acc": 0.642,
+       "floor_atk": 0.013,
+       "floor_victim": 0.117
+      },
+      {
+       "eff": 35,
+       "atk_benign": 0.885,
+       "victim": 0.146,
+       "pm_acc": 0.662,
+       "floor_atk": 0.017,
+       "floor_victim": 0.042
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.806,
+       "victim": 0.118,
+       "pm_acc": 0.636,
+       "floor_atk": 0.053,
+       "floor_victim": 0.02
+      },
+      {
+       "eff": 45,
+       "atk_benign": 0.993,
+       "victim": 0.416,
+       "pm_acc": 0.661,
+       "floor_atk": 0.071,
+       "floor_victim": 0.165
+      },
+      {
+       "eff": 50,
+       "atk_benign": 0.908,
+       "victim": 0.268,
+       "pm_acc": 0.672,
+       "floor_atk": 0.029,
+       "floor_victim": 0.072
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.971,
+       "victim": 0.376,
+       "pm_acc": 0.711,
+       "floor_atk": 0.037,
+       "floor_victim": 0.073
+      },
+      {
+       "eff": 60,
+       "atk_benign": 1.0,
+       "victim": 0.361,
+       "pm_acc": 0.722,
+       "floor_atk": 0.064,
+       "floor_victim": 0.087
+      }
+     ]
+    },
+    "43": {
+     "R": 5,
+     "collocated": true,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.762,
+      "floor_atk": 0.025,
+      "victim": 0.036,
+      "pm_acc": 0.484
+     },
+     "first_cross": {
+      "eff": 5,
+      "atk_benign": 0.762,
+      "floor_atk": 0.025,
+      "victim": 0.036,
+      "pm_acc": 0.484,
+      "pm_acc_eff": 5
+     },
+     "shape": "crossed_at_first_point",
+     "before_cross": {
+      "n": 0,
+      "max": null,
+      "max_excess": null
+     },
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.762,
+       "victim": 0.036,
+       "pm_acc": 0.484,
+       "floor_atk": 0.025,
+       "floor_victim": 0.041
+      },
+      {
+       "eff": 10,
+       "atk_benign": 0.741,
+       "victim": 0.029,
+       "pm_acc": 0.464,
+       "floor_atk": 0.265,
+       "floor_victim": 0.026
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.868,
+       "victim": 0.12,
+       "pm_acc": 0.584,
+       "floor_atk": 0.129,
+       "floor_victim": 0.135
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.826,
+       "victim": 0.106,
+       "pm_acc": 0.549,
+       "floor_atk": 0.013,
+       "floor_victim": 0.084
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.979,
+       "victim": 0.193,
+       "pm_acc": 0.602,
+       "floor_atk": 0.103,
+       "floor_victim": 0.057
+      },
+      {
+       "eff": 30,
+       "atk_benign": 0.856,
+       "victim": 0.102,
+       "pm_acc": 0.632,
+       "floor_atk": 0.035,
+       "floor_victim": 0.029
+      },
+      {
+       "eff": 35,
+       "atk_benign": 0.964,
+       "victim": 0.253,
+       "pm_acc": 0.669,
+       "floor_atk": 0.11,
+       "floor_victim": 0.056
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.668,
+       "victim": 0.293,
+       "pm_acc": 0.683,
+       "floor_atk": 0.013,
+       "floor_victim": 0.047
+      },
+      {
+       "eff": 45,
+       "atk_benign": 1.0,
+       "victim": 0.182,
+       "pm_acc": 0.69,
+       "floor_atk": 0.066,
+       "floor_victim": 0.003
+      },
+      {
+       "eff": 50,
+       "atk_benign": 0.991,
+       "victim": 0.275,
+       "pm_acc": 0.703,
+       "floor_atk": 0.074,
+       "floor_victim": 0.012
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.998,
+       "victim": 0.31,
+       "pm_acc": 0.722,
+       "floor_atk": 0.012,
+       "floor_victim": 0.008
+      },
+      {
+       "eff": 60,
+       "atk_benign": 0.999,
+       "victim": 0.4,
+       "pm_acc": 0.744,
+       "floor_atk": 0.005,
+       "floor_victim": 0.011
+      }
+     ]
+    },
+    "44": {
+     "R": 5,
+     "collocated": true,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.996,
+      "floor_atk": 0.021,
+      "victim": 0.03233333333333333,
+      "pm_acc": 0.4542
+     },
+     "first_cross": {
+      "eff": 5,
+      "atk_benign": 0.996,
+      "floor_atk": 0.021,
+      "victim": 0.03233333333333333,
+      "pm_acc": 0.4542,
+      "pm_acc_eff": 5
+     },
+     "shape": "crossed_at_first_point",
+     "before_cross": {
+      "n": 0,
+      "max": null,
+      "max_excess": null
+     },
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.996,
+       "victim": 0.032,
+       "pm_acc": 0.454,
+       "floor_atk": 0.021,
+       "floor_victim": 0.037
+      },
+      {
+       "eff": 10,
+       "atk_benign": 0.924,
+       "victim": 0.092,
+       "pm_acc": 0.468,
+       "floor_atk": 0.033,
+       "floor_victim": 0.098
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.652,
+       "victim": 0.07,
+       "pm_acc": 0.532,
+       "floor_atk": 0.042,
+       "floor_victim": 0.071
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.639,
+       "victim": 0.188,
+       "pm_acc": 0.598,
+       "floor_atk": 0.027,
+       "floor_victim": 0.168
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.915,
+       "victim": 0.225,
+       "pm_acc": 0.577,
+       "floor_atk": 0.094,
+       "floor_victim": 0.141
+      },
+      {
+       "eff": 30,
+       "atk_benign": 1.0,
+       "victim": 0.125,
+       "pm_acc": 0.653,
+       "floor_atk": 0.085,
+       "floor_victim": 0.05
+      },
+      {
+       "eff": 35,
+       "atk_benign": 0.999,
+       "victim": 0.473,
+       "pm_acc": 0.672,
+       "floor_atk": 0.04,
+       "floor_victim": 0.227
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.999,
+       "victim": 0.406,
+       "pm_acc": 0.651,
+       "floor_atk": 0.042,
+       "floor_victim": 0.073
+      },
+      {
+       "eff": 45,
+       "atk_benign": 0.99,
+       "victim": 0.517,
+       "pm_acc": 0.673,
+       "floor_atk": 0.057,
+       "floor_victim": 0.188
+      },
+      {
+       "eff": 50,
+       "atk_benign": 1.0,
+       "victim": 0.46,
+       "pm_acc": 0.684,
+       "floor_atk": 0.039,
+       "floor_victim": 0.066
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.998,
+       "victim": 0.357,
+       "pm_acc": 0.725,
+       "floor_atk": 0.012,
+       "floor_victim": 0.027
+      },
+      {
+       "eff": 60,
+       "atk_benign": 0.995,
+       "victim": 0.483,
+       "pm_acc": 0.702,
+       "floor_atk": 0.013,
+       "floor_victim": 0.051
+      }
+     ]
+    }
+   }
+  },
+  "G1-C1-coll-R10": {
+   "group": "G1",
+   "floor_run": "G0/G0__C1__s{s}",
+   "floor_exact": false,
+   "runs": {
+    "42": {
+     "R": 10,
+     "collocated": true,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.9359,
+      "floor_atk": 0.046,
+      "victim": 0.08206666666666666,
+      "pm_acc": 0.4582
+     },
+     "first_cross": {
+      "eff": 5,
+      "atk_benign": 0.9359,
+      "floor_atk": 0.046,
+      "victim": 0.08206666666666666,
+      "pm_acc": 0.4582,
+      "pm_acc_eff": 5
+     },
+     "shape": "crossed_at_first_point",
+     "before_cross": {
+      "n": 0,
+      "max": null,
+      "max_excess": null
+     },
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.936,
+       "victim": 0.082,
+       "pm_acc": 0.458,
+       "floor_atk": 0.046,
+       "floor_victim": 0.088
+      },
+      {
+       "eff": 10,
+       "atk_benign": 0.982,
+       "victim": 0.091,
+       "pm_acc": 0.53,
+       "floor_atk": 0.233,
+       "floor_victim": 0.139
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.723,
+       "victim": 0.128,
+       "pm_acc": 0.492,
+       "floor_atk": 0.11,
+       "floor_victim": 0.127
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.896,
+       "victim": 0.044,
+       "pm_acc": 0.523,
+       "floor_atk": 0.037,
+       "floor_victim": 0.125
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.997,
+       "victim": 0.192,
+       "pm_acc": 0.557,
+       "floor_atk": 0.098,
+       "floor_victim": 0.216
+      },
+      {
+       "eff": 30,
+       "atk_benign": 0.912,
+       "victim": 0.132,
+       "pm_acc": 0.609,
+       "floor_atk": 0.013,
+       "floor_victim": 0.117
+      },
+      {
+       "eff": 35,
+       "atk_benign": 0.907,
+       "victim": 0.068,
+       "pm_acc": 0.637,
+       "floor_atk": 0.017,
+       "floor_victim": 0.042
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.951,
+       "victim": 0.033,
+       "pm_acc": 0.643,
+       "floor_atk": 0.053,
+       "floor_victim": 0.02
+      },
+      {
+       "eff": 45,
+       "atk_benign": 1.0,
+       "victim": 0.268,
+       "pm_acc": 0.696,
+       "floor_atk": 0.071,
+       "floor_victim": 0.165
+      },
+      {
+       "eff": 50,
+       "atk_benign": 0.953,
+       "victim": 0.114,
+       "pm_acc": 0.665,
+       "floor_atk": 0.029,
+       "floor_victim": 0.072
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.986,
+       "victim": 0.26,
+       "pm_acc": 0.707,
+       "floor_atk": 0.037,
+       "floor_victim": 0.073
+      },
+      {
+       "eff": 60,
+       "atk_benign": 1.0,
+       "victim": 0.167,
+       "pm_acc": 0.715,
+       "floor_atk": 0.064,
+       "floor_victim": 0.087
+      }
+     ]
+    },
+    "43": {
+     "R": 10,
+     "collocated": true,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.7635,
+      "floor_atk": 0.025,
+      "victim": 0.03546666666666667,
+      "pm_acc": 0.484
+     },
+     "first_cross": {
+      "eff": 5,
+      "atk_benign": 0.7635,
+      "floor_atk": 0.025,
+      "victim": 0.03546666666666667,
+      "pm_acc": 0.484,
+      "pm_acc_eff": 5
+     },
+     "shape": "crossed_at_first_point",
+     "before_cross": {
+      "n": 0,
+      "max": null,
+      "max_excess": null
+     },
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.763,
+       "victim": 0.035,
+       "pm_acc": 0.484,
+       "floor_atk": 0.025,
+       "floor_victim": 0.041
+      },
+      {
+       "eff": 10,
+       "atk_benign": 0.838,
+       "victim": 0.022,
+       "pm_acc": 0.479,
+       "floor_atk": 0.265,
+       "floor_victim": 0.026
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.804,
+       "victim": 0.09,
+       "pm_acc": 0.561,
+       "floor_atk": 0.129,
+       "floor_victim": 0.135
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.876,
+       "victim": 0.088,
+       "pm_acc": 0.545,
+       "floor_atk": 0.013,
+       "floor_victim": 0.084
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.97,
+       "victim": 0.151,
+       "pm_acc": 0.61,
+       "floor_atk": 0.103,
+       "floor_victim": 0.057
+      },
+      {
+       "eff": 30,
+       "atk_benign": 0.843,
+       "victim": 0.032,
+       "pm_acc": 0.598,
+       "floor_atk": 0.035,
+       "floor_victim": 0.029
+      },
+      {
+       "eff": 35,
+       "atk_benign": 0.921,
+       "victim": 0.146,
+       "pm_acc": 0.675,
+       "floor_atk": 0.11,
+       "floor_victim": 0.056
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.837,
+       "victim": 0.106,
+       "pm_acc": 0.654,
+       "floor_atk": 0.013,
+       "floor_victim": 0.047
+      },
+      {
+       "eff": 45,
+       "atk_benign": 1.0,
+       "victim": 0.056,
+       "pm_acc": 0.697,
+       "floor_atk": 0.066,
+       "floor_victim": 0.003
+      },
+      {
+       "eff": 50,
+       "atk_benign": 0.997,
+       "victim": 0.074,
+       "pm_acc": 0.716,
+       "floor_atk": 0.074,
+       "floor_victim": 0.012
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.994,
+       "victim": 0.113,
+       "pm_acc": 0.721,
+       "floor_atk": 0.012,
+       "floor_victim": 0.008
+      },
+      {
+       "eff": 60,
+       "atk_benign": 1.0,
+       "victim": 0.104,
+       "pm_acc": 0.754,
+       "floor_atk": 0.005,
+       "floor_victim": 0.011
+      }
+     ]
+    },
+    "44": {
+     "R": 10,
+     "collocated": true,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.9951,
+      "floor_atk": 0.021,
+      "victim": 0.032100000000000004,
+      "pm_acc": 0.4542
+     },
+     "first_cross": {
+      "eff": 5,
+      "atk_benign": 0.9951,
+      "floor_atk": 0.021,
+      "victim": 0.032100000000000004,
+      "pm_acc": 0.4542,
+      "pm_acc_eff": 5
+     },
+     "shape": "crossed_at_first_point",
+     "before_cross": {
+      "n": 0,
+      "max": null,
+      "max_excess": null
+     },
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.995,
+       "victim": 0.032,
+       "pm_acc": 0.454,
+       "floor_atk": 0.021,
+       "floor_victim": 0.037
+      },
+      {
+       "eff": 10,
+       "atk_benign": 0.936,
+       "victim": 0.066,
+       "pm_acc": 0.5,
+       "floor_atk": 0.033,
+       "floor_victim": 0.098
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.553,
+       "victim": 0.06,
+       "pm_acc": 0.505,
+       "floor_atk": 0.042,
+       "floor_victim": 0.071
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.811,
+       "victim": 0.179,
+       "pm_acc": 0.582,
+       "floor_atk": 0.027,
+       "floor_victim": 0.168
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.843,
+       "victim": 0.166,
+       "pm_acc": 0.569,
+       "floor_atk": 0.094,
+       "floor_victim": 0.141
+      },
+      {
+       "eff": 30,
+       "atk_benign": 1.0,
+       "victim": 0.078,
+       "pm_acc": 0.64,
+       "floor_atk": 0.085,
+       "floor_victim": 0.05
+      },
+      {
+       "eff": 35,
+       "atk_benign": 1.0,
+       "victim": 0.271,
+       "pm_acc": 0.646,
+       "floor_atk": 0.04,
+       "floor_victim": 0.227
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.999,
+       "victim": 0.114,
+       "pm_acc": 0.611,
+       "floor_atk": 0.042,
+       "floor_victim": 0.073
+      },
+      {
+       "eff": 45,
+       "atk_benign": 0.991,
+       "victim": 0.326,
+       "pm_acc": 0.651,
+       "floor_atk": 0.057,
+       "floor_victim": 0.188
+      },
+      {
+       "eff": 50,
+       "atk_benign": 1.0,
+       "victim": 0.172,
+       "pm_acc": 0.668,
+       "floor_atk": 0.039,
+       "floor_victim": 0.066
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.998,
+       "victim": 0.228,
+       "pm_acc": 0.717,
+       "floor_atk": 0.012,
+       "floor_victim": 0.027
+      },
+      {
+       "eff": 60,
+       "atk_benign": 0.992,
+       "victim": 0.152,
+       "pm_acc": 0.688,
+       "floor_atk": 0.013,
+       "floor_victim": 0.051
+      }
+     ]
+    }
+   }
+  },
+  "G1-C1-coll-R20": {
+   "group": "G1",
+   "floor_run": "G0/G0__C1__s{s}",
+   "floor_exact": false,
+   "runs": {
+    "42": {
+     "R": 20,
+     "collocated": true,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.9359,
+      "floor_atk": 0.046,
+      "victim": 0.08206666666666666,
+      "pm_acc": 0.4582
+     },
+     "first_cross": {
+      "eff": 5,
+      "atk_benign": 0.9359,
+      "floor_atk": 0.046,
+      "victim": 0.08206666666666666,
+      "pm_acc": 0.4582,
+      "pm_acc_eff": 5
+     },
+     "shape": "crossed_at_first_point",
+     "before_cross": {
+      "n": 0,
+      "max": null,
+      "max_excess": null
+     },
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.936,
+       "victim": 0.082,
+       "pm_acc": 0.458,
+       "floor_atk": 0.046,
+       "floor_victim": 0.088
+      },
+      {
+       "eff": 10,
+       "atk_benign": 0.981,
+       "victim": 0.09,
+       "pm_acc": 0.53,
+       "floor_atk": 0.233,
+       "floor_victim": 0.139
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.977,
+       "victim": 0.058,
+       "pm_acc": 0.569,
+       "floor_atk": 0.11,
+       "floor_victim": 0.127
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.994,
+       "victim": 0.042,
+       "pm_acc": 0.581,
+       "floor_atk": 0.037,
+       "floor_victim": 0.125
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.994,
+       "victim": 0.123,
+       "pm_acc": 0.53,
+       "floor_atk": 0.098,
+       "floor_victim": 0.216
+      },
+      {
+       "eff": 30,
+       "atk_benign": 0.922,
+       "victim": 0.119,
+       "pm_acc": 0.568,
+       "floor_atk": 0.013,
+       "floor_victim": 0.117
+      },
+      {
+       "eff": 35,
+       "atk_benign": 0.97,
+       "victim": 0.051,
+       "pm_acc": 0.614,
+       "floor_atk": 0.017,
+       "floor_victim": 0.042
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.95,
+       "victim": 0.02,
+       "pm_acc": 0.607,
+       "floor_atk": 0.053,
+       "floor_victim": 0.02
+      },
+      {
+       "eff": 45,
+       "atk_benign": 0.996,
+       "victim": 0.196,
+       "pm_acc": 0.628,
+       "floor_atk": 0.071,
+       "floor_victim": 0.165
+      },
+      {
+       "eff": 50,
+       "atk_benign": 0.954,
+       "victim": 0.052,
+       "pm_acc": 0.662,
+       "floor_atk": 0.029,
+       "floor_victim": 0.072
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.982,
+       "victim": 0.076,
+       "pm_acc": 0.686,
+       "floor_atk": 0.037,
+       "floor_victim": 0.073
+      },
+      {
+       "eff": 60,
+       "atk_benign": 1.0,
+       "victim": 0.06,
+       "pm_acc": 0.697,
+       "floor_atk": 0.064,
+       "floor_victim": 0.087
+      }
+     ]
+    },
+    "43": {
+     "R": 20,
+     "collocated": true,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.7635,
+      "floor_atk": 0.025,
+      "victim": 0.03546666666666667,
+      "pm_acc": 0.484
+     },
+     "first_cross": {
+      "eff": 5,
+      "atk_benign": 0.7635,
+      "floor_atk": 0.025,
+      "victim": 0.03546666666666667,
+      "pm_acc": 0.484,
+      "pm_acc_eff": 5
+     },
+     "shape": "crossed_at_first_point",
+     "before_cross": {
+      "n": 0,
+      "max": null,
+      "max_excess": null
+     },
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.763,
+       "victim": 0.035,
+       "pm_acc": 0.484,
+       "floor_atk": 0.025,
+       "floor_victim": 0.041
+      },
+      {
+       "eff": 10,
+       "atk_benign": 0.838,
+       "victim": 0.022,
+       "pm_acc": 0.479,
+       "floor_atk": 0.265,
+       "floor_victim": 0.026
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.955,
+       "victim": 0.064,
+       "pm_acc": 0.575,
+       "floor_atk": 0.129,
+       "floor_victim": 0.135
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.93,
+       "victim": 0.062,
+       "pm_acc": 0.578,
+       "floor_atk": 0.013,
+       "floor_victim": 0.084
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.815,
+       "victim": 0.099,
+       "pm_acc": 0.53,
+       "floor_atk": 0.103,
+       "floor_victim": 0.057
+      },
+      {
+       "eff": 30,
+       "atk_benign": 0.853,
+       "victim": 0.038,
+       "pm_acc": 0.557,
+       "floor_atk": 0.035,
+       "floor_victim": 0.029
+      },
+      {
+       "eff": 35,
+       "atk_benign": 0.958,
+       "victim": 0.048,
+       "pm_acc": 0.629,
+       "floor_atk": 0.11,
+       "floor_victim": 0.056
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.906,
+       "victim": 0.049,
+       "pm_acc": 0.633,
+       "floor_atk": 0.013,
+       "floor_victim": 0.047
+      },
+      {
+       "eff": 45,
+       "atk_benign": 1.0,
+       "victim": 0.039,
+       "pm_acc": 0.669,
+       "floor_atk": 0.066,
+       "floor_victim": 0.003
+      },
+      {
+       "eff": 50,
+       "atk_benign": 0.999,
+       "victim": 0.029,
+       "pm_acc": 0.708,
+       "floor_atk": 0.074,
+       "floor_victim": 0.012
+      },
+      {
+       "eff": 55,
+       "atk_benign": 1.0,
+       "victim": 0.017,
+       "pm_acc": 0.696,
+       "floor_atk": 0.012,
+       "floor_victim": 0.008
+      },
+      {
+       "eff": 60,
+       "atk_benign": 1.0,
+       "victim": 0.009,
+       "pm_acc": 0.734,
+       "floor_atk": 0.005,
+       "floor_victim": 0.011
+      }
+     ]
+    },
+    "44": {
+     "R": 20,
+     "collocated": true,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.9951,
+      "floor_atk": 0.021,
+      "victim": 0.032100000000000004,
+      "pm_acc": 0.4542
+     },
+     "first_cross": {
+      "eff": 5,
+      "atk_benign": 0.9951,
+      "floor_atk": 0.021,
+      "victim": 0.032100000000000004,
+      "pm_acc": 0.4542,
+      "pm_acc_eff": 5
+     },
+     "shape": "crossed_at_first_point",
+     "before_cross": {
+      "n": 0,
+      "max": null,
+      "max_excess": null
+     },
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.995,
+       "victim": 0.032,
+       "pm_acc": 0.454,
+       "floor_atk": 0.021,
+       "floor_victim": 0.037
+      },
+      {
+       "eff": 10,
+       "atk_benign": 0.937,
+       "victim": 0.067,
+       "pm_acc": 0.5,
+       "floor_atk": 0.033,
+       "floor_victim": 0.098
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.919,
+       "victim": 0.051,
+       "pm_acc": 0.554,
+       "floor_atk": 0.042,
+       "floor_victim": 0.071
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.975,
+       "victim": 0.126,
+       "pm_acc": 0.604,
+       "floor_atk": 0.027,
+       "floor_victim": 0.168
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.868,
+       "victim": 0.173,
+       "pm_acc": 0.541,
+       "floor_atk": 0.094,
+       "floor_victim": 0.141
+      },
+      {
+       "eff": 30,
+       "atk_benign": 1.0,
+       "victim": 0.077,
+       "pm_acc": 0.612,
+       "floor_atk": 0.085,
+       "floor_victim": 0.05
+      },
+      {
+       "eff": 35,
+       "atk_benign": 1.0,
+       "victim": 0.236,
+       "pm_acc": 0.579,
+       "floor_atk": 0.04,
+       "floor_victim": 0.227
+      },
+      {
+       "eff": 40,
+       "atk_benign": 1.0,
+       "victim": 0.103,
+       "pm_acc": 0.633,
+       "floor_atk": 0.042,
+       "floor_victim": 0.073
+      },
+      {
+       "eff": 45,
+       "atk_benign": 0.995,
+       "victim": 0.187,
+       "pm_acc": 0.637,
+       "floor_atk": 0.057,
+       "floor_victim": 0.188
+      },
+      {
+       "eff": 50,
+       "atk_benign": 1.0,
+       "victim": 0.093,
+       "pm_acc": 0.668,
+       "floor_atk": 0.039,
+       "floor_victim": 0.066
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.998,
+       "victim": 0.042,
+       "pm_acc": 0.695,
+       "floor_atk": 0.012,
+       "floor_victim": 0.027
+      },
+      {
+       "eff": 60,
+       "atk_benign": 0.998,
+       "victim": 0.052,
+       "pm_acc": 0.697,
+       "floor_atk": 0.013,
+       "floor_victim": 0.051
+      }
+     ]
+    }
+   }
+  },
+  "G1-C1-dist-R10": {
+   "group": "G1",
+   "floor_run": "G0/G0__C1__s{s}",
+   "floor_exact": false,
+   "runs": {
+    "42": {
+     "R": 10,
+     "collocated": false,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.1182,
+      "floor_atk": 0.081,
+      "victim": null,
+      "pm_acc": 0.4525
+     },
+     "first_cross": {
+      "eff": 55,
+      "atk_benign": 0.5497,
+      "floor_atk": 0.067,
+      "victim": null,
+      "pm_acc": 0.7123,
+      "pm_acc_eff": 55
+     },
+     "shape": "rising_from_first_point",
+     "before_cross": {
+      "n": 10,
+      "max": 0.4802,
+      "max_excess": 0.363
+     },
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.118,
+       "victim": null,
+       "pm_acc": 0.453,
+       "floor_atk": 0.081,
+       "floor_victim": 0.088
+      },
+      {
+       "eff": 10,
+       "atk_benign": 0.191,
+       "victim": null,
+       "pm_acc": 0.529,
+       "floor_atk": 0.155,
+       "floor_victim": 0.139
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.172,
+       "victim": null,
+       "pm_acc": 0.534,
+       "floor_atk": 0.124,
+       "floor_victim": 0.127
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.245,
+       "victim": null,
+       "pm_acc": 0.53,
+       "floor_atk": 0.111,
+       "floor_victim": 0.125
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.424,
+       "victim": null,
+       "pm_acc": 0.556,
+       "floor_atk": 0.196,
+       "floor_victim": 0.216
+      },
+      {
+       "eff": 30,
+       "atk_benign": 0.262,
+       "victim": null,
+       "pm_acc": 0.631,
+       "floor_atk": 0.1,
+       "floor_victim": 0.117
+      },
+      {
+       "eff": 35,
+       "atk_benign": 0.39,
+       "victim": null,
+       "pm_acc": 0.613,
+       "floor_atk": 0.038,
+       "floor_victim": 0.042
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.3,
+       "victim": null,
+       "pm_acc": 0.63,
+       "floor_atk": 0.026,
+       "floor_victim": 0.02
+      },
+      {
+       "eff": 45,
+       "atk_benign": 0.48,
+       "victim": null,
+       "pm_acc": 0.674,
+       "floor_atk": 0.149,
+       "floor_victim": 0.165
+      },
+      {
+       "eff": 50,
+       "atk_benign": 0.428,
+       "victim": null,
+       "pm_acc": 0.672,
+       "floor_atk": 0.065,
+       "floor_victim": 0.072
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.55,
+       "victim": null,
+       "pm_acc": 0.712,
+       "floor_atk": 0.067,
+       "floor_victim": 0.073
+      },
+      {
+       "eff": 60,
+       "atk_benign": 0.431,
+       "victim": null,
+       "pm_acc": 0.731,
+       "floor_atk": 0.083,
+       "floor_victim": 0.087
+      }
+     ]
+    },
+    "43": {
+     "R": 10,
+     "collocated": false,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.0584,
+      "floor_atk": 0.038,
+      "victim": null,
+      "pm_acc": 0.4827
+     },
+     "first_cross": {
+      "eff": 35,
+      "atk_benign": 0.6283,
+      "floor_atk": 0.065,
+      "victim": null,
+      "pm_acc": 0.6541,
+      "pm_acc_eff": 35
+     },
+     "shape": "rising_from_first_point",
+     "before_cross": {
+      "n": 6,
+      "max": 0.383,
+      "max_excess": 0.353
+     },
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.058,
+       "victim": null,
+       "pm_acc": 0.483,
+       "floor_atk": 0.038,
+       "floor_victim": 0.041
+      },
+      {
+       "eff": 10,
+       "atk_benign": 0.104,
+       "victim": null,
+       "pm_acc": 0.49,
+       "floor_atk": 0.066,
+       "floor_victim": 0.026
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.226,
+       "victim": null,
+       "pm_acc": 0.541,
+       "floor_atk": 0.134,
+       "floor_victim": 0.135
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.319,
+       "victim": null,
+       "pm_acc": 0.564,
+       "floor_atk": 0.072,
+       "floor_victim": 0.084
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.353,
+       "victim": null,
+       "pm_acc": 0.587,
+       "floor_atk": 0.064,
+       "floor_victim": 0.057
+      },
+      {
+       "eff": 30,
+       "atk_benign": 0.383,
+       "victim": null,
+       "pm_acc": 0.587,
+       "floor_atk": 0.03,
+       "floor_victim": 0.029
+      },
+      {
+       "eff": 35,
+       "atk_benign": 0.628,
+       "victim": null,
+       "pm_acc": 0.654,
+       "floor_atk": 0.065,
+       "floor_victim": 0.056
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.554,
+       "victim": null,
+       "pm_acc": 0.637,
+       "floor_atk": 0.041,
+       "floor_victim": 0.047
+      },
+      {
+       "eff": 45,
+       "atk_benign": 0.757,
+       "victim": null,
+       "pm_acc": 0.642,
+       "floor_atk": 0.014,
+       "floor_victim": 0.003
+      },
+      {
+       "eff": 50,
+       "atk_benign": 0.604,
+       "victim": null,
+       "pm_acc": 0.682,
+       "floor_atk": 0.022,
+       "floor_victim": 0.012
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.659,
+       "victim": null,
+       "pm_acc": 0.73,
+       "floor_atk": 0.009,
+       "floor_victim": 0.008
+      },
+      {
+       "eff": 60,
+       "atk_benign": 0.572,
+       "victim": null,
+       "pm_acc": 0.738,
+       "floor_atk": 0.01,
+       "floor_victim": 0.011
+      }
+     ]
+    },
+    "44": {
+     "R": 10,
+     "collocated": false,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.1637,
+      "floor_atk": 0.034,
+      "victim": null,
+      "pm_acc": 0.448
+     },
+     "first_cross": {
+      "eff": 25,
+      "atk_benign": 0.5119,
+      "floor_atk": 0.133,
+      "victim": null,
+      "pm_acc": 0.5718,
+      "pm_acc_eff": 25
+     },
+     "shape": "rising_from_first_point",
+     "before_cross": {
+      "n": 4,
+      "max": 0.473,
+      "max_excess": 0.386
+     },
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.164,
+       "victim": null,
+       "pm_acc": 0.448,
+       "floor_atk": 0.034,
+       "floor_victim": 0.037
+      },
+      {
+       "eff": 10,
+       "atk_benign": 0.473,
+       "victim": null,
+       "pm_acc": 0.496,
+       "floor_atk": 0.087,
+       "floor_victim": 0.098
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.12,
+       "victim": null,
+       "pm_acc": 0.491,
+       "floor_atk": 0.066,
+       "floor_victim": 0.071
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.392,
+       "victim": null,
+       "pm_acc": 0.576,
+       "floor_atk": 0.144,
+       "floor_victim": 0.168
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.512,
+       "victim": null,
+       "pm_acc": 0.572,
+       "floor_atk": 0.133,
+       "floor_victim": 0.141
+      },
+      {
+       "eff": 30,
+       "atk_benign": 0.613,
+       "victim": null,
+       "pm_acc": 0.64,
+       "floor_atk": 0.056,
+       "floor_victim": 0.05
+      },
+      {
+       "eff": 35,
+       "atk_benign": 0.721,
+       "victim": null,
+       "pm_acc": 0.652,
+       "floor_atk": 0.196,
+       "floor_victim": 0.227
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.449,
+       "victim": null,
+       "pm_acc": 0.627,
+       "floor_atk": 0.068,
+       "floor_victim": 0.073
+      },
+      {
+       "eff": 45,
+       "atk_benign": 0.673,
+       "victim": null,
+       "pm_acc": 0.651,
+       "floor_atk": 0.166,
+       "floor_victim": 0.188
+      },
+      {
+       "eff": 50,
+       "atk_benign": 0.618,
+       "victim": null,
+       "pm_acc": 0.684,
+       "floor_atk": 0.062,
+       "floor_victim": 0.066
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.639,
+       "victim": null,
+       "pm_acc": 0.723,
+       "floor_atk": 0.025,
+       "floor_victim": 0.027
+      },
+      {
+       "eff": 60,
+       "atk_benign": 0.727,
+       "victim": null,
+       "pm_acc": 0.713,
+       "floor_atk": 0.045,
+       "floor_victim": 0.051
+      }
+     ]
+    }
+   }
+  },
+  "G1-C1-dist-R20": {
+   "group": "G1",
+   "floor_run": "G0/G0__C1__s{s}",
+   "floor_exact": false,
+   "runs": {
+    "42": {
+     "R": 20,
+     "collocated": false,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.1182,
+      "floor_atk": 0.081,
+      "victim": null,
+      "pm_acc": 0.4525
+     },
+     "first_cross": null,
+     "shape": "not_crossed",
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.118,
+       "victim": null,
+       "pm_acc": 0.453,
+       "floor_atk": 0.081,
+       "floor_victim": 0.088
+      },
+      {
+       "eff": 10,
+       "atk_benign": 0.191,
+       "victim": null,
+       "pm_acc": 0.529,
+       "floor_atk": 0.155,
+       "floor_victim": 0.139
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.253,
+       "victim": null,
+       "pm_acc": 0.576,
+       "floor_atk": 0.124,
+       "floor_victim": 0.127
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.237,
+       "victim": null,
+       "pm_acc": 0.588,
+       "floor_atk": 0.111,
+       "floor_victim": 0.125
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.296,
+       "victim": null,
+       "pm_acc": 0.512,
+       "floor_atk": 0.196,
+       "floor_victim": 0.216
+      },
+      {
+       "eff": 30,
+       "atk_benign": 0.267,
+       "victim": null,
+       "pm_acc": 0.575,
+       "floor_atk": 0.1,
+       "floor_victim": 0.117
+      },
+      {
+       "eff": 35,
+       "atk_benign": 0.284,
+       "victim": null,
+       "pm_acc": 0.6,
+       "floor_atk": 0.038,
+       "floor_victim": 0.042
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.226,
+       "victim": null,
+       "pm_acc": 0.616,
+       "floor_atk": 0.026,
+       "floor_victim": 0.02
+      },
+      {
+       "eff": 45,
+       "atk_benign": 0.403,
+       "victim": null,
+       "pm_acc": 0.655,
+       "floor_atk": 0.149,
+       "floor_victim": 0.165
+      },
+      {
+       "eff": 50,
+       "atk_benign": 0.365,
+       "victim": null,
+       "pm_acc": 0.653,
+       "floor_atk": 0.065,
+       "floor_victim": 0.072
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.454,
+       "victim": null,
+       "pm_acc": 0.69,
+       "floor_atk": 0.067,
+       "floor_victim": 0.073
+      },
+      {
+       "eff": 60,
+       "atk_benign": 0.379,
+       "victim": null,
+       "pm_acc": 0.709,
+       "floor_atk": 0.083,
+       "floor_victim": 0.087
+      }
+     ]
+    },
+    "43": {
+     "R": 20,
+     "collocated": false,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.0584,
+      "floor_atk": 0.038,
+      "victim": null,
+      "pm_acc": 0.4827
+     },
+     "first_cross": null,
+     "shape": "not_crossed",
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.058,
+       "victim": null,
+       "pm_acc": 0.483,
+       "floor_atk": 0.038,
+       "floor_victim": 0.041
+      },
+      {
+       "eff": 10,
+       "atk_benign": 0.104,
+       "victim": null,
+       "pm_acc": 0.49,
+       "floor_atk": 0.066,
+       "floor_victim": 0.026
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.193,
+       "victim": null,
+       "pm_acc": 0.552,
+       "floor_atk": 0.134,
+       "floor_victim": 0.135
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.114,
+       "victim": null,
+       "pm_acc": 0.586,
+       "floor_atk": 0.072,
+       "floor_victim": 0.084
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.154,
+       "victim": null,
+       "pm_acc": 0.551,
+       "floor_atk": 0.064,
+       "floor_victim": 0.057
+      },
+      {
+       "eff": 30,
+       "atk_benign": 0.113,
+       "victim": null,
+       "pm_acc": 0.562,
+       "floor_atk": 0.03,
+       "floor_victim": 0.029
+      },
+      {
+       "eff": 35,
+       "atk_benign": 0.238,
+       "victim": null,
+       "pm_acc": 0.617,
+       "floor_atk": 0.065,
+       "floor_victim": 0.056
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.194,
+       "victim": null,
+       "pm_acc": 0.622,
+       "floor_atk": 0.041,
+       "floor_victim": 0.047
+      },
+      {
+       "eff": 45,
+       "atk_benign": 0.433,
+       "victim": null,
+       "pm_acc": 0.645,
+       "floor_atk": 0.014,
+       "floor_victim": 0.003
+      },
+      {
+       "eff": 50,
+       "atk_benign": 0.304,
+       "victim": null,
+       "pm_acc": 0.685,
+       "floor_atk": 0.022,
+       "floor_victim": 0.012
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.384,
+       "victim": null,
+       "pm_acc": 0.703,
+       "floor_atk": 0.009,
+       "floor_victim": 0.008
+      },
+      {
+       "eff": 60,
+       "atk_benign": 0.429,
+       "victim": null,
+       "pm_acc": 0.727,
+       "floor_atk": 0.01,
+       "floor_victim": 0.011
+      }
+     ]
+    },
+    "44": {
+     "R": 20,
+     "collocated": false,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.1637,
+      "floor_atk": 0.034,
+      "victim": null,
+      "pm_acc": 0.448
+     },
+     "first_cross": {
+      "eff": 30,
+      "atk_benign": 0.5594,
+      "floor_atk": 0.056,
+      "victim": null,
+      "pm_acc": 0.6046,
+      "pm_acc_eff": 30
+     },
+     "shape": "rising_from_first_point",
+     "before_cross": {
+      "n": 5,
+      "max": 0.4724,
+      "max_excess": 0.38539999999999996
+     },
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.164,
+       "victim": null,
+       "pm_acc": 0.448,
+       "floor_atk": 0.034,
+       "floor_victim": 0.037
+      },
+      {
+       "eff": 10,
+       "atk_benign": 0.472,
+       "victim": null,
+       "pm_acc": 0.496,
+       "floor_atk": 0.087,
+       "floor_victim": 0.098
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.143,
+       "victim": null,
+       "pm_acc": 0.549,
+       "floor_atk": 0.066,
+       "floor_victim": 0.071
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.402,
+       "victim": null,
+       "pm_acc": 0.601,
+       "floor_atk": 0.144,
+       "floor_victim": 0.168
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.334,
+       "victim": null,
+       "pm_acc": 0.499,
+       "floor_atk": 0.133,
+       "floor_victim": 0.141
+      },
+      {
+       "eff": 30,
+       "atk_benign": 0.559,
+       "victim": null,
+       "pm_acc": 0.605,
+       "floor_atk": 0.056,
+       "floor_victim": 0.05
+      },
+      {
+       "eff": 35,
+       "atk_benign": 0.644,
+       "victim": null,
+       "pm_acc": 0.6,
+       "floor_atk": 0.196,
+       "floor_victim": 0.227
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.416,
+       "victim": null,
+       "pm_acc": 0.599,
+       "floor_atk": 0.068,
+       "floor_victim": 0.073
+      },
+      {
+       "eff": 45,
+       "atk_benign": 0.664,
+       "victim": null,
+       "pm_acc": 0.611,
+       "floor_atk": 0.166,
+       "floor_victim": 0.188
+      },
+      {
+       "eff": 50,
+       "atk_benign": 0.589,
+       "victim": null,
+       "pm_acc": 0.664,
+       "floor_atk": 0.062,
+       "floor_victim": 0.066
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.533,
+       "victim": null,
+       "pm_acc": 0.69,
+       "floor_atk": 0.025,
+       "floor_victim": 0.027
+      },
+      {
+       "eff": 60,
+       "atk_benign": 0.729,
+       "victim": null,
+       "pm_acc": 0.696,
+       "floor_atk": 0.045,
+       "floor_victim": 0.051
+      }
+     ]
+    }
+   }
+  },
+  "G1-random-coll-R10": {
+   "group": "G1",
+   "floor_run": "G0/G0__random__s{s}",
+   "floor_exact": false,
+   "runs": {
+    "42": {
+     "R": 10,
+     "collocated": true,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.8903,
+      "floor_atk": 0.05,
+      "victim": 0.0328,
+      "pm_acc": 0.4203
+     },
+     "first_cross": {
+      "eff": 5,
+      "atk_benign": 0.8903,
+      "floor_atk": 0.05,
+      "victim": 0.0328,
+      "pm_acc": 0.4203,
+      "pm_acc_eff": 5
+     },
+     "shape": "crossed_at_first_point",
+     "before_cross": {
+      "n": 0,
+      "max": null,
+      "max_excess": null
+     },
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.89,
+       "victim": 0.033,
+       "pm_acc": 0.42,
+       "floor_atk": 0.05,
+       "floor_victim": 0.037
+      },
+      {
+       "eff": 10,
+       "atk_benign": 1.0,
+       "victim": 0.053,
+       "pm_acc": 0.444,
+       "floor_atk": 0.494,
+       "floor_victim": 0.065
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.652,
+       "victim": 0.043,
+       "pm_acc": 0.487,
+       "floor_atk": 0.061,
+       "floor_victim": 0.041
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.862,
+       "victim": 0.043,
+       "pm_acc": 0.526,
+       "floor_atk": 0.061,
+       "floor_victim": 0.042
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.957,
+       "victim": 0.03,
+       "pm_acc": 0.57,
+       "floor_atk": 0.049,
+       "floor_victim": 0.022
+      },
+      {
+       "eff": 30,
+       "atk_benign": 0.965,
+       "victim": 0.033,
+       "pm_acc": 0.582,
+       "floor_atk": 0.03,
+       "floor_victim": 0.029
+      },
+      {
+       "eff": 35,
+       "atk_benign": 0.911,
+       "victim": 0.1,
+       "pm_acc": 0.623,
+       "floor_atk": 0.219,
+       "floor_victim": 0.035
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.954,
+       "victim": 0.041,
+       "pm_acc": 0.583,
+       "floor_atk": 0.039,
+       "floor_victim": 0.019
+      },
+      {
+       "eff": 45,
+       "atk_benign": 0.962,
+       "victim": 0.071,
+       "pm_acc": 0.636,
+       "floor_atk": 0.007,
+       "floor_victim": 0.011
+      },
+      {
+       "eff": 50,
+       "atk_benign": 0.98,
+       "victim": 0.096,
+       "pm_acc": 0.633,
+       "floor_atk": 0.02,
+       "floor_victim": 0.025
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.966,
+       "victim": 0.149,
+       "pm_acc": 0.635,
+       "floor_atk": 0.069,
+       "floor_victim": 0.016
+      },
+      {
+       "eff": 60,
+       "atk_benign": 1.0,
+       "victim": 0.137,
+       "pm_acc": 0.725,
+       "floor_atk": 0.01,
+       "floor_victim": 0.024
+      }
+     ]
+    },
+    "43": {
+     "R": 10,
+     "collocated": true,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.724,
+      "floor_atk": 0.006,
+      "victim": 0.07263333333333333,
+      "pm_acc": 0.429
+     },
+     "first_cross": {
+      "eff": 5,
+      "atk_benign": 0.724,
+      "floor_atk": 0.006,
+      "victim": 0.07263333333333333,
+      "pm_acc": 0.429,
+      "pm_acc_eff": 5
+     },
+     "shape": "crossed_at_first_point",
+     "before_cross": {
+      "n": 0,
+      "max": null,
+      "max_excess": null
+     },
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.724,
+       "victim": 0.073,
+       "pm_acc": 0.429,
+       "floor_atk": 0.006,
+       "floor_victim": 0.08
+      },
+      {
+       "eff": 10,
+       "atk_benign": 0.705,
+       "victim": 0.063,
+       "pm_acc": 0.457,
+       "floor_atk": 0.232,
+       "floor_victim": 0.081
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.679,
+       "victim": 0.166,
+       "pm_acc": 0.466,
+       "floor_atk": 0.061,
+       "floor_victim": 0.173
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.895,
+       "victim": 0.118,
+       "pm_acc": 0.549,
+       "floor_atk": 0.076,
+       "floor_victim": 0.13
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.98,
+       "victim": 0.284,
+       "pm_acc": 0.552,
+       "floor_atk": 0.369,
+       "floor_victim": 0.266
+      },
+      {
+       "eff": 30,
+       "atk_benign": 0.979,
+       "victim": 0.086,
+       "pm_acc": 0.625,
+       "floor_atk": 0.052,
+       "floor_victim": 0.061
+      },
+      {
+       "eff": 35,
+       "atk_benign": 0.855,
+       "victim": 0.073,
+       "pm_acc": 0.666,
+       "floor_atk": 0.134,
+       "floor_victim": 0.03
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.934,
+       "victim": 0.108,
+       "pm_acc": 0.644,
+       "floor_atk": 0.014,
+       "floor_victim": 0.072
+      },
+      {
+       "eff": 45,
+       "atk_benign": 1.0,
+       "victim": 0.157,
+       "pm_acc": 0.636,
+       "floor_atk": 0.31,
+       "floor_victim": 0.035
+      },
+      {
+       "eff": 50,
+       "atk_benign": 1.0,
+       "victim": 0.066,
+       "pm_acc": 0.656,
+       "floor_atk": 0.032,
+       "floor_victim": 0.021
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.997,
+       "victim": 0.261,
+       "pm_acc": 0.675,
+       "floor_atk": 0.09,
+       "floor_victim": 0.065
+      },
+      {
+       "eff": 60,
+       "atk_benign": 1.0,
+       "victim": 0.237,
+       "pm_acc": 0.718,
+       "floor_atk": 0.065,
+       "floor_victim": 0.066
+      }
+     ]
+    },
+    "44": {
+     "R": 10,
+     "collocated": true,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.9873,
+      "floor_atk": 0.048,
+      "victim": 0.06239999999999999,
+      "pm_acc": 0.404
+     },
+     "first_cross": {
+      "eff": 5,
+      "atk_benign": 0.9873,
+      "floor_atk": 0.048,
+      "victim": 0.06239999999999999,
+      "pm_acc": 0.404,
+      "pm_acc_eff": 5
+     },
+     "shape": "crossed_at_first_point",
+     "before_cross": {
+      "n": 0,
+      "max": null,
+      "max_excess": null
+     },
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.987,
+       "victim": 0.062,
+       "pm_acc": 0.404,
+       "floor_atk": 0.048,
+       "floor_victim": 0.065
+      },
+      {
+       "eff": 10,
+       "atk_benign": 0.996,
+       "victim": 0.063,
+       "pm_acc": 0.481,
+       "floor_atk": 0.144,
+       "floor_victim": 0.054
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.611,
+       "victim": 0.037,
+       "pm_acc": 0.492,
+       "floor_atk": 0.057,
+       "floor_victim": 0.041
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.92,
+       "victim": 0.122,
+       "pm_acc": 0.552,
+       "floor_atk": 0.209,
+       "floor_victim": 0.129
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.797,
+       "victim": 0.197,
+       "pm_acc": 0.546,
+       "floor_atk": 0.068,
+       "floor_victim": 0.149
+      },
+      {
+       "eff": 30,
+       "atk_benign": 0.999,
+       "victim": 0.089,
+       "pm_acc": 0.589,
+       "floor_atk": 0.062,
+       "floor_victim": 0.073
+      },
+      {
+       "eff": 35,
+       "atk_benign": 1.0,
+       "victim": 0.175,
+       "pm_acc": 0.609,
+       "floor_atk": 0.062,
+       "floor_victim": 0.115
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.999,
+       "victim": 0.152,
+       "pm_acc": 0.613,
+       "floor_atk": 0.084,
+       "floor_victim": 0.094
+      },
+      {
+       "eff": 45,
+       "atk_benign": 0.984,
+       "victim": 0.11,
+       "pm_acc": 0.645,
+       "floor_atk": 0.063,
+       "floor_victim": 0.032
+      },
+      {
+       "eff": 50,
+       "atk_benign": 1.0,
+       "victim": 0.106,
+       "pm_acc": 0.662,
+       "floor_atk": 0.074,
+       "floor_victim": 0.036
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.985,
+       "victim": 0.262,
+       "pm_acc": 0.696,
+       "floor_atk": 0.007,
+       "floor_victim": 0.04
+      },
+      {
+       "eff": 60,
+       "atk_benign": 0.998,
+       "victim": 0.242,
+       "pm_acc": 0.719,
+       "floor_atk": 0.019,
+       "floor_victim": 0.036
+      }
+     ]
+    }
+   }
+  },
+  "G1-random-coll-R20": {
+   "group": "G1",
+   "floor_run": "G0/G0__random__s{s}",
+   "floor_exact": false,
+   "runs": {
+    "42": {
+     "R": 20,
+     "collocated": true,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.8903,
+      "floor_atk": 0.05,
+      "victim": 0.0328,
+      "pm_acc": 0.4203
+     },
+     "first_cross": {
+      "eff": 5,
+      "atk_benign": 0.8903,
+      "floor_atk": 0.05,
+      "victim": 0.0328,
+      "pm_acc": 0.4203,
+      "pm_acc_eff": 5
+     },
+     "shape": "crossed_at_first_point",
+     "before_cross": {
+      "n": 0,
+      "max": null,
+      "max_excess": null
+     },
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.89,
+       "victim": 0.033,
+       "pm_acc": 0.42,
+       "floor_atk": 0.05,
+       "floor_victim": 0.037
+      },
+      {
+       "eff": 10,
+       "atk_benign": 1.0,
+       "victim": 0.052,
+       "pm_acc": 0.444,
+       "floor_atk": 0.494,
+       "floor_victim": 0.065
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.93,
+       "victim": 0.023,
+       "pm_acc": 0.488,
+       "floor_atk": 0.061,
+       "floor_victim": 0.041
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.95,
+       "victim": 0.029,
+       "pm_acc": 0.55,
+       "floor_atk": 0.061,
+       "floor_victim": 0.042
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.908,
+       "victim": 0.03,
+       "pm_acc": 0.556,
+       "floor_atk": 0.049,
+       "floor_victim": 0.022
+      },
+      {
+       "eff": 30,
+       "atk_benign": 0.974,
+       "victim": 0.03,
+       "pm_acc": 0.554,
+       "floor_atk": 0.03,
+       "floor_victim": 0.029
+      },
+      {
+       "eff": 35,
+       "atk_benign": 0.989,
+       "victim": 0.076,
+       "pm_acc": 0.577,
+       "floor_atk": 0.219,
+       "floor_victim": 0.035
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.965,
+       "victim": 0.02,
+       "pm_acc": 0.584,
+       "floor_atk": 0.039,
+       "floor_victim": 0.019
+      },
+      {
+       "eff": 45,
+       "atk_benign": 0.978,
+       "victim": 0.025,
+       "pm_acc": 0.623,
+       "floor_atk": 0.007,
+       "floor_victim": 0.011
+      },
+      {
+       "eff": 50,
+       "atk_benign": 0.977,
+       "victim": 0.044,
+       "pm_acc": 0.655,
+       "floor_atk": 0.02,
+       "floor_victim": 0.025
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.993,
+       "victim": 0.027,
+       "pm_acc": 0.648,
+       "floor_atk": 0.069,
+       "floor_victim": 0.016
+      },
+      {
+       "eff": 60,
+       "atk_benign": 1.0,
+       "victim": 0.02,
+       "pm_acc": 0.717,
+       "floor_atk": 0.01,
+       "floor_victim": 0.024
+      }
+     ]
+    },
+    "43": {
+     "R": 20,
+     "collocated": true,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.724,
+      "floor_atk": 0.006,
+      "victim": 0.07263333333333333,
+      "pm_acc": 0.429
+     },
+     "first_cross": {
+      "eff": 5,
+      "atk_benign": 0.724,
+      "floor_atk": 0.006,
+      "victim": 0.07263333333333333,
+      "pm_acc": 0.429,
+      "pm_acc_eff": 5
+     },
+     "shape": "crossed_at_first_point",
+     "before_cross": {
+      "n": 0,
+      "max": null,
+      "max_excess": null
+     },
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.724,
+       "victim": 0.073,
+       "pm_acc": 0.429,
+       "floor_atk": 0.006,
+       "floor_victim": 0.08
+      },
+      {
+       "eff": 10,
+       "atk_benign": 0.705,
+       "victim": 0.062,
+       "pm_acc": 0.457,
+       "floor_atk": 0.232,
+       "floor_victim": 0.081
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.9,
+       "victim": 0.152,
+       "pm_acc": 0.496,
+       "floor_atk": 0.061,
+       "floor_victim": 0.173
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.921,
+       "victim": 0.128,
+       "pm_acc": 0.557,
+       "floor_atk": 0.076,
+       "floor_victim": 0.13
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.958,
+       "victim": 0.253,
+       "pm_acc": 0.523,
+       "floor_atk": 0.369,
+       "floor_victim": 0.266
+      },
+      {
+       "eff": 30,
+       "atk_benign": 0.96,
+       "victim": 0.061,
+       "pm_acc": 0.593,
+       "floor_atk": 0.052,
+       "floor_victim": 0.061
+      },
+      {
+       "eff": 35,
+       "atk_benign": 0.978,
+       "victim": 0.031,
+       "pm_acc": 0.632,
+       "floor_atk": 0.134,
+       "floor_victim": 0.03
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.992,
+       "victim": 0.065,
+       "pm_acc": 0.642,
+       "floor_atk": 0.014,
+       "floor_victim": 0.072
+      },
+      {
+       "eff": 45,
+       "atk_benign": 1.0,
+       "victim": 0.053,
+       "pm_acc": 0.631,
+       "floor_atk": 0.31,
+       "floor_victim": 0.035
+      },
+      {
+       "eff": 50,
+       "atk_benign": 1.0,
+       "victim": 0.036,
+       "pm_acc": 0.658,
+       "floor_atk": 0.032,
+       "floor_victim": 0.021
+      },
+      {
+       "eff": 55,
+       "atk_benign": 1.0,
+       "victim": 0.064,
+       "pm_acc": 0.672,
+       "floor_atk": 0.09,
+       "floor_victim": 0.065
+      },
+      {
+       "eff": 60,
+       "atk_benign": 1.0,
+       "victim": 0.057,
+       "pm_acc": 0.693,
+       "floor_atk": 0.065,
+       "floor_victim": 0.066
+      }
+     ]
+    },
+    "44": {
+     "R": 20,
+     "collocated": true,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.9873,
+      "floor_atk": 0.048,
+      "victim": 0.06239999999999999,
+      "pm_acc": 0.404
+     },
+     "first_cross": {
+      "eff": 5,
+      "atk_benign": 0.9873,
+      "floor_atk": 0.048,
+      "victim": 0.06239999999999999,
+      "pm_acc": 0.404,
+      "pm_acc_eff": 5
+     },
+     "shape": "crossed_at_first_point",
+     "before_cross": {
+      "n": 0,
+      "max": null,
+      "max_excess": null
+     },
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.987,
+       "victim": 0.062,
+       "pm_acc": 0.404,
+       "floor_atk": 0.048,
+       "floor_victim": 0.065
+      },
+      {
+       "eff": 10,
+       "atk_benign": 0.996,
+       "victim": 0.063,
+       "pm_acc": 0.481,
+       "floor_atk": 0.144,
+       "floor_victim": 0.054
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.811,
+       "victim": 0.047,
+       "pm_acc": 0.517,
+       "floor_atk": 0.057,
+       "floor_victim": 0.041
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.98,
+       "victim": 0.178,
+       "pm_acc": 0.542,
+       "floor_atk": 0.209,
+       "floor_victim": 0.129
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.826,
+       "victim": 0.14,
+       "pm_acc": 0.471,
+       "floor_atk": 0.068,
+       "floor_victim": 0.149
+      },
+      {
+       "eff": 30,
+       "atk_benign": 0.999,
+       "victim": 0.108,
+       "pm_acc": 0.542,
+       "floor_atk": 0.062,
+       "floor_victim": 0.073
+      },
+      {
+       "eff": 35,
+       "atk_benign": 1.0,
+       "victim": 0.206,
+       "pm_acc": 0.546,
+       "floor_atk": 0.062,
+       "floor_victim": 0.115
+      },
+      {
+       "eff": 40,
+       "atk_benign": 1.0,
+       "victim": 0.178,
+       "pm_acc": 0.576,
+       "floor_atk": 0.084,
+       "floor_victim": 0.094
+      },
+      {
+       "eff": 45,
+       "atk_benign": 0.938,
+       "victim": 0.056,
+       "pm_acc": 0.637,
+       "floor_atk": 0.063,
+       "floor_victim": 0.032
+      },
+      {
+       "eff": 50,
+       "atk_benign": 1.0,
+       "victim": 0.054,
+       "pm_acc": 0.655,
+       "floor_atk": 0.074,
+       "floor_victim": 0.036
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.996,
+       "victim": 0.087,
+       "pm_acc": 0.667,
+       "floor_atk": 0.007,
+       "floor_victim": 0.04
+      },
+      {
+       "eff": 60,
+       "atk_benign": 0.997,
+       "victim": 0.073,
+       "pm_acc": 0.703,
+       "floor_atk": 0.019,
+       "floor_victim": 0.036
+      }
+     ]
+    }
+   }
+  },
+  "G1-random-dist-R10": {
+   "group": "G1",
+   "floor_run": "G0/G0__random__s{s}",
+   "floor_exact": false,
+   "runs": {
+    "42": {
+     "R": 10,
+     "collocated": false,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.0992,
+      "floor_atk": 0.039,
+      "victim": null,
+      "pm_acc": 0.414
+     },
+     "first_cross": {
+      "eff": 50,
+      "atk_benign": 0.562,
+      "floor_atk": 0.024,
+      "victim": null,
+      "pm_acc": 0.6608,
+      "pm_acc_eff": 50
+     },
+     "shape": "rising_from_first_point",
+     "before_cross": {
+      "n": 9,
+      "max": 0.4136,
+      "max_excess": 0.3629
+     },
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.099,
+       "victim": null,
+       "pm_acc": 0.414,
+       "floor_atk": 0.039,
+       "floor_victim": 0.037
+      },
+      {
+       "eff": 10,
+       "atk_benign": 0.142,
+       "victim": null,
+       "pm_acc": 0.465,
+       "floor_atk": 0.136,
+       "floor_victim": 0.065
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.106,
+       "victim": null,
+       "pm_acc": 0.507,
+       "floor_atk": 0.044,
+       "floor_victim": 0.041
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.204,
+       "victim": null,
+       "pm_acc": 0.525,
+       "floor_atk": 0.045,
+       "floor_victim": 0.042
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.262,
+       "victim": null,
+       "pm_acc": 0.574,
+       "floor_atk": 0.026,
+       "floor_victim": 0.022
+      },
+      {
+       "eff": 30,
+       "atk_benign": 0.283,
+       "victim": null,
+       "pm_acc": 0.584,
+       "floor_atk": 0.029,
+       "floor_victim": 0.029
+      },
+      {
+       "eff": 35,
+       "atk_benign": 0.414,
+       "victim": null,
+       "pm_acc": 0.649,
+       "floor_atk": 0.066,
+       "floor_victim": 0.035
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.384,
+       "victim": null,
+       "pm_acc": 0.623,
+       "floor_atk": 0.023,
+       "floor_victim": 0.019
+      },
+      {
+       "eff": 45,
+       "atk_benign": 0.373,
+       "victim": null,
+       "pm_acc": 0.634,
+       "floor_atk": 0.01,
+       "floor_victim": 0.011
+      },
+      {
+       "eff": 50,
+       "atk_benign": 0.562,
+       "victim": null,
+       "pm_acc": 0.661,
+       "floor_atk": 0.024,
+       "floor_victim": 0.025
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.57,
+       "victim": null,
+       "pm_acc": 0.639,
+       "floor_atk": 0.025,
+       "floor_victim": 0.016
+      },
+      {
+       "eff": 60,
+       "atk_benign": 0.488,
+       "victim": null,
+       "pm_acc": 0.721,
+       "floor_atk": 0.022,
+       "floor_victim": 0.024
+      }
+     ]
+    },
+    "43": {
+     "R": 10,
+     "collocated": false,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.1037,
+      "floor_atk": 0.068,
+      "victim": null,
+      "pm_acc": 0.428
+     },
+     "first_cross": {
+      "eff": 45,
+      "atk_benign": 0.6224,
+      "floor_atk": 0.081,
+      "victim": null,
+      "pm_acc": 0.6495,
+      "pm_acc_eff": 45
+     },
+     "shape": "rising_from_first_point",
+     "before_cross": {
+      "n": 8,
+      "max": 0.426,
+      "max_excess": 0.3169
+     },
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.104,
+       "victim": null,
+       "pm_acc": 0.428,
+       "floor_atk": 0.068,
+       "floor_victim": 0.08
+      },
+      {
+       "eff": 10,
+       "atk_benign": 0.139,
+       "victim": null,
+       "pm_acc": 0.469,
+       "floor_atk": 0.106,
+       "floor_victim": 0.081
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.209,
+       "victim": null,
+       "pm_acc": 0.462,
+       "floor_atk": 0.154,
+       "floor_victim": 0.173
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.212,
+       "victim": null,
+       "pm_acc": 0.547,
+       "floor_atk": 0.121,
+       "floor_victim": 0.13
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.426,
+       "victim": null,
+       "pm_acc": 0.547,
+       "floor_atk": 0.283,
+       "floor_victim": 0.266
+      },
+      {
+       "eff": 30,
+       "atk_benign": 0.226,
+       "victim": null,
+       "pm_acc": 0.628,
+       "floor_atk": 0.06,
+       "floor_victim": 0.061
+      },
+      {
+       "eff": 35,
+       "atk_benign": 0.364,
+       "victim": null,
+       "pm_acc": 0.665,
+       "floor_atk": 0.047,
+       "floor_victim": 0.03
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.321,
+       "victim": null,
+       "pm_acc": 0.657,
+       "floor_atk": 0.062,
+       "floor_victim": 0.072
+      },
+      {
+       "eff": 45,
+       "atk_benign": 0.622,
+       "victim": null,
+       "pm_acc": 0.649,
+       "floor_atk": 0.081,
+       "floor_victim": 0.035
+      },
+      {
+       "eff": 50,
+       "atk_benign": 0.542,
+       "victim": null,
+       "pm_acc": 0.646,
+       "floor_atk": 0.023,
+       "floor_victim": 0.021
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.754,
+       "victim": null,
+       "pm_acc": 0.685,
+       "floor_atk": 0.069,
+       "floor_victim": 0.065
+      },
+      {
+       "eff": 60,
+       "atk_benign": 0.682,
+       "victim": null,
+       "pm_acc": 0.711,
+       "floor_atk": 0.066,
+       "floor_victim": 0.066
+      }
+     ]
+    },
+    "44": {
+     "R": 10,
+     "collocated": false,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.2491,
+      "floor_atk": 0.063,
+      "victim": null,
+      "pm_acc": 0.4096
+     },
+     "first_cross": {
+      "eff": 25,
+      "atk_benign": 0.5471,
+      "floor_atk": 0.135,
+      "victim": null,
+      "pm_acc": 0.5342,
+      "pm_acc_eff": 25
+     },
+     "shape": "rising_from_first_point",
+     "before_cross": {
+      "n": 4,
+      "max": 0.4,
+      "max_excess": 0.329
+     },
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.249,
+       "victim": null,
+       "pm_acc": 0.41,
+       "floor_atk": 0.063,
+       "floor_victim": 0.065
+      },
+      {
+       "eff": 10,
+       "atk_benign": 0.398,
+       "victim": null,
+       "pm_acc": 0.479,
+       "floor_atk": 0.069,
+       "floor_victim": 0.054
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.141,
+       "victim": null,
+       "pm_acc": 0.475,
+       "floor_atk": 0.044,
+       "floor_victim": 0.041
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.4,
+       "victim": null,
+       "pm_acc": 0.549,
+       "floor_atk": 0.142,
+       "floor_victim": 0.129
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.547,
+       "victim": null,
+       "pm_acc": 0.534,
+       "floor_atk": 0.135,
+       "floor_victim": 0.149
+      },
+      {
+       "eff": 30,
+       "atk_benign": 0.574,
+       "victim": null,
+       "pm_acc": 0.572,
+       "floor_atk": 0.071,
+       "floor_victim": 0.073
+      },
+      {
+       "eff": 35,
+       "atk_benign": 0.679,
+       "victim": null,
+       "pm_acc": 0.601,
+       "floor_atk": 0.106,
+       "floor_victim": 0.115
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.702,
+       "victim": null,
+       "pm_acc": 0.599,
+       "floor_atk": 0.093,
+       "floor_victim": 0.094
+      },
+      {
+       "eff": 45,
+       "atk_benign": 0.579,
+       "victim": null,
+       "pm_acc": 0.667,
+       "floor_atk": 0.037,
+       "floor_victim": 0.032
+      },
+      {
+       "eff": 50,
+       "atk_benign": 0.593,
+       "victim": null,
+       "pm_acc": 0.659,
+       "floor_atk": 0.042,
+       "floor_victim": 0.036
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.741,
+       "victim": null,
+       "pm_acc": 0.693,
+       "floor_atk": 0.034,
+       "floor_victim": 0.04
+      },
+      {
+       "eff": 60,
+       "atk_benign": 0.916,
+       "victim": null,
+       "pm_acc": 0.699,
+       "floor_atk": 0.033,
+       "floor_victim": 0.036
+      }
+     ]
+    }
+   }
+  },
+  "G1-random-dist-R20": {
+   "group": "G1",
+   "floor_run": "G0/G0__random__s{s}",
+   "floor_exact": false,
+   "runs": {
+    "42": {
+     "R": 20,
+     "collocated": false,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.0992,
+      "floor_atk": 0.039,
+      "victim": null,
+      "pm_acc": 0.414
+     },
+     "first_cross": null,
+     "shape": "not_crossed",
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.099,
+       "victim": null,
+       "pm_acc": 0.414,
+       "floor_atk": 0.039,
+       "floor_victim": 0.037
+      },
+      {
+       "eff": 10,
+       "atk_benign": 0.143,
+       "victim": null,
+       "pm_acc": 0.465,
+       "floor_atk": 0.136,
+       "floor_victim": 0.065
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.153,
+       "victim": null,
+       "pm_acc": 0.501,
+       "floor_atk": 0.044,
+       "floor_victim": 0.041
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.188,
+       "victim": null,
+       "pm_acc": 0.55,
+       "floor_atk": 0.045,
+       "floor_victim": 0.042
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.232,
+       "victim": null,
+       "pm_acc": 0.541,
+       "floor_atk": 0.026,
+       "floor_victim": 0.022
+      },
+      {
+       "eff": 30,
+       "atk_benign": 0.193,
+       "victim": null,
+       "pm_acc": 0.567,
+       "floor_atk": 0.029,
+       "floor_victim": 0.029
+      },
+      {
+       "eff": 35,
+       "atk_benign": 0.363,
+       "victim": null,
+       "pm_acc": 0.606,
+       "floor_atk": 0.066,
+       "floor_victim": 0.035
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.337,
+       "victim": null,
+       "pm_acc": 0.595,
+       "floor_atk": 0.023,
+       "floor_victim": 0.019
+      },
+      {
+       "eff": 45,
+       "atk_benign": 0.276,
+       "victim": null,
+       "pm_acc": 0.607,
+       "floor_atk": 0.01,
+       "floor_victim": 0.011
+      },
+      {
+       "eff": 50,
+       "atk_benign": 0.396,
+       "victim": null,
+       "pm_acc": 0.648,
+       "floor_atk": 0.024,
+       "floor_victim": 0.025
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.372,
+       "victim": null,
+       "pm_acc": 0.616,
+       "floor_atk": 0.025,
+       "floor_victim": 0.016
+      },
+      {
+       "eff": 60,
+       "atk_benign": 0.322,
+       "victim": null,
+       "pm_acc": 0.71,
+       "floor_atk": 0.022,
+       "floor_victim": 0.024
+      }
+     ]
+    },
+    "43": {
+     "R": 20,
+     "collocated": false,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.1037,
+      "floor_atk": 0.068,
+      "victim": null,
+      "pm_acc": 0.428
+     },
+     "first_cross": {
+      "eff": 45,
+      "atk_benign": 0.5355,
+      "floor_atk": 0.081,
+      "victim": null,
+      "pm_acc": 0.6307,
+      "pm_acc_eff": 45
+     },
+     "shape": "rising_from_first_point",
+     "before_cross": {
+      "n": 8,
+      "max": 0.4475,
+      "max_excess": 0.21950000000000003
+     },
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.104,
+       "victim": null,
+       "pm_acc": 0.428,
+       "floor_atk": 0.068,
+       "floor_victim": 0.08
+      },
+      {
+       "eff": 10,
+       "atk_benign": 0.14,
+       "victim": null,
+       "pm_acc": 0.469,
+       "floor_atk": 0.106,
+       "floor_victim": 0.081
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.293,
+       "victim": null,
+       "pm_acc": 0.475,
+       "floor_atk": 0.154,
+       "floor_victim": 0.173
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.331,
+       "victim": null,
+       "pm_acc": 0.58,
+       "floor_atk": 0.121,
+       "floor_victim": 0.13
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.448,
+       "victim": null,
+       "pm_acc": 0.513,
+       "floor_atk": 0.283,
+       "floor_victim": 0.266
+      },
+      {
+       "eff": 30,
+       "atk_benign": 0.217,
+       "victim": null,
+       "pm_acc": 0.603,
+       "floor_atk": 0.06,
+       "floor_victim": 0.061
+      },
+      {
+       "eff": 35,
+       "atk_benign": 0.267,
+       "victim": null,
+       "pm_acc": 0.617,
+       "floor_atk": 0.047,
+       "floor_victim": 0.03
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.176,
+       "victim": null,
+       "pm_acc": 0.63,
+       "floor_atk": 0.062,
+       "floor_victim": 0.072
+      },
+      {
+       "eff": 45,
+       "atk_benign": 0.535,
+       "victim": null,
+       "pm_acc": 0.631,
+       "floor_atk": 0.081,
+       "floor_victim": 0.035
+      },
+      {
+       "eff": 50,
+       "atk_benign": 0.45,
+       "victim": null,
+       "pm_acc": 0.645,
+       "floor_atk": 0.023,
+       "floor_victim": 0.021
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.672,
+       "victim": null,
+       "pm_acc": 0.638,
+       "floor_atk": 0.069,
+       "floor_victim": 0.065
+      },
+      {
+       "eff": 60,
+       "atk_benign": 0.655,
+       "victim": null,
+       "pm_acc": 0.708,
+       "floor_atk": 0.066,
+       "floor_victim": 0.066
+      }
+     ]
+    },
+    "44": {
+     "R": 20,
+     "collocated": false,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.2491,
+      "floor_atk": 0.063,
+      "victim": null,
+      "pm_acc": 0.4096
+     },
+     "first_cross": {
+      "eff": 20,
+      "atk_benign": 0.546,
+      "floor_atk": 0.142,
+      "victim": null,
+      "pm_acc": 0.5567,
+      "pm_acc_eff": 20
+     },
+     "shape": "rising_from_first_point",
+     "before_cross": {
+      "n": 3,
+      "max": 0.3976,
+      "max_excess": 0.3286
+     },
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.249,
+       "victim": null,
+       "pm_acc": 0.41,
+       "floor_atk": 0.063,
+       "floor_victim": 0.065
+      },
+      {
+       "eff": 10,
+       "atk_benign": 0.398,
+       "victim": null,
+       "pm_acc": 0.479,
+       "floor_atk": 0.069,
+       "floor_victim": 0.054
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.187,
+       "victim": null,
+       "pm_acc": 0.524,
+       "floor_atk": 0.044,
+       "floor_victim": 0.041
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.546,
+       "victim": null,
+       "pm_acc": 0.557,
+       "floor_atk": 0.142,
+       "floor_victim": 0.129
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.56,
+       "victim": null,
+       "pm_acc": 0.434,
+       "floor_atk": 0.135,
+       "floor_victim": 0.149
+      },
+      {
+       "eff": 30,
+       "atk_benign": 0.554,
+       "victim": null,
+       "pm_acc": 0.52,
+       "floor_atk": 0.071,
+       "floor_victim": 0.073
+      },
+      {
+       "eff": 35,
+       "atk_benign": 0.676,
+       "victim": null,
+       "pm_acc": 0.546,
+       "floor_atk": 0.106,
+       "floor_victim": 0.115
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.727,
+       "victim": null,
+       "pm_acc": 0.581,
+       "floor_atk": 0.093,
+       "floor_victim": 0.094
+      },
+      {
+       "eff": 45,
+       "atk_benign": 0.579,
+       "victim": null,
+       "pm_acc": 0.638,
+       "floor_atk": 0.037,
+       "floor_victim": 0.032
+      },
+      {
+       "eff": 50,
+       "atk_benign": 0.63,
+       "victim": null,
+       "pm_acc": 0.648,
+       "floor_atk": 0.042,
+       "floor_victim": 0.036
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.723,
+       "victim": null,
+       "pm_acc": 0.675,
+       "floor_atk": 0.034,
+       "floor_victim": 0.04
+      },
+      {
+       "eff": 60,
+       "atk_benign": 0.915,
+       "victim": null,
+       "pm_acc": 0.698,
+       "floor_atk": 0.033,
+       "floor_victim": 0.036
+      }
+     ]
+    }
+   }
+  },
+  "G8F-flat": {
+   "group": "G8F",
+   "floor_run": null,
+   "floor_exact": false,
+   "runs": {
+    "42": {
+     "R": 1,
+     "collocated": false,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.042,
+      "floor_atk": null,
+      "victim": null,
+      "pm_acc": 0.5112
+     },
+     "first_cross": {
+      "eff": 45,
+      "atk_benign": 0.696,
+      "floor_atk": null,
+      "victim": null,
+      "pm_acc": 0.7853,
+      "pm_acc_eff": 45
+     },
+     "shape": "crossed_later_no_floor",
+     "before_cross": {
+      "n": 8,
+      "max": 0.2,
+      "max_excess": null
+     },
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.042,
+       "victim": null,
+       "pm_acc": 0.511,
+       "floor_atk": null,
+       "floor_victim": null
+      },
+      {
+       "eff": 10,
+       "atk_benign": 0.057,
+       "victim": null,
+       "pm_acc": 0.626,
+       "floor_atk": null,
+       "floor_victim": null
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.044,
+       "victim": null,
+       "pm_acc": 0.672,
+       "floor_atk": null,
+       "floor_victim": null
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.107,
+       "victim": null,
+       "pm_acc": 0.719,
+       "floor_atk": null,
+       "floor_victim": null
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.086,
+       "victim": null,
+       "pm_acc": 0.727,
+       "floor_atk": null,
+       "floor_victim": null
+      },
+      {
+       "eff": 30,
+       "atk_benign": 0.2,
+       "victim": null,
+       "pm_acc": 0.748,
+       "floor_atk": null,
+       "floor_victim": null
+      },
+      {
+       "eff": 35,
+       "atk_benign": 0.134,
+       "victim": null,
+       "pm_acc": 0.718,
+       "floor_atk": null,
+       "floor_victim": null
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.159,
+       "victim": null,
+       "pm_acc": 0.777,
+       "floor_atk": null,
+       "floor_victim": null
+      },
+      {
+       "eff": 45,
+       "atk_benign": 0.696,
+       "victim": null,
+       "pm_acc": 0.785,
+       "floor_atk": null,
+       "floor_victim": null
+      },
+      {
+       "eff": 50,
+       "atk_benign": 0.751,
+       "victim": null,
+       "pm_acc": 0.819,
+       "floor_atk": null,
+       "floor_victim": null
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.772,
+       "victim": null,
+       "pm_acc": 0.82,
+       "floor_atk": null,
+       "floor_victim": null
+      },
+      {
+       "eff": 60,
+       "atk_benign": 0.736,
+       "victim": null,
+       "pm_acc": 0.831,
+       "floor_atk": null,
+       "floor_victim": null
+      }
+     ]
+    },
+    "43": {
+     "R": 1,
+     "collocated": false,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.161,
+      "floor_atk": null,
+      "victim": null,
+      "pm_acc": 0.4697
+     },
+     "first_cross": {
+      "eff": 40,
+      "atk_benign": 0.515,
+      "floor_atk": null,
+      "victim": null,
+      "pm_acc": 0.7652,
+      "pm_acc_eff": 40
+     },
+     "shape": "crossed_later_no_floor",
+     "before_cross": {
+      "n": 7,
+      "max": 0.372,
+      "max_excess": null
+     },
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.161,
+       "victim": null,
+       "pm_acc": 0.47,
+       "floor_atk": null,
+       "floor_victim": null
+      },
+      {
+       "eff": 10,
+       "atk_benign": 0.095,
+       "victim": null,
+       "pm_acc": 0.624,
+       "floor_atk": null,
+       "floor_victim": null
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.093,
+       "victim": null,
+       "pm_acc": 0.664,
+       "floor_atk": null,
+       "floor_victim": null
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.045,
+       "victim": null,
+       "pm_acc": 0.684,
+       "floor_atk": null,
+       "floor_victim": null
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.065,
+       "victim": null,
+       "pm_acc": 0.713,
+       "floor_atk": null,
+       "floor_victim": null
+      },
+      {
+       "eff": 30,
+       "atk_benign": 0.053,
+       "victim": null,
+       "pm_acc": 0.721,
+       "floor_atk": null,
+       "floor_victim": null
+      },
+      {
+       "eff": 35,
+       "atk_benign": 0.372,
+       "victim": null,
+       "pm_acc": 0.723,
+       "floor_atk": null,
+       "floor_victim": null
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.515,
+       "victim": null,
+       "pm_acc": 0.765,
+       "floor_atk": null,
+       "floor_victim": null
+      },
+      {
+       "eff": 45,
+       "atk_benign": 0.525,
+       "victim": null,
+       "pm_acc": 0.788,
+       "floor_atk": null,
+       "floor_victim": null
+      },
+      {
+       "eff": 50,
+       "atk_benign": 0.824,
+       "victim": null,
+       "pm_acc": 0.787,
+       "floor_atk": null,
+       "floor_victim": null
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.873,
+       "victim": null,
+       "pm_acc": 0.803,
+       "floor_atk": null,
+       "floor_victim": null
+      },
+      {
+       "eff": 60,
+       "atk_benign": 0.821,
+       "victim": null,
+       "pm_acc": 0.829,
+       "floor_atk": null,
+       "floor_victim": null
+      }
+     ]
+    },
+    "44": {
+     "R": 1,
+     "collocated": false,
+     "eval_effs": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "gaps": [
+      5
+     ],
+     "n_points": 12,
+     "first_point": {
+      "eff": 5,
+      "atk_benign": 0.196,
+      "floor_atk": null,
+      "victim": null,
+      "pm_acc": 0.4497
+     },
+     "first_cross": {
+      "eff": 30,
+      "atk_benign": 0.616,
+      "floor_atk": null,
+      "victim": null,
+      "pm_acc": 0.7564,
+      "pm_acc_eff": 30
+     },
+     "shape": "crossed_later_no_floor",
+     "before_cross": {
+      "n": 5,
+      "max": 0.418,
+      "max_excess": null
+     },
+     "trajectory": [
+      {
+       "eff": 5,
+       "atk_benign": 0.196,
+       "victim": null,
+       "pm_acc": 0.45,
+       "floor_atk": null,
+       "floor_victim": null
+      },
+      {
+       "eff": 10,
+       "atk_benign": 0.251,
+       "victim": null,
+       "pm_acc": 0.591,
+       "floor_atk": null,
+       "floor_victim": null
+      },
+      {
+       "eff": 15,
+       "atk_benign": 0.418,
+       "victim": null,
+       "pm_acc": 0.622,
+       "floor_atk": null,
+       "floor_victim": null
+      },
+      {
+       "eff": 20,
+       "atk_benign": 0.119,
+       "victim": null,
+       "pm_acc": 0.672,
+       "floor_atk": null,
+       "floor_victim": null
+      },
+      {
+       "eff": 25,
+       "atk_benign": 0.375,
+       "victim": null,
+       "pm_acc": 0.698,
+       "floor_atk": null,
+       "floor_victim": null
+      },
+      {
+       "eff": 30,
+       "atk_benign": 0.616,
+       "victim": null,
+       "pm_acc": 0.756,
+       "floor_atk": null,
+       "floor_victim": null
+      },
+      {
+       "eff": 35,
+       "atk_benign": 0.479,
+       "victim": null,
+       "pm_acc": 0.758,
+       "floor_atk": null,
+       "floor_victim": null
+      },
+      {
+       "eff": 40,
+       "atk_benign": 0.384,
+       "victim": null,
+       "pm_acc": 0.774,
+       "floor_atk": null,
+       "floor_victim": null
+      },
+      {
+       "eff": 45,
+       "atk_benign": 0.7,
+       "victim": null,
+       "pm_acc": 0.798,
+       "floor_atk": null,
+       "floor_victim": null
+      },
+      {
+       "eff": 50,
+       "atk_benign": 0.68,
+       "victim": null,
+       "pm_acc": 0.807,
+       "floor_atk": null,
+       "floor_victim": null
+      },
+      {
+       "eff": 55,
+       "atk_benign": 0.452,
+       "victim": null,
+       "pm_acc": 0.814,
+       "floor_atk": null,
+       "floor_victim": null
+      },
+      {
+       "eff": 60,
+       "atk_benign": 0.433,
+       "victim": null,
+       "pm_acc": 0.829,
+       "floor_atk": null,
+       "floor_victim": null
+      }
+     ]
+    }
+   }
+  }
+ }
+}

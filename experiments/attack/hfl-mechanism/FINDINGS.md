@@ -1444,3 +1444,106 @@ R20 开网格的 fresh pm_acc：
   快照里每个 edge 的模型是它**自己的上传前 body**（各差 R 个 edge 轮的训练）。
 - 含义：F-081 第 30 轮的 E0 − 受害 edge c_0 对比（+0.004 / +0.025 / +0.002）是在**不同的** body 上测的 → 这是 edge 级 c_k 信号的**弱反面证据**，而不是「测不出来」。
   阶段三的 P0 离线探针（`experiments/defense/edge-native/PLAN-draft.md`）依赖这一点：反事实 G' = FedAvg(H(各 edge)) 是良定义的。
+
+## 2026-10-05（6 项零 GPU 检查；全部**探索性，看过数据之后**，不改任何预注册判定）
+
+> 本节 6 条都是在看过 G1 / G3 / G6 / G8 / G8F 的数据之后才定的读法，阈值（0.5、0.10、p90 等）都是事后选的，只描述、不判定。
+> 本会话的容器里没有集群存盘（`tfdpfl-dumps/`）、没有日志（`tfdpfl-logs/`）、也下载不到 CIFAR-10 → 检查 1、6 和检查 4 的一半只能交付脚本，**没有跑出数**。
+
+### F-087 `provisional`（代码核对 confirmed；**实测分布没有跑**）—— 检查 1：Bad-PFL 触发器的范数上界
+- 代码（`fedavg/client/client_badpfl.py:128-149, 165-169, 288-292`；P2：`badpfl_xi=pgd`、`badpfl_generator=official`；`base.yaml:110-111` σ = ε = 0.01569 ≈ 4/255）：
+  - ξ（单步 PGD）：随机起点 u ~ U(−σ, σ) → 起点处求 sign 梯度 → `clip(x₁ − x, −σ, σ)` → `clip(·, lo, hi)`。**‖ξ‖∞ ≤ σ，且 x + ξ 在合法像素范围内**；
+  - δ = tanh(G(x)) · ε（`models/autoencoder.py:108` 末层 tanh）→ **‖δ‖∞ ≤ ε**；
+  - x_trig = x + ξ + δ，**加 δ 之后不再裁剪**（对齐官方 fba.py:55）→ ‖ξ + δ‖∞ ≤ σ + ε = 8/255 ≈ 0.0314，x_trig 可越出 [0, 1]（最多 4/255）；
+  - 两个预算都定义在 [0,1] 像素空间，逐通道 ÷ std 换到标准化输入（`data/pixel_space.py:63`）；
+  - L2 上界（3072 维）：ξ ≤ 0.870，δ ≤ 0.870，合计 ≤ 1.739（= ∞ 界 × √3072）。实际 L2 要看 sign 饱和程度与 tanh 输出幅度，**没有实测**。
+- G8 快照里**有**生成器（`backdoor_server.py:447-458`：评估攻击者的生成器 + Adam）和攻击者的私有 head / BN 统计量 → **不需要加存盘**。
+- 已写好：`fedavg/analysis/trigger_norms.py`（CPU 即可；ξ / δ 直接调 `BadPFLMixin.eval_xi / eval_delta`，攻击者 fresh-PM = 快照里攻击者所在 edge 的模型 + 它的 private_state）。
+  测试 `tests/test_trigger_norms.py`：纯 numpy 部分手算；TF 部分用真模型 + 真生成器造一份假快照端到端跑（本地 TF 2.15 CPU 通过：‖ξ‖∞ ≤ σ、‖δ‖∞ ≤ ε、x + ξ 不越界）。
+- **要你在登录节点跑**（每个 seed 几十秒，不用 GPU；仍是「只读存盘」）：
+  ```bash
+  cd $ROOT/fedavg && for S in 42 43 44; do
+    $PY_CPU -m analysis.trigger_norms --config ../experiments/attack/hfl-mechanism/configs/G8__a__s$S.yaml \
+      --metrics ../experiments/attack/hfl-mechanism/results/P2/G8/G8__a__s$S.metrics.json \
+      --dumps-root ../../tfdpfl-dumps --round 30 --out ../experiments/attack/hfl-mechanism/analysis/trigger_norms_s$S.json; done
+  ```
+  `$PY_CPU` = `apptainer exec --bind <仓库上一级> <tensorflow.sif> python3`（即 `$PY` 去掉 `--nv`；陷阱 #17：登录节点上带 `--nv` 起不来）。
+  500 张图取官方 test 集的前 500 张非目标类图（范数与图来自哪个分片无关；ASR 不是这一项要回答的）。
+
+### F-088 `provisional`（探索性，看过数据之后）—— 检查 2：集中布点下，攻击者 edge 在**第一个评估点**（有效轮 5）就越过 0.5；看不到门槛
+- 命令：`python3 harness/early_gate.py --json analysis/early_gate.json --plot figures/explore/X2_early_gate.png`（测试 `tests/test_early_gate.py`）。
+- run：G3-C1、G6-a、G1R5、G1 的 8 格 × 3 seed、G8F（33 + 3 个 run，都是第 1 云轮起投毒）；floor = 同 seed 的 G0-C1 / G0-random / FLR 同一有效轮（G1 的 R10 / R20 用 R5 的 G0，**近似**；flat 没有 ρ=0 run → 无 floor）。G3 没有 random 格。
+- **评估点间隔**：全部 run 在前 60 有效轮都是**每 5 有效轮一个点、第一个点在有效轮 5**（12 点；G1 靠网格 5 的轻评估点补到 5）。有效轮 1–4 之间看不到任何东西。
+- **集中布点（G3-C1、G6-a、G1R5、G1-{C1, random}-collocated，21 个 run 里 20 个）**：攻击者 edge 良性 ASR 在有效轮 5 就是 0.72–1.00，同一时刻 pm_acc 只有 0.40–0.48，floor 0.006–0.13。
+  例外 G6-a s43：0.384 → 0.184 → 0.555（有效轮 15 越过，pm_acc 0.51）。
+  ⚠ 这 20 个并不独立：有效轮 5 在第一次云聚合之前，同划分、同 seed 时与 R 无关 → G3-C1 = G1R5 = G1-C1-coll-R10 = R20（逐位 / 4 位小数相同，F-084 同一机制）。独立的是 3 种划分 × 3 seed = 9 个起点。
+- **分散布点（G1-*-distributed，池化良性 ASR，12 个 run）**：有效轮 5 是 0.06–0.25（floor 0.03–0.08），之后一路爬，9 / 12 个在有效轮 20–55 越过 0.5（pm_acc 0.53–0.71），3 个 R20 run 60 轮内没越过。越过之前已高出 floor 0.22–0.39 → 是「从第一个点就上升」，不是「贴 floor 再起飞」。
+- **flat（G8F）**：有效轮 5 是 0.04 / 0.16 / 0.20，s42 在前 40 有效轮 ≤ 0.20、s43 在前 30 有效轮 ≤ 0.16，之后在有效轮 45 / 40 / 30 越过（pm_acc 0.79 / 0.77 / 0.76）。形状像「贴底一段再起飞」，**但没有 flat 的 floor，判断不了「贴底」贴的是不是 floor**。
+- 读法：
+  - 「P2 下门槛已被越过」在集中布点上**成立且更强**：若有门槛，它在第 5 有效轮、pm_acc ≈ 0.45 之前（G5 最早的 t0 = 20，必然在门槛之后）；
+  - 慢起飞只出现在每个聚合里攻击者占比低的配置（分散：每 edge 2–3 / 25；flat：10 / 100），而这些配置的 pm_acc 同时也在升 → **收敛与稀释在这里分不开**；实验 1 看到的门控属于哪一种，这批数据回答不了。
+- 没有证据：有效轮 1–4 内的轨迹；flat 的 floor；分散布点的「受害 edge」（无定义）。
+
+### F-089 `provisional`（探索性，看过数据之后；不改 F-077 的 `blocks`）—— 检查 3：c 臂在 300 有效轮内是「阻断到 floor」，不是「延迟」；b 臂不确定
+- 命令：`python3 harness/g6_slopes.py --json analysis/g6_slopes.json`（测试 `tests/test_g6_slopes.py`）。量 = 受害 E1–E3 良性 ASR 三 edge 均值对有效轮的 OLS 斜率；最后 50 / 100 有效轮 = 第 51–60 / 41–60 云轮（10 / 20 点）；± 为 run 内 OLS 标准误。CI = bootstrap（3 seed 时就是 [最小, 最大] seed）。
+  | 臂 | 斜率·末 50（s42 / s43 / s44，每有效轮） | 斜率·末 100 | 末 10 点 | − FLR floor（0.083 / 0.105 / 0.057） |
+  |---|---|---|---|---|
+  | a | +0.0030±0.0012 / +0.0004±0.0013 / +0.0001±0.0000 | +0.0005 / +0.0017 / +0.0001 | 0.794 / 0.657 / 0.995 | +0.71 / +0.55 / +0.94 |
+  | b | +0.0028±0.0012 / −0.0009±0.0005 / −0.0030±0.0013 | +0.0003 / −0.0002 / −0.0015 | 0.267 / 0.169 / 0.438 | +0.18 / +0.06 / +0.38 |
+  | c | +0.0010±0.0004 / +0.0001±0.0010 / +0.0004±0.0004 | −0.0004 / −0.0010 / +0.0000 | 0.061 / 0.117 / 0.078 | **−0.022 / +0.012 / +0.021** |
+- 跨 seed 均值 [CI]：c 臂 末 50 +0.00048 [+0.00012, +0.00096]、末 100 −0.00045 [−0.00095, +0.00001]；c − floor +0.004 [−0.022, +0.021]。
+  c − a（按 seed 配对）：末 50 −0.0007 [−0.0020, +0.0003]、末 100 −0.0012 [−0.0027, −0.0001]。b − a：−0.0015 [−0.0031, −0.0002] / −0.0012 [−0.0019, −0.0002]。
+- 读法：
+  - **c 臂**的终点就在 FLR floor 上（差 ±0.02），末 100 有效轮斜率三个 seed 都 ≤ 0。末 50 有效轮的斜率三个都 > 0，但最大的一个（s42）是 +0.001 / 有效轮，按这个速度从 floor 爬到 0.5 要 400 多个有效轮，且末 100 窗口里它是负的 → 记为**在 300 有效轮内是阻断，没有延迟的迹象**；300 有效轮之后会怎样没有数据；
+  - **b 臂**停在 floor 之上 0.06–0.38，三个 seed 的斜率符号不一致 → 「阻断还是部分延迟」判不出；
+  - a 臂已贴天花板（s44 0.995），斜率小是饱和，不是稳定。
+- 注意：用的是 FLR（a 臂配置 × ρ=0）的 floor。「三臂 floor 相同」没有证据（D-059）；c 臂 − floor 的符号依赖这个假设。
+
+### F-090 `provisional`（探索性，看过数据之后；**报告的窗口没算成，只算了末窗口**）—— 检查 4：长尾是**客户端本身**的属性，不是选端造成的
+- 命令：`python3 harness/tail_clients.py --json analysis/tail_clients.json`（测试 `tests/test_tail_clients.py`）。
+- **窗口换了**：metrics.json 只存了**末个评估点**的 `[ClientEval]`（`client_final`：G8 第 70 云轮、G8F 第 350 有效轮）。第 51–60 云轮 / 255–300 有效轮的逐客户端值只在集群日志里（每个评估点都打了 `[ClientEval]`）→ 本条用**同长度的末窗口**（G8 第 61–70 云轮；G8F 301–350 有效轮），但 ASR / acc 只有末点一个值。
+  末点比报告窗口更晚、ASR 更低：G8 末点 ASR > 0.5 的良性端 0 / 0 / 0（报告的 51–60 窗口是 6.3% / 1.7% / 5.8%），p90 0.18 / 0.24 / 0.22；G8F 2 / 1 / 4 个，p90 0.28 / 0.37 / 0.35。
+- 选端：按 P2 规则重放，与 `malicious_participation_by_client` **6 个 run 全部 10 / 10 相同** → 选中次数、最近一次被选中都是真实值。
+- **主要发现**：G8 与 G8F 同 seed 用同一个划分（client_final.n 逐个相同）。两边良性端 ASR 的 Spearman **0.80 / 0.82 / 0.86**；尾部（ASR > 0.5 ∪ ≥ p90）交集 4 / 4 / 5 个，随机置换的期望 0.79 / 0.43 / 0.88，p = 0.003 / 0.0001 / 0.0002。
+  HFL 与 flat 的训练、聚合、选端都不同，同一批客户端仍然留在尾部 → 尾部主要由**客户端自己的数据**决定。
+- 逐客户端 Spearman（与 ASR）：选中次数 −0.13 … +0.13、最近一次被选中 −0.16 … +0.10、干净精度 −0.06 … +0.11 → 都接近 0。
+  `yt_clean`（干净非目标样本被 PM 判成 y_t 的比例）**0.55–0.81**，尾部中位数 0.02–0.04 vs 其余 0.00–0.01。注意 `yt_clean` 本身就是「PM 偏向 y_t」，与 ASR 有机械联系，不能当原因。
+- **训练集目标类占比没算出来**：G8 / G8F 用旧 `noniid` 划分（全局 np.random），要按配置重建划分才拿得到。本容器下载不到 CIFAR-10（代理 403）。
+  已写 `fedavg/analysis/client_profile.py`（CPU，只建客户端不训练，回传约 10 KB 的 JSON；纯 numpy 部分 `label_profile` 有测试，`run()` 端到端**没有在本地跑过**，它照抄已在集群跑过的 `ck_snapshot.run` 的建客户端流程）。
+- **要你在登录节点跑**，然后带日志重算报告的窗口：
+  ```bash
+  cd $ROOT/fedavg && for S in 42 43 44; do for G in G8__a G8F__std; do
+    $PY_CPU -m analysis.client_profile --config ../experiments/attack/hfl-mechanism/configs/${G}__s$S.yaml \
+      --out ../experiments/attack/hfl-mechanism/analysis/client_profile/${G}__s$S.json; done; done
+  cd $ROOT && python3 harness/tail_clients.py \
+    --log G8:42=../tfdpfl-logs/<G8__a__s42 的日志> … G8F:44=… \
+    --profile G8:42=experiments/attack/hfl-mechanism/analysis/client_profile/G8__a__s42.json … \
+    --json experiments/attack/hfl-mechanism/analysis/tail_clients.json
+  ```
+- 没有证据：尾部是否集中在目标类占比高的客户端（要等 client_profile）；报告窗口里的逐客户端值。
+
+### F-091 `confirmed`（选端重放与日志逐个相同）/ `provisional`（对 Figure 10 的解读）—— 检查 5：Figure 10 的来源与参与配额
+- **来源**：实验 1 报告「Exp 3A/3B」那张图 = `experiments/attack/hfl-propagation/plot_exp3.py` 的 `fig_timeseries_topology.png`（`_fig_timeseries`，标题 "Exp 3A/3B — benign ASR & MTA vs effective rounds (dashed=flat 2-layer baseline)"；横轴 = 云轮 × edge_rounds）。
+  数据 = 当时 `results/` 下的 2026-08 批次，**现在的 `results/archive-pre-fix/`（P0）**：`hfl-propagation/RESULTS.md` 的终值表（如 2edge_collocated 0.729 / 0.757、flat 0.840）与 archive 文件逐个相同，与现在 `results/` 里的 P1 文件（2edge_collocated 0.957）不同；RESULTS.md 也写明「Figure 10 里 flat 是黑虚线、只有 seed42、层级组 2 seed」= archive 的 seed 组成。
+- **配额差别**（陷阱 #12、D-036；N = 100、frac 0.1、block 分配）：
+  | 配置 | P0（每 edge `int(|clients|·0.1)`） | P1（整数配额，余数按云轮轮转） | P2（余数按有效轮轮转） |
+  |---|---|---|---|
+  | 4edge 集中（E0 = 10 攻击者 + 15 良性） | 每 edge 2 → 合计 **8**；攻击者 **0.80**、良性 **7.20** / 有效轮 | E0 名额 2 / 3 按云轮交替（整个云周期不变）；攻击者 1.00、良性 9.00 | E0 名额每个 edge 轮 2 / 3 交替；攻击者 1.00、良性 9.00 |
+  | 2edge 集中（E0 = 10 + 40） | 每 edge 5 → 10；1.00 / 9.00 | 同左 | 同左 |
+  | flat（1 edge，100 端） | 10；1.00 / 9.00 | 同左 | 同左 |
+  每个聚合里攻击者的期望占比：4edge 的 E0 40%、2edge 的 E0 20%、flat 10%（三个版本都一样；P0 只是 4edge 少训 20% 的客户端-轮）。
+- **重放核对**：`python3 harness/participation_compare.py --json analysis/participation_compare.json`（测试 `tests/test_participation_compare.py`）按 `default_rng([seed, edge_id])` + 各版本的配额重放选端，
+  与 17 个 metrics.json 的 `malicious_participation_by_client` 比对：**P0 5 个、P1 3 个、P2 9 个 run 全部 10 / 10 相同**。实际攻击者参与次数 / 有效轮：P0 4edge 0.848 / 0.805，P0 flat 1.028，P1 4edge 1.019，P2 G3-C1 1.000 / 1.074 / 1.009。
+- **Figure 10 里另外两个与配额无关的差别**（从 run 块与陷阱 #21 读出，不是新测量）：
+  1. P0 的 flat 用的是另一个配置文件（`experiments/attack/bad-pfl/full_p4_resnet.yaml`，恶意端 0, 11, …, 99 散布），层级组用 `hfl-propagation/*.yaml`；
+  2. P0 的 lr 按**云轮**衰减（0.992^g）：同在有效轮 200，HFL（R5，g = 40）lr 是 0.725·lr0，flat（g = 200）是 0.201·lr0；末端（有效轮 400）0.526 vs 0.040。
+  → Figure 10 里「flat 一直压在层级组上面」混进了 lr 日程、配置文件、4edge 少 20% 训练量三件事，**单靠这张图分不开**（P2 已把三件都对齐，见 G2P / G8F）。
+
+### F-092 —— 检查 6：**停下**：没有任何干净训练的 body 快照，c_0 的干净对照算不了
+- 查了全部 P2 metrics.json 的 `dumps.snapshots`：**只有 G8 的 3 个 run 有快照**（第 30 / 70 云轮）。G0、FLR、G8F 以及其余组都没有。G8 第 70 轮是「停手后 40 云轮的干净训练」，c_0 0.04–0.11（F-081），不是干净对照。
+- **最小需要**：一个与 G8 配置只差 ρ 的 run 的 body 快照。FLR 的配置与 G8 只差 `n_rounds`（60 vs 70）、`poison_ratio`（0 vs 0.2）、`attack_stop_round`、两个存盘开关（逐行 diff 过）→ 最便宜的是**新开一组**（例如 `FLRS`）：
+  - FLR 配置 + `evaluation.snapshot_rounds: "30/70"` + `n_rounds: 70`（不开 logits）。**不要改 FLR 本身**：会改 config_sha，FLR 的 3 个格子变 stale。
+  - 3 seed 一个 K=3 包：按 G8 的墙钟 11.2 ks（G8 / FLR 显存峰值都约 16.95 GiB）≈ **3.1 GPU-h**；只要第 30 轮的话 `n_rounds: 30` + `snapshot_rounds: "30"` ≈ 1.5 GPU-h。快照 107.5 MB / 个。
+  - 免费的验收：同 seed 下前 60 云轮的 `[Checksum]` 应与 FLR 逐位相同（只多了存盘）。
+  - 拿到快照后 `fedavg/analysis/ck_snapshot.py`（F-081 同参数：NCM head、ε = 4/255、10 步、500 张）直接可用，配置 / metrics 换成 FLRS 的即可。
+- 没有提交任何作业（本会话的约定）。

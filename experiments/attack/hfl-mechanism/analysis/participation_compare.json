@@ -1,0 +1,507 @@
+{
+ "purpose": "检查 5（探索性，看过数据之后）：P0 / P1 / P2 的每有效轮参与次数",
+ "cases": [
+  {
+   "label": "4edge_collocated",
+   "version": "P0",
+   "file": "experiments/attack/hfl-propagation/results/archive-pre-fix/4edge_collocated_seed42.metrics.json",
+   "seed": 42,
+   "R": 5,
+   "n_rounds": 80,
+   "n_edges": 4,
+   "malicious_per_edge_block": [
+    10,
+    0,
+    0,
+    0
+   ],
+   "replay_matches": "10/10",
+   "replay_ok": true,
+   "expected": {
+    "attacker": 0.8000000000000059,
+    "benign": 7.199999999999971,
+    "total": 7.999999999999976,
+    "quota_per_edge": [
+     2.0,
+     2.0,
+     2.0,
+     2.0
+    ]
+   },
+   "replayed_mean": {
+    "attacker": 0.8475,
+    "benign": 7.1525
+   }
+  },
+  {
+   "label": "4edge_collocated",
+   "version": "P0",
+   "file": "experiments/attack/hfl-propagation/results/archive-pre-fix/4edge_collocated_seed43.metrics.json",
+   "seed": 43,
+   "R": 5,
+   "n_rounds": 80,
+   "n_edges": 4,
+   "malicious_per_edge_block": [
+    10,
+    0,
+    0,
+    0
+   ],
+   "replay_matches": "10/10",
+   "replay_ok": true,
+   "expected": {
+    "attacker": 0.8000000000000059,
+    "benign": 7.199999999999971,
+    "total": 7.999999999999976,
+    "quota_per_edge": [
+     2.0,
+     2.0,
+     2.0,
+     2.0
+    ]
+   },
+   "replayed_mean": {
+    "attacker": 0.805,
+    "benign": 7.195
+   }
+  },
+  {
+   "label": "2edge_collocated",
+   "version": "P0",
+   "file": "experiments/attack/hfl-propagation/results/archive-pre-fix/2edge_collocated_seed42.metrics.json",
+   "seed": 42,
+   "R": 5,
+   "n_rounds": 80,
+   "n_edges": 2,
+   "malicious_per_edge_block": [
+    10,
+    0
+   ],
+   "replay_matches": "10/10",
+   "replay_ok": true,
+   "expected": {
+    "attacker": 1.0,
+    "benign": 9.0,
+    "total": 10.0,
+    "quota_per_edge": [
+     5.0,
+     5.0
+    ]
+   },
+   "replayed_mean": {
+    "attacker": 1.0025,
+    "benign": 8.9975
+   }
+  },
+  {
+   "label": "2edge_collocated",
+   "version": "P0",
+   "file": "experiments/attack/hfl-propagation/results/archive-pre-fix/2edge_collocated_seed43.metrics.json",
+   "seed": 43,
+   "R": 5,
+   "n_rounds": 80,
+   "n_edges": 2,
+   "malicious_per_edge_block": [
+    10,
+    0
+   ],
+   "replay_matches": "10/10",
+   "replay_ok": true,
+   "expected": {
+    "attacker": 1.0,
+    "benign": 9.0,
+    "total": 10.0,
+    "quota_per_edge": [
+     5.0,
+     5.0
+    ]
+   },
+   "replayed_mean": {
+    "attacker": 1.0625,
+    "benign": 8.9375
+   }
+  },
+  {
+   "label": "flat",
+   "version": "P0",
+   "file": "experiments/attack/hfl-propagation/results/archive-pre-fix/flat_baseline_seed42.metrics.json",
+   "seed": 42,
+   "R": 1,
+   "n_rounds": 400,
+   "n_edges": 1,
+   "malicious_per_edge_block": [
+    10
+   ],
+   "replay_matches": "10/10",
+   "replay_ok": true,
+   "expected": {
+    "attacker": 1.0,
+    "benign": 9.0,
+    "total": 10.0,
+    "quota_per_edge": [
+     10.0
+    ]
+   },
+   "replayed_mean": {
+    "attacker": 1.0275,
+    "benign": 8.9725
+   }
+  },
+  {
+   "label": "4edge_collocated",
+   "version": "P1",
+   "file": "experiments/attack/hfl-propagation/results/4edge_collocated_seed42.metrics.json",
+   "seed": 42,
+   "R": 5,
+   "n_rounds": 32,
+   "n_edges": 4,
+   "malicious_per_edge_block": [
+    10,
+    0,
+    0,
+    0
+   ],
+   "replay_matches": "10/10",
+   "replay_ok": true,
+   "expected": {
+    "attacker": 1.0000000000000002,
+    "benign": 9.0,
+    "total": 10.0,
+    "quota_per_edge": [
+     2.5,
+     2.5,
+     2.5,
+     2.5
+    ]
+   },
+   "replayed_mean": {
+    "attacker": 1.01875,
+    "benign": 8.98125
+   }
+  },
+  {
+   "label": "2edge_collocated",
+   "version": "P1",
+   "file": "experiments/attack/hfl-propagation/results/2edge_collocated_seed42.metrics.json",
+   "seed": 42,
+   "R": 5,
+   "n_rounds": 30,
+   "n_edges": 2,
+   "malicious_per_edge_block": [
+    10,
+    0
+   ],
+   "replay_matches": "10/10",
+   "replay_ok": true,
+   "expected": {
+    "attacker": 1.0,
+    "benign": 9.0,
+    "total": 10.0,
+    "quota_per_edge": [
+     5.0,
+     5.0
+    ]
+   },
+   "replayed_mean": {
+    "attacker": 1.0066666666666666,
+    "benign": 8.993333333333334
+   }
+  },
+  {
+   "label": "flat",
+   "version": "P1",
+   "file": "experiments/attack/hfl-propagation/results/flat_baseline_seed42.metrics.json",
+   "seed": 42,
+   "R": 1,
+   "n_rounds": 150,
+   "n_edges": 1,
+   "malicious_per_edge_block": [
+    10
+   ],
+   "replay_matches": "10/10",
+   "replay_ok": true,
+   "expected": {
+    "attacker": 1.0,
+    "benign": 9.0,
+    "total": 10.0,
+    "quota_per_edge": [
+     10.0
+    ]
+   },
+   "replayed_mean": {
+    "attacker": 0.9066666666666666,
+    "benign": 9.093333333333334
+   }
+  },
+  {
+   "label": "4edge_collocated",
+   "version": "P2",
+   "file": "experiments/attack/hfl-mechanism/results/P2/G3/G3__C1__s42.metrics.json",
+   "seed": 42,
+   "R": 5,
+   "n_rounds": 32,
+   "n_edges": 4,
+   "malicious_per_edge_block": [
+    10,
+    0,
+    0,
+    0
+   ],
+   "replay_matches": "10/10",
+   "replay_ok": true,
+   "expected": {
+    "attacker": 1.0,
+    "benign": 9.0,
+    "total": 10.0,
+    "quota_per_edge": [
+     2.5,
+     2.5,
+     2.5,
+     2.5
+    ]
+   },
+   "replayed_mean": {
+    "attacker": 1.0,
+    "benign": 9.0
+   }
+  },
+  {
+   "label": "4edge_collocated",
+   "version": "P2",
+   "file": "experiments/attack/hfl-mechanism/results/P2/G3/G3__C1__s43.metrics.json",
+   "seed": 43,
+   "R": 5,
+   "n_rounds": 38,
+   "n_edges": 4,
+   "malicious_per_edge_block": [
+    10,
+    0,
+    0,
+    0
+   ],
+   "replay_matches": "10/10",
+   "replay_ok": true,
+   "expected": {
+    "attacker": 1.0,
+    "benign": 9.0,
+    "total": 10.0,
+    "quota_per_edge": [
+     2.5,
+     2.5,
+     2.5,
+     2.5
+    ]
+   },
+   "replayed_mean": {
+    "attacker": 1.0736842105263158,
+    "benign": 8.926315789473684
+   }
+  },
+  {
+   "label": "4edge_collocated",
+   "version": "P2",
+   "file": "experiments/attack/hfl-mechanism/results/P2/G3/G3__C1__s44.metrics.json",
+   "seed": 44,
+   "R": 5,
+   "n_rounds": 43,
+   "n_edges": 4,
+   "malicious_per_edge_block": [
+    10,
+    0,
+    0,
+    0
+   ],
+   "replay_matches": "10/10",
+   "replay_ok": true,
+   "expected": {
+    "attacker": 1.0009302325581395,
+    "benign": 8.99906976744186,
+    "total": 10.0,
+    "quota_per_edge": [
+     2.5023255813953487,
+     2.4976744186046513,
+     2.5023255813953487,
+     2.4976744186046513
+    ]
+   },
+   "replayed_mean": {
+    "attacker": 1.0093023255813953,
+    "benign": 8.990697674418605
+   }
+  },
+  {
+   "label": "4edge_collocated",
+   "version": "P2",
+   "file": "experiments/attack/hfl-mechanism/results/P2/G6/G6__a__s42.metrics.json",
+   "seed": 42,
+   "R": 5,
+   "n_rounds": 60,
+   "n_edges": 4,
+   "malicious_per_edge_block": [
+    10,
+    0,
+    0,
+    0
+   ],
+   "replay_matches": "10/10",
+   "replay_ok": true,
+   "expected": {
+    "attacker": 1.0,
+    "benign": 9.0,
+    "total": 10.0,
+    "quota_per_edge": [
+     2.5,
+     2.5,
+     2.5,
+     2.5
+    ]
+   },
+   "replayed_mean": {
+    "attacker": 0.9766666666666667,
+    "benign": 9.023333333333333
+   }
+  },
+  {
+   "label": "4edge_collocated",
+   "version": "P2",
+   "file": "experiments/attack/hfl-mechanism/results/P2/G6/G6__a__s43.metrics.json",
+   "seed": 43,
+   "R": 5,
+   "n_rounds": 60,
+   "n_edges": 4,
+   "malicious_per_edge_block": [
+    10,
+    0,
+    0,
+    0
+   ],
+   "replay_matches": "10/10",
+   "replay_ok": true,
+   "expected": {
+    "attacker": 1.0,
+    "benign": 9.0,
+    "total": 10.0,
+    "quota_per_edge": [
+     2.5,
+     2.5,
+     2.5,
+     2.5
+    ]
+   },
+   "replayed_mean": {
+    "attacker": 1.07,
+    "benign": 8.93
+   }
+  },
+  {
+   "label": "4edge_collocated",
+   "version": "P2",
+   "file": "experiments/attack/hfl-mechanism/results/P2/G6/G6__a__s44.metrics.json",
+   "seed": 44,
+   "R": 5,
+   "n_rounds": 60,
+   "n_edges": 4,
+   "malicious_per_edge_block": [
+    10,
+    0,
+    0,
+    0
+   ],
+   "replay_matches": "10/10",
+   "replay_ok": true,
+   "expected": {
+    "attacker": 1.0,
+    "benign": 9.0,
+    "total": 10.0,
+    "quota_per_edge": [
+     2.5,
+     2.5,
+     2.5,
+     2.5
+    ]
+   },
+   "replayed_mean": {
+    "attacker": 1.0333333333333334,
+    "benign": 8.966666666666667
+   }
+  },
+  {
+   "label": "flat",
+   "version": "P2",
+   "file": "experiments/attack/hfl-mechanism/results/P2/G8F/G8F__std__s42.metrics.json",
+   "seed": 42,
+   "R": 1,
+   "n_rounds": 350,
+   "n_edges": 1,
+   "malicious_per_edge_block": [
+    10
+   ],
+   "replay_matches": "10/10",
+   "replay_ok": true,
+   "expected": {
+    "attacker": 1.0,
+    "benign": 9.0,
+    "total": 10.0,
+    "quota_per_edge": [
+     10.0
+    ]
+   },
+   "replayed_mean": {
+    "attacker": 0.9714285714285714,
+    "benign": 9.028571428571428
+   }
+  },
+  {
+   "label": "flat",
+   "version": "P2",
+   "file": "experiments/attack/hfl-mechanism/results/P2/G8F/G8F__std__s43.metrics.json",
+   "seed": 43,
+   "R": 1,
+   "n_rounds": 350,
+   "n_edges": 1,
+   "malicious_per_edge_block": [
+    10
+   ],
+   "replay_matches": "10/10",
+   "replay_ok": true,
+   "expected": {
+    "attacker": 1.0,
+    "benign": 9.0,
+    "total": 10.0,
+    "quota_per_edge": [
+     10.0
+    ]
+   },
+   "replayed_mean": {
+    "attacker": 1.0342857142857143,
+    "benign": 8.965714285714286
+   }
+  },
+  {
+   "label": "flat",
+   "version": "P2",
+   "file": "experiments/attack/hfl-mechanism/results/P2/G8F/G8F__std__s44.metrics.json",
+   "seed": 44,
+   "R": 1,
+   "n_rounds": 350,
+   "n_edges": 1,
+   "malicious_per_edge_block": [
+    10
+   ],
+   "replay_matches": "10/10",
+   "replay_ok": true,
+   "expected": {
+    "attacker": 1.0,
+    "benign": 9.0,
+    "total": 10.0,
+    "quota_per_edge": [
+     10.0
+    ]
+   },
+   "replayed_mean": {
+    "attacker": 0.98,
+    "benign": 9.02
+   }
+  }
+ ]
+}

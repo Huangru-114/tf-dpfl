@@ -64,6 +64,15 @@ python3 harness/g6_verdict.py    --json experiments/attack/hfl-mechanism/analysi
 python3 harness/g1_verdict.py    --json experiments/attack/hfl-mechanism/analysis/g1_verdict.json       # 3-C 锯齿 + 3-D（N-007；脚本写于 s42 / s43 之后、s44 之前；F-085）
 python3 harness/g1_explore.py    --json experiments/attack/hfl-mechanism/analysis/g1_explore.json       # G1 的探索性读数（不进判定，F-086）
 
+# 5c. 零 GPU 的探索性检查（2026-10-05，都写于看过数据之后，不改任何判定；F-087 … F-092）
+python3 harness/early_gate.py --json experiments/attack/hfl-mechanism/analysis/early_gate.json \
+    --plot experiments/attack/hfl-mechanism/figures/explore/X2_early_gate.png                         # 检查 2：前 60 有效轮的门控（F-088）
+python3 harness/g6_slopes.py  --json experiments/attack/hfl-mechanism/analysis/g6_slopes.json        # 检查 3：3-E 阻断还是延迟（F-089）
+python3 harness/tail_clients.py --json experiments/attack/hfl-mechanism/analysis/tail_clients.json  # 检查 4：长尾客户端（F-090；--log / --profile 见脚本头）
+python3 harness/participation_compare.py --json experiments/attack/hfl-mechanism/analysis/participation_compare.json   # 检查 5（F-091）
+# 要 TF + 集群存盘 / 数据（登录节点 CPU，apptainer exec 不带 --nv）：fedavg/analysis/trigger_norms.py（检查 1，F-087）、
+# fedavg/analysis/client_profile.py（检查 4 的目标类占比，F-090）
+
 # 5c. 「新仪表没有改变任何已有的数」（S9）：只比 checksum 与改动前就有的数值字段，前 R 轮
 python3 harness/instrumentation_check.py experiments/attack/hfl-mechanism/results/P2/G6/G6__a__s42.metrics.json \
     experiments/attack/hfl-mechanism/results/P2/G8/G8__a__s42.metrics.json --upto 30
