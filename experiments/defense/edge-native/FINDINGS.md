@@ -53,9 +53,25 @@
 - 做法（本会话起）：本地用 3.11 的 venv 跑 L1 —— `uv venv -p python3.11 <dir>`、装 `pytest numpy pyyaml matplotlib`，再 `TFDPFL_PY=<dir>/bin/python bash run_l1.sh`
   （`cluster_env.sh` 会打印 `mode=override`）。要不要把这几条测试改成与解释器版本无关（例如 AST 指纹先做与版本无关的规范化、均值改用 `math.fsum`），由用户定；本会话没有改。
 
+### F-090 `confirmed`（代码核对）—— CCS 官方代码：FL 主干 = FL-bench；Dir 0.5 = 逐类 Dirichlet、客户端不等大 = 本仓库旧 `noniid`；另有三处与原文 / 计划不一致
+
+- 来源：`https://github.com/chenjian0924/Paper-Code`（用户提供；`README.md`：「Code reference for this document: https://github.com/KarhouTam/FL-bench」）。
+  本地 clone 在 `reference/ccs-code/`（gitignore）；FL-bench 的划分代码 sparse clone 在 `reference/fl-bench/`（HEAD `c88d3bc`，2026-01-25 —— **不是** CCS 当时用的版本，版本未知）。
+- **划分**：`CCS/generate_data.py:109-118` 在 `alpha > 0` 时调 FL-bench 的 `data/utils/schemes/dirichlet.py`：先把 train + test 合并（FL-bench `datasets.py` 的 `CIFAR10`：`torch.cat([train_data, test_data])`），
+  每个类 `np.random.dirichlet(np.repeat(alpha, client_num))` 切给所有客户端，客户端不等大，`test_ratio` 默认 0.25 在客户端内切。
+  与本仓库 `fedavg/data/partition.py:151-188`（`noniid_partition`）逐行同构；**唯一差别**：FL-bench 重抽直到每端 ≥ `min_samples_per_client`（默认 10），本仓库不重抽。
+  → 本仓库已有的 flat 组里，**G8F 用的就是这个构造**（`registry.yaml:312` 没覆盖划分 → `base.yaml:42` 的 `noniid`）；G2 的 flat 格用 `equal_random`。之前 flat 组的划分并不统一。
+- **CCS 的两个组件被同一个开关打开**：`src/server/fedavg.py:533` `defence_method == 'AT'` → `aggregate_AT`（`:723`，先 `hdbscan_detect` 剔除再聚合）；客户端 `src/client/fedavg.py:272-289` 同一条件下加 `loss_ce + AT_alpha·KL + AT_beta·MMD`。代码里**没有**只开其中一个的开关。
+- **与原文 / 计划不一致、待 SA-C 语义 diff 逐条定**（只读了代码，没有跑）：
+  1. 聚合权重：`aggregate_AT` 用 `package["weight"]` 归一化（FL-bench 里是样本数）→ **按样本加权**；`PLAN.md` §1.1 写的是「无权 FedAvg」。
+  2. KL 系数：`config/defaults.yaml` 的 `AT_alpha: 0.1`、`AT_beta: 0.01`；原文 β = γ = 0.01。`config/cifar10.yaml` 没有这两个键，最终取值取决于配置合并方式（未核对）。
+  3. HDBSCAN：`src/defence/AT/hdbscan_detect.py` 用 BN `running_mean / running_var` 拼成向量、**余弦距离**、`min_cluster_size = n//2 + 2`、`min_samples = 1`、`allow_single_cluster=True`，保留最大簇；全部是噪声时不剔除。
+- **攻击代码没有公开**：`src/client/fedavg.py:21` `from src.attack.BadPFL.generator import ...`，但仓库里没有 `src/attack/` → CCS 原文的 Bad-PFL 实现无法与本仓库对拍。
+- 配置里的其它数（`config/cifar10.yaml`）：`PResNet18`、SGD lr 0.1 无动量、`local_epoch: 2`（**2 个 epoch**，不是 PLAN 写的「2 步」，待原文核对）、batch 64、`join_ratio: 0.1`、1000 轮、`buffers: global`。
+
 ## 2026-10-09（D0 会话：登记 + 功效分析 + 文献核对 + 预注册草案）
 
-### F-090 `confirmed`（数据，`python3 harness/d0_power.py` → `analysis/d0_power.json`）—— 功效分析：对照臂已饱和；配对噪声远小于 0.15，但 `no_effect` 规则对真零效应也常判不出
+### F-091 `confirmed`（数据，`python3 harness/d0_power.py` → `analysis/d0_power.json`）—— 功效分析：对照臂已饱和；配对噪声远小于 0.15，但 `no_effect` 规则对真零效应也常判不出
 
 量的定义与 `g6_verdict` / `g1_verdict` 相同（末 10 个评估点；Δ = 参照 − 处理，按 seed 配对）。逐 seed 值见 json。
 
@@ -91,7 +107,7 @@ H1 规则（均值 ≥ 0.15 且最小 seed ≥ 0.10 → `protects`；三个 |Δ|
 
 局限：σ 只有两个真实干预的量级（3-E 的 b / c 臂，旧划分）；对抗训练类干预的 σ 要等 P1 / H1 才知道。正态近似、3 个点估 SD 本身误差就大（自由度 2）。
 
-### F-091 `confirmed`（代码 + 配置核对）—— SNAP 登记好了：快照里的 edge 模型就是本轮的上传物；SNAP-col 的配置与 G1R5 只差记录 / 快照开关
+### F-092 `confirmed`（代码 + 配置核对）—— SNAP 登记好了：快照里的 edge 模型就是本轮的上传物；SNAP-col 的配置与 G1R5 只差记录 / 快照开关
 
 - **快照的时间点**：`BackdoorCloudServer.run_round` 先跑 `super().run_round()`（broadcast → R 个 edge 轮 → 云聚合）再评估，然后 `_snapshot`（`fedavg/server/backdoor_server.py:126-135`）；
   下发在**下一轮开头**（`fedavg/server/server.py:387` `broadcast_to_edges()`）→ 快照里的 `edge{e}` = 第 t 云轮最后一次 edge 聚合 = 上传物，`global` = 第 t 次云聚合的结果 G。
@@ -103,7 +119,7 @@ H1 规则（均值 ≥ 0.15 且最小 seed ≥ 0.10 → `protects`；三个 |Δ|
 - **有效性闸的依据**：去掉的 `update_ck` / `update_geometry` 与加上的 `frozen_trigger` / 快照都已证明不改变训练（F-081 / F-084、G8 对 G6(a) 第 1–30 轮，D-073）→ SNAP-col 的 `[Checksum]` 应与 G1R5 同 seed 逐轮相同（**预期，GPU 上未验证**）。
 - **提交**：`PACK=3 RUN_GROUPS=SNAP bash experiments/defense/edge-native/submit.sh`（dry-run：两个 k=3 包，`-c 12 --mem=72G`）。约 6 GPU-h，盘约 1.8 GB。
 
-### F-092 `confirmed` / 部分 `provisional`（文献核对，2026-10-09 网页检索；arxiv / ar5iv / papers.neurips.cc 被出站代理挡，未读全文）—— PLAN 凭记忆引用的条目出处都对；有两处细节要改写或带进 SA0 的语义 diff
+### F-093 `confirmed` / 部分 `provisional`（文献核对，2026-10-09 网页检索；arxiv / ar5iv / papers.neurips.cc 被出站代理挡，未读全文）—— PLAN 凭记忆引用的条目出处都对；有两处细节要改写或带进 SA0 的语义 diff
 
 | 条目（PLAN 里的用法） | 核对结果 | 来源 |
 |---|---|---|
@@ -163,13 +179,13 @@ H1 规则（均值 ≥ 0.15 且最小 seed ≥ 0.10 → `protects`；三个 |Δ|
 **P1**（SA1 实现；s42 单 seed、筛选，不进结论；对照 = SNAP s42 同布点）：
 - 闸：通用闸 + 第一次加固之前的 `[Checksum]` 与 SNAP s42 逐轮相同（具体哪一行在 SA1 定、先写进 git）+ `[Harden]` 行数 = 预期（`A-pre` 4 × 60、`A-every` 4 × 300、`A-cloud` 60）。
 - 集中布点 `go_main_col`：（`ΔV ≥ 0.15` 或 `jump_half(臂) ≤ 0.5 × jump_half(对照)`）且 `ΔMTA ≤ 0.02`；
-  **天花板规则**：对照与臂的 V 都 ≥ 0.95 时，`ΔV` 那一项换成 `Δmargin_v ≥ 2.0`（F-090：配对 SD ≤ 0.78）。
+  **天花板规则**：对照与臂的 V 都 ≥ 0.95 时，`ΔV` 那一项换成 `Δmargin_v ≥ 2.0`（F-091：配对 SD ≤ 0.78）。
 - 分散布点 `go_main_dist`：（`ΔP ≥ 0.10` 或 `Δmargin ≥ 2.0`）且 `ΔMTA ≤ 0.02`。
 - `stop_col`：`ΔV < 0.05` 且 `jump_half` 减少 < 20% 且 `Δmargin_v < 1.0`；`stop_dist`：`ΔP < 0.05` 且 `Δmargin < 1.0`（**新增**：PLAN 只写了集中布点；1.0 logit ≈ 分散布点配对 SD 0.25 的 4 倍）。
 - 其余 `marginal`：只报告，不进主检验，除非用户指定。臂按布点分别进 H1（col `go_main`）/ H3（dist `go_main`）。
 - `A-every` 的预算：按 P0 最佳配置缩到「墙钟开销 ≤ +50%」，换算（每次加固的前向反向次数 / 每云轮客户端训练的前向反向次数）由 SA1 先写进 git 再交。
 
-**CCSF**（SA-C 实现；flat，s42，off vs ccs-full）：
+**CCSF**（SA-C 实现；flat，s42，off vs ccs-full；划分 = 旧 `noniid`（Dir 0.5、客户端不等大，D-098）→ 报告恶意端数据占比）：
 - 闸：通用闸 + off 臂必须植入：`P(off) ≥ 0.5`，否则 `invalid_no_attack`（攻击没进去时复现无从谈起）。
 - `ccs_reproduces`：`P(off) − P(ccs-full) ≥ 0.5` 且 `ΔMTA ≤ 0.02`；`ccs_not_reproduced`：`P(off) − P(ccs-full) < 0.2` → 按语义 diff 表排查实现，不读 CCSP，用户定；其余 `partial_repro`（照做 CCSP，结论里注明）。
 - 另报：`local_benign_asr_unfiltered`（CCS 原文的 ASR 不过滤目标类，F-088 第 5 条）、`admitted[]` / `rejected_ids` 的剔除 TPR / FPR。

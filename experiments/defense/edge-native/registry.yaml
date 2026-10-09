@@ -13,7 +13,8 @@
 # 状态（2026-10-09，D0）：
 #   · SNAP 已登记、可交（不改代码）：PLAN §4。快照 = 各 edge 的**上传前**模型（BackdoorCloudServer._snapshot 在
 #     super().run_round() 之后、下一轮 broadcast_to_edges 之前 → edge 模型 = 本轮最后一次 edge 聚合 = 上传物）+ 全局 G + 每端私有部分 + 评估攻击者的生成器。
-#   · CAL / CCSF 占位：requires 里的 SA1 / SA-C / ccsf-partition 是故意的（代码会话没做 / 划分待用户定，PLAN §8 第 4 条）。
+#   · CAL / CCSF 占位：requires 里的 SA1 / SA-C 是故意的（代码会话没做）。CCSF 的划分已定（D-098）。
+#   · SNAP5（D-099：H1 / H3 是头条结论、跑到 5 seed → 对照臂补 s45 / s46）挂 `h-main`：P1 / CCSP 有臂判 go_main（H1 / H3 真要跑）时放行。
 #   · P0 是离线组（零训练 run）→ 不进 groups，写在下面的 `offline:`（registry.py / status.py 不读它）。
 #   · P1 / CCSP / H1 / H3 / … 等前置组给出标签后再登记（PLAN §5 的闸门）。
 # **补 `set:` 时核对三件**（CLAUDE.md；test_edge_native_registry 守着）：
@@ -70,6 +71,19 @@ groups:
         - {label: collocated,  set: {backdoor.malicious_per_edge: [10, 0, 0, 0]}}
         - {label: distributed, set: {backdoor.malicious_per_edge: [3, 3, 2, 2]}}
 
+  SNAP5:
+    purpose: "D-099：H1 / H3 的 5 seed 对照臂（SNAP 同配置 × s45 / s46）"
+    requires: [audit, h-main]      # h-main：P1 / CCSP 有臂判 go_main 之后加进 available（否则 H1 / H3 不跑，这 4 个 run 白交）
+    seeds: [45, 46]
+    # 与 SNAP 逐字同一个 set（含快照：P0 不读 s45 / s46，但留着让对照臂与 SNAP 同配置；约 0.3 GB / run）。
+    set:
+      <<: *d_base
+      evaluation.snapshot_rounds: "6/15/60"
+    factors:
+      placement:
+        - {label: collocated,  set: {backdoor.malicious_per_edge: [10, 0, 0, 0]}}
+        - {label: distributed, set: {backdoor.malicious_per_edge: [3, 3, 2, 2]}}
+
   CAL:
     purpose: "不饱和工作点 W2 的选择（PLAN §4 CAL）：V 末值 ∈ [0.3, 0.8] 且 E0 良性 ≥ 0.7 的最强设置"
     requires: [audit, SA1]          # 不需要新代码；与 P1 同批交（PLAN §5）→ 挂 SA1
@@ -86,9 +100,11 @@ groups:
 
   CCSF:
     purpose: "CCS 的 flat 复现闸（PLAN §4 CCSF）：off vs CCS-full，flat 1 edge × 100 端 × 300 轮"
-    requires: [audit, SA-C, ccsf-partition]   # ccsf-partition：Dir 0.5 还是 equal_random，用户定（PLAN §8 第 4 条）
+    requires: [audit, SA-C]
     seeds: [42]
-    # 划分与 CCS 开关在 SA-C 会话补；flat 下 R=1，网格 5 → 两个 eval_interval = lcm(5,1)/1 = 5（SA-C 补 set 时核对）。
+    # 划分（D-098）：主实验 = CCS 原文的 Dir 0.5 = base.yaml 的旧 `noniid`（逐类 Dirichlet、客户端不等大；F-090）→ set 里**不覆盖** partition；
+    #   equal_random 那一轮在主实验之后另登记。恶意端数据占比不再恰为 10%，结果里要报告。
+    # CCS 开关在 SA-C 会话补；flat 下 R=1，网格 5 → 两个 eval_interval = lcm(5,1)/1 = 5（SA-C 补 set 时核对）。
     set: {federation.n_edges: 1, federation.edge_rounds: 1, federation.n_rounds: 300, stopping: null,
           evaluation.eval_grid: 5, backdoor.malicious_per_edge: [10]}
     cells:

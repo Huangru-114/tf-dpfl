@@ -64,7 +64,8 @@ def test_snap_has_six_runs_and_only_snap_is_unblocked(reg):
     assert snap == [f"SNAP__{p}__s{s}" for p in ("collocated", "distributed") for s in (42, 43, 44)]
     assert reg.unmet_requires("SNAP") == []
     assert "SA1" in reg.unmet_requires("CAL")
-    assert set(reg.unmet_requires("CCSF")) >= {"SA-C", "ccsf-partition"}
+    assert reg.unmet_requires("CCSF") == ["SA-C"]                       # 划分已定（D-098）
+    assert reg.unmet_requires("SNAP5") == ["h-main"]                    # D-099：H1 / H3 真要跑才放行
     assert "P0" in reg.raw["offline"] and "P0" not in reg.groups      # 离线组不产生训练 run
 
 
@@ -115,6 +116,24 @@ def test_snapshot_rounds_is_a_string_that_covers_p0(reg):
 
 def test_ccsf_off_cell_is_the_string_off_not_a_yaml_boolean(reg):
     assert [c["cell"] for c in reg.cells("CCSF")] == ["off", "ccs-full"]
+
+
+def test_ccsf_uses_the_old_noniid_partition_d098(reg):
+    """D-098：CCSF 主实验 = CCS 原文的 Dir 0.5 = base 的旧 noniid（逐类 Dirichlet、客户端不等大，F-090）。"""
+    cfg = reg.declared_config(next(r for r in reg.runs() if r["group"] == "CCSF"))
+    assert cfg["federation"]["partition"] == "noniid"
+    assert cfg["federation"]["n_edges"] == 1 and cfg["federation"]["edge_rounds"] == 1
+
+
+def test_snap5_is_snap_with_seeds_45_46(reg):
+    """D-099：5 seed 的对照臂与 SNAP 逐字同配置，只差 seed 与 meta。"""
+    by = {r["run_id"]: r for r in reg.runs()}
+    assert sorted(r for r in by if r.startswith("SNAP5__")) == sorted(
+        f"SNAP5__{p}__s{s}" for p in ("collocated", "distributed") for s in (45, 46))
+    for p in ("collocated", "distributed"):
+        a = reg.declared_config(by[f"SNAP__{p}__s42"])
+        b = reg.declared_config(by[f"SNAP5__{p}__s45"])
+        assert _diff(a, b) == {"seed", "meta.group", "meta.run_id"}
 
 
 def test_materialized_configs_are_in_sync_with_the_registry(reg):
