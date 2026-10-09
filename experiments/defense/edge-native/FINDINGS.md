@@ -52,3 +52,19 @@
 - **代码与数据都没有问题**：集群容器是 Python 3.10.12（CLAUDE.md 的实测记录）；交接记录的 1599 / 45 / 3 与本会话 Python 3.11 的结果逐项相同。
 - 做法（本会话起）：本地用 3.11 的 venv 跑 L1 —— `uv venv -p python3.11 <dir>`、装 `pytest numpy pyyaml matplotlib`，再 `TFDPFL_PY=<dir>/bin/python bash run_l1.sh`
   （`cluster_env.sh` 会打印 `mode=override`）。要不要把这几条测试改成与解释器版本无关（例如 AST 指纹先做与版本无关的规范化、均值改用 `math.fsum`），由用户定；本会话没有改。
+
+### F-090 `confirmed`（代码核对）—— CCS 官方代码：FL 主干 = FL-bench；Dir 0.5 = 逐类 Dirichlet、客户端不等大 = 本仓库旧 `noniid`；另有三处与原文 / 计划不一致
+
+- 来源：`https://github.com/chenjian0924/Paper-Code`（用户提供；`README.md`：「Code reference for this document: https://github.com/KarhouTam/FL-bench」）。
+  本地 clone 在 `reference/ccs-code/`（gitignore）；FL-bench 的划分代码 sparse clone 在 `reference/fl-bench/`（HEAD `c88d3bc`，2026-01-25 —— **不是** CCS 当时用的版本，版本未知）。
+- **划分**：`CCS/generate_data.py:109-118` 在 `alpha > 0` 时调 FL-bench 的 `data/utils/schemes/dirichlet.py`：先把 train + test 合并（FL-bench `datasets.py` 的 `CIFAR10`：`torch.cat([train_data, test_data])`），
+  每个类 `np.random.dirichlet(np.repeat(alpha, client_num))` 切给所有客户端，客户端不等大，`test_ratio` 默认 0.25 在客户端内切。
+  与本仓库 `fedavg/data/partition.py:151-188`（`noniid_partition`）逐行同构；**唯一差别**：FL-bench 重抽直到每端 ≥ `min_samples_per_client`（默认 10），本仓库不重抽。
+  → 本仓库已有的 flat 组里，**G8F 用的就是这个构造**（`registry.yaml:312` 没覆盖划分 → `base.yaml:42` 的 `noniid`）；G2 的 flat 格用 `equal_random`。之前 flat 组的划分并不统一。
+- **CCS 的两个组件被同一个开关打开**：`src/server/fedavg.py:533` `defence_method == 'AT'` → `aggregate_AT`（`:723`，先 `hdbscan_detect` 剔除再聚合）；客户端 `src/client/fedavg.py:272-289` 同一条件下加 `loss_ce + AT_alpha·KL + AT_beta·MMD`。代码里**没有**只开其中一个的开关。
+- **与原文 / 计划不一致、待 SA-C 语义 diff 逐条定**（只读了代码，没有跑）：
+  1. 聚合权重：`aggregate_AT` 用 `package["weight"]` 归一化（FL-bench 里是样本数）→ **按样本加权**；`PLAN.md` §1.1 写的是「无权 FedAvg」。
+  2. KL 系数：`config/defaults.yaml` 的 `AT_alpha: 0.1`、`AT_beta: 0.01`；原文 β = γ = 0.01。`config/cifar10.yaml` 没有这两个键，最终取值取决于配置合并方式（未核对）。
+  3. HDBSCAN：`src/defence/AT/hdbscan_detect.py` 用 BN `running_mean / running_var` 拼成向量、**余弦距离**、`min_cluster_size = n//2 + 2`、`min_samples = 1`、`allow_single_cluster=True`，保留最大簇；全部是噪声时不剔除。
+- **攻击代码没有公开**：`src/client/fedavg.py:21` `from src.attack.BadPFL.generator import ...`，但仓库里没有 `src/attack/` → CCS 原文的 Bad-PFL 实现无法与本仓库对拍。
+- 配置里的其它数（`config/cifar10.yaml`）：`PResNet18`、SGD lr 0.1 无动量、`local_epoch: 2`（**2 个 epoch**，不是 PLAN 写的「2 步」，待原文核对）、batch 64、`join_ratio: 0.1`、1000 轮、`buffers: global`。
