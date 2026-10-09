@@ -1,48 +1,60 @@
-# current-focus —— 阶段三（edge 原生防御）· 交接
+# current-focus —— 阶段三（edge 原生防御）· 交接给 D0
 
-> **写于 2026-10-03**（Experiment 3 收尾会话结束时）。本文件是下一个会话「新会话开场第 3 步」要读的那一份。
+> **写于 2026-10-09**（阶段三计划定稿会话）。本文件是下一个会话「新会话开场第 3 步」要读的那一份。
+> 上一版（2026-10-03，「讨论阶段三」）的内容已经落到 `PLAN.md` 与本目录的台账里。
 
-## 下一个会话要做什么
+## 上一个会话做了什么（只改文档）
 
-**讨论阶段三的设计**，部分以 `PLAN-draft.md` 为基础；**用户会在会话里继续提供更多材料**（论文 / 思路 / 约束）。
-- 这是**讨论 + 定方案**的会话：在用户明确说「开始改」之前不动代码、不登记组、不交作业（CLAUDE.md 交互约定）。
-- **D-008 仍生效**（「本计划只覆盖改版实验 3，阶段三不在范围内」）→ 拍板解除时写一条新的 DECISIONS（D-089 起），并决定阶段三的决策 / 证据台账放在哪
-  （建议：本目录下另起 `DECISIONS.md` / `FINDINGS.md`，编号沿用 D- / F- 但另起序列前缀，或继续用 hfl-mechanism 的序列 —— 由用户定）。
-- 用户给的材料一律先读完、再对照下面「已知证据」逐条看它能回答 / 改变什么，不要直接套进草案。
+- **计划定稿**：`PLAN.md`（D-089 … D-095）；草案 `PLAN-draft.md` 已被取代；hfl-mechanism 的 D-008 标为已解除。
+- **文献**：`LITERATURE.md` = 用户综述原文 + Bad-PFL / CCS 原文的数字摘录（PDF 不进 git；以后要用原文请用户重新上传）。
+- **台账**：本目录 `DECISIONS.md`（D-089 … D-095）、`FINDINGS.md`（F-087 G8 没有 edge 干净集 → SNAP；F-088 文献核对；F-089 L1 与 Python 版本）。
+- **没有**登记任何组、**没有**改 `fedavg/`、**没有**交作业。
+
+## 下一个会话 = D0（不改 `fedavg/`）
+
+**要回答的问题**：把 `PLAN.md` 的阶段 0 变成可交、可判的东西 —— SNAP 登记好就能交；P0 / P1 / CCSF 的判定规则在数据之前冻结。
+
+1. **阶段三登记表**：建议 `experiments/defense/edge-native/registry.yaml`，沿用 `harness/registry.py` / `status.py`（materialize **不带** `--group`，CLAUDE.md 有警告）。
+   - 先登记 **SNAP**：`D-base`（`PLAN.md` §3.1）+ `evaluation.snapshot_rounds: "6/15/60"` × {col `[10,0,0,0]`, dist `[3,3,2,2]`} × s42–44。不需要改代码。
+   - 按 CLAUDE.md 核对 `set:` 的三件事：`malicious_per_edge` 长度 = `n_edges`；`n_rounds × edge_rounds ≥ cap_effective`；各格评估网格一致。
+   - P0 / CAL / CCSF 先占位，`requires:` 写上 SA0 / SA1 / SA-C。
+2. **预注册**（写成 FINDINGS 的 N-008，冻结进 git 之后才交）：
+   - P0：有效性闸 V0、精度过滤、`go_online` / `kill_pre` / `accuracy_bound` 的阈值与读法；
+   - P1：`go_main` / `stop`；
+   - CCSF：`ccs_reproduces`。
+3. **功效分析**（纯 harness，不要 GPU）：用 G1 / G1R5 / G6 / G0 已有数据，算主量 V / B0 / P / margin_p50 / MTA 的 seed 间 SD 与按 seed 配对的差的 SD。
+   据此确认 0.15 / 0.10 / 0.05 与 margin 2 logit 这些门槛（`PLAN.md` §8 第 1 条）。
+4. **文献核对**：`PLAN.md` 里凭记忆引用的条目（TRADES、I-BAU、NAD、FLTrust、A3FL、EOT、Tsipras 2019、LP 等），以及综述里标「待核实」的条目。
+   本环境的出站代理挡 arxiv / ICLR proceedings，要原文请用户上传。
+5. **交 SNAP**：6 个 run，约 6 GPU-h（K=3 两个包）。回传后先过有效性闸 —— col 的 s42–44 `[Checksum]` 要与 G1R5 同 seed 逐位相同。
+
+之后的顺序（`PLAN.md` §5–§6）：SA0（edge 侧对抗训练核心 + 快照离线探针）→ P0 → SA1 → P1 + CAL；SA-C（CCS）→ CCSF → CCSP；其余按闸门走。
+
+## 待用户拍板（`PLAN.md` §8）
+
+0. **CCS 的消融出处**：用户记得「对抗训练约占 85%」；上传的 ICASSP 版本里没有。若有扩展版或补充材料请上传 —— 它会变成 CCSP 的预注册预测。
+1. 各组门槛：D0 的功效分析之后再确认。
+2. 加 seed 规则的 (b) 款：哪些组算「头条结论」（推荐 H1 / H3），要在看标签之前指定。
+3. CCS 的可变形 patch 初始化（DPR）是照原文实现，还是换成 ℓ∞ PGD 并记为偏差（SA-C 的语义 diff 时定）。
+4. CCSF 的划分：Dir 0.5（贴近 CCS 原文），还是 equal_random（贴近本仓库其余 flat 组）。
+5. H5「先 s42 筛选、明显失败的停在 1 seed」是否接受。
+6. G8 存盘（约 0.81 GB）删不删：阶段三不再依赖它（F-087）。
+7. F-089 的几条测试要不要改成与 Python 版本无关。
 
 ## 先读（按顺序）
 
-1. `PLAN-draft.md`（本目录）—— 主线模块 A（edge 上传前加固）+ 实验序列 P0 / P1 / H1–H5 + 评审补充的 8 条缺口 + §7 待拍板的 5 件事。
-2. `experiments/attack/hfl-mechanism/REPORT.md` §1（结论一览）/ §9.4（证据 → 防御线）/ §10（综合讨论、局限）。
-3. FINDINGS（`experiments/attack/hfl-mechanism/FINDINGS.md`）：F-085（G1 判定 + 复核）、F-086（探索性）、F-077 / F-069（3-E）、F-068 / F-071（衰减）、F-081 及其更正（c_k；快照里各 edge 是各自的上传前 body）。
-4. 原始规划 `experiments/attack/hfl-mechanism/PLAN-original-2026-09-24.md` §9（阶段三原文）。
-
-## 已知证据（阶段二，非自适应攻击者；都已判定或有出处）
-
-| 事实 | 出处 |
-|---|---|
-| 后门只经云聚合跨 edge 传播：每次聚合灌入 0.13–0.27，周期内只洗掉 0.11–0.22 → 受害 edge 仍饱和 | F-085 / F-086 |
-| 没有安全时段（3.3 `not_gated`） | F-076 |
-| edge 视角无检测优势；余弦、单更新 c_k 不可检测；`norm_s` 来自不进模型的 BN 统计量通道（可伪造，代码证据） | F-085 |
-| 3-E edge 段：攻击者集中时 `blocks`（−0.52 / −0.73，fresh 代价 ≤ 0.02）；分散时无效；治不了 E0 良性端 | F-077 / F-069 |
-| 攻击者走后后门自己褪去（约 200 有效轮），flat 一样 | F-068 / F-071 |
-| 攻击接近饱和；R20 的 3-C 标签在噪声里；主结论只有 3 seed | REPORT §10.5 / F-085 |
-
-**真正开放的威胁情形**（评审共识）：分散布点、攻击者 edge 内的良性端。只在「集中 × 受害 edge」上有效的东西与 3-E 重复。
-
-## 待用户拍板（`PLAN-draft.md` §7，下个会话讨论）
-
-1. 解除 D-008？
-2. **G8 存盘（集群 `tfdpfl-dumps/G8__a__s4x.*`，约 0.81 GB）先别删** —— P0 离线探针要用第 30 轮快照。
-3. 主线是否采用模块 A；是否把分散布点提前、加不饱和工作点与 flat 对照。
-4. 抢救检测线（更好的 c_k）只作诊断，还是给独立额度（≤ 20 GPU-h）。
-5. 下一个动手会话 = D0（只写登记表与判定规则，不改 `fedavg/`）还是 D0 + SA0。
-
-另：Experiment 3 遗留的待定事项（random·R20 的 3-C 标签怎么记、在线 c_k 是否继续、3-B 出路、G2 规模、git 瘦身、合并 main）见 `REPORT.md` §9.2。
+1. `PLAN.md`：
+   - §0 范围、§1 决定性的事实、§2.3 证据追溯；
+   - §4 的 SNAP / P0 / CAL / CCSF；
+   - §5 执行顺序与机时、§8 待讨论。
+2. 本目录 `DECISIONS.md` / `FINDINGS.md`。
+3. `LITERATURE.md` 第 2 部分（Bad-PFL / CCS 的数）。
 
 ## 环境 / 基线
 
-- 分支：`claude/federated-learning-experiment-review-pt5j1b`（用户定「先不合并」；`origin/main` 停在 `cf40b13`）。新会话照 CLAUDE.md 开场：`git fetch` + 读本文件；若用户要求新开分支，从本分支（不是 main）分出去要先问。
-- L1（本地无 TF，装 numpy / pytest / pyyaml / matplotlib）：**1599 passed / 45 skipped / 3 xfailed**；TF 侧不变（陷阱 #4 的 2 条红）。
-- `status.py`（`experiments/attack/hfl-mechanism/registry.yaml`）：todo 0 / done 117 / stale 6 / blocked 67。集群上没有在跑的作业。
-- 本会话（2026-10-03）的提交：`1c3119e`（冻结的 G1 判定脚本）→ `c3f47b5`（判定结果 + 图 + REPORT 终版）→ `9b32856` / `5401253`（统计审查补注）→ `f76c6ae`（本草案）。
+- **分支**：`claude/eloquent-faraday-b9kmop`。2026-10-09 开场时 `origin/main` = `ae425cb`，与本分支起点相同。
+- **L1（本地无 TF）**：用 **Python 3.11 的 venv** 跑，结果 1599 passed / 45 skipped / 3 xfailed（PASS）。
+  本容器默认的 `python3` 是 3.13，会多 4 条与代码无关的红（F-089）。做法：
+  `uv venv -p python3.11 <dir> && uv pip install -p <dir>/bin/python pytest numpy pyyaml matplotlib && TFDPFL_PY=<dir>/bin/python bash run_l1.sh`
+- **`status.py`**（hfl-mechanism 登记表）：todo 0 / done 117 / stale 6 / blocked 67。集群上没有在跑的作业。
+- **机时**：上限约 100 GPU-h / 周（D-047）。阶段三全部分支放行约 150–300 GPU-h；最短路径约 40 GPU-h（`PLAN.md` §5）。

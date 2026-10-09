@@ -163,6 +163,10 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
    > `run_l1.sh` 只跑 `tests/`，所以是 213。两个数都对，别被吓到。
    > 已实测（2026-08-20，容器内 Python 3.10.12）：`6 failed, 219 passed, 3 skipped, 3 xfailed`。
 
+   > **本地解释器是 Python 3.12 / 3.13 时会多出与代码无关的红**（2026-10-09，FINDINGS F-089，`experiments/defense/edge-native/`）：
+   > AST 指纹测试（`ast.dump` 的输出随版本变）与一条第 4 位小数舍入（3.12 起内置 `sum()` 对浮点做补偿求和）。
+   > 本地基线要用 Python 3.11 的 venv 经 `TFDPFL_PY` 跑 —— 那样是 `1599 passed / 45 skipped / 3 xfailed`（与 2026-10-03 的交接一致）。
+
    集群上 `run_l1.sh` 返回 FAIL 是**当前的预期状态**，不是回归：
    `test_neurotoxin_mask` ×2 是陷阱 #4（mask 语义方向未证实，测试按文献语义写、
    等实现被改过来）。
@@ -499,7 +503,7 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
     （k* 并列均分：np.argmax 偏向类 0 = 目标类）。`harness/g1_explore.py` = 探索性读数（不进判定）。
   - ⚠ N-007 / F-083 里「集中布点 E0 全是恶意端」是错的：E0 = 15 良性 + 10 攻击者，edge 视角塌掉是参照池被污染（F-085 更正）。
   - 图 `F3_sawtooth_G1.png` / `F5_3D_views_G1.png`（`report_figures.py` 的 G1S / G1V）。`REPORT.md` 是**终版**（§1 结论一览、§5.12–§5.14、§9.4 防御含义、§10 综合讨论）。
-  - **阶段三计划草案** `experiments/defense/edge-native/PLAN-draft.md`（未拍板；D-008 仍生效）。**下一个会话 = 讨论阶段三**，交接 `experiments/defense/edge-native/current-focus.md`。
+  - ~~阶段三计划草案 `PLAN-draft.md`~~ → **阶段三计划已定稿**（2026-10-09，D-089 … D-095）：`experiments/defense/edge-native/PLAN.md`（D-008 已解除）；同目录 `DECISIONS.md` / `FINDINGS.md`（编号接续 D-089 / F-087）、`LITERATURE.md`（用户综述 + Bad-PFL / CCS 原文摘录）。**下一个会话 = D0**（登记 + 预注册 + 功效分析，不改 `fedavg/`），交接 `experiments/defense/edge-native/current-focus.md`。
   - 守卫：`tests/test_g1_verdict.py`（合成数据覆盖每个分支；真实数据只钉 s42 / s43 的 F-083 数与已入库的 g1_scores.json；阈值反向锚点）/
     `test_g1_explore.py` / `test_report_figures.py`（图上的竖线 = 判定的 Δ_jump；ROC 在 FPR 5% 处 = 判定的 TPR）。
   - 守卫：`tests/test_update_ck_tf.py`（开 / 关 checksum 逐轮相同、**去掉 random 围栏就改变训练的反向锚点**、θ_i = 上传的权重 + edge 的统计量与 head、
