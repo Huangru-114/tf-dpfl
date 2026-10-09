@@ -1,0 +1,96 @@
+# 阶段三（edge 原生防御）运行组登记表 —— 口径版本 P2（D0，2026-10-09）
+#
+# 这是 PLAN.md §4 的机器可读版本。工具与 hfl-mechanism 共用：
+#   python3 harness/registry.py experiments/defense/edge-native/registry.yaml               # 每组 run 数 / 还缺什么
+#   python3 harness/registry.py experiments/defense/edge-native/registry.yaml --materialize # **不带 --group**（CLAUDE.md 的警告：带了会把 INDEX.tsv 重写成只含那一组）
+#   python3 harness/status.py   experiments/defense/edge-native/registry.yaml               # 逐格对账
+#   bash experiments/defense/edge-native/submit.sh --status | --dry-run | （PACK=3）提交
+#
+# base = hfl-mechanism 的 base.yaml + P2 对齐模板（与 hfl-mechanism 逐字同一条链）→ 本表的配置与 G1R5 / G0 只差 `set:` 里写的键
+#   （守卫 tests/test_edge_native_registry.py::test_snap_col_differs_from_g1r5_only_in_recording_switches）。
+# 审计门槛沿用 hfl-mechanism/AUDIT.md（2026-09-27 全部关闭，D-006 对 P2 的 run 仍然成立）。
+#
+# 状态（2026-10-09，D0）：
+#   · SNAP 已登记、可交（不改代码）：PLAN §4。快照 = 各 edge 的**上传前**模型（BackdoorCloudServer._snapshot 在
+#     super().run_round() 之后、下一轮 broadcast_to_edges 之前 → edge 模型 = 本轮最后一次 edge 聚合 = 上传物）+ 全局 G + 每端私有部分 + 评估攻击者的生成器。
+#   · CAL / CCSF 占位：requires 里的 SA1 / SA-C / ccsf-partition 是故意的（代码会话没做 / 划分待用户定，PLAN §8 第 4 条）。
+#   · P0 是离线组（零训练 run）→ 不进 groups，写在下面的 `offline:`（registry.py / status.py 不读它）。
+#   · P1 / CCSP / H1 / H3 / … 等前置组给出标签后再登记（PLAN §5 的闸门）。
+# **补 `set:` 时核对三件**（CLAUDE.md；test_edge_native_registry 守着）：
+#   malicious_per_edge 的长度 = n_edges；n_rounds × edge_rounds = 300 有效轮（stopping 关，PLAN §0）；各格评估网格（有效轮）一致。
+
+study: edge-native
+protocol: P2
+layout: nested
+results_dir: results
+configs_dir: configs
+base: ../../attack/hfl-mechanism/base.yaml
+overlays:
+  - ../../../fedavg/config/alignment_p2.yaml        # 「P2 对齐」模板（同 hfl-mechanism）
+audit: ../../attack/hfl-mechanism/AUDIT.md
+available: []        # 阶段三的代码会话（SA0 / SA1 / SA-C / …）完成时把 token 加进来
+
+# ── D-base（PLAN §3.1）= G1R5 的 set 去掉 update_geometry / update_ck*，加 post_agg_eval + frozen_trigger ──
+# YAML 锚点只为少抄一遍；展开后每组的 set 是完整的（registry.py 读的是展开结果）。
+x-d-base: &d_base
+  federation.n_edges: 4
+  federation.partition: designed
+  federation.design.condition: C1
+  federation.design.strength: 0.25
+  federation.design.n_per_client: 500
+  federation.design.clean_per_edge: 500
+  federation.design.alpha_client: 0.5
+  federation.edge_rounds: 5
+  federation.n_rounds: 60                    # 60 云轮 × R5 = 300 有效轮
+  stopping: null
+  evaluation.eval_grid: 5                    # R5 下网格 = 云轮（两个 eval_interval 取 base 的 1 = lcm(5,5)/5）
+  evaluation.post_agg_eval: true             # Δ_jump / r_down（N-007 的量）
+  evaluation.frozen_trigger: true            # 拆开「body 变了」与「触发器漂移」（PLAN §3.4）
+
+offline:
+  P0:
+    purpose: "零训练离线反事实（PLAN §4 P0）：所有 edge 都加固后再聚合，受害 edge 的灌入砍掉多少"
+    requires: [SA0, d0-prereg]     # SA0 = edge 侧 AT 核心 + 快照离线探针；d0-prereg = N-008 用户确认
+    inputs: "SNAP__{collocated,distributed}__s{42,43,44} 的 snapshot_r006 / snapshot_r015（tfdpfl-dumps/<run_id>.<job>/）"
+    selection_seed: 42             # 配置只在 s42 上选，冻结后再读 s43 / s44（N-008）
+    output: analysis/p0_verdict.json
+
+groups:
+  SNAP:
+    purpose: "P0 的原料（S3 划分上的上传前 body + edge 干净集 + 各端私有 BN 统计量）+ 全部主检验的无防御对照臂（PLAN §4 SNAP）"
+    requires: [audit]
+    seeds: [42, 43, 44]
+    # 有效性（PLAN §4）：collocated 的 s42–44 [Checksum] 逐轮 = G1R5 同 seed（instrumentation_check；记录 / 快照开关不改训练，F-084 / D-073）。
+    # 快照 3 次 / run，估计约 0.3 GB / run、6 run 约 1.8 GB（≤ 20 GB，D-073）。
+    set:
+      <<: *d_base
+      evaluation.snapshot_rounds: "6/15/60"   # 字符串（列表在 [设定4] 里往返会变形）；6 / 15 = P0，60 = 末态
+    factors:
+      placement:
+        - {label: collocated,  set: {backdoor.malicious_per_edge: [10, 0, 0, 0]}}
+        - {label: distributed, set: {backdoor.malicious_per_edge: [3, 3, 2, 2]}}
+
+  CAL:
+    purpose: "不饱和工作点 W2 的选择（PLAN §4 CAL）：V 末值 ∈ [0.3, 0.8] 且 E0 良性 ≥ 0.7 的最强设置"
+    requires: [audit, SA1]          # 不需要新代码；与 P1 同批交（PLAN §5）→ 挂 SA1
+    seeds: [42]
+    set:
+      <<: *d_base
+    cells:
+      - {cell: rho05-collocated,  set: {backdoor.poison_ratio: 0.05, backdoor.malicious_per_edge: [10, 0, 0, 0]}}
+      - {cell: rho05-distributed, set: {backdoor.poison_ratio: 0.05, backdoor.malicious_per_edge: [3, 3, 2, 2]}}
+      - {cell: rho10-collocated,  set: {backdoor.poison_ratio: 0.10, backdoor.malicious_per_edge: [10, 0, 0, 0]}}
+      - {cell: rho10-distributed, set: {backdoor.poison_ratio: 0.10, backdoor.malicious_per_edge: [3, 3, 2, 2]}}
+      - {cell: mal5-collocated,   set: {backdoor.malicious_per_edge: [5, 0, 0, 0]}}
+      - {cell: mal5-distributed,  set: {backdoor.malicious_per_edge: [2, 1, 1, 1]}}
+
+  CCSF:
+    purpose: "CCS 的 flat 复现闸（PLAN §4 CCSF）：off vs CCS-full，flat 1 edge × 100 端 × 300 轮"
+    requires: [audit, SA-C, ccsf-partition]   # ccsf-partition：Dir 0.5 还是 equal_random，用户定（PLAN §8 第 4 条）
+    seeds: [42]
+    # 划分与 CCS 开关在 SA-C 会话补；flat 下 R=1，网格 5 → 两个 eval_interval = lcm(5,1)/1 = 5（SA-C 补 set 时核对）。
+    set: {federation.n_edges: 1, federation.edge_rounds: 1, federation.n_rounds: 300, stopping: null,
+          evaluation.eval_grid: 5, backdoor.malicious_per_edge: [10]}
+    cells:
+      - {cell: "off"}
+      - {cell: ccs-full}

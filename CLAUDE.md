@@ -503,7 +503,7 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
     （k* 并列均分：np.argmax 偏向类 0 = 目标类）。`harness/g1_explore.py` = 探索性读数（不进判定）。
   - ⚠ N-007 / F-083 里「集中布点 E0 全是恶意端」是错的：E0 = 15 良性 + 10 攻击者，edge 视角塌掉是参照池被污染（F-085 更正）。
   - 图 `F3_sawtooth_G1.png` / `F5_3D_views_G1.png`（`report_figures.py` 的 G1S / G1V）。`REPORT.md` 是**终版**（§1 结论一览、§5.12–§5.14、§9.4 防御含义、§10 综合讨论）。
-  - ~~阶段三计划草案 `PLAN-draft.md`~~ → **阶段三计划已定稿**（2026-10-09，D-089 … D-095）：`experiments/defense/edge-native/PLAN.md`（D-008 已解除）；同目录 `DECISIONS.md` / `FINDINGS.md`（编号接续 D-089 / F-087）、`LITERATURE.md`（用户综述 + Bad-PFL / CCS 原文摘录）。**下一个会话 = D0**（登记 + 预注册 + 功效分析，不改 `fedavg/`），交接 `experiments/defense/edge-native/current-focus.md`。
+  - ~~阶段三计划草案 `PLAN-draft.md`~~ → **阶段三计划已定稿**（2026-10-09，D-089 … D-095）：`experiments/defense/edge-native/PLAN.md`（D-008 已解除）；同目录 `DECISIONS.md` / `FINDINGS.md`（编号接续 D-089 / F-087）、`LITERATURE.md`（用户综述 + Bad-PFL / CCS 原文摘录）。**D0 已完成**（2026-10-09）：阶段三登记表 `experiments/defense/edge-native/registry.yaml`（SNAP 可交，`submit.sh` 同目录；工具与 hfl-mechanism 共用）、功效分析 `harness/d0_power.py`（F-090）、预注册草案 N-008（待用户确认）；守卫 `tests/test_edge_native_registry.py`。交接 `experiments/defense/edge-native/current-focus.md`。
   - 守卫：`tests/test_g1_verdict.py`（合成数据覆盖每个分支；真实数据只钉 s42 / s43 的 F-083 数与已入库的 g1_scores.json；阈值反向锚点）/
     `test_g1_explore.py` / `test_report_figures.py`（图上的竖线 = 判定的 Δ_jump；ROC 在 FPR 5% 处 = 判定的 TPR）。
   - 守卫：`tests/test_update_ck_tf.py`（开 / 关 checksum 逐轮相同、**去掉 random 围栏就改变训练的反向锚点**、θ_i = 上传的权重 + edge 的统计量与 head、

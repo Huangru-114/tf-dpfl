@@ -1,60 +1,46 @@
-# current-focus —— 阶段三（edge 原生防御）· 交接给 D0
+# current-focus —— 阶段三（edge 原生防御）· D0 完成，交接
 
-> **写于 2026-10-09**（阶段三计划定稿会话）。本文件是下一个会话「新会话开场第 3 步」要读的那一份。
-> 上一版（2026-10-03，「讨论阶段三」）的内容已经落到 `PLAN.md` 与本目录的台账里。
+> **写于 2026-10-09**（D0 会话）。上一版（同日，「交接给 D0」）的五项已全部处理，结果在本目录 `FINDINGS.md` F-090 … F-092 与 N-008（草案）。
 
-## 上一个会话做了什么（只改文档）
+## D0 做了什么（没有改 `fedavg/`）
 
-- **计划定稿**：`PLAN.md`（D-089 … D-095）；草案 `PLAN-draft.md` 已被取代；hfl-mechanism 的 D-008 标为已解除。
-- **文献**：`LITERATURE.md` = 用户综述原文 + Bad-PFL / CCS 原文的数字摘录（PDF 不进 git；以后要用原文请用户重新上传）。
-- **台账**：本目录 `DECISIONS.md`（D-089 … D-095）、`FINDINGS.md`（F-087 G8 没有 edge 干净集 → SNAP；F-088 文献核对；F-089 L1 与 Python 版本）。
-- **没有**登记任何组、**没有**改 `fedavg/`、**没有**交作业。
+1. **登记表** `registry.yaml`（base / overlay 与 hfl-mechanism 同一条链；审计门槛沿用 hfl-mechanism/AUDIT.md）：
+   - **SNAP**（6 run，已 materialize，**可交**）：`D-base` + `snapshot_rounds: "6/15/60"` × {collocated, distributed} × s42–44。
+     SNAP-col 与 G1R5 同 seed 的配置只差记录 / 快照开关（守卫 `tests/test_edge_native_registry.py`），6 个配置过 `config_validate`。
+   - **CAL**（6 run）挂 `SA1`、**CCSF**（2 run）挂 `SA-C` + `ccsf-partition`；**P0** 是离线组，写在 `offline:`，挂 `SA0` + `d0-prereg`。
+   - 快照的 edge 模型 = 本轮上传物，`global` = 本轮云聚合结果（F-091，代码核对）。
+2. **提交脚本** `submit.sh`（照 `pilot/submit_pilot.sh`，只读本目录 INDEX，复用 hfl-mechanism 的 `cell.sbatch` / `pack.sbatch`，保留审计门槛）。
+3. **功效分析** `harness/d0_power.py` → `analysis/d0_power.json`（F-090）：对照臂饱和（G1R5 V 0.996）；假阳性很低；配对 SD 0.035 时 μ = 0.20 几乎必过；
+   **`no_effect` 对真零效应也常判不出**（62% / 32%）；margin 2 logit 有余量；P0 的 6 个 col 快照分母都 ≥ 0.146。
+4. **文献核对**（F-092）：PLAN 凭记忆引用的 13 条出处都对；两处要带进 SA0 的语义 diff：SAU 官方 ε = 0.2（PLAN 写 8/255）、TRADES 官方 10 步 / β 6。EOT 引文已改写。
+5. **预注册草案 N-008**：SNAP 有效性闸、P0（V0 / 精度过滤 / 选择 / `go_online` / `kill_pre` / `accuracy_bound`）、P1（`go_main` / `stop`，新增分散布点的 `stop`）、CCSF（加了「off 臂必须植入」的闸）。
 
-## 下一个会话 = D0（不改 `fedavg/`）
+L1（Python 3.11 venv）：基线 1599 passed / 45 skipped / 3 xfailed → 本会话后 **1617 passed / 47 skipped / 3 xfailed → PASS**（+16 = 新测试文件；`test_cluster_env_usage` 自动扫到新的 `submit.sh`：+2 passed、+2 skipped「不调 python / 不写日志」）。
 
-**要回答的问题**：把 `PLAN.md` 的阶段 0 变成可交、可判的东西 —— SNAP 登记好就能交；P0 / P1 / CCSF 的判定规则在数据之前冻结。
+## 等用户的事
 
-1. **阶段三登记表**：建议 `experiments/defense/edge-native/registry.yaml`，沿用 `harness/registry.py` / `status.py`（materialize **不带** `--group`，CLAUDE.md 有警告）。
-   - 先登记 **SNAP**：`D-base`（`PLAN.md` §3.1）+ `evaluation.snapshot_rounds: "6/15/60"` × {col `[10,0,0,0]`, dist `[3,3,2,2]`} × s42–44。不需要改代码。
-   - 按 CLAUDE.md 核对 `set:` 的三件事：`malicious_per_edge` 长度 = `n_edges`；`n_rounds × edge_rounds ≥ cap_effective`；各格评估网格一致。
-   - P0 / CAL / CCSF 先占位，`requires:` 写上 SA0 / SA1 / SA-C。
-2. **预注册**（写成 FINDINGS 的 N-008，冻结进 git 之后才交）：
-   - P0：有效性闸 V0、精度过滤、`go_online` / `kill_pre` / `accuracy_bound` 的阈值与读法；
-   - P1：`go_main` / `stop`；
-   - CCSF：`ccs_reproduces`。
-3. **功效分析**（纯 harness，不要 GPU）：用 G1 / G1R5 / G6 / G0 已有数据，算主量 V / B0 / P / margin_p50 / MTA 的 seed 间 SD 与按 seed 配对的差的 SD。
-   据此确认 0.15 / 0.10 / 0.05 与 margin 2 logit 这些门槛（`PLAN.md` §8 第 1 条）。
-4. **文献核对**：`PLAN.md` 里凭记忆引用的条目（TRADES、I-BAU、NAD、FLTrust、A3FL、EOT、Tsipras 2019、LP 等），以及综述里标「待核实」的条目。
-   本环境的出站代理挡 arxiv / ICLR proceedings，要原文请用户上传。
-5. **交 SNAP**：6 个 run，约 6 GPU-h（K=3 两个包）。回传后先过有效性闸 —— col 的 s42–44 `[Checksum]` 要与 G1R5 同 seed 逐位相同。
+1. **交 SNAP**（先把本分支合进 main —— 集群只 pull main；然后在集群登录节点）：
+   ```bash
+   git pull && PACK=3 RUN_GROUPS=SNAP bash experiments/defense/edge-native/submit.sh --dry-run   # 两个 k=3 包
+   PACK=3 RUN_GROUPS=SNAP bash experiments/defense/edge-native/submit.sh
+   ```
+   约 6 GPU-h，盘约 1.8 GB。回传 6 个 `results/P2/SNAP/*.metrics.json`（+ `*.gpu.json`）。快照留集群（`tfdpfl-dumps/SNAP__*`）。
+2. **确认 N-008**（或改写）→ 把 `d0-prereg` 加进 `registry.yaml` 的 `available`。特别是：
+   - `no_effect` 规则要不要改（F-090 第 3 点）；
+   - P1 新增的分散布点 `stop`（1.0 logit）；CCSF 的「off 臂必须植入」闸；
+   - P0 里 R_H 0.5 / 0.2、每 edge 精度 0.04 —— 这些没有证据，只是推理。
+3. `PLAN.md` §8 其余各条仍待定（CCS 消融出处、头条结论组、DPR 初始化、CCSF 划分、H5 筛选、G8 存盘、F-089 测试）。
 
-之后的顺序（`PLAN.md` §5–§6）：SA0（edge 侧对抗训练核心 + 快照离线探针）→ P0 → SA1 → P1 + CAL；SA-C（CCS）→ CCSF → CCSP；其余按闸门走。
+## SNAP 回传后（下一个会话的第一件事）
 
-## 待用户拍板（`PLAN.md` §8）
-
-0. **CCS 的消融出处**：用户记得「对抗训练约占 85%」；上传的 ICASSP 版本里没有。若有扩展版或补充材料请上传 —— 它会变成 CCSP 的预注册预测。
-1. 各组门槛：D0 的功效分析之后再确认。
-2. 加 seed 规则的 (b) 款：哪些组算「头条结论」（推荐 H1 / H3），要在看标签之前指定。
-3. CCS 的可变形 patch 初始化（DPR）是照原文实现，还是换成 ℓ∞ PGD 并记为偏差（SA-C 的语义 diff 时定）。
-4. CCSF 的划分：Dir 0.5（贴近 CCS 原文），还是 equal_random（贴近本仓库其余 flat 组）。
-5. H5「先 s42 筛选、明显失败的停在 1 seed」是否接受。
-6. G8 存盘（约 0.81 GB）删不删：阶段三不再依赖它（F-087）。
-7. F-089 的几条测试要不要改成与 Python 版本无关。
-
-## 先读（按顺序）
-
-1. `PLAN.md`：
-   - §0 范围、§1 决定性的事实、§2.3 证据追溯；
-   - §4 的 SNAP / P0 / CAL / CCSF；
-   - §5 执行顺序与机时、§8 待讨论。
-2. 本目录 `DECISIONS.md` / `FINDINGS.md`。
-3. `LITERATURE.md` 第 2 部分（Bad-PFL / CCS 的数）。
+- `python3 harness/status.py experiments/defense/edge-native/registry.yaml` → 6 个 `done`；
+- 有效性闸（N-008 SNAP）：`python3 harness/instrumentation_check.py <G1R5 s4x> <SNAP col s4x> --upto 60`，三个 seed 逐轮相同；
+  `dumps.snapshots` 轮号 = 6 / 15 / 60。不过 → 停下查，不读 P0。
+- 然后 = **SA0**（edge 侧 AT 核心 + 快照离线探针）：先出语义 diff 表（Madry PGD-AT / TRADES / SAU 官方实现 vs 本仓库；F-092 的两处），用户说「开始改」后再写代码。
+  SA0 在打开 s42 快照之前要把 P0 的完整配置清单与预算写进 git（N-008）。
 
 ## 环境 / 基线
 
-- **分支**：`claude/eloquent-faraday-b9kmop`。2026-10-09 开场时 `origin/main` = `ae425cb`，与本分支起点相同。
-- **L1（本地无 TF）**：用 **Python 3.11 的 venv** 跑，结果 1599 passed / 45 skipped / 3 xfailed（PASS）。
-  本容器默认的 `python3` 是 3.13，会多 4 条与代码无关的红（F-089）。做法：
-  `uv venv -p python3.11 <dir> && uv pip install -p <dir>/bin/python pytest numpy pyyaml matplotlib && TFDPFL_PY=<dir>/bin/python bash run_l1.sh`
-- **`status.py`**（hfl-mechanism 登记表）：todo 0 / done 117 / stale 6 / blocked 67。集群上没有在跑的作业。
-- **机时**：上限约 100 GPU-h / 周（D-047）。阶段三全部分支放行约 150–300 GPU-h；最短路径约 40 GPU-h（`PLAN.md` §5）。
+- 分支 `claude/eloquent-faraday-b9kmop`（起点 `de0e8b2`）。
+- 本地 L1 用 Python 3.11 venv（F-089）：`uv venv -p python3.11 <dir> && uv pip install -p <dir>/bin/python pytest numpy pyyaml matplotlib && TFDPFL_PY=<dir>/bin/python bash run_l1.sh`。
+- 机时：上限约 100 GPU-h / 周（D-047）。

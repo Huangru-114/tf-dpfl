@@ -52,3 +52,126 @@
 - **代码与数据都没有问题**：集群容器是 Python 3.10.12（CLAUDE.md 的实测记录）；交接记录的 1599 / 45 / 3 与本会话 Python 3.11 的结果逐项相同。
 - 做法（本会话起）：本地用 3.11 的 venv 跑 L1 —— `uv venv -p python3.11 <dir>`、装 `pytest numpy pyyaml matplotlib`，再 `TFDPFL_PY=<dir>/bin/python bash run_l1.sh`
   （`cluster_env.sh` 会打印 `mode=override`）。要不要把这几条测试改成与解释器版本无关（例如 AST 指纹先做与版本无关的规范化、均值改用 `math.fsum`），由用户定；本会话没有改。
+
+## 2026-10-09（D0 会话：登记 + 功效分析 + 文献核对 + 预注册草案）
+
+### F-090 `confirmed`（数据，`python3 harness/d0_power.py` → `analysis/d0_power.json`）—— 功效分析：对照臂已饱和；配对噪声远小于 0.15，但 `no_effect` 规则对真零效应也常判不出
+
+量的定义与 `g6_verdict` / `g1_verdict` 相同（末 10 个评估点；Δ = 参照 − 处理，按 seed 配对）。逐 seed 值见 json。
+
+| 读数 | 数 | 含义 |
+|---|---|---|
+| **G1R5**（= SNAP-col 的预期，C1·集中·R5，s42–44） | V 0.9959 ± 0.0008、B0 0.9993 ± 0.0013、MTA 0.8683 ± 0.0069、受害 edge margin_p50 6.44 ± 0.95 | 主检验的对照臂**饱和**：任何没把 V 压到 0.95 以下的臂都会落到天花板规则（读 Δmargin）|
+| G0-C1（floor，ρ=0） | V 0.068 ± 0.024、margin −7.60 ± 0.29 | 对照 floor；防御臂 Δexcess 的参照 |
+| 不饱和配置的 seed 间 SD | G1 C1·集中·R20 V 0.575 ± 0.114；G6(a) V 0.815 ± 0.170 | **CAL / W2（V 0.3–0.8）预计 seed SD 约 0.1–0.17** → W2 上的 3 seed 判定功效低（见下）|
+| 配对差 SD：真实干预（3-E，G6） | a−b：ΔV 0.524 ± **0.035**、ΔMTA 0.0064 ± 0.0006；a−c：ΔV 0.730 ± **0.189**、ΔMTA 0.0171 ± 0.0042 | 「干预 × seed」噪声的两个实测量级 |
+| 配对差 SD：结构变化（G1） | 集中 R10−R20：ΔV 0.338 ± 0.080、Δmargin_v 3.86 ± **0.065**；分散 R10−R20：ΔP −0.004 ± 0.034、Δmargin 0.45 ± **0.25** | margin 的配对 SD 0.07–0.25（攻击 − floor：0.66 / 0.78）→ **2 logit ≈ 2.6–30 σ** |
+| ΔMTA 的配对 SD | 0.0006–0.0048（全部配对） | 0.02 的门槛是 4–30 σ → 精度判定由真实代价决定，不受噪声左右 |
+| **P0 的分母**（G1R5 受害 edge Δ_jump，第 t+1 云轮云聚合后点 − 第 t 云轮末全量点） | t=6：0.231 / 0.250 / 0.336；t=15：0.423 / 0.224 / 0.146（s42 / 43 / 44） | 6 个 col 快照**全部 ≥ 0.05 → 都计入**；全部云轮里 53% 的 jump < 0.05（后期饱和）→ 第 60 轮快照不能用来算 R_H，符合 PLAN 只用 6 / 15 |
+
+H1 规则（均值 ≥ 0.15 且最小 seed ≥ 0.10 → `protects`；三个 |Δ| < 0.05 → `no_effect`；其余 `partial`）的操作特性（正态 MC，n = 3，20 000 次，固定种子）：
+
+| 配对 SD σ | μ = 0 | 0.05 | 0.10 | 0.15 | 0.20 | 0.30 |
+|---|---|---|---|---|---|---|
+| 0.035（G6 a−b） | P 0.00 / N **0.62** | P 0.00 / N 0.12 | P 0.005 | P **0.48** | P **0.99** | P 1.00 |
+| 0.05 | P 0.00 / N 0.32 | P 0.00 / N 0.10 | P 0.03 | P 0.43 | P 0.91 | P 1.00 |
+| 0.10 | P 0.002 / N 0.06 | P 0.02 | P 0.10 | P 0.30 | P 0.58 | P 0.93 |
+| 0.189（G6 a−c） | P 0.025 / N 0.01 | P 0.06 | P 0.12 | P 0.22 | P 0.35 | P 0.63 |
+
+（P = `protects` 概率，N = `no_effect` 概率）
+
+读法（**只报告，门槛由用户定**，PLAN §8 第 1 条）：
+
+1. **假阳性很低**：σ ≤ 0.10 时真零效应判成 `protects` 的概率 ≤ 0.002。0.15 / 0.10 不需要收紧。
+2. **功效取决于 σ**：σ ≈ 0.035 时真效应 0.20 几乎必过、0.15 约一半；σ ≈ 0.19 时连 0.30 也只有 0.63。σ 大的臂（像 3-E 的 c 臂）在 3 seed 下多半是 `partial`。
+3. **`no_effect` 很难拿到**：真零效应在 σ = 0.035 时只有 62% 判成 `no_effect`，σ = 0.05 时只有 32%，其余落进 `partial` → 按 §3.5 (a) 会触发加 seed。
+   这是规则的结构问题（要求三个 seed **都**在 ±0.05 内），不是数据问题。可选的改法（用户定）：把 `no_effect` 改成「均值的绝对值 < 0.05 且最大 |Δ| < 0.10」，或保持原样、接受加 seed 的开销。
+4. **饱和**：对照 V 约 0.996 → H1 多半要用天花板规则。margin 的 2 logit 有余量（配对 SD ≤ 0.78，见上表）；F-086：一次云聚合把 margin 推高 1.9–3.0 logit。**2 logit 维持**。
+5. **W2**：不饱和工作点的 seed SD 约 0.1–0.17。如果配对 SD 也到这个量级，W2 上的 3 seed 判定功效偏低（σ = 0.10 时 μ = 0.20 只有 0.58）→ W2 的结论预计多为 `partial`，正好落进加 seed 规则 (a)。
+
+局限：σ 只有两个真实干预的量级（3-E 的 b / c 臂，旧划分）；对抗训练类干预的 σ 要等 P1 / H1 才知道。正态近似、3 个点估 SD 本身误差就大（自由度 2）。
+
+### F-091 `confirmed`（代码 + 配置核对）—— SNAP 登记好了：快照里的 edge 模型就是本轮的上传物；SNAP-col 的配置与 G1R5 只差记录 / 快照开关
+
+- **快照的时间点**：`BackdoorCloudServer.run_round` 先跑 `super().run_round()`（broadcast → R 个 edge 轮 → 云聚合）再评估，然后 `_snapshot`（`fedavg/server/backdoor_server.py:126-135`）；
+  下发在**下一轮开头**（`fedavg/server/server.py:387` `broadcast_to_edges()`）→ 快照里的 `edge{e}` = 第 t 云轮最后一次 edge 聚合 = 上传物，`global` = 第 t 次云聚合的结果 G。
+  这正是 P0 需要的「各 edge 的上传前 body + G」。另有每端 `private_state()`（私有 head + 私有 BN 统计量）与评估攻击者的生成器（`:417-470`）。
+  edge 干净集不在快照里：它由划分（只依赖 seed）决定，离线脚本用同一份 `designed_partition` 重算 `clean_indices` 即可。
+- **配置**：`experiments/defense/edge-native/registry.yaml`（base / overlay 与 hfl-mechanism 同一条链）。materialize 后 SNAP-col 与 G1R5 同 seed 的差 =
+  {`update_geometry`、`update_ck*` 四个键（去掉），`frozen_trigger`、`snapshot_rounds: "6/15/60"`（加上），`meta.*`}；SNAP-dist 与 SNAP-col 只差 `malicious_per_edge`。
+  守卫 `tests/test_edge_native_registry.py`；6 个配置都过 `config_validate`（只有网格下快照按全量点计数的提示，R5 时网格 = 云轮，无影响）。
+- **有效性闸的依据**：去掉的 `update_ck` / `update_geometry` 与加上的 `frozen_trigger` / 快照都已证明不改变训练（F-081 / F-084、G8 对 G6(a) 第 1–30 轮，D-073）→ SNAP-col 的 `[Checksum]` 应与 G1R5 同 seed 逐轮相同（**预期，GPU 上未验证**）。
+- **提交**：`PACK=3 RUN_GROUPS=SNAP bash experiments/defense/edge-native/submit.sh`（dry-run：两个 k=3 包，`-c 12 --mem=72G`）。约 6 GPU-h，盘约 1.8 GB。
+
+### F-092 `confirmed` / 部分 `provisional`（文献核对，2026-10-09 网页检索；arxiv / ar5iv / papers.neurips.cc 被出站代理挡，未读全文）—— PLAN 凭记忆引用的条目出处都对；有两处细节要改写或带进 SA0 的语义 diff
+
+| 条目（PLAN 里的用法） | 核对结果 | 来源 |
+|---|---|---|
+| TRADES（ICML 2019，「显式权衡干净精度」，β ∈ {1, 6}） | ✅ Zhang 等，ICML 2019；损失 = CE + β·KL(clean ‖ adv)。官方 `train_trades_cifar10.py` 缺省 **ε = 0.031、10 步、步长 0.007、β = 6.0**；README 写 β 可取 [1, 10] | arxiv 1901.08573 摘要页、github yaodongyu/TRADES |
+| Tsipras 2019（鲁棒性–精度权衡） | ✅ Tsipras、Santurkar、Engstrom、Turner、Mądry，「Robustness May Be at Odds with Accuracy」，ICLR 2019 | iclr.cc / arxiv 1805.12152 |
+| I-BAU（「反学的是一个通用扰动」） | ✅ Zeng 等，ICLR 2022。官方 README 的极小极大式里 δ 在对样本求和的外面（`max_{‖δ‖≤C} (1/n) Σ L(f(x_i+δ), y_i)`）→ **单个、与输入无关的扰动**；摘要称 100 张干净图仍有效 | github reds-lab/I-BAU |
+| NAD（ICLR 2021，删除） | ✅ Li 等，ICLR 2021；teacher = 在同一干净子集上微调的副本，按中间层注意力图蒸馏；摘要：5% 干净数据 | iclr.cc / arxiv 2101.05930 |
+| FLTrust（「约 100 张根数据集」） | ✅ Cao、Fang、Liu、Gong，NDSS 2021；摘要：根数据集**少于 100 张**时，在 40–60% 恶意端的自适应攻击下精度仍与无攻击的 FedAvg 相当 | ndss-symposium.org / arxiv 2012.13995 |
+| A3FL（自适应攻击者模板，AA2） | ✅ Zhang、Jia、Chen、Lin、Wu，NeurIPS 2023；触发器按「全局模型被训练去反学它」的最坏情形对抗优化 → 与 AA2 的写法一致；官方代码 hfzhang31/A3FL；摘要：对 12 种防御 | neurips.cc / PSU 页面 |
+| EOT（Athalye 2018，AA1） | ✅ EOT 出自 Athalye、Engstrom、Ilyas、Kwok「Synthesizing Robust Adversarial Examples」（arxiv 2017，ICML 2018）；用于打破随机化防御的是 Athalye、Carlini、Wagner「Obfuscated Gradients…」（ICML 2018）。**PLAN 写的「EOT（Athalye 2018）」应注明是前者**；AA1 的「对防御变换取期望」用的是这个思想 | arxiv 1707.07397 / 1802.00420 |
+| LP（ICLR 2024，分段感知攻击者） | ✅ Zhuang 等，「Backdoor Federated Learning by Poisoning Backdoor-Critical Layers」，ICLR 2024；只毒化后门关键层，10% 恶意端下绕过 7 种防御 | iclr.cc / arxiv 2308.04466 |
+| SAU（「5% 干净数据、L∞ ≤ 0.2 的 5 步 PGD」） | ✅ Wei 等，NeurIPS 2023。BackdoorBench 的 `config/defense/sau/cifar10.yaml`：`ratio: 0.05`、`norm_type: L_inf`、**`trigger_norm: 0.2`**、`adv_steps: 5`、`adv_lr: 0.2`、`pgd_init: max`、`beta_1: 0.01`、`beta_2: 1`。<br>⚠ PLAN §3.2 的 AT-sau 写的是 ε = 8/255（≈ 0.031），比官方 0.2 小约 6 倍；0.2 是在哪个空间（像素 [0,1] 还是归一化后）**没有核对** → 带进 SA0 的语义 diff 表 | github SCLBD/BackdoorBench |
+| RLR（基线） | ✅ Ozdayi、Kantarcioglu、Gel，AAAI 2021；按坐标的符号投票，票数绝对值 < θ 的坐标学习率取负 | ojs.aaai.org / arxiv 2007.03767 |
+| CerP（第二攻击） | ✅ Lyu 等，「Poisoning with Cerberus」，AAAI 2023（pp. 9020–9028）；联合调触发器与投毒模型的偏差 | ojs.aaai.org |
+| IBA（第二攻击） | ✅ Nguyen 等，NeurIPS 2023（mlanthology 条目） | mlanthology |
+| Simple-Tuning（KDD 2023，删除） | ✅ Qin 等，KDD 2023；训练后重置并只重训线性分类器（其余冻结）；结论：部分共享的 pFL 更抗后门 | arxiv 2302.01677 |
+
+- **没核对的**：综述里标「待核实」的 BackdoorIndicator（USENIX Sec 2024）、FTA（arXiv 2309.00127）、CCS 的出处版本；Madry 2018、FLIP、FedBAP、SHIELD、PriRoAgg、DPOT 的细节。这些不影响 D0 的登记与判定规则，等对应的代码会话（SA3 / SA4）做语义 diff 时再读原文 / 官方代码。
+- 对计划的影响：（1）SA0 的语义 diff 必须列出 AT-sau 的 ε 与官方配置的差别，并说明为什么取 8/255（覆盖 Bad-PFL 触发器的上界）而不是 0.2；
+  （2）AT-trades 的 β ∈ {1, 6} 与官方缺省 / README 范围一致；官方 PGD 步数 10，§3.2 的「预算 {低, 高}」要写明步数；（3）PLAN 的 EOT 引文改写成上表的两篇。
+
+### N-008 `草案 · 待用户确认`（预注册，写于 SNAP / P0 / P1 / CCSF 的任何数据之前）—— SNAP 有效性闸、P0、P1、CCSF 的判读规则
+
+> 状态：**草案**。用户确认（或改写）之后，才把 `d0-prereg` 加进 `registry.yaml` 的 `available`；判定脚本（`harness/p0_verdict.py` / `p1_verdict.py` / `ccsf_verdict.py`）
+> 在对应代码会话（SA0 / SA1 / SA-C）写、**先 commit 再打开数据**（同 D-088）。改动本条要在 DECISIONS 留记录。
+> SNAP 的有效性闸不依赖本条的其余部分：SNAP 可以先交。
+
+**共用定义**（末 10 个评估点；全部按 seed 配对；Δ = 对照 − 防御臂，正 = 防御臂更低；对照 = 同 seed、同布点的 SNAP）：
+`V` 受害 edge E1–E3 良性端 fresh-PM ASR（`per_edge_rounds[r][e].client_benign`，每 edge 末 10 点均值，再三 edge 平均）；`B0` 同上、edge 0；`P` 全部良性端池化（`rounds[].local_benign_asr`）；
+`margin_v` 受害 edge 的 `margin_p50`（`per_edge_detail_rounds`，三 edge 平均）、`margin` 池化（`rounds[].margin_p50`）；`MTA` fresh `pm_acc`（`acc_rounds[]`），陈旧列只报告；
+`jump(g)` = 第 g 云轮云聚合后评估点（`per_edge_post_agg_rounds`）− 第 g−1 云轮末全量点，受害 edge 三均值（同 `g1_verdict.sawtooth`）；`jump_half` = g = 2 … 30 的均值。
+均值一律 `math.fsum`（F-089）。
+
+**通用有效性闸**（任一不满足 → 该 run `invalid`，不判标签）：`exit_code == 0`；`client_failures == []`（陷阱 #23：被吞的异常会静默剔除端）；
+每个恶意端每云轮都参与（`malicious_selected_rounds` 覆盖全部轮次）；`status.py` 判 `done`（config_sha 一致、run 块因素与登记一致）。
+
+**SNAP**：
+- `snap_valid`：上面的闸 + SNAP-collocated 的 s42–44 与 G1R5 同 seed：`harness/instrumentation_check.py <G1R5> <SNAP> --upto 60` 全部 `[Checksum]` 逐轮相同、改动前就有的数值字段相同；
+  每个 run 有 3 个快照（metrics.json 的 `dumps.snapshots` 轮号 = 6 / 15 / 60），快照 npz 里 `meta_json` 的 `edge_matches_eval == true`（快照的 edge 模型 = 本轮评估用的 body）。
+- 任一 col run 不满足 → `snap_invalid`：停下查原因，**不读 P0**。dist 没有参照，只过通用闸。
+
+**P0**（SA0 实现；快照 t ∈ {6, 15}；配置网格 = PLAN §3.2，SA0 在打开 s42 快照之前把**完整的配置清单与预算**写进 git）：
+- 量（集中布点）：`A(·)` = 用 run 的评估代码离线算的受害 edge fresh-PM 良性 ASR（三 edge 平均），在快照 t 的固定攻击者 / 探针顺序上；
+  `J_t` = run 记录的 `jump(t+1)`；`R_H = [A(G) − A(G'_H)] / J_t`，`G'_H` = 4 个 edge **都**经 H 加固后按样本加权 FedAvg；`J_t < 0.05` 的快照不计。
+  分散布点只报告 `D_H = P(G) − P(G'_H)`（池化），不进判定（PLAN §4 H3：`A-pre` 在分散布点预期 `no_effect`）。
+- 闸 `V0`（每个快照）：离线 FedAvg(各 edge 权重) 与快照的 `global` 逐元素 max |差| ≤ 1e-5；`|A(G) − run 记录的 post_agg(t+1)| ≤ 0.01`；`|A(edge 模型) − run 记录的第 t 云轮全量点| ≤ 0.01` → 否则 `invalid`。
+- 精度过滤（每个配置 × 快照 × seed）：fresh 池化 `MTA(G) − MTA(G'_H) ≤ 0.02` 且每个 edge ≤ 0.04。配置在某 seed 上「过滤通过」= 两个快照都通过。
+- **选择**（只用 s42）：在过滤通过的 AT 配置里，按 `min(R_H@6, R_H@15)` 排序，取前 3 名冻结（并列按单次加固的前向反向次数少者优先）；
+  C-ft、阻尼、oracle、cloud 侧、`n_clean` 敏感性、CCS-clu 离线检测随行（只报告）。冻结清单 commit 之后才读 s43 / s44。
+- 标签：
+  - `go_online`：冻结的前 3 名里有配置在 **三个 seed × 两个快照**都 `R_H ≥ 0.5` 且三个 seed 都过滤通过 → 进 SA1，取名次最高的那个；
+  - `kill_pre`：s42 上**全部** AT 配置、以及冻结配置在 s43 / s44 上，两个快照的 `R_H` 都 < 0.2 → `A-pre` 止步（`A-every` 不由 P0 判死）；
+  - `accuracy_bound`：s42 上没有过滤通过的配置满足 `R_H ≥ 0.5`（两个快照），但有过滤**不**通过的配置满足 → 用户定；
+  - `inconclusive`：其余（P1 照做，只作探路）。
+- 必报：最佳配置的 `R_H − R_H(C-ft)`（逐 seed，对抗部分的贡献）；触发器范数 ‖δ‖∞ / ‖ξ‖∞ / ‖δ+ξ‖∞（像素与模型输入两个空间）；CCS-clu 离线剔除的 TPR / FPR（逐 edge）。
+
+**P1**（SA1 实现；s42 单 seed、筛选，不进结论；对照 = SNAP s42 同布点）：
+- 闸：通用闸 + 第一次加固之前的 `[Checksum]` 与 SNAP s42 逐轮相同（具体哪一行在 SA1 定、先写进 git）+ `[Harden]` 行数 = 预期（`A-pre` 4 × 60、`A-every` 4 × 300、`A-cloud` 60）。
+- 集中布点 `go_main_col`：（`ΔV ≥ 0.15` 或 `jump_half(臂) ≤ 0.5 × jump_half(对照)`）且 `ΔMTA ≤ 0.02`；
+  **天花板规则**：对照与臂的 V 都 ≥ 0.95 时，`ΔV` 那一项换成 `Δmargin_v ≥ 2.0`（F-090：配对 SD ≤ 0.78）。
+- 分散布点 `go_main_dist`：（`ΔP ≥ 0.10` 或 `Δmargin ≥ 2.0`）且 `ΔMTA ≤ 0.02`。
+- `stop_col`：`ΔV < 0.05` 且 `jump_half` 减少 < 20% 且 `Δmargin_v < 1.0`；`stop_dist`：`ΔP < 0.05` 且 `Δmargin < 1.0`（**新增**：PLAN 只写了集中布点；1.0 logit ≈ 分散布点配对 SD 0.25 的 4 倍）。
+- 其余 `marginal`：只报告，不进主检验，除非用户指定。臂按布点分别进 H1（col `go_main`）/ H3（dist `go_main`）。
+- `A-every` 的预算：按 P0 最佳配置缩到「墙钟开销 ≤ +50%」，换算（每次加固的前向反向次数 / 每云轮客户端训练的前向反向次数）由 SA1 先写进 git 再交。
+
+**CCSF**（SA-C 实现；flat，s42，off vs ccs-full）：
+- 闸：通用闸 + off 臂必须植入：`P(off) ≥ 0.5`，否则 `invalid_no_attack`（攻击没进去时复现无从谈起）。
+- `ccs_reproduces`：`P(off) − P(ccs-full) ≥ 0.5` 且 `ΔMTA ≤ 0.02`；`ccs_not_reproduced`：`P(off) − P(ccs-full) < 0.2` → 按语义 diff 表排查实现，不读 CCSP，用户定；其余 `partial_repro`（照做 CCSP，结论里注明）。
+- 另报：`local_benign_asr_unfiltered`（CCS 原文的 ASR 不过滤目标类，F-088 第 5 条）、`admitted[]` / `rejected_ids` 的剔除 TPR / FPR。
+
+**这一条里没有证据的部分**：`R_H` 的 0.5 / 0.2（来自 F-086「只需砍掉 20–40%」的推理，加一倍余量）；精度过滤里「每个 edge ≤ 0.04」；`stop` 里 1.0 logit；`V0` 的 1e-5 与 0.01 容差（离线重算与 run 内评估是不是逐位相同，要 SA0 在 GPU 上验证）。
