@@ -191,3 +191,33 @@ H1 规则（均值 ≥ 0.15 且最小 seed ≥ 0.10 → `protects`；三个 |Δ|
 - 另报：`local_benign_asr_unfiltered`（CCS 原文的 ASR 不过滤目标类，F-088 第 5 条）、`admitted[]` / `rejected_ids` 的剔除 TPR / FPR。
 
 **这一条里没有证据的部分**：`R_H` 的 0.5 / 0.2（来自 F-086「只需砍掉 20–40%」的推理，加一倍余量）；精度过滤里「每个 edge ≤ 0.04」；`stop` 里 1.0 logit；`V0` 的 1e-5 与 0.01 容差（离线重算与 run 内评估是不是逐位相同，要 SA0 在 GPU 上验证）。
+
+## 2026-10-10（SNAP 回传）
+
+### F-094 `confirmed`（数据）—— SNAP 6 个 run 全部有效：collocated 与 G1R5 同 seed 前 60 轮逐位相同；P0 的 6 个快照分母与预测一致
+
+- **对账**：`python3 harness/status.py experiments/defense/edge-native/registry.yaml` → SNAP 6 个 `done ✓`（config_sha 核对过）。
+  6 个 run 都 exit 0、`client_failures == []`、`run.alignment.template == "p2"`。
+- **有效性闸（N-008 SNAP 段）通过**：`python3 harness/instrumentation_check.py <G1R5__C1-collocated-R5__s4x> <SNAP__collocated__s4x> --upto 60`
+  三个 seed 都是「✅ 前 60 轮逐位一致：60 个 checksum、4560 个已有数值字段」；另外 `post_agg_rounds[]`（去掉计时列）与 `per_edge_post_agg_rounds` 也逐项相同。
+  → 去掉 `update_geometry` / `update_ck*`、加上 `frozen_trigger` 与快照，**训练与已有评估都没变**（F-092 的预期，GPU 上首次验证）。
+- **快照**：6 个 run 的 `dumps.snapshots` 轮号都是 6 / 15 / 60、`errors == []`；每 run 约 0.32 GB，6 个共约 1.93 GB（≤ 20 GB，D-073）。
+  `meta_json.edge_matches_eval` 在集群上的 npz 里，**本地没核对**（SA0 读快照时第一步核对）。
+- **P0 的分母**（受害 edge Δ_jump，`harness/d0_power.victim_jump`）：collocated s42 / 43 / 44 的 t=6 为 0.2309 / 0.2497 / 0.336、t=15 为 0.4226 / 0.2244 / 0.146，
+  与 F-091 用 G1R5 算的**逐位相同** → 6 个快照都计入（≥ 0.05）。
+- **对照臂的主量**（末 10 点；`harness/d0_power.run_quantities`）：
+
+  | run | V | B0 | P | margin（池化） | margin_v | MTA（fresh） |
+  |---|---|---|---|---|---|---|
+  | collocated s42 | 0.9950 | 0.9978 | 0.9955 | 6.94 | 6.69 | 0.8619 |
+  | collocated s43 | 0.9965 | 1.0000 | 0.9971 | 5.66 | 5.39 | 0.8756 |
+  | collocated s44 | 0.9963 | 1.0000 | 0.9969 | 7.44 | 7.25 | 0.8673 |
+  | distributed s42 | — | — | 0.9982 | 5.23 | — | 0.8674 |
+  | distributed s43 | — | — | 0.9977 | 7.22 | — | 0.8675 |
+  | distributed s44 | — | — | 0.9614 | 4.42 | — | 0.8720 |
+
+  两种布点的对照都饱和（V、P ≥ 0.96）→ H1 / H3 大概率要走天花板规则（读 Δmargin）。分散布点 s44 的 P = 0.961 是唯一离 1 稍远的格。
+- **开销**：两个 k=3 包墙钟 15 671 s（collocated）/ 14 227 s（distributed），共约 8.3 GPU-h（外推 6 GPU-h）；每 run 显存峰值 16.76–16.95 GiB，无 OOM。
+- **N-008 草案的一处措辞问题（待用户确认时一并改）**：通用闸写的是「每个恶意端每云轮都参与」，但本仓库没有强制参与（`run.forced_participation = false`）。
+  distributed s42 第 45 轮、collocated s44 有一个云轮恰好没有攻击者被选中（`n_malicious_participations` = 59 / 60）。按原文字这两个 run 会被误判 invalid。
+  建议改成与 G1 判定（`harness/g1_verdict.py:run_reasons`）相同的「`n_malicious_participations` > 0」。**还没改**。

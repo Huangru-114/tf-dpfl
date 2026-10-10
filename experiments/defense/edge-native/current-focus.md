@@ -1,4 +1,4 @@
-# current-focus —— 阶段三（edge 原生防御）· D0 完成，交接
+# current-focus —— 阶段三（edge 原生防御）· D0 完成、SNAP 已回传，交接给 SA0
 
 > **写于 2026-10-09**（D0 会话）。上一版（同日，「交接给 D0」）的五项已全部处理，结果在本目录 `FINDINGS.md` F-091 … F-093 与 N-008（草案）。
 
@@ -17,28 +17,25 @@
 
 L1（Python 3.11 venv）：基线 1599 passed / 45 skipped / 3 xfailed → 本会话后 **1619 passed / 47 skipped / 3 xfailed → PASS**（+18 = 新测试文件；`test_cluster_env_usage` 自动扫到新的 `submit.sh`：+2 passed、+2 skipped「不调 python / 不写日志」）。
 
+## 状态（2026-10-10）：SNAP 已回传、有效（F-094）
+
+- 6 个 run 全部 `done`；collocated 三个与 G1R5 同 seed 前 60 轮逐位相同（含云聚合后评估点）；快照 6 / 15 / 60 都在（集群 `tfdpfl-dumps/SNAP__*`，约 1.93 GB）。
+- P0 的 6 个 col 快照分母都计入（与 F-091 的预测逐位相同）。对照臂两种布点都饱和。
+
 ## 等用户的事
 
-1. **交 SNAP**（先把本分支合进 main —— 集群只 pull main；然后在集群登录节点）：
-   ```bash
-   git pull && PACK=3 RUN_GROUPS=SNAP bash experiments/defense/edge-native/submit.sh --dry-run   # 两个 k=3 包
-   PACK=3 RUN_GROUPS=SNAP bash experiments/defense/edge-native/submit.sh
-   ```
-   约 6 GPU-h，盘约 1.8 GB。回传 6 个 `results/P2/SNAP/*.metrics.json`（+ `*.gpu.json`）。快照留集群（`tfdpfl-dumps/SNAP__*`）。
-2. **确认 N-008**（或改写）→ 把 `d0-prereg` 加进 `registry.yaml` 的 `available`。特别是：
-   - `no_effect` 规则要不要改（F-091 第 3 点）；
+1. **确认 N-008**（或改写）→ 把 `d0-prereg` 加进 `registry.yaml` 的 `available`，P0 才放行。要拍板的几处：
+   - 通用闸的攻击者参与：改成「`n_malicious_participations` > 0」（F-094：原写法会误判 2 个 SNAP run）；
+   - `no_effect` 规则要不要放宽（F-091 第 3 点）；
    - P1 新增的分散布点 `stop`（1.0 logit）；CCSF 的「off 臂必须植入」闸；
-   - P0 里 R_H 0.5 / 0.2、每 edge 精度 0.04 —— 这些没有证据，只是推理。
-3. `PLAN.md` §8：同日另一会话已拍板 D-096（CCS 消融搁置，CCSP 交之前补）、D-097（DPR 照原文）、D-098（CCSF 划分 = Dir 0.5 旧 `noniid`）、
-   D-099（头条 = H1 / H3，5 seed → 已登记 SNAP5）、D-100（H5 筛选接受）；CCS 官方代码核对见 F-090。仍待定：门槛（第 1 条，见 F-091）、G8 存盘删不删、F-089 的测试要不要改成与 Python 版本无关。
+   - P0 里 R_H 0.5 / 0.2、每 edge 精度 0.04 —— 没有证据，只是推理。
+2. `PLAN.md` §8 仍待定：G8 存盘删不删、F-089 的测试要不要改成与 Python 版本无关。
 
-## SNAP 回传后（下一个会话的第一件事）
+## 下一个会话 = SA0
 
-- `python3 harness/status.py experiments/defense/edge-native/registry.yaml` → 6 个 `done`；
-- 有效性闸（N-008 SNAP）：`python3 harness/instrumentation_check.py <G1R5 s4x> <SNAP col s4x> --upto 60`，三个 seed 逐轮相同；
-  `dumps.snapshots` 轮号 = 6 / 15 / 60。不过 → 停下查，不读 P0。
-- 然后 = **SA0**（edge 侧 AT 核心 + 快照离线探针）：先出语义 diff 表（Madry PGD-AT / TRADES / SAU 官方实现 vs 本仓库；F-092 的两处），用户说「开始改」后再写代码。
-  SA0 在打开 s42 快照之前要把 P0 的完整配置清单与预算写进 git（N-008）。
+- edge 侧 AT 核心 + 快照离线探针。先出语义 diff 表（Madry PGD-AT / TRADES / SAU 官方实现 vs 本仓库；F-093 的两处），用户说「开始改」后再写代码。
+- 读快照的第一步：核对 npz 里 `meta_json.edge_matches_eval == true`（本地没核对，F-094）。
+- 在打开 s42 快照**之前**把 P0 的完整配置清单与预算写进 git（N-008）。
 
 ## 环境 / 基线
 
