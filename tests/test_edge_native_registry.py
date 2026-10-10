@@ -199,11 +199,30 @@ def test_pairs_and_sd_are_paired_by_seed():
     assert res["pairs"]["G6 a − b（3-E k=1，真实干预）"]["quantities"]["MTA"]["mean"] == pytest.approx(0.01)
 
 
+def test_h1_no_effect_rule_d101_vs_v1():
+    """D-101：no_effect 从「三个 |Δ| 都 < 0.05」改为「|均值| < 0.05 且最大 |Δ| < 0.10」；protects 不变。"""
+    assert P.classify_h1([0.06, -0.02, 0.0], "v1") == "partial"           # 一个 seed 0.06 → 旧规则判不出
+    assert P.classify_h1([0.06, -0.02, 0.0], "d101") == "no_effect"
+    assert P.classify_h1([0.12, -0.10, 0.0], "d101") == "partial"         # 最大 |Δ| 0.12 ≥ 0.10
+    assert P.classify_h1([0.09, 0.03, 0.04], "d101") == "partial"         # 均值 0.0533 ≥ 0.05
+    assert P.classify_h1([0.20, 0.15, 0.12], "d101") == "protects" == P.classify_h1([0.20, 0.15, 0.12], "v1")
+    assert P.classify_h1([0.30, 0.25, 0.05], "d101") == "partial"         # 最小 seed < 0.10
+    with pytest.raises(ValueError):
+        P.classify_h1([0.0, 0.0, 0.0], "v2")
+
+
+def test_registry_has_d0_prereg_after_user_confirmation(reg):
+    """N-008 用户确认（2026-10-10，D-101）→ d0-prereg 放行；P0 只剩 SA0。"""
+    assert "d0-prereg" in reg.available
+    assert set(reg.raw["offline"]["P0"]["requires"]) - reg.available == {"SA0"}
+
+
 def test_operating_characteristics_degenerate_cases():
     assert P.oc_asr_rule(0.20, 0.0, draws=50)["protects"] == 1.0
     assert P.oc_asr_rule(0.0, 0.0, draws=50)["no_effect"] == 1.0
     assert P.oc_asr_rule(0.12, 0.0, draws=50)["partial"] == 1.0     # 均值 < 0.15
     assert P.oc_mta_rule(0.0, 0.0, draws=50) == 1.0 and P.oc_mta_rule(0.03, 0.0, draws=50) == 0.0
+    assert P.oc_asr_rule(0.0, 0.0, draws=50, rule="d101")["no_effect"] == 1.0
 
 
 @pytest.mark.skipif(not G1R5_RESULTS.exists(), reason="没有 G1R5 结果")

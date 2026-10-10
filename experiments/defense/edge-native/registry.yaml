@@ -29,7 +29,7 @@ base: ../../attack/hfl-mechanism/base.yaml
 overlays:
   - ../../../fedavg/config/alignment_p2.yaml        # 「P2 对齐」模板（同 hfl-mechanism）
 audit: ../../attack/hfl-mechanism/AUDIT.md
-available: []        # 阶段三的代码会话（SA0 / SA1 / SA-C / …）完成时把 token 加进来
+available: [d0-prereg]   # d0-prereg：N-008 用户确认（2026-10-10，D-101）。阶段三的代码会话（SA0 / SA1 / SA-C / …）完成时把 token 加进来
 
 # ── D-base（PLAN §3.1）= G1R5 的 set 去掉 update_geometry / update_ck*，加 post_agg_eval + frozen_trigger ──
 # YAML 锚点只为少抄一遍；展开后每组的 set 是完整的（registry.py 读的是展开结果）。
@@ -51,7 +51,7 @@ x-d-base: &d_base
 offline:
   P0:
     purpose: "零训练离线反事实（PLAN §4 P0）：所有 edge 都加固后再聚合，受害 edge 的灌入砍掉多少"
-    requires: [SA0, d0-prereg]     # SA0 = edge 侧 AT 核心 + 快照离线探针；d0-prereg = N-008 用户确认
+    requires: [SA0, d0-prereg]     # SA0 = edge 侧 AT 核心 + 快照离线探针；d0-prereg = N-008 用户确认（已放行，D-101）
     inputs: "SNAP__{collocated,distributed}__s{42,43,44} 的 snapshot_r006 / snapshot_r015（tfdpfl-dumps/<run_id>.<job>/）"
     selection_seed: 42             # 配置只在 s42 上选，冻结后再读 s43 / s44（N-008）
     output: analysis/p0_verdict.json

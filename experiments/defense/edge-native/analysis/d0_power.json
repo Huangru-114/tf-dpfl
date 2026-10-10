@@ -867,6 +867,136 @@
     }
    }
   },
+  "asr_rule_d101": {
+   "sd=0.0346": {
+    "mu=0.0": {
+     "protects": 0.0,
+     "no_effect": 0.98,
+     "partial": 0.02
+    },
+    "mu=0.05": {
+     "protects": 0.0,
+     "no_effect": 0.475,
+     "partial": 0.525
+    },
+    "mu=0.1": {
+     "protects": 0.005,
+     "no_effect": 0.005,
+     "partial": 0.99
+    },
+    "mu=0.15": {
+     "protects": 0.482,
+     "no_effect": 0.0,
+     "partial": 0.518
+    },
+    "mu=0.2": {
+     "protects": 0.989,
+     "no_effect": 0.0,
+     "partial": 0.011
+    },
+    "mu=0.3": {
+     "protects": 1.0,
+     "no_effect": 0.0,
+     "partial": 0.0
+    }
+   },
+   "sd=0.05": {
+    "mu=0.0": {
+     "protects": 0.0,
+     "no_effect": 0.832,
+     "partial": 0.168
+    },
+    "mu=0.05": {
+     "protects": 0.0,
+     "no_effect": 0.422,
+     "partial": 0.578
+    },
+    "mu=0.1": {
+     "protects": 0.032,
+     "no_effect": 0.033,
+     "partial": 0.935
+    },
+    "mu=0.15": {
+     "protects": 0.43,
+     "no_effect": 0.0,
+     "partial": 0.57
+    },
+    "mu=0.2": {
+     "protects": 0.913,
+     "no_effect": 0.0,
+     "partial": 0.087
+    },
+    "mu=0.3": {
+     "protects": 1.0,
+     "no_effect": 0.0,
+     "partial": 0.0
+    }
+   },
+   "sd=0.1": {
+    "mu=0.0": {
+     "protects": 0.002,
+     "no_effect": 0.281,
+     "partial": 0.717
+    },
+    "mu=0.05": {
+     "protects": 0.019,
+     "no_effect": 0.207,
+     "partial": 0.774
+    },
+    "mu=0.1": {
+     "protects": 0.102,
+     "no_effect": 0.077,
+     "partial": 0.821
+    },
+    "mu=0.15": {
+     "protects": 0.303,
+     "no_effect": 0.017,
+     "partial": 0.68
+    },
+    "mu=0.2": {
+     "protects": 0.583,
+     "no_effect": 0.002,
+     "partial": 0.415
+    },
+    "mu=0.3": {
+     "protects": 0.933,
+     "no_effect": 0.0,
+     "partial": 0.067
+    }
+   },
+   "sd=0.189": {
+    "mu=0.0": {
+     "protects": 0.025,
+     "no_effect": 0.056,
+     "partial": 0.919
+    },
+    "mu=0.05": {
+     "protects": 0.058,
+     "no_effect": 0.052,
+     "partial": 0.89
+    },
+    "mu=0.1": {
+     "protects": 0.123,
+     "no_effect": 0.037,
+     "partial": 0.84
+    },
+    "mu=0.15": {
+     "protects": 0.219,
+     "no_effect": 0.021,
+     "partial": 0.76
+    },
+    "mu=0.2": {
+     "protects": 0.345,
+     "no_effect": 0.013,
+     "partial": 0.642
+    },
+    "mu=0.3": {
+     "protects": 0.627,
+     "no_effect": 0.002,
+     "partial": 0.371
+    }
+   }
+  },
   "mta_rule": {
    "sd=0.0006": {
     "mu=0.0": 1.0,
@@ -899,6 +1029,7 @@
   "protect_mean": 0.15,
   "protect_min": 0.1,
   "no_effect": 0.05,
+  "no_effect_max_d101": 0.1,
   "mta_mean": 0.02,
   "mta_each": 0.025,
   "draws": 20000,

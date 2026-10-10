@@ -141,11 +141,14 @@ H1 规则（均值 ≥ 0.15 且最小 seed ≥ 0.10 → `protects`；三个 |Δ|
 - 对计划的影响：（1）SA0 的语义 diff 必须列出 AT-sau 的 ε 与官方配置的差别，并说明为什么取 8/255（覆盖 Bad-PFL 触发器的上界）而不是 0.2；
   （2）AT-trades 的 β ∈ {1, 6} 与官方缺省 / README 范围一致；官方 PGD 步数 10，§3.2 的「预算 {低, 高}」要写明步数；（3）PLAN 的 EOT 引文改写成上表的两篇。
 
-### N-008 `草案 · 待用户确认`（预注册，写于 SNAP / P0 / P1 / CCSF 的任何数据之前）—— SNAP 有效性闸、P0、P1、CCSF 的判读规则
+### N-008 `已确认 · 生效`（预注册，写于 SNAP / P0 / P1 / CCSF 的任何数据之前；用户 2026-10-10 确认，D-101）—— SNAP 有效性闸、P0、P1、CCSF 的判读规则
 
-> 状态：**草案**。用户确认（或改写）之后，才把 `d0-prereg` 加进 `registry.yaml` 的 `available`；判定脚本（`harness/p0_verdict.py` / `p1_verdict.py` / `ccsf_verdict.py`）
-> 在对应代码会话（SA0 / SA1 / SA-C）写、**先 commit 再打开数据**（同 D-088）。改动本条要在 DECISIONS 留记录。
-> SNAP 的有效性闸不依赖本条的其余部分：SNAP 可以先交。
+> 状态：**已确认、生效**（2026-10-10，用户：「N-008 四处按你的建议改，确认生效」→ D-101）。`d0-prereg` 已加进 `registry.yaml` 的 `available`。
+> 确认时改了一处（通用闸的攻击者参与，下文标 **[D-101]**，原文删除线保留）；另外三处（P1 分散布点的 `stop`、CCSF 的植入闸、P0 的阈值）按草案原文确认；
+> H1 / H3 的 `no_effect` 在 `PLAN.md` §4 H1 改（不在本条范围内，同属 D-101）。
+> 确认时 SNAP 已回传（F-094）：SNAP 的闸（本条第一段）读的就是它；P0 / P1 / CCSF 的数据一个都还没有。
+> 判定脚本（`harness/p0_verdict.py` / `p1_verdict.py` / `ccsf_verdict.py`）在对应代码会话（SA0 / SA1 / SA-C）写、**先 commit 再打开数据**（同 D-088）。
+> 之后再改本条要在 DECISIONS 留记录。
 
 **共用定义**（末 10 个评估点；全部按 seed 配对；Δ = 对照 − 防御臂，正 = 防御臂更低；对照 = 同 seed、同布点的 SNAP）：
 `V` 受害 edge E1–E3 良性端 fresh-PM ASR（`per_edge_rounds[r][e].client_benign`，每 edge 末 10 点均值，再三 edge 平均）；`B0` 同上、edge 0；`P` 全部良性端池化（`rounds[].local_benign_asr`）；
@@ -154,7 +157,8 @@ H1 规则（均值 ≥ 0.15 且最小 seed ≥ 0.10 → `protects`；三个 |Δ|
 均值一律 `math.fsum`（F-089）。
 
 **通用有效性闸**（任一不满足 → 该 run `invalid`，不判标签）：`exit_code == 0`；`client_failures == []`（陷阱 #23：被吞的异常会静默剔除端）；
-每个恶意端每云轮都参与（`malicious_selected_rounds` 覆盖全部轮次）；`status.py` 判 `done`（config_sha 一致、run 块因素与登记一致）。
+~~每个恶意端每云轮都参与（`malicious_selected_rounds` 覆盖全部轮次）~~ **[D-101]** 攻击者参与过：`n_malicious_participations > 0`（同 `g1_verdict.run_reasons`；
+本仓库没有强制参与，随机选端下某个云轮恰好没有攻击者是正常的，F-094）；`status.py` 判 `done`（config_sha 一致、run 块因素与登记一致）。
 
 **SNAP**：
 - `snap_valid`：上面的闸 + SNAP-collocated 的 s42–44 与 G1R5 同 seed：`harness/instrumentation_check.py <G1R5> <SNAP> --upto 60` 全部 `[Checksum]` 逐轮相同、改动前就有的数值字段相同；
@@ -191,6 +195,7 @@ H1 规则（均值 ≥ 0.15 且最小 seed ≥ 0.10 → `protects`；三个 |Δ|
 - 另报：`local_benign_asr_unfiltered`（CCS 原文的 ASR 不过滤目标类，F-088 第 5 条）、`admitted[]` / `rejected_ids` 的剔除 TPR / FPR。
 
 **这一条里没有证据的部分**：`R_H` 的 0.5 / 0.2（来自 F-086「只需砍掉 20–40%」的推理，加一倍余量）；精度过滤里「每个 edge ≤ 0.04」；`stop` 里 1.0 logit；`V0` 的 1e-5 与 0.01 容差（离线重算与 run 内评估是不是逐位相同，要 SA0 在 GPU 上验证）。
+用户确认时知道这些没有证据，**按原值确认**（D-101）。`V0` 的两个容差若在 SA0 的 GPU 验证里被证明不可达（例如离线重算本来就不逐位相同），改它要在打开 P0 数据之前、并留 DECISIONS 记录。
 
 ## 2026-10-10（SNAP 回传）
 
@@ -218,6 +223,6 @@ H1 规则（均值 ≥ 0.15 且最小 seed ≥ 0.10 → `protects`；三个 |Δ|
 
   两种布点的对照都饱和（V、P ≥ 0.96）→ H1 / H3 大概率要走天花板规则（读 Δmargin）。分散布点 s44 的 P = 0.961 是唯一离 1 稍远的格。
 - **开销**：两个 k=3 包墙钟 15 671 s（collocated）/ 14 227 s（distributed），共约 8.3 GPU-h（外推 6 GPU-h）；每 run 显存峰值 16.76–16.95 GiB，无 OOM。
-- **N-008 草案的一处措辞问题（待用户确认时一并改）**：通用闸写的是「每个恶意端每云轮都参与」，但本仓库没有强制参与（`run.forced_participation = false`）。
+- **N-008 草案的一处措辞问题（2026-10-10 已按此改，D-101）**：通用闸写的是「每个恶意端每云轮都参与」，但本仓库没有强制参与（`run.forced_participation = false`）。
   distributed s42 第 45 轮、collocated s44 有一个云轮恰好没有攻击者被选中（`n_malicious_participations` = 59 / 60）。按原文字这两个 run 会被误判 invalid。
   建议改成与 G1 判定（`harness/g1_verdict.py:run_reasons`）相同的「`n_malicious_participations` > 0」。**还没改**。

@@ -73,6 +73,7 @@ JUMP_MIN = 0.05                   # PLAN §4 P0：基线 jump < 0.05 的快照�
 
 # PLAN §4 H1 的规则（草案；本脚本只量它的操作特性）
 PROTECT_MEAN, PROTECT_MIN, NO_EFFECT = 0.15, 0.10, 0.05
+NO_EFFECT_MAX = 0.10              # D-101：no_effect 改为「|均值| < 0.05 且最大 |Δ| < 0.10」（原「三个 |Δ| 都 < 0.05」= rule="v1"）
 MTA_MEAN, MTA_EACH = 0.02, 0.025
 MU_GRID = (0.0, 0.05, 0.10, 0.15, 0.20, 0.30)
 MTA_MU_GRID = (0.0, 0.01, 0.02, 0.03)
@@ -223,18 +224,29 @@ def jump_table(g1r5: dict) -> dict:
 
 # ── 判定规则的操作特性（正态 Monte Carlo）────────────────────────────────────
 
-def oc_asr_rule(mu: float, sd: float, n: int = 3, draws: int = 20000, seed: int = MC_SEED) -> dict:
+def classify_h1(d: list, rule: str = "d101") -> str:
+    """H1 / H3 的 3 seed ΔV 标签（不含精度条件）。rule="v1"：PLAN 定稿时的 no_effect（三个 |Δ| 都 < 0.05）；
+    rule="d101"：用户 2026-10-10 确认的 no_effect（|均值| < 0.05 且最大 |Δ| < 0.10）。protects 两版相同。"""
+    mean = math.fsum(d) / len(d)
+    if mean >= PROTECT_MEAN and min(d) >= PROTECT_MIN:
+        return "protects"
+    if rule == "v1":
+        null = all(abs(x) < NO_EFFECT for x in d)
+    elif rule == "d101":
+        null = abs(mean) < NO_EFFECT and max(abs(x) for x in d) < NO_EFFECT_MAX
+    else:
+        raise ValueError(f"未知规则 {rule!r}")
+    return "no_effect" if null else "partial"
+
+
+def oc_asr_rule(mu: float, sd: float, n: int = 3, draws: int = 20000, seed: int = MC_SEED,
+                rule: str = "v1") -> dict:
     """真效应 mu、配对 SD sd 下，H1 规则三个标签的概率。sd = 0 → 退化为确定性。"""
     rng = random.Random(seed)
-    pro = noe = 0
+    cnt = {"protects": 0, "no_effect": 0, "partial": 0}
     for _ in range(draws):
-        d = [rng.gauss(mu, sd) for _ in range(n)]
-        if math.fsum(d) / n >= PROTECT_MEAN and min(d) >= PROTECT_MIN:
-            pro += 1
-        elif all(abs(x) < NO_EFFECT for x in d):
-            noe += 1
-    return {"protects": _r(pro / draws, 3), "no_effect": _r(noe / draws, 3),
-            "partial": _r((draws - pro - noe) / draws, 3)}
+        cnt[classify_h1([rng.gauss(mu, sd) for _ in range(n)], rule)] += 1
+    return {k: _r(v / draws, 3) for k, v in cnt.items()}
 
 
 def oc_mta_rule(mu: float, sd: float, n: int = 3, draws: int = 20000, seed: int = MC_SEED) -> float:
@@ -260,6 +272,8 @@ def operating_characteristics(pairs: dict, draws: int) -> dict:
     return {
         "asr_rule": {f"sd={sd}": {f"mu={mu}": oc_asr_rule(mu, sd, draws=draws) for mu in MU_GRID}
                      for sd in asr_sds},
+        "asr_rule_d101": {f"sd={sd}": {f"mu={mu}": oc_asr_rule(mu, sd, draws=draws, rule="d101")
+                                       for mu in MU_GRID} for sd in asr_sds},
         "mta_rule": {f"sd={sd}": {f"mu={mu}": oc_mta_rule(mu, sd, draws=draws) for mu in MTA_MU_GRID}
                      for sd in mta_sds},
         "sd_source": "intervention 配对（G6 a−b / a−c）的 SD + 假设值；正态近似、n=3",
@@ -275,6 +289,7 @@ def analyse(runs: dict, draws: int = 20000) -> dict:
         v.pop("_per")
     return {"configs": seeds, "pairs": pairs, "p0_jump": jumps, "operating_characteristics": oc,
             "rule": {"protect_mean": PROTECT_MEAN, "protect_min": PROTECT_MIN, "no_effect": NO_EFFECT,
+                     "no_effect_max_d101": NO_EFFECT_MAX,
                      "mta_mean": MTA_MEAN, "mta_each": MTA_EACH, "draws": draws, "mc_seed": MC_SEED},
             "note": "只报告：门槛由用户拍板（PLAN §8 第 1 条）。配对差 Δ = 参照 − 处理。"}
 
@@ -310,9 +325,11 @@ def main(argv=None):
     j = res["p0_jump"]
     print(f"── P0 分母 Δ_jump（G1R5）：{j['per_seed']}；< {JUMP_MIN} 的快照 {j['snapshots_below_min']}/{j['n_snapshots']}；"
           f"全部云轮 {j['all_g']}")
-    print("── H1 规则的操作特性（n=3）──")
-    for sd, row in res["operating_characteristics"]["asr_rule"].items():
-        print(f"  {sd:<10} " + "  ".join(f"{mu}: P{v['protects']}/N{v['no_effect']}" for mu, v in row.items()))
+    for key, title in (("asr_rule", "H1 规则的操作特性（n=3，原 no_effect）"),
+                       ("asr_rule_d101", "H1 规则的操作特性（n=3，D-101 的 no_effect）")):
+        print(f"── {title} ──")
+        for sd, row in res["operating_characteristics"][key].items():
+            print(f"  {sd:<10} " + "  ".join(f"{mu}: P{v['protects']}/N{v['no_effect']}" for mu, v in row.items()))
     for sd, row in res["operating_characteristics"]["mta_rule"].items():
         print(f"  MTA {sd:<8} " + "  ".join(f"{mu}: ok {v}" for mu, v in row.items()))
     print(f"[d0_power] → {args.json}")

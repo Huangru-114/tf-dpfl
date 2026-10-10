@@ -22,20 +22,17 @@ L1（Python 3.11 venv）：基线 1599 passed / 45 skipped / 3 xfailed → 本�
 - 6 个 run 全部 `done`；collocated 三个与 G1R5 同 seed 前 60 轮逐位相同（含云聚合后评估点）；快照 6 / 15 / 60 都在（集群 `tfdpfl-dumps/SNAP__*`，约 1.93 GB）。
 - P0 的 6 个 col 快照分母都计入（与 F-091 的预测逐位相同）。对照臂两种布点都饱和。
 
-## 等用户的事
+## N-008 已生效（2026-10-10，D-101）
 
-1. **确认 N-008**（或改写）→ 把 `d0-prereg` 加进 `registry.yaml` 的 `available`，P0 才放行。要拍板的几处：
-   - 通用闸的攻击者参与：改成「`n_malicious_participations` > 0」（F-094：原写法会误判 2 个 SNAP run）；
-   - `no_effect` 规则要不要放宽（F-091 第 3 点）；
-   - P1 新增的分散布点 `stop`（1.0 logit）；CCSF 的「off 臂必须植入」闸；
-   - P0 里 R_H 0.5 / 0.2、每 edge 精度 0.04 —— 没有证据，只是推理。
-2. `PLAN.md` §8 仍待定：G8 存盘删不删、F-089 的测试要不要改成与 Python 版本无关。
+- 攻击者参与的闸 → `n_malicious_participations > 0`；H1 / H3 的 `no_effect` → 「|均值| < 0.05 且最大 |Δ| < 0.10」（`PLAN.md` §4 H1）；
+  P1 分散布点的 `stop`、CCSF 的植入闸、P0 的阈值按草案原值确认。`registry.yaml` 的 `available` 已加 `d0-prereg` → P0 只等 SA0。
+- `PLAN.md` §8 仍待定：G8 存盘删不删、F-089 的测试要不要改成与 Python 版本无关。
 
 ## 下一个会话 = SA0
 
 - edge 侧 AT 核心 + 快照离线探针。先出语义 diff 表（Madry PGD-AT / TRADES / SAU 官方实现 vs 本仓库；F-093 的两处），用户说「开始改」后再写代码。
 - 读快照的第一步：核对 npz 里 `meta_json.edge_matches_eval == true`（本地没核对，F-094）。
-- 在打开 s42 快照**之前**把 P0 的完整配置清单与预算写进 git（N-008）。
+- 在打开 s42 快照**之前**把 P0 的完整配置清单与预算写进 git（N-008）；`harness/p0_verdict.py` 也要先 commit 再读数据（D-088 的做法）。
 
 ## 环境 / 基线
 
