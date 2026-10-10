@@ -46,7 +46,9 @@ BN_MODES = ("train", "frozen")
 #   tgt    本计划自定（无官方实现）：定向部分沿用 ck_snapshot 的 2.5·ε/K
 STEP_RATIO = {"pgd": 2.5, "trades": 0.007 * 10 / 0.031, "tgt": 2.5}
 SAU_DEFAULTS = {"beta_1": 0.01, "beta_2": 1.0, "lmd_1": 1.0, "lmd_2": 0.0, "lmd_3": 1.0,
-                "steps": 5, "optimizer": "adam", "lr": 1e-4}      # BackdoorBench config/defense/sau/cifar10.yaml
+                "steps": 5, "optimizer": "adam", "lr": 1e-4,     # BackdoorBench config/defense/sau/cifar10.yaml（wd 0）
+                "amsgrad": True, "adam_epsilon": 1e-8,           # utils/train_settings_generate.py：torch Adam(amsgrad=True)、eps 缺省
+                "augment": False}                                # defense/sau.py：干净集 get_transform(train=False)，不增强
 TRADES_START_STD_PX = 0.001                                     # TRADES：x_adv = x + 0.001·randn（[0,1] 像素）
 
 
@@ -116,6 +118,11 @@ def expand_grid(spec: dict) -> list:
     if len(set(ids)) != len(ids):
         raise ValueError(f"配置 id 重复：{sorted(i for i in ids if ids.count(i) > 1)}")
     return out
+
+
+def augments(cfg: dict) -> bool:
+    """训练 batch 要不要做客户端同款增强（翻转 + pad 4 裁剪）。SAU 照官方不增强；其余目标增强。"""
+    return bool((cfg.get("sau") or {}).get("augment", True))
 
 
 def matched_cft(cfg: dict, grid: list) -> str | None:

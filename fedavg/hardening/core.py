@@ -12,7 +12,10 @@ SA0 的离线驱动 `analysis/p0_snapshot.py` 用它；SA1 的在线接线以后
     探针在冻结 body 的倒数第二层特征上拟合（spec.fit_probe），加固时与 body 一起训、用完丢弃。
   · **BN moving 统计量不变**：bn=train 时前向用 batch 统计（Keras 会顺手改 moving 统计量）→ 结束后按索引写回；
     bn=frozen 时一律推理模式（`resnet10_torch` 的 `TorchBatchNorm` 推理路径，GPU 确定性下可对输入求梯度，陷阱 #23）。
-  · 扰动一律在**模型输入空间**（逐通道标准化后）里做：像素单位的 ε / 步长 ÷ std，裁剪到 `valid_range`（SAU 官方不裁剪，这里裁剪）。
+  · 扰动一律在**模型输入空间**（逐通道标准化后）里做：像素单位的 ε / 步长 ÷ std，投影到 ε 球后再投影到 `valid_range`。
+    投影只在更新之后做，**求梯度的前向里不裁剪**（tape 里的 clip 让超界坐标梯度为 0 → sign(0) = 0、卡死，审查 R1）。
+    SAU 官方连合法范围都不投影（clamp 被注释），这里投影（与 Bad-PFL 的 ξ、ck_snapshot 同一套）。
+  · SAU 照官方：干净集不增强、Adam(amsgrad)、参照模型推理模式 + 在推理模式特征上拟合的探针（审查 R2–R4）。
   · 模型末层是 softmax（陷阱 #6：from_logits=False）→ 各项 loss 用「特征 × 探针 W + b」的 logits，不从概率反推。
   · **不得改变任何外部状态**：所有随机数来自调用方给的 Generator；草稿模型在构造时创建（`clone_model` 会消耗 Python random，F-078），
     构造与每次 harden 都包在 `random.getstate()/setstate()` 里；传进来的 weights 不被修改。
@@ -63,6 +66,22 @@ def sau_shared(logits_p, pert_label_ref, poison, n_classes):
     return tf.reduce_sum(tf.where(poison, term, 0.0)) / 2.0 / B
 
 
+def make_optimizer(cfg: dict, lr: float | None):
+    """
+    SGD（客户端 body 同款，无动量）或 SAU 的 Adam。SAU 照官方 torch.optim.Adam(lr, betas=(.9, .999), amsgrad=True, eps=1e-8)。
+    Keras 的 ε 加在未做偏差校正的 √v 上（torch 加在校正后的上）→ 等价于 torch 的 ε/√(1−β2^t)，t = 1 时 3.2e-7、
+    随 t 收敛到 1e-8；`tests/test_hardening_tf.py` 在先 1e-2 后 1e-4 的梯度序列上与 torch 公式逐步对过（差 ≤ 3.8e-4 个 lr）。
+    """
+    if cfg["optimizer"] == "adam":
+        s = cfg.get("sau") or {}
+        return tf.keras.optimizers.Adam(learning_rate=float(cfg["lr"]), beta_1=0.9, beta_2=0.999,
+                                        epsilon=float(s.get("adam_epsilon", 1e-8)),
+                                        amsgrad=bool(s.get("amsgrad", True)))
+    if lr is None:
+        raise ValueError("SGD 目标需要 lr（客户端 body 的 lr，spec.lr_at）")
+    return tf.keras.optimizers.SGD(learning_rate=float(lr))
+
+
 class EdgeHardener:
     """一套草稿模型（被加固的模型 + SAU 的冻结参照模型），复用于全部加固调用。"""
 
@@ -103,6 +122,10 @@ class EdgeHardener:
 
     def _project(self, xa, x0, eps_in):
         return self._clip(tf.clip_by_value(xa, x0 - eps_in, x0 + eps_in))
+
+    def _project_pert(self, pert, x0, eps_in):
+        """扰动形式的同一个投影：先到 [−ε, ε]，再让 x0 + pert 落进合法范围（返回的仍是扰动）。"""
+        return self._clip(x0 + tf.clip_by_value(pert, -eps_in, eps_in)) - x0
 
     # ── 前向 ────────────────────────────────────────────────────────────────
     def logits(self, x, training: bool):
@@ -190,16 +213,18 @@ class EdgeHardener:
         init max（全部 +ε）；loss = β1·loss_adv + β2·loss_cross，沿 −sign(∇) 更新扰动并投影到 [−ε, ε]；
         loss_adv = −(Σ 未翻转样本的 CE(y))/2/B（各模型用自己的掩码）；loss_cross = 非共享样本上两模型输出的 JS，/B。
         更新之后若（更新前的）共享掩码已全真 → 提前停（官方同）。返回扰动（输入空间）。
+        与官方唯一的差别：每次投影之后再让 x0 + pert 落进合法范围（`_project_pert`）；前向直接用 x0 + pert、不裁剪，
+        所以贴边坐标的梯度照常回传（审查 R1：旧实现在 tape 里裁剪，init max 下贴边坐标 5 步都卡在 +ε）。
         """
         x0 = tf.convert_to_tensor(x, tf.float32)
         B = tf.cast(tf.shape(x0)[0], tf.float32)
         ori = tf.argmax(self.logits(x0, training), axis=1, output_type=y.dtype)
         ori_ref = tf.argmax(self.logits_ref(x0, W_ref, b_ref), axis=1, output_type=y.dtype)
-        pert = tf.clip_by_value(tf.zeros_like(x0) + eps_in, -eps_in, eps_in)
+        pert = self._project_pert(tf.zeros_like(x0) + eps_in, x0, eps_in)
         for _ in range(int(steps)):
             with tf.GradientTape() as tape:
                 tape.watch(pert)
-                xa = self._clip(x0 + pert)
+                xa = x0 + pert
                 lm = self.logits(xa, training)
                 lr = self.logits_ref(xa, W_ref, b_ref)
                 pl = tf.argmax(lm, axis=1, output_type=y.dtype)
@@ -213,7 +238,7 @@ class EdgeHardener:
                 loss_cross = tf.reduce_sum(tf.where(shared, 0.0, js_rows(lm, lr))) / B
                 loss = beta_1 * loss_adv + beta_2 * loss_cross
             g = tape.gradient(loss, pert)
-            pert = tf.clip_by_value(pert - alpha_in * tf.sign(g), -eps_in, eps_in)
+            pert = self._project_pert(pert - alpha_in * tf.sign(g), x0, eps_in)
             if bool(tf.reduce_all(shared)):
                 break
         return tf.stop_gradient(pert)
@@ -257,7 +282,7 @@ class EdgeHardener:
             W_ref, b_ref = ref
             pert = self.sau_pert(xb, yb, eps_in, alpha_in, k, training, W_ref, b_ref,
                                  float(s["beta_1"]), float(s["beta_2"]))
-            xp = self._clip(xb + pert)
+            xp = self._clip(xb + pert)                                   # pert 已投影过；这里只防舍入
 
             def f():
                 both = self.logits(tf.concat([xb, xp], axis=0), training)    # 官方：干净 + 扰动一次前向
@@ -311,8 +336,18 @@ class EdgeHardener:
             self._restore(weights)
             ref = None
             if cfg["objective"] == "sau":
+                # 参照模型跑推理模式（官方 model_ref.eval()）→ 它的探针要在**推理模式**特征上拟合（审查 R4）。
+                # bn=frozen 时主模型的探针本来就是在同一份推理模式特征上拟合的 → 直接共用（重拟合结果逐位相同）。
                 self.ref.set_weights([np.asarray(w) for w in weights])
-                ref = (tf.constant(W0), tf.constant(b0))
+                if head_init is None and training:
+                    pr = spec.fit_probe(extract(self.feat_ref, x), y, self.K, steps=int(self.probe_cfg["steps"]),
+                                        lr=float(self.probe_cfg["lr"]), l2=float(self.probe_cfg.get("l2", 1e-4)))
+                    Wr, br, info["ref_acc"] = pr["W"], pr["b"], pr["train_acc"]
+                else:
+                    Wr, br = W0, b0
+                    info["ref_acc"] = (info["probe_acc"] if head_init is None else
+                                       float(np.mean(np.argmax(extract(self.feat_ref, x) @ W0 + b0, axis=1) == y)))
+                ref = (tf.constant(Wr), tf.constant(br))
             kstar = None
             if cfg["objective"] == "tgt":
                 att = spec.stratified_subset(y, int(self.kstar_cfg["n"]), rng)
@@ -321,18 +356,15 @@ class EdgeHardener:
                 info.update({"ck": c, "kstar": kstar, "kstar_ties": ties})
                 if kstar is None:
                     raise ValueError("AT-tgt：所有类的 c_k 都无定义，选不出 k*")
-            if cfg["optimizer"] == "adam":
-                opt = tf.keras.optimizers.Adam(learning_rate=float(cfg["lr"]))
-            else:
-                if lr is None:
-                    raise ValueError("SGD 目标需要 lr（客户端 body 的 lr，spec.lr_at）")
-                opt = tf.keras.optimizers.SGD(learning_rate=float(lr))
+            opt = make_optimizer(cfg, lr)
             info["lr"] = float(cfg["lr"]) if cfg["optimizer"] == "adam" else float(lr)
+            aug = bool(augment) and spec.augments(cfg)                 # SAU 不增强（审查 R2）
+            info["augment"] = aug
             var = self.body_vars + [self.W, self.b]
             n_steps, losses = 0, []
             for _ in range(int(cfg["epochs"])):
                 for idx in spec.epoch_batches(len(y), self.batch, rng):
-                    xb = augment_batch(x[idx], rng) if augment else x[idx]
+                    xb = augment_batch(x[idx], rng) if aug else x[idx]
                     xb, yb = tf.constant(xb), tf.constant(y[idx])
                     loss_fn = self.batch_loss(cfg, xb, yb, training, rng=rng, kstar=kstar, ref=ref)
                     with tf.GradientTape() as tape:

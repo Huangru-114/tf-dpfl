@@ -2,6 +2,8 @@
 阶段三 SA0：`fedavg/hardening/core.py`（edge 侧对抗训练的 TF 部分）。需要 TF；本地无 TF 时 skip、集群上跑。
 
 - 扰动在像素空间的 L∞ 预算内、在合法像素范围内（PGD / TRADES / SAU / AT-tgt）；
+- SAU 的四条（审查 R1–R4）：贴边坐标照样有梯度（投影而不是在 tape 里裁剪）、不增强、Adam(amsgrad, ε 1e-8) 与 torch 公式逐步对上、
+  参照模型的探针在推理模式特征上拟合；
 - 一次加固只改 body 的可训练变量：head 与 BN moving 统计量逐位不变、传入的权重不被改、Python random 状态不变；
 - 同一个 rng 种子 → 逐位相同；
 - loss 的三个小块 = numpy 手写公式（TRADES 的 KL、SAU 的 JS 与共享项）；
@@ -73,8 +75,108 @@ def test_perturbations_stay_in_the_pixel_budget_and_valid_range():
     for k, xa in cases.items():
         d = (xa.numpy() - x) * np.array([0.2470, 0.2435, 0.2616])
         assert np.max(np.abs(d)) <= budgets[k] + 1e-6, k
-        if k != "sau":                                          # SAU 的扰动本身不裁剪；训练时 x + 扰动再裁剪
-            assert np.all(xa.numpy() >= lo - 1e-6) and np.all(xa.numpy() <= hi + 1e-6), k
+        assert np.all(xa.numpy() >= lo - 1e-6) and np.all(xa.numpy() <= hi + 1e-6), k
+
+
+# ── SAU：审查 R1–R4 ───────────────────────────────────────────────────────────
+def _random_heads(h, seed=3):
+    r = np.random.default_rng(seed)
+    d = int(h.feat.output_shape[-1])
+    h.W.assign(r.normal(size=(d, NCLS)).astype(np.float32))
+    h.b.assign(np.zeros(NCLS, np.float32))
+    return tf.constant(r.normal(size=(d, NCLS)).astype(np.float32)), tf.zeros(NCLS)
+
+
+def test_sau_boundary_coordinates_still_move_r1():
+    """
+    init max 下 x0 + ε 超出合法范围的坐标：投影后起点 = hi − x0；一步之后，梯度要求下降的那些坐标必须走到 hi − x0 − ε，
+    其余停在 hi − x0。旧实现在求梯度的前向里裁剪 → 这些坐标梯度恒为 0 → 一个都不动（改动前 moved = 0，已实测）。
+    """
+    m, h = _hardener()
+    h.model.set_weights(m.get_weights())
+    h.ref.set_weights(m.get_weights())
+    Wr, br = _random_heads(h)
+    eps_in = h.to_in(8 / 255)
+    lo, hi = spec.valid_range(CFG)
+    r = np.random.default_rng(4)
+    x = (hi - r.uniform(0.05, 0.95, size=(16, TEI.IMG, TEI.IMG, 3)) * eps_in.numpy()).astype(np.float32)
+    y = (np.arange(16) % 4).astype(np.int64)
+    p1 = h.sau_pert(tf.constant(x), tf.constant(y), eps_in, eps_in, 1, False, Wr, br, 0.01, 1.0).numpy()
+    room = hi - x                                               # 全部坐标都贴边：room < ε
+    assert np.all(room < eps_in.numpy())
+    moved = np.isclose(p1, room - eps_in.numpy(), atol=1e-6)
+    stayed = np.isclose(p1, room, atol=1e-6)
+    assert np.all(moved | stayed)
+    assert moved.mean() > 0.1, moved.mean()
+    xa = x + p1
+    assert np.all(xa >= lo - 1e-6) and np.all(xa <= hi + 1e-6)
+
+
+def test_sau_does_not_augment_but_the_others_do_r2(monkeypatch):
+    calls = []
+    orig = C.augment_batch
+    monkeypatch.setattr(C, "augment_batch", lambda xb, rng: calls.append(len(xb)) or orig(xb, rng))
+    m, h = _hardener()
+    x, y = _data()
+    _, info = h.harden(m.get_weights(), x, y, BY["sau-e8-frozen-low"], rng=np.random.default_rng(0), lr=0.05)
+    assert calls == [] and info["augment"] is False
+    _, info = h.harden(m.get_weights(), x, y, BY["pgd-e8-frozen-low"], rng=np.random.default_rng(0), lr=0.05)
+    assert len(calls) == info["steps"] == 2 and info["augment"] is True
+
+
+def _torch_adam(grads, lr, amsgrad, b1=0.9, b2=0.999, eps=1e-8):
+    """torch.optim.Adam 的单变量更新（torch/optim/adam.py 的 _single_tensor_adam），float64。"""
+    p = np.zeros_like(grads[0], dtype=np.float64)
+    m, v, vmax, out = np.zeros_like(p), np.zeros_like(p), np.zeros_like(p), []
+    for t, g in enumerate(grads, start=1):
+        m = b1 * m + (1 - b1) * g
+        v = b2 * v + (1 - b2) * g * g
+        vmax = np.maximum(vmax, v)
+        denom = np.sqrt(vmax if amsgrad else v) / np.sqrt(1 - b2 ** t) + eps
+        p = p - lr / (1 - b1 ** t) * m / denom
+        out.append(p.copy())
+    return out
+
+
+def test_sau_optimizer_matches_torch_amsgrad_r3():
+    cfg = BY["sau-e8-frozen-low"]
+    c = C.make_optimizer(cfg, None).get_config()
+    assert c["amsgrad"] is True and c["epsilon"] == 1e-8 and (c["beta_1"], c["beta_2"]) == (0.9, 0.999)
+    assert float(c["learning_rate"]) == pytest.approx(1e-4)
+    r = np.random.default_rng(0)
+    # 前 10 步 |g| ~ 1e-2、之后 ~ 1e-4：v 掉下来 → AMSGrad 的 max 起作用（不开 AMSGrad 的 torch 公式在这组上差 0.035 lr）
+    grads = [r.normal(size=6) * (1e-2 if t < 10 else 1e-4) for t in range(60)]
+    want = _torch_adam(grads, 1e-4, amsgrad=True)
+
+    def worst(opt):                                             # 以「一个名义步长 lr」为单位（相对误差在参数过 0 时没有意义）
+        v, w_ = tf.Variable(np.zeros(6, np.float32)), 0.0
+        for g, w in zip(grads, want):
+            opt.apply_gradients([(tf.constant(g, tf.float32), v)])
+            w_ = max(w_, float(np.max(np.abs(v.numpy() - w))) / 1e-4)
+        return w_
+    assert worst(C.make_optimizer(cfg, None)) < 2e-3            # 实测 3.8e-4 lr（Keras 的 ε 加在未校正的 √v 上）
+    # 反向锚点：旧实现（Keras 缺省 Adam：无 AMSGrad、ε 1e-7）对不上（实测 0.035 lr）
+    assert worst(tf.keras.optimizers.Adam(learning_rate=1e-4)) > 2e-2
+    assert C.make_optimizer(BY["pgd-e8-frozen-low"], 0.05).get_config()["name"] == "SGD"
+    with pytest.raises(ValueError):
+        C.make_optimizer(BY["pgd-e8-frozen-low"], None)
+
+
+def test_sau_reference_probe_is_fitted_on_inference_features_r4(monkeypatch):
+    seen = []
+    orig = C.spec.fit_probe
+    monkeypatch.setattr(C.spec, "fit_probe", lambda F, *a, **k: seen.append(np.array(F, copy=True)) or orig(F, *a, **k))
+    m, h = _hardener()
+    x, y = _data()
+    _, info = h.harden(m.get_weights(), x, y, BY["sau-e8-train-low"], rng=np.random.default_rng(0), lr=0.05)
+    assert len(seen) == 2                                       # 主模型（训练模式特征）+ 参照模型（推理模式特征）
+    inf = C.extract(h.feat_ref, x)                              # 参照模型的权重 = 输入的权重（从未被训练）
+    np.testing.assert_array_equal(seen[1], inf)
+    assert not np.allclose(seen[0], inf)                        # 训练模式用 batch 统计：与推理模式不同
+    assert info["ref_acc"] == orig(inf, y, NCLS, steps=20, lr=0.05)["train_acc"]
+    seen.clear()
+    _, info = h.harden(m.get_weights(), x, y, BY["sau-e8-frozen-low"], rng=np.random.default_rng(0), lr=0.05)
+    assert len(seen) == 1 and info["ref_acc"] == info["probe_acc"]     # bn=frozen：同一份推理模式特征，共用探针
 
 
 # ── 一次加固只改 body ─────────────────────────────────────────────────────────
