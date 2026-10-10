@@ -1,0 +1,25 @@
+{
+  "k": 3,
+  "runs": [
+    "SNAP__distributed__s42",
+    "SNAP__distributed__s43",
+    "SNAP__distributed__s44"
+  ],
+  "wall_s": 14227,
+  "n_samples": 949,
+  "util_mean": 87.5,
+  "util_max": 99.0,
+  "mem_max_mib": 96051.0,
+  "mem_total_mib": 97871.0,
+  "run_peak_max_mib": 16773.2,
+  "n_oom": 0,
+  "n_host_oom": 0,
+  "mem_req_mb": 73728,
+  "n_mem_warnings": 0,
+  "run_peak_mib": [
+    16773.2,
+    16773.1,
+    16769.8
+  ],
+  "oom_runs": []
+}
