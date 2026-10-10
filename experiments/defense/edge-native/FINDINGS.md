@@ -226,3 +226,23 @@ H1 规则（均值 ≥ 0.15 且最小 seed ≥ 0.10 → `protects`；三个 |Δ|
 - **N-008 草案的一处措辞问题（2026-10-10 已按此改，D-101）**：通用闸写的是「每个恶意端每云轮都参与」，但本仓库没有强制参与（`run.forced_participation = false`）。
   distributed s42 第 45 轮、collocated s44 有一个云轮恰好没有攻击者被选中（`n_malicious_participations` = 59 / 60）。按原文字这两个 run 会被误判 invalid。
   建议改成与 G1 判定（`harness/g1_verdict.py:run_reasons`）相同的「`n_malicious_participations` > 0」。**还没改**。
+
+### F-095 `confirmed`（代码 + 可复现的计算）—— G1 / G1R5 的在线 c_k 只在飞机和汽车两个源类上测：攻击样本取的是「按类排序的干净集」的前 64 张
+
+- **代码**：`fedavg/server/update_ck.py:87` `xa, ya = xs[:n], ys[:n]`（n = `evaluation.update_ck_n` = 64）；NCM 原型用全部 500 张，攻击样本只用前 n 张。
+  干净集 `edge.clean_x / clean_y` = `x_all[clean_indices]`（`main.py:778-785`），而 `clean_indices` 由 `data/designed_partition.py` 的 `take()` **逐类拼接**（先全部第 0 类、再第 1 类……）→ 按类排序。
+  `analysis/functional_score.ck_from_reached` 只统计 y ≠ k 的样本。
+- **复现**：`python3 harness/ck_probe_classes.py <G1 / G1R5 的配置>`（用每类 6 000 张的合成标签跑真实的 `designed_partition`；各类张数只取决于类供给、设计参数与 seed，与标签在数组里的位置无关）。
+  27 个开了 update_ck 的配置、108 个 edge：
+
+  | 划分 | 前 64 张里的飞机（y_t） | 汽车 | 其余类 | c_{y_t} 可统计的样本 |
+  |---|---|---|---|---|
+  | C1（G1 C1 12 个 + G1R5 3 个，60 个 edge） | 50 | 13–14 | 0–1 | 13–14 张，全是汽车 |
+  | random（G1 random 12 个，48 个 edge） | 35–64 | 0–29 | 0 | 0–29 张；**8 个 edge 为 0 → c_{y_t} 无定义** |
+
+- **后果**：c_{y_t}（推向目标类）只在十几张汽车上统计，其余 c_k 只在飞机和汽车两个源类上统计；设计意图（S6b-PLAN：在干净集上测各类的可达性）没有实现。
+  F-085 / REPORT §5.13 的「在线 c_k（s_ck）undetectable」是在这个探针上得到的 —— 它说明「这个探针上没有信号」，**不能**推广成「c_k 这类功能分数检测不出恶意更新」。
+  反过来，「换成按类分层的探针就能检测」**也没有证据**。G1 没存完整的单个更新（只有草图），离线重算不了；要知道答案只能带修正后的取样重跑。
+- **不影响**：3-C（锯齿）、`norm_w` / 余弦的 3-D 结论（不用 c_k）；阶段三的 SNAP（`D-base` 没开 update_ck）。
+- **阶段三的处理**：SA0 的 AT-tgt 求 k\* 时用全部 500 张或按类分层的子集；加固时每个 epoch 先打乱干净集（PLAN SA0 语义 diff 的修正 2 / 3）。
+  `update_ck.py` 的取样要不要改、REPORT §5.13 要不要加注，由用户定（还没改）。

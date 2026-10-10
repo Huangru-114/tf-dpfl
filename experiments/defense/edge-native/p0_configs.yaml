@@ -1,0 +1,44 @@
+# P0 的配置清单与预算（SA0；FINDINGS N-008：**在打开 s42 快照之前 commit，之后不改**）
+#
+# 展开规则在 fedavg/hardening/spec.py:expand_grid（id 确定、顺序确定）；守卫 tests/test_hardening_spec.py 钉住 32 个 id。
+# 每个目标的步长约定、随机起点、BN 模式的含义见 spec.py 页首与 SA0 语义 diff（DECISIONS D-103 / D-104，FINDINGS F-095）。
+#
+#   pgd     Madry PGD-AT：只在对抗样本上训 CE；ε ∈ {4, 8}/255
+#   trades  TRADES：CE(clean) + β·KL(clean ‖ adv)；ε = 8/255，β ∈ {1, 6}
+#   sau     SAU（共享对抗样本反学习，参照模型 = 上传前的 w_e）：ε ∈ {8/255, 0.2}（D-103：两档分开报），官方 Adam 1e-4、5 步
+#   tgt     逐样本定向 AT（本计划自定）：推向 k* = argmin c_k 的定向 PGD（ε = 4/255）+ 一步无目标 FGSM（σ = 4/255）
+#   cft     干净微调（归因对照，不参与选择）
+#   AT-ccs 不在这里（D-104：SA-C 之后离线补跑，只报告）
+#
+# bn：train = 生成与训练都用 batch 统计；frozen = 都用推理模式 + edge 自己的 moving 统计量。两种都不改 moving 统计量（加固后写回）。
+# budgets：epochs 是在 n_clean 张干净图上的遍数（batch 32、drop_last → 500 张每 epoch 15 步）；pgd_steps 是每个 batch 的 PGD 步数（SAU 固定 5）。
+version: 1
+batch: 32
+n_clean: 500
+probe: {steps: 300, lr: 0.01, l2: 1.0e-4}     # 临时线性探针（spec.fit_probe）：全批 Adam、零初始化
+kstar: {n: 500, eps_px: 4/255, steps: 10}     # AT-tgt 求 k* 的 c_k：全部干净图（F-095：不取前 n 张）、ck_snapshot 的定向 PGD
+grid:
+  bn: [train, frozen]
+  budgets:
+    low:  {epochs: 1, pgd_steps: 5}
+    high: {epochs: 5, pgd_steps: 10}
+  objectives:
+    pgd:    {eps_px: [4/255, 8/255]}
+    trades: {eps_px: [8/255], beta: [1, 6]}
+    sau:    {eps_px: [8/255, 0.2]}
+    tgt:    {eps_px: [4/255], sigma_px: 4/255}
+    cft:    {}
+# 选择（N-008）：只用 s42 collocated；在精度过滤通过的 AT 配置里按 min(R_H@6, R_H@15) 取前 3 名
+# （并列 → 单次加固的前向反向次数少者优先 → id 字典序），冻结进 analysis/p0_frozen.json 之后才读 s43 / s44。
+select: {top: 3, seed: 42, placement: collocated, snapshots: [6, 15]}
+# 附加读数（只报告，不进判定；只对冻结的配置做 —— 选择之后才知道是哪几个，规则在这里先写死）：
+aux:
+  damping_lambda: [0.5, 0.25]     # 每个 edge 只吃 λ 份云更新：w_e + λ(G − w_e)（与配置无关，每个快照一次）
+  oracle_isolation: true          # G 去掉攻击者 edge 的 FedAvg（集中布点才有定义）= 灌入削减上界
+  cloud_side: top3                # H_cloud(G)：cloud 用 4 × 500 = 2000 张干净图加固聚合后的 G（D4 离线版）
+  n_clean: {configs: top1, n: [100, 200]}     # 分层子集（spec.stratified_subset）
+  e0_own: top3                    # 单次 AT 能否洗掉 E0 自己的模型（A-every 的离线代理）：只加固 w_0，读 E0 良性端
+  ck_before_after: {configs: top3, n: 100}    # 加固前后各 edge 的 body 级 c_k（分层 100 张）
+  head_diag: top3                 # 探针换成「本 edge 各端私有 head 的均值」再加固一次（语义 diff A2 的诊断）
+  trigger_norms: {n: 256}         # 每个快照：评估攻击者的 ‖δ‖∞ / ‖ξ‖∞ / ‖δ+ξ‖∞（像素与输入两个空间）
+  ccs_clu: true                   # 每个快照：各 edge 用客户端私有 BN 统计量做 HDBSCAN（CCS 的聚类部分）→ 剔除的 TPR / FPR
