@@ -76,8 +76,13 @@ def _with_labels(monkeypatch, labels):
 
 
 def test_keeps_the_largest_cluster_ties_to_the_smaller_label(monkeypatch):
+    seen = []
+    orig_init = _FakeHDBSCAN.__init__
+    monkeypatch.setattr(_FakeHDBSCAN, "__init__", lambda self, **kw: (seen.append(kw), orig_init(self, **kw))[1])
     d = BC.detect(_with_labels(monkeypatch, [1, 1, 1, 0, 0, -1]))
     assert d["status"] == "ok" and d["admitted"] == [0, 1, 2] and d["rejected"] == [3, 4, 5]
+    assert seen == [{"min_cluster_size": 6 // 2 + 2, "min_samples": 1, "metric": "precomputed",
+                     "allow_single_cluster": True, "copy": True}]          # CCS 官方参数
     d = BC.detect(_with_labels(monkeypatch, [1, 1, 0, 0, -1]))      # 并列 → 编号小的簇（0）
     assert d["admitted"] == [2, 3] and d["rejected"] == [0, 1, 4]
 

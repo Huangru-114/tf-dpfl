@@ -197,3 +197,116 @@ def test_frozen_aux_runs_and_reuses_the_main_hardened_weights(restored):
     b = P0.frozen_aux(w, h, snap, frozen, by, index_of, 1, 0.05, aux)          # 不给 → salt 0 重算
     assert set(a) == {"cloud_side", "n_clean", "head_diag", "own", "ck"}
     assert a["own"] == b["own"] and a["ck"] == b["ck"]
+
+
+# ── 第三轮审查：GPU 入口 main() 端到端、集中布点的受害 edge 路径、真实 SNAP 的 J_t ────────
+import json                                                  # noqa: E402
+from pathlib import Path                                      # noqa: E402
+
+import yaml                                                   # noqa: E402
+
+E2E_GRID = {"version": 1, "batch": 8, "n_clean": 16,
+            "probe": {"steps": 5, "lr": 0.05, "l2": 1e-4}, "kstar": {"n": 8, "eps_px": "4/255", "steps": 1},
+            "grid": {"bn": ["frozen"], "budgets": {"low": {"epochs": 1, "pgd_steps": 1}},
+                     "objectives": {"pgd": {"eps_px": ["8/255"]}, "cft": {}}},
+            "select": {"top": 1, "seed": 42, "placement": "collocated", "snapshots": [1]},
+            "aux": {"damping_lambda": [0.5], "trigger_norms": {"n": 8}, "bn_private_clu": True,
+                    "cloud_side": "top3", "n_clean": {"configs": "top1", "n": [8]}, "e0_own": "top3",
+                    "ck_before_after": {"configs": "top3", "n": 8}, "head_diag": "top3"}}
+
+
+def _metrics(source, snap_path, bump=0.0):
+    rec = source["rec"]
+    cols = list(P0.POST_EDGE_COLUMNS)
+    rows = []
+    for e, v in rec["post"][0]["client_benign"].items():
+        r = [None] * len(cols)
+        r[cols.index("edge_id")], r[cols.index("client_benign")] = e, (None if v is None else v + bump)
+        rows.append(r)
+    full = [{"edge_id": e, "client_benign": v["client_benign"]} for e, v in rec["full"][0].items()]
+    return {"dumps": {"snapshots": [{"round": 1, "path": snap_path.name, "sha": spec.sha12(snap_path)}]},
+            "per_edge_post_agg_rounds": {"2": rows}, "per_edge_rounds": {"1": full}}
+
+
+@pytest.fixture()
+def e2e(source, restored, tmp_path, monkeypatch):
+    w, _ = restored
+    monkeypatch.setattr(P0, "build_world", lambda path: w)
+    g = tmp_path / "grid.yaml"
+    g.write_text(yaml.safe_dump(E2E_GRID))
+    snap = Path(source["snap"])
+
+    def call(stage="screen", extra=(), bump=0.0, sha_ok=True):
+        m = _metrics(source, snap, bump)
+        if not sha_ok:
+            m["dumps"]["snapshots"][0]["sha"] = "000000000000"
+        (tmp_path / "m.json").write_text(json.dumps(m))
+        out = tmp_path / f"{stage}.json"
+        argv = ["--config", "unused.yaml", "--metrics", str(tmp_path / "m.json"), "--dumps-root", str(snap.parent),
+                "--grid", str(g), "--stage", stage, "--rounds", "1", "--out", str(out), *extra]
+        rc = P0.main(argv)
+        return rc, json.loads(out.read_text())
+    return call, tmp_path
+
+
+def test_main_screen_writes_a_complete_result(e2e):
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "harness"))
+    import p0_verdict as V
+    call, _ = e2e
+    rc, res = call()
+    assert rc == 0 and res["schema"] == P0.SCHEMA and res["stage"] == "screen"
+    assert sorted(res["configs"]) == ["cft-frozen-low", "pgd-e8-frozen-low"]           # screen = 网格全部
+    assert V.incomplete(res, res["configs"], (1,)) == []
+    S = res["snapshots"]["1"]
+    assert S["v0"]["pass"] and {"trigger_norms", "bn_private_clu", "damping_0.5"} <= set(S["aux"])
+
+
+def test_main_frozen_stage_adds_the_matched_cft_and_aux_and_only_skips_them(e2e):
+    call, tmp = e2e
+    fz = tmp / "frozen.json"
+    fz.write_text(json.dumps({"frozen": ["pgd-e8-frozen-low"], "status": "ok"}))
+    rc, res = call("frozen", ["--frozen", str(fz)])
+    assert rc == 0 and res["configs"] == ["pgd-e8-frozen-low", "cft-frozen-low"]
+    assert {"cloud_side", "n_clean", "head_diag", "own", "ck"} <= set(res["snapshots"]["1"]["aux"])
+    assert res["frozen_sha"] and len(res["frozen_sha"]) == 12
+    rc, res = call("frozen", ["--frozen", str(fz), "--only", "pgd-e8-frozen-low"])
+    assert res["configs"] == ["pgd-e8-frozen-low"] and "ck" not in res["snapshots"]["1"]["aux"]
+
+
+def test_main_refuses_a_snapshot_whose_sha_differs(e2e):
+    call, _ = e2e
+    with pytest.raises(RuntimeError, match="sha"):
+        call(sha_ok=False)
+
+
+def test_main_v0_failure_stops_and_exits_3(e2e):
+    call, _ = e2e
+    rc, res = call(bump=0.5)
+    assert rc == 3 and not res["snapshots"]["1"]["v0"]["pass"] and res["snapshots"]["1"]["configs"] == {}
+
+
+def test_collocated_path_reads_the_victim_edges(restored):
+    w, snap = restored
+    saved = (w.victims, w.placement)
+    try:
+        w.victims, w.placement = [1], "collocated"
+        ev = P0.eval_post(w, {int(e.edge_id): snap["global"] for e in w.edges}, t=1)
+        assert ev["victim_asr"] == ev["per_edge"][1]["client_benign"]
+        assert ev["margin_v"] == ev["per_edge"][1]["margin_p50"]
+    finally:
+        w.victims, w.placement = saved
+
+
+SNAP_RESULTS = Path(__file__).resolve().parent.parent / "experiments/defense/edge-native/results/P2/SNAP"
+F094_J = {42: {6: 0.2309, 15: 0.4226}, 43: {6: 0.2497, 15: 0.2244}, 44: {6: 0.336, 15: 0.146}}
+
+
+@pytest.mark.parametrize("seed", [42, 43, 44])
+def test_victim_jump_on_the_real_snap_metrics_matches_f094(seed):
+    files = sorted(SNAP_RESULTS.glob(f"SNAP__collocated__s{seed}*.metrics.json"))
+    if not files:
+        pytest.skip("SNAP 的 metrics.json 不在本地")
+    m = json.loads(files[-1].read_text())
+    for t, want in F094_J[seed].items():
+        assert round(P0.victim_jump(P0.recorded(m, t), [1, 2, 3]), 4) == pytest.approx(want, abs=1e-4)

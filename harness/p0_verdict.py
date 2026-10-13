@@ -157,8 +157,13 @@ def select(screen: dict, grid: list, top: int = 3, n_clean: int = 500, batch: in
 # 判定
 # ══════════════════════════════════════════════════════════════════════════
 
-def judge(results: list, frozen_doc: dict, grid: list, snapshots=SNAPSHOTS) -> dict:
-    """results：p0_snapshot 的全部 JSON；frozen_doc：select 的输出（已 commit）。"""
+def judge(results: list, frozen_doc: dict, grid: list, snapshots=SNAPSHOTS, *, grid_sha=None,
+          frozen_sha=None, top: int = 3, n_clean: int = 500, batch: int = 32) -> dict:
+    """
+    results：p0_snapshot 的全部 JSON；frozen_doc：select 的输出（已 commit）。
+    冻结清单自检（第三轮审查）：frozen_doc 必须是对同一份 s42 screen 重跑 select 的结果（状态与名单都相同）；
+    grid_sha（--grid 文件的 sha）给了就要求 frozen_doc 与每个结果都一致；frozen_sha（冻结文件的 sha）给了就要求每个 frozen 阶段的结果都一致。
+    """
     by_id = {c["id"]: c for c in grid}
     frozen = list(frozen_doc.get("frozen") or [])
     col = {(r["seed"], r["stage"]): r for r in results if r.get("placement") == "collocated"}
@@ -173,14 +178,27 @@ def judge(results: list, frozen_doc: dict, grid: list, snapshots=SNAPSHOTS) -> d
                                                          str(r.get("stage"))))}
     want_sha = frozen_doc.get("grid_sha")
     bad = sum((v0_failures(r) for r in col.values()), [])
+    if want_sha is None:
+        bad.append("冻结清单没有 grid_sha")
+    if grid_sha is not None and want_sha != grid_sha:
+        bad.append(f"冻结清单的 grid_sha {want_sha} ≠ 当前 --grid 文件的 {grid_sha}")
     bad += [f"{r.get('run_id')} / {r.get('stage')}：grid_sha {r.get('grid_sha')} ≠ 冻结清单的 {want_sha}"
-            for r in results if want_sha is not None and r.get("grid_sha") != want_sha]
+            for r in results if r.get("grid_sha") != want_sha]
+    if frozen_sha is not None:
+        bad += [f"{r.get('run_id')}：frozen_sha {r.get('frozen_sha')} ≠ 冻结文件的 {frozen_sha}"
+                for r in results if r.get("stage") == "frozen" and r.get("frozen_sha") != frozen_sha]
     if bad:
         return {**out, "verdict": "invalid", "reasons": bad}
     screen = col.get((SELECT_SEED, "screen"))
     missing = []
     if screen is None:
         missing.append(f"s{SELECT_SEED} collocated screen")
+    else:
+        redo = select(screen, grid, top=top, n_clean=n_clean, batch=batch, snapshots=snapshots)
+        if redo["status"] != frozen_doc.get("status") or redo["frozen"] != frozen:
+            return {**out, "verdict": "invalid",
+                    "reasons": [f"冻结清单与对 s{SELECT_SEED} screen 重跑 select 的结果不一致："
+                                f"{frozen_doc.get('status')} {frozen} vs {redo['status']} {redo['frozen']}"]}
 
     def res_for(seed, cid):
         """seed 上某配置的结果：s42 用 screen（与 frozen 阶段同一组随机数键 → 同值），其余用 frozen 阶段。"""
@@ -276,8 +294,13 @@ def main(argv=None):
         res["screen_sha"] = hashlib.sha256(Path(a.screen).read_bytes()).hexdigest()[:12]
     else:
         results = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(Path(a.dir).glob("*.json"))]
+        sel = gspec.get("select") or {}
         res = judge(results, json.loads(Path(a.frozen).read_text(encoding="utf-8")), grid,
-                    snapshots=tuple((gspec.get("select") or {}).get("snapshots", SNAPSHOTS)))
+                    snapshots=tuple(sel.get("snapshots", SNAPSHOTS)),
+                    grid_sha=hashlib.sha256(Path(a.grid).read_bytes()).hexdigest()[:12],
+                    frozen_sha=hashlib.sha256(Path(a.frozen).read_bytes()).hexdigest()[:12],
+                    top=int(sel.get("top", 3)), n_clean=int(gspec.get("n_clean", 500)),
+                    batch=int(gspec.get("batch", 32)))
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     Path(a.out).write_text(json.dumps(res, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     print(json.dumps({k: res.get(k) for k in ("verdict", "status", "frozen", "best") if k in res},

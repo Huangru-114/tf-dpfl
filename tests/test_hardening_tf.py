@@ -423,3 +423,164 @@ def test_optimizers_do_not_jit_compile():
     for c in calls:
         kw = {k.arg: k.value for k in c.keywords}
         assert isinstance(kw.get("jit_compile"), ast.Constant) and kw["jit_compile"].value is False
+
+
+# ── 第三轮审查：攻击方向、SAU 参照权重 / 掩码 / 提前停、head_init 真的被用了 ────────────
+def _ce_t(h, x, lab, training=False):
+    return float(tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(
+        labels=tf.constant(lab), logits=h.logits(tf.constant(x), training))))
+
+
+def test_attack_directions():
+    """符号翻了（上升 ↔ 下降）这些断言就红：无目标 PGD 抬高 CE(y)、TRADES 抬高 KL、定向 PGD 压低 CE(k)、AT-tgt 在非 k* 行压低 CE(k*)。"""
+    m, h = _hardener()
+    h.model.set_weights(m.get_weights())
+    _random_heads(h)
+    x, y = _data(n=16)
+    xt, yt = tf.constant(x), tf.constant(y)
+    eps = h.to_in(8 / 255)
+    big = h.to_in(64 / 255)                                     # 放大预算，小模型上效果才明显
+    a = h.to_in(16 / 255)
+    # (a) 无目标 PGD：同一个均匀起点（steps=0 复现）→ 走 3 步后 CE(y) 变大
+    x0 = h.pgd_ce(xt, yt, big, a, 0, False, rng=np.random.default_rng(1), start="uniform").numpy()
+    x3 = h.pgd_ce(xt, yt, big, a, 3, False, rng=np.random.default_rng(1), start="uniform").numpy()
+    assert _ce_t(h, x3, y) > _ce_t(h, x0, y)
+    # (b) TRADES：KL(p_nat ‖ p_adv) 比起点（x + 0.001·randn）大
+    p_nat = tf.nn.softmax(h.logits(xt, False))
+    n0 = (np.random.default_rng(2).standard_normal(x.shape).astype(np.float32)
+          * (spec.TRADES_START_STD_PX / h.std).astype(np.float32))
+    # KL 在 x0 处最小，两个方向走都会变大 → 比大小分辨不出符号；改为钉住第一步 = 起点 + α·sign(∇KL)（再投影）
+    xs = xt + n0
+    with tf.GradientTape() as tape:
+        tape.watch(xs)
+        kl = C.kl_sum(p_nat, h.logits(xs, False))
+    want = h._project(xs + a * tf.sign(tape.gradient(kl, xs)), xt, big).numpy()
+    xa = h.trades_adv(xt, big, a, 1, False, np.random.default_rng(2)).numpy()
+    np.testing.assert_allclose(xa, want, atol=1e-6)
+    # (c) 定向 PGD：CE(k) 变小
+    k = 5
+    xk = h.pgd_ce(xt, yt, big, a, 3, False, start="none", target=k).numpy()
+    assert _ce_t(h, xk, np.full_like(y, k)) < _ce_t(h, x, np.full_like(y, k))
+    # (d) AT-tgt：非 k* 行的定向部分压低 CE(k*)（σ = 0 时只剩定向部分）
+    rows = y != k
+    xg = h.tgt_adv(xt, yt, k, big, a, 3, tf.zeros_like(eps), False).numpy()
+    assert _ce_t(h, xg[rows], np.full(rows.sum(), k)) < _ce_t(h, x[rows], np.full(rows.sum(), k))
+
+
+def test_sau_reference_is_the_given_weights_not_the_template(monkeypatch):
+    """加固传进来的权重 B ≠ 构造时的模板 A：参照模型必须是 B，参照探针的特征 = B 的推理模式特征。"""
+    m, h = _hardener()
+    r = np.random.default_rng(7)
+    wB = [w + (r.normal(scale=0.05, size=w.shape).astype(w.dtype) if w.dtype.kind == "f" else 0)
+          for w in m.get_weights()]
+    for i in get_bn_stat_indices(m):                             # 统计量保持合法（方差 > 0）
+        wB[i] = m.get_weights()[i]
+    seen = []
+    orig = C.spec.fit_probe
+    monkeypatch.setattr(C.spec, "fit_probe", lambda F, *a, **k: seen.append(np.array(F, copy=True)) or orig(F, *a, **k))
+    x, y = _data()
+    h.harden(wB, x, y, BY["sau-e8-train-low"], rng=np.random.default_rng(0), lr=0.05)
+    for u, v in zip(h.ref.get_weights(), wB):
+        np.testing.assert_array_equal(u, v)
+    mB = TEI._model()
+    mB.set_weights(wB)
+    np.testing.assert_allclose(seen[1], C.extract(C.feature_model(mB), x), rtol=1e-6, atol=1e-7)
+
+
+def test_head_init_is_actually_used(monkeypatch):
+    m, h = _hardener()
+    x, y = _data()
+    d = int(h.feat.output_shape[-1])
+    r = np.random.default_rng(9)
+    W, b = r.normal(size=(d, NCLS)).astype(np.float32), r.normal(size=NCLS).astype(np.float32)
+    first = []
+    orig = h.batch_loss
+
+    def spy(*a, **k):
+        if not first:
+            first.append((h.W.numpy().copy(), h.b.numpy().copy()))
+        return orig(*a, **k)
+    monkeypatch.setattr(h, "batch_loss", spy)
+    a_, _ = h.harden(m.get_weights(), x, y, BY["cft-frozen-low"], rng=np.random.default_rng(0), lr=0.05, head_init=(W, b))
+    np.testing.assert_array_equal(first[0][0], W)
+    np.testing.assert_array_equal(first[0][1], b)
+    b_, _ = h.harden(m.get_weights(), x, y, BY["cft-frozen-low"], rng=np.random.default_rng(0), lr=0.05)
+    assert any(not np.array_equal(u, v) for u, v in zip(a_, b_))
+
+
+def _sau_loss_ref(lm, lr, ori, ori_r, y, b1, b2):
+    """Shared_PGD 的 loss（照 BackdoorBench defense/sau.py 独立重写一遍）：各模型只在**还没翻**的样本上算 CE；JS 只在**非共享**样本上。"""
+    pl, plr = tf.argmax(lm, 1, output_type=y.dtype), tf.argmax(lr, 1, output_type=y.dtype)
+    succ, succ_r = pl != ori, plr != ori_r
+    shared = succ & succ_r & (pl == plr)
+    B = tf.cast(tf.shape(lm)[0], tf.float32)
+    ce = tf.nn.sparse_softmax_cross_entropy_with_logits
+    adv = -(tf.reduce_sum(tf.where(succ, 0.0, ce(labels=y, logits=lm)))
+            + tf.reduce_sum(tf.where(succ_r, 0.0, ce(labels=y, logits=lr)))) / 2.0 / B
+    cross = tf.reduce_sum(tf.where(shared, 0.0, C.js_rows(lm, lr))) / B
+    return b1 * adv + b2 * cross, succ, succ_r, shared
+
+
+@pytest.mark.parametrize("b1,b2", [(1.0, 0.0), (0.01, 1.0)])     # 只 CE 掩码 / 官方权重（JS 主导）
+def test_sau_step_follows_the_reference_masks(monkeypatch, b1, b2):
+    """
+    一步 Shared_PGD = proj(pert0 − α·sign(∇ 参考 loss))。logits 换成逐行可控的函数，让四种情况都出现：
+    都没翻 / 只主模型翻 / 只参照翻 / 两个都翻到同一类（共享）—— 掩码写错哪一个，梯度符号就对不上。
+    """
+    m, h = _hardener()
+    x, y = _data(n=8)
+    x = np.clip(x, -0.5, 0.5).astype(np.float32)
+    X0 = tf.constant(x)
+    r = np.random.default_rng(3)
+    wpix = tf.constant(r.uniform(0.5, 1.5, size=x.shape[1:]).astype(np.float32))
+    L0 = np.zeros((8, NCLS), np.float32)
+    L0[:, 0] = 1.0                                                # 起点 argmax = 0（margin 1）
+    L0[:, 2:] = r.normal(scale=0.1, size=(8, NCLS - 2))
+    # 每行的扰动方向（s 越大越偏向哪些类）。行 0–1 都不翻；2 只主模型翻；3 两个都翻但到不同类；4–5 只参照翻；
+    # 6–7 共享（同一类 1，但主模型还分质量给类 2 → JS 随 s 增大，掩码去掉就看得出来）
+    Dm, Dr = np.zeros((8, NCLS), np.float32), np.zeros((8, NCLS), np.float32)
+    Dm[[2, 3, 6, 7], 1] = 5.0
+    Dm[[6, 7], 2] = 4.0
+    Dr[[4, 5, 6, 7], 1] = 5.0
+    Dr[3, 3] = 5.0
+    Dm, Dr = tf.constant(Dm), tf.constant(Dr)
+
+    def fake(xa, D):
+        s = tf.reduce_mean(tf.reshape((xa - X0) * wpix, (8, -1)), axis=1, keepdims=True)
+        return tf.constant(L0) + s * D + 0.3 * tf.reduce_mean(tf.reshape(xa * wpix, (8, -1)), 1, keepdims=True)
+    monkeypatch.setattr(h, "logits", lambda xa, training: fake(xa, Dm))
+    monkeypatch.setattr(h, "logits_ref", lambda xa, W, b: fake(xa, Dr))
+    yt = tf.constant(y)
+    eps = h.to_in(0.2)
+    pert0 = h._project_pert(tf.zeros_like(X0) + eps, X0, eps)
+    ori = tf.argmax(h.logits(X0, False), 1, output_type=yt.dtype)
+    ori_r = tf.argmax(h.logits_ref(X0, None, None), 1, output_type=yt.dtype)
+    with tf.GradientTape() as tape:
+        tape.watch(pert0)
+        xa = X0 + pert0
+        loss, succ, succ_r, shared = _sau_loss_ref(h.logits(xa, False), h.logits_ref(xa, None, None), ori, ori_r, yt,
+                                                   b1, b2)
+    succ, succ_r, shared = succ.numpy(), succ_r.numpy(), shared.numpy()
+    assert (~succ & ~succ_r).any() and (succ & ~succ_r).any() and (~succ & succ_r).any() and shared.any()
+    want = h._project_pert(pert0 - eps * tf.sign(tape.gradient(loss, pert0)), X0, eps).numpy()
+    got = h.sau_pert(X0, yt, eps, eps, 1, False, None, None, b1, b2).numpy()
+    np.testing.assert_allclose(got, want, atol=1e-6)
+
+
+def test_sau_stops_early_when_every_sample_is_shared(monkeypatch):
+    """更新前的共享掩码全真 → 更新一次就停（官方同）：起点之外只投影一次。"""
+    m, h = _hardener()
+    x, y = _data(n=8)
+    x = np.clip(x, -0.5, 0.5).astype(np.float32)                  # 远离上界：init max 之后扰动全为正
+    X0 = tf.constant(x)
+
+    def fake(xa, *_a, **_k):                                      # 起点 argmax = 0；任何正扰动 → argmax = 1（两个模型相同 → 共享）
+        s = tf.reduce_sum(tf.reshape(xa - X0, (tf.shape(xa)[0], -1)), axis=1, keepdims=True)
+        return tf.concat([-s, s, tf.zeros((tf.shape(xa)[0], NCLS - 2))], axis=1)
+    monkeypatch.setattr(h, "logits", lambda xa, training: fake(xa))
+    monkeypatch.setattr(h, "logits_ref", lambda xa, W, b: fake(xa))
+    calls = []
+    orig = h._project_pert
+    monkeypatch.setattr(h, "_project_pert", lambda *a: calls.append(1) or orig(*a))
+    h.sau_pert(X0, tf.constant(y), h.to_in(8 / 255), h.to_in(8 / 255), 5, False, None, None, 0.01, 1.0)
+    assert len(calls) == 2                                        # 起点 1 次 + 一次更新；不提前停会是 1 + 5

@@ -151,16 +151,26 @@ def test_rule_constants_are_n008():
         (0.5, 0.2, 0.05, 0.02, 0.04)
 
 
+def _sha(path):
+    import hashlib
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()[:12]
+
+
 def test_cli_round_trip(tmp_path):
     sc = _screen(0.1, {"pgd-e8-frozen-low": 0.9, "trades-e8-b6-frozen-low": 0.8, "tgt-e4-frozen-low": 0.7})
+    gsha = _sha(V.GRID)
+    sc["grid_sha"] = gsha
     d = tmp_path / "p0"
     d.mkdir()
     (d / "s42.screen.json").write_text(json.dumps(sc))
     assert V.main(["select", str(d / "s42.screen.json"), "--out", str(tmp_path / "frozen.json")]) == 0
     doc = json.loads((tmp_path / "frozen.json").read_text())
-    assert doc["frozen"] == TOP and len(doc["screen_sha"]) == 12
+    assert doc["frozen"] == TOP and len(doc["screen_sha"]) == 12 and doc["grid_sha"] == gsha
+    fsha = _sha(tmp_path / "frozen.json")
     for s, rh in ((43, 0.6), (44, 0.6)):
-        (d / f"s{s}.frozen.json").write_text(json.dumps(_frozen(s, {c: rh for c in TOP})))
+        r = _frozen(s, {c: rh for c in TOP})
+        r.update(grid_sha=gsha, frozen_sha=fsha)
+        (d / f"s{s}.frozen.json").write_text(json.dumps(r))
     assert V.main(["judge", str(d), "--frozen", str(tmp_path / "frozen.json"), "--out", str(tmp_path / "v.json")]) == 0
     assert json.loads((tmp_path / "v.json").read_text())["verdict"] == "go_online"
 
@@ -245,3 +255,117 @@ def test_sau_attribution_uses_the_sau_matched_cft():
     res = V.judge([sc] + [_frozen(s, {c: 0.6 for c in top}) for s in (43, 44)], doc, GRID)
     assert res["verdict"] == "go_online" and res["best"] == "sau-e8-frozen-low"
     assert res["attribution_vs_cft"]["cft"] == "cft-sau-frozen-low"
+
+
+# ── 第三轮审查：冻结清单自检、V0 的单边 None ───────────────────────────────────
+def test_judge_rejects_a_frozen_list_that_is_not_the_preregistered_top3():
+    sc = _screen(0.1, {"pgd-e4-frozen-low": 0.9, "pgd-e4-train-low": 0.9, "pgd-e8-frozen-low": 0.9,
+                       "pgd-e8-train-low": 0.9, "tgt-e4-frozen-low": 0.6})
+    doc = _doc(sc)
+    assert doc["status"] == "ok" and "tgt-e4-frozen-low" not in doc["frozen"]
+    fake = dict(doc, frozen=["tgt-e4-frozen-low"])                 # 第 5 名被手改进冻结清单
+    runs = [sc] + [_frozen(s, {"tgt-e4-frozen-low": 0.6}) for s in (43, 44)]
+    assert V.judge(runs, fake, GRID)["verdict"] == "invalid"
+    bad = {"frozen": [], "status": "wrong_input", "grid_sha": "x"}   # 失败的 select 产物 → 不能悄悄判 inconclusive
+    assert V.judge(runs, bad, GRID)["verdict"] == "invalid"
+
+
+def test_judge_checks_grid_and_frozen_file_shas():
+    sc = _top_screen()
+    doc = _doc(sc)
+    runs = _all(sc, {43: {c: 0.6 for c in TOP}, 44: {c: 0.55 for c in TOP}})
+    assert V.judge(runs, doc, GRID, grid_sha="x")["verdict"] == "go_online"
+    assert V.judge(runs, doc, GRID, grid_sha="other")["verdict"] == "invalid"
+    for r in runs:
+        r["frozen_sha"] = "f1"
+    assert V.judge(runs, doc, GRID, frozen_sha="f1")["verdict"] == "go_online"
+    runs[1]["frozen_sha"] = "f0"
+    assert V.judge(runs, doc, GRID, frozen_sha="f1")["verdict"] == "invalid"
+    assert V.judge(runs, {k: v for k, v in doc.items() if k != "grid_sha"}, GRID)["verdict"] == "invalid"
+
+
+def test_v0_one_sided_none_fails_even_without_victims():
+    f = {0: 0.5, 1: 0.5, 2: 0.5, 3: 0.5}
+    r = V.spec.v0_check(0.0, {0: 0.5, 1: None, 2: 0.5, 3: 0.5}, {0: 0.5, 1: 0.9, 2: 0.5, 3: 0.5}, f, f, edges=None)
+    assert not r["pass"]
+
+
+# ── 第三轮审查：go / kill / accuracy_bound 的每个条件各有一个能分辨它的用例 ────────────
+def _set_rh(res, t, cid, rh):
+    S = res["snapshots"][str(t)]
+    S["configs"][cid]["eval"]["victim_asr"] = 0.5 - rh * S["J"]
+
+
+def test_go_needs_rh_on_both_snapshots_of_every_seed():
+    sc = _top_screen()
+    f43 = _frozen(43, {c: 0.6 for c in TOP})
+    for c in TOP:
+        _set_rh(f43, 15, c, 0.4)                                    # s43 第 15 轮掉到 0.4
+    res = V.judge([sc, f43, _frozen(44, {c: 0.6 for c in TOP})], _doc(sc), GRID)
+    assert res["verdict"] == "inconclusive"
+
+
+def test_go_needs_the_filter_on_every_seed():
+    sc = _top_screen()
+    f44 = _frozen(44, {c: 0.6 for c in TOP}, d_pm={c: 0.03 for c in TOP})
+    res = V.judge([sc, _frozen(43, {c: 0.6 for c in TOP}), f44], _doc(sc), GRID)
+    assert res["verdict"] == "inconclusive"
+
+
+def test_kill_needs_every_s42_at_config_including_unfrozen_ones():
+    sc = _screen(0.15, {"pgd-e4-train-high": 0.25}, d_pm={"pgd-e4-train-high": 0.05})   # 过滤不过 → 不会被冻结
+    doc = _doc(sc)
+    assert "pgd-e4-train-high" not in doc["frozen"]
+    low = {c: 0.1 for c in doc["frozen"]}
+    assert V.judge(_all(sc, {43: low, 44: low}), doc, GRID)["verdict"] == "inconclusive"
+
+
+def test_kill_uses_the_max_over_snapshots():
+    sc = _screen(0.1)
+    _set_rh(sc, 15, "sau-e8-train-low", 0.3)                        # 0.1@6 / 0.3@15 → 不是「两个快照都 < 0.2」
+    doc = _doc(sc)
+    low = {c: 0.1 for c in doc["frozen"]}
+    assert V.judge(_all(sc, {43: low, 44: low}), doc, GRID)["verdict"] == "inconclusive"
+
+
+def test_accuracy_bound_only_when_no_filter_passing_config_reaches_r_go():
+    sc = _screen(0.1, {"pgd-e8-frozen-low": 0.9, "sau-e51-frozen-high": 0.9},
+                 d_pm={"sau-e51-frozen-high": 0.03})
+    doc = _doc(sc)
+    low = {c: 0.3 for c in doc["frozen"]}
+    res = V.judge(_all(sc, {43: low, 44: low}), doc, GRID)
+    assert res["verdict"] == "inconclusive" and res["s42_meets_R_GO_and_filter"] == ["pgd-e8-frozen-low"]
+
+
+def test_distributed_d_h_value_and_sign_and_incomplete():
+    sc = _top_screen()
+    doc = _doc(sc)
+    runs = _all(sc, {43: {c: 0.6 for c in TOP}, 44: {c: 0.55 for c in TOP}})
+    d42 = [r for r in runs if r["placement"] == "distributed" and r["seed"] == 42][0]
+    for t in ("6", "15"):
+        d42["snapshots"][t]["base"]["pooled_benign"] = 0.9
+        d42["snapshots"][t]["configs"]["pgd-e8-frozen-low"]["eval"]["pooled_benign"] = 0.6
+    d43 = [r for r in runs if r["placement"] == "distributed" and r["seed"] == 43][0]
+    del d43["snapshots"]["15"]["configs"]["tgt-e4-frozen-low"]
+    res = V.judge(runs, doc, GRID)
+    assert res["distributed_D_H"]["s42"]["pgd-e8-frozen-low"] == {"6": 0.3, "15": 0.3}
+    assert res["distributed_D_H"]["s43"]["incomplete"]
+    assert res["verdict"] == "go_online"                            # 分散布点只报告
+
+
+def test_kill_boundary_is_exact_not_float_rounding():
+    """R_H 恰好 = 0.2（A(G) 0.75、A(G′) 0.5、J 1.25 → 0.25 / 1.25 在浮点里就是 0.2）→ 不算 < 0.2。"""
+    sc = _screen(0.15)
+    doc = _doc(sc)
+
+    def exact(seed):
+        r = _frozen(seed, {c: 0.0 for c in doc["frozen"]})
+        for t in ("6", "15"):
+            S = r["snapshots"][t]
+            S["J"], S["base"]["victim_asr"] = 1.25, 0.75
+            for c in doc["frozen"]:
+                S["configs"][c]["eval"]["victim_asr"] = 0.5
+        return r
+    rows = V.snapshot_rows(exact(43), doc["frozen"][0])
+    assert rows[6]["r_h"] == 0.2 and rows[15]["r_h"] == 0.2
+    assert V.judge([sc, exact(43), exact(44)], doc, GRID)["verdict"] == "inconclusive"

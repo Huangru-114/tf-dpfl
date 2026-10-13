@@ -351,7 +351,7 @@ def v0_check(fedavg_max_abs, post_offline: dict, post_recorded: dict,
         for e in ids:
             a, b = off.get(e), rec.get(e)
             if a is None or b is None:
-                if (a is None) != (b is None) and (edges is not None):
+                if (a is None) != (b is None):
                     reasons.append(f"{name} edge {e}：一边是 None（离线 {a}，记录 {b}）")
                 continue
             worst = max(worst, abs(a - b))

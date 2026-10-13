@@ -249,7 +249,7 @@ H1 规则（均值 ≥ 0.15 且最小 seed ≥ 0.10 → `protects`；三个 |Δ|
 
 ## 2026-10-10 … 10-13（SA0 会话：edge 侧对抗训练核心 + P0 离线驱动 + 判定脚本）
 
-### F-096 `confirmed`（代码 + 本地测试；GPU 上**没有**数据）—— SA0 实现完成；两轮对抗式审查确认的 4 + 10 处已改；V0 在 CPU 小 HFL 上逐位成立
+### F-096 `confirmed`（代码 + 本地测试；GPU 上**没有**数据）—— SA0 实现完成；三轮对抗式审查确认的问题都已改；V0 在 CPU 小 HFL 上逐位成立
 
 - **实现**（`8d9a63c` → `9af2527` → 本次）：`fedavg/hardening/{spec,core}.py`（加固核心，SA1 在线复用）、`fedavg/analysis/{p0_snapshot,bn_cluster}.py`（离线反事实驱动）、
   `harness/p0_verdict.py`（选择 + N-008 判定）、`p0_configs.yaml`（36 个配置，D-103 / D-104 / D-105）、`p0.sbatch`。语义 diff 表见计划文件（会话内批准），要点进了 D-103 … D-105。
@@ -271,5 +271,15 @@ H1 规则（均值 ≥ 0.15 且最小 seed ≥ 0.10 → `protects`；三个 |Δ|
     V0③ 在小世界里比的是 0 == 0 → 加 margin；判定的两快照语义、缺数据、grid_sha、分散布点 V0 的反向锚点；配置清单守卫改钉全部内容的 sha；全局 RNG 的 AST 扫描扩到全部新模块（带植入的正对照）。
   - 反向锚点实测：判定的 5 条新测试在旧 `p0_verdict.py` 上红；AT-tgt 掩码、head_diag 配对在旧 `core.py` 上红；R1–R4 的 4 条在改动前的 `core.py` 上红。
   - 判为不成立：`accuracy_bound` 下不报 C-ft 归因（N-008 只要求最佳配置的归因）。
+- **第三轮审查**（判定规则 + 测试充分性，各配反驳验证，4 / 4 完成）：
+  - 规则（两条，验证后都是 minor）：`judge` 不核对冻结清单 → 现在对同一份 s42 screen 重跑 `select`，名单或状态不同即 `invalid`，并核对 `--grid` 与冻结文件的 sha；
+    V0 在分散布点漏掉「一边 None」→ 一律判不过（分散布点的 A 仍是逐 edge 平均、不是池化 —— 只影响只报告的 D_H，记为偏差）。
+  - 测试（6 major + 3 minor，全部补上，每条都做了变异 / 反向检验）：攻击方向（无目标 / 定向 PGD 翻符号 → 红；TRADES 钉第一步 = 起点 + α·sign(∇KL)，翻符号 → 红）；
+    SAU 掩码（逐行可控的 logits 造出「都没翻 / 只主模型 / 只参照 / 都翻但不同类 / 共享」五种行，去掉任一掩码或「同类」条件 → 红）与提前停；
+    参照模型 = 传入的权重而不是模板；head_init 真的被用；判定的 7 个区分用例（两快照、逐 seed 过滤、未冻结配置挡住 kill、max over 快照、accuracy_bound 条件、D_H 值与符号、分散布点缺配置）；
+    kill 边界用浮点上恰好 0.2 的构造；HDBSCAN 的构造参数；`main()` 端到端（screen / frozen / --only / sha 不符 / V0 不过 → 退出码 3）；集中布点的受害 edge 路径；
+    J_t 在三个真实 SNAP metrics.json 上 = F-094 的值。
+  - **没补的**：`build_world` 没有在本地真跑（要 100 个 ResNet-10 客户端）；它与 `main.run_experiment` 的调用顺序由 AST 测试守着，
+    真正的检验是 GPU 上的 V0 —— 世界建错，V0 的 ② ③ 对不上 run 记录的值，作业停（N-008：`invalid`）。
 - **私有统计量的 HDBSCAN 也会误剔良性端**（`tests/test_bn_cluster.py`）：官方参数（`allow_single_cluster`、`min_samples = 1`）在紧凑的合成良性群上也把一部分标成噪声（sklearn 1.9：7 / 20）→ P0 报 FPR，不是实现错误。
 - **没有证据的**：探针 head 与受害端私有 head 的迁移缺口（语义 diff A2，`head_diag` 读数会给出）；比例步长相对官方绝对步长的效果差别；小预算 AT 在 GPU 上的墙钟（探路作业回传）。
