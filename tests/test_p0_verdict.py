@@ -50,7 +50,8 @@ def _screen(rh_default=0.1, override=None, d_pm=None, **kw):
 
 
 def _frozen(seed, rh, **kw):
-    cft = {V.spec.matched_cft({"bn": c.split("-")[-2], "budget": c.split("-")[-1]}, GRID) for c in rh}
+    by = {c["id"]: c for c in GRID}
+    cft = {V.spec.matched_cft(by[c], GRID) for c in rh}
     full = dict(rh)
     full.update({c: 0.0 for c in cft})
     return _res(seed, "frozen", full, **kw)
@@ -162,3 +163,85 @@ def test_cli_round_trip(tmp_path):
         (d / f"s{s}.frozen.json").write_text(json.dumps(_frozen(s, {c: rh for c in TOP})))
     assert V.main(["judge", str(d), "--frozen", str(tmp_path / "frozen.json"), "--out", str(tmp_path / "v.json")]) == 0
     assert json.loads((tmp_path / "v.json").read_text())["verdict"] == "go_online"
+
+
+# ── 第二轮审查（D-105）：两快照不同、缺数据、grid_sha、分散布点的 V0、附加读数 ────────
+def _top_screen():
+    return _screen(0.1, {"pgd-e8-frozen-low": 0.9, "trades-e8-b6-frozen-low": 0.8, "tgt-e4-frozen-low": 0.7})
+
+
+def test_rh_uses_the_min_over_both_snapshots():
+    sc = _top_screen()
+    for c, v in (("pgd-e8-frozen-low", 0.3), ("trades-e8-b6-frozen-low", 0.75)):   # 第 15 轮单独压低 pgd
+        sc["snapshots"]["15"]["configs"][c]["eval"]["victim_asr"] = 0.5 - v * 0.30
+    doc = _doc(sc)
+    assert doc["frozen"][0] == "trades-e8-b6-frozen-low"          # pgd 的 min = 0.3，掉到 tgt（0.7）之后
+    assert doc["frozen"] == ["trades-e8-b6-frozen-low", "tgt-e4-frozen-low", "pgd-e8-frozen-low"]
+
+
+def test_filter_needs_both_snapshots_even_when_one_is_not_counted():
+    """N-008：「过滤通过」= 两个快照都通过；J_t < 0.05 只决定 R_H 计不计，不让那个快照免检。"""
+    sc = _top_screen()
+    sc["snapshots"]["15"]["J"] = 0.04                              # 第 15 轮不计 R_H
+    for e in sc["snapshots"]["15"]["configs"]["pgd-e8-frozen-low"]["eval"]["per_edge"].values():
+        e["pm_acc"] = 0.80                                          # 但它的精度掉了 0.06
+    sc["snapshots"]["15"]["configs"]["pgd-e8-frozen-low"]["eval"]["pm_acc"] = 0.80
+    doc = _doc(sc)
+    assert "pgd-e8-frozen-low" not in doc["frozen"]               # 旧实现只看计入的快照 → 会把它选上
+
+
+def test_missing_snapshot_or_config_is_incomplete_not_silently_excluded():
+    sc = _top_screen()
+    del sc["snapshots"]["15"]["configs"]["pgd-e8-frozen-low"]
+    d = _doc(sc)
+    assert d["status"] == "incomplete" and any("pgd-e8-frozen-low" in r for r in d["reasons"])
+    sc = _top_screen()
+    del sc["snapshots"]["15"]
+    assert _doc(sc)["status"] == "incomplete"
+    sc = _top_screen()
+    sc["snapshots"]["6"]["configs"]["tgt-e4-frozen-low"]["eval"]["victim_asr"] = None
+    assert _doc(sc)["status"] == "incomplete"
+    # judge：s43 少一个快照 → insufficient（不是用剩下的那个快照判 go_online）
+    sc = _top_screen()
+    doc = _doc(sc)
+    f43 = _frozen(43, {c: 0.6 for c in TOP})
+    del f43["snapshots"]["15"]
+    res = V.judge([sc, f43, _frozen(44, {c: 0.6 for c in TOP})], doc, GRID)
+    assert res["verdict"] == "insufficient" and any("第 15 轮" in m for m in res["missing"])
+
+
+def test_grid_sha_mismatch_is_invalid():
+    sc = _top_screen()
+    doc = _doc(sc)
+    f43 = _frozen(43, {c: 0.6 for c in TOP})
+    f43["grid_sha"] = "y"
+    res = V.judge([sc, f43, _frozen(44, {c: 0.6 for c in TOP})], doc, GRID)
+    assert res["verdict"] == "invalid" and any("grid_sha" in r for r in res["reasons"])
+
+
+def test_distributed_v0_failure_only_marks_its_d_h():
+    sc = _top_screen()
+    doc = _doc(sc)
+    runs = _all(sc, {43: {c: 0.6 for c in TOP}, 44: {c: 0.55 for c in TOP}})
+    bad = [r for r in runs if r["placement"] == "distributed" and r["seed"] == 43][0]
+    bad["snapshots"]["6"]["v0"] = {"pass": False, "reasons": ["x"]}
+    res = V.judge(runs, doc, GRID)
+    assert res["verdict"] == "go_online"
+    assert "invalid" in res["distributed_D_H"]["s43"] and "invalid" not in res["distributed_D_H"]["s42"]
+
+
+def test_aux_is_copied_into_the_verdict():
+    sc = _top_screen()
+    sc["snapshots"]["6"]["aux"] = {"trigger_norms": {"n": 8}, "bn_private_clu": {"0": {"tpr": 1.0}}}
+    doc = _doc(sc)
+    res = V.judge(_all(sc, {43: {c: 0.6 for c in TOP}, 44: {c: 0.55 for c in TOP}}), doc, GRID)
+    assert res["aux"]["collocated/s42/screen"]["6"]["trigger_norms"] == {"n": 8}
+
+
+def test_sau_attribution_uses_the_sau_matched_cft():
+    sc = _screen(0.1, {"sau-e8-frozen-low": 0.9, "trades-e8-b6-frozen-low": 0.8, "tgt-e4-frozen-low": 0.7})
+    doc = _doc(sc)
+    top = doc["frozen"]
+    res = V.judge([sc] + [_frozen(s, {c: 0.6 for c in top}) for s in (43, 44)], doc, GRID)
+    assert res["verdict"] == "go_online" and res["best"] == "sau-e8-frozen-low"
+    assert res["attribution_vs_cft"]["cft"] == "cft-sau-frozen-low"

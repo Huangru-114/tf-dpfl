@@ -39,10 +39,13 @@ OBJECTIVES = ("pgd", "trades", "sau", "tgt", "cft")
 AT_OBJECTIVES = ("pgd", "trades", "sau", "tgt")        # C-ft 是归因对照，不参与选择（PLAN §3.2）
 BN_MODES = ("train", "frozen")
 
-# 每个目标的 PGD 步长约定（像素单位的 α = ratio · ε / 步数），都取自官方实现：
-#   pgd    Madry cifar10_challenge：ε = 8、步长 2、10 步 → 2.5·ε/K
-#   trades TRADES train_trades_cifar10.py：ε = 0.031、步长 0.007、10 步 → (0.007·10/0.031)·ε/K
-#   sau    BackdoorBench sau：trigger_norm 0.2、adv_lr 0.2（每步 = ε）、5 步 → K·ε/K = ε
+# 每个目标的 PGD 步长约定（像素单位的 α = ratio · ε / 步数）。比例取自官方实现**在其自身 ε、K 下**的值，
+# 换 ε 或 K 时按比例缩放（保持「总行程 K·α / ε」不变）—— 这是本仓库的约定，**不是官方的**：官方用绝对步长（D-105）。
+#   pgd    Madry cifar10_challenge：ε = 8、步长 2、10 步 → 2.5·ε/K（Madry 本身就这么写）
+#   trades TRADES train_trades_cifar10.py：ε = 0.031、步长 0.007、10 步 → (0.007·10/0.031)·ε/K；
+#          K = 10 时与官方的 0.007 相同，K = 5 时是 0.0142（官方绝对步长 0.007 只走 1.13ε）
+#   sau    BackdoorBench sau：trigger_norm 0.2、adv_lr 0.2 → 步长 = ε；ε = 0.2 时与官方相同，
+#          ε = 8/255 时是 8/255（官方绝对 0.2 ≥ 2ε → 每步都落在 ±ε；按比例则迭代点在 {−ε, 0, ε}，与官方 ε = 0.2 时同构）
 #   tgt    本计划自定（无官方实现）：定向部分沿用 ck_snapshot 的 2.5·ε/K
 STEP_RATIO = {"pgd": 2.5, "trades": 0.007 * 10 / 0.031, "tgt": 2.5}
 SAU_DEFAULTS = {"beta_1": 0.01, "beta_2": 1.0, "lmd_1": 1.0, "lmd_2": 0.0, "lmd_3": 1.0,
@@ -114,6 +117,15 @@ def expand_grid(spec: dict) -> list:
                                "lr": SAU_DEFAULTS["lr"] if obj == "sau" else None,   # None = 客户端 body 的 lr
                                "sau": dict(SAU_DEFAULTS) if obj == "sau" else None}
                         out.append(cfg)
+    # SAU 的归因对照（D-105）：C-ft 要与被比较的 AT「同数据、同步数、同优化器」（语义 diff B6）。
+    # SAU 用官方 Adam + 不增强，与其余目标的 SGD + 增强不同 → 另配一组 cft-sau-*（只是对照，objective 仍是 cft）。
+    if "sau" in spec["objectives"] and "cft" in spec["objectives"]:
+        for bn in bn_modes:
+            for bname, b in budgets.items():
+                out.append({"id": f"cft-sau-{bn}-{bname}", "objective": "cft", "eps_px": None, "sigma_px": None,
+                            "beta": None, "bn": bn, "budget": bname, "epochs": int(b["epochs"]), "pgd_steps": 0,
+                            "optimizer": SAU_DEFAULTS["optimizer"], "lr": SAU_DEFAULTS["lr"],
+                            "sau": dict(SAU_DEFAULTS)})
     ids = [c["id"] for c in out]
     if len(set(ids)) != len(ids):
         raise ValueError(f"配置 id 重复：{sorted(i for i in ids if ids.count(i) > 1)}")
@@ -126,9 +138,11 @@ def augments(cfg: dict) -> bool:
 
 
 def matched_cft(cfg: dict, grid: list) -> str | None:
-    """同 bn、同预算的 C-ft（归因对照：同数据、同步数、同优化器，去掉对抗部分）。"""
+    """同 bn、同预算、同优化器、同增强的 C-ft（归因对照：同数据、同步数、同优化器，去掉对抗部分；D-105）。"""
     for c in grid:
-        if c["objective"] == "cft" and c["bn"] == cfg["bn"] and c["budget"] == cfg["budget"]:
+        if (c["objective"] == "cft" and c["bn"] == cfg["bn"] and c["budget"] == cfg["budget"]
+                and c["optimizer"] == cfg["optimizer"] and augments(c) == augments(cfg)
+                and (c["lr"] if c["optimizer"] == "adam" else None) == (cfg["lr"] if cfg["optimizer"] == "adam" else None)):
             return c["id"]
     return None
 
@@ -317,33 +331,44 @@ def max_abs_diff(a: list, b: list) -> float:
 
 
 def v0_check(fedavg_max_abs, post_offline: dict, post_recorded: dict,
-             full_offline: dict, full_recorded: dict) -> dict:
+             full_offline: dict, full_recorded: dict, edges=None) -> dict:
     """
-    V0（N-008）：① 离线 FedAvg 与快照 global 的 max |差| ≤ 1e-5；
-    ② 离线重算的云聚合后点（G）与 run 记录的第 t+1 轮 `per_edge_post_agg_rounds` 逐 edge 差 ≤ 0.01；
-    ③ edge 模型不加固时与 run 记录的第 t 轮全量点（`per_edge_rounds`）逐 edge 差 ≤ 0.01。
-    *_offline / *_recorded：{edge_id: client_benign}；None 的 edge 两边都得是 None。
+    V0（N-008 原文）：① 离线 FedAvg 与快照 global 的 max |差| ≤ 1e-5；
+    ② |A(G) − run 记录的第 t+1 轮云聚合后点| ≤ 0.01；③ |A(edge 模型) − run 记录的第 t 轮全量点| ≤ 0.01。
+    A = `edges` 上 client_benign 的平均（集中布点 = 受害三 edge；edges=None → 两边都有定义的全部 edge，
+    即分散布点）。*_offline / *_recorded：{edge_id: client_benign}；A 里的 edge 一边 None 一边不是 → 不过。
+    逐 edge 的最大差另外记录（诊断，不进判定；比 N-008 严，D-105）。
     """
     reasons = []
     if fedavg_max_abs is None or fedavg_max_abs > V0_WEIGHT_TOL:
         reasons.append(f"FedAvg 与快照 global 的 max|差| = {fedavg_max_abs} > {V0_WEIGHT_TOL}")
 
     def cmp(name, off, rec):
-        worst = 0.0
-        for e in sorted(set(off) | set(rec), key=int):
+        off = {int(k): v for k, v in off.items()}
+        rec = {int(k): v for k, v in rec.items()}
+        ids = sorted(set(off) | set(rec)) if edges is None else sorted(int(e) for e in edges)
+        worst, a_off, a_rec = 0.0, [], []
+        for e in ids:
             a, b = off.get(e), rec.get(e)
             if a is None or b is None:
-                if (a is None) != (b is None):
+                if (a is None) != (b is None) and (edges is not None):
                     reasons.append(f"{name} edge {e}：一边是 None（离线 {a}，记录 {b}）")
                 continue
             worst = max(worst, abs(a - b))
-        if worst > V0_ASR_TOL:
-            reasons.append(f"{name}：逐 edge 最大差 {worst:.4f} > {V0_ASR_TOL}")
-        return worst
+            a_off.append(a)
+            a_rec.append(b)
+        if not a_off:
+            reasons.append(f"{name}：A 没有可比的 edge")
+            return None, worst
+        d = abs(math.fsum(a_off) / len(a_off) - math.fsum(a_rec) / len(a_rec))
+        if d > V0_ASR_TOL:
+            reasons.append(f"{name}：|A 离线 − A 记录| = {d:.4f} > {V0_ASR_TOL}")
+        return d, worst
 
-    post_max = cmp("云聚合后点", post_offline, post_recorded)
-    full_max = cmp("第 t 轮全量点", full_offline, full_recorded)
+    post_d, post_max = cmp("云聚合后点", post_offline, post_recorded)
+    full_d, full_max = cmp("第 t 轮全量点", full_offline, full_recorded)
     return {"pass": not reasons, "reasons": reasons, "fedavg_max_abs": fedavg_max_abs,
+            "post_abs": post_d, "full_abs": full_d, "edges": None if edges is None else sorted(int(e) for e in edges),
             "post_max_abs": post_max, "full_max_abs": full_max}
 
 

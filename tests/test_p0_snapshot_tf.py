@@ -55,7 +55,8 @@ def source(tmp_path_factory):
     def eha(*a, **k):
         m = orig_eha(*a, **k)
         if not k.get("light"):
-            rec["full"].append(_per_edge(m))
+            mg = P0.edge_margins(m, a[5], k.get("n_classes"))           # 同一次前向的逐端记录（run 的 [EvalDetailEdge]）
+            rec["full"].append({e: {"client_benign": v, "margin_p50": mg.get(e)} for e, v in _per_edge(m).items()})
         return m
     mp.setattr(BS, "evaluate_hierarchical_asr", eha)
     cloud.run_round(1)
@@ -108,8 +109,12 @@ def test_v0_offline_post_agg_point_equals_the_runs_bitwise(source, restored):
 
 
 def test_v0_offline_full_point_equals_the_runs_main_column_bitwise(source, restored):
+    """小世界里 ASR 常为 0（0 == 0 分辨不出复原错没错）→ 连 margin 中位数一起逐位比；真实非零 ASR 的 V0 由 GPU 探路作业验证。"""
     w, snap = restored
-    assert P0.eval_full_main(w, snap, 1) == source["rec"]["full"][0]
+    got = P0.eval_full_main(w, snap, 1, detail=True)
+    assert got == source["rec"]["full"][0]
+    assert any(v["margin_p50"] not in (None, 0.0) for v in got.values())
+    assert P0.eval_full_main(w, snap, 1) == {e: v["client_benign"] for e, v in got.items()}
 
 
 def test_eval_is_repeatable(restored):
@@ -157,7 +162,7 @@ def test_per_snapshot_aux_readouts_run(restored):
     # ξ 的界（σ）只对合法像素成立：这个小世界的探针是 N(0,1) 噪声、超出 valid_range，ξ 的裁剪会把它拉回来 →
     # 这里只查字段齐全；真实数据上的界由 SA0 的 GPU 探路作业读出（附加读数 trigger_norms）。
     assert {"input_max", "pixel_max", "pixel_p50"} <= set(tn["xi"]) and tn["delta_plus_xi"]["pixel_max"] > 0
-    cc = P0.ccs_clu(w, snap)
+    cc = P0.bn_private_clu(w, snap)
     assert set(cc) == {0, 1} and all("status" in v for v in cc.values())
 
 
@@ -172,3 +177,23 @@ def test_recorded_and_victim_jump_from_metrics():
     assert rec["post"] == {0: 0.95, 1: 0.40, 2: 0.30} and rec["full"] == {0: 0.9, 1: 0.2, 2: 0.1}
     assert P0.victim_jump(rec, [1, 2]) == pytest.approx(0.2)
     assert P0.victim_jump(rec, []) is None
+
+
+def test_frozen_aux_runs_and_reuses_the_main_hardened_weights(restored):
+    """冻结阶段的附加读数在小世界上跑通、每个键都在；own / ck 复用主评估的加固权重 = 用 salt 0 重算的结果（逐位配对）。"""
+    pytest.importorskip("sklearn")
+    w, snap = restored
+    h = EdgeHardener(w.global_model, w.config, probe={"steps": 10, "lr": 0.05},
+                     kstar={"n": 8, "eps_px": "4/255", "steps": 1}, batch=8)
+    grid = GRID
+    by = {c["id"]: c for c in grid}
+    index_of = {c["id"]: i for i, c in enumerate(grid)}
+    frozen = {"frozen": ["pgd-e8-frozen-low"]}
+    aux = {"cloud_side": "top3", "n_clean": {"n": [8]}, "head_diag": "top3", "e0_own": "top3",
+           "ck_before_after": {"n": 8}}
+    kept = {}
+    P0.eval_config(w, h, snap, by["pgd-e8-frozen-low"], index_of["pgd-e8-frozen-low"], 1, 0.05, keep=kept)
+    a = P0.frozen_aux(w, h, snap, frozen, by, index_of, 1, 0.05, aux, kept)
+    b = P0.frozen_aux(w, h, snap, frozen, by, index_of, 1, 0.05, aux)          # 不给 → salt 0 重算
+    assert set(a) == {"cloud_side", "n_clean", "head_diag", "own", "ck"}
+    assert a["own"] == b["own"] and a["ck"] == b["ck"]

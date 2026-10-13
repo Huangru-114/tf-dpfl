@@ -1,7 +1,7 @@
 # 阶段三（edge 原生防御）实验计划 —— 定稿 v1（2026-10-09）
 
 > **状态**：定稿（本目录 `DECISIONS.md` D-089 … D-095）。**D0 已完成（2026-10-09）**：登记表 `registry.yaml`（SNAP 可交；CAL / CCSF 占位）、
-> 提交脚本 `submit.sh`、功效分析 F-091、SNAP 核对 F-092、文献核对 F-093、预注册 N-008（2026-10-10 用户确认生效，D-101）；SNAP 已回传且有效（F-094）。未实现、没有交任何作业。交接见 `current-focus.md`。
+> 提交脚本 `submit.sh`、功效分析 F-091、SNAP 核对 F-092、文献核对 F-093、预注册 N-008（2026-10-10 用户确认生效，D-101）；SNAP 已回传且有效（F-094）。**SA0 已完成（2026-10-13，F-096，D-103 … D-105）**：P0 的离线工具齐了，待 GPU 探路。交接见 `current-focus.md`。
 > 台账：本目录 `DECISIONS.md` / `FINDINGS.md`（编号接续 `experiments/attack/hfl-mechanism/`）；文献：`LITERATURE.md`。
 > `PLAN-draft.md`（2026-10-03）已被本文件取代。
 
@@ -190,12 +190,13 @@ edge 侧：作用在**上云的可训练 body**（不碰 head、不碰私有 BN 
 |---|---|---|
 | AT-pgd | Madry 式 PGD 对抗训练，非定向，ε ∈ {4, 8}/255 | 覆盖 ξ（4/255）与 δ + ξ（8/255） |
 | AT-trades | TRADES，ε = 8/255，β ∈ {1, 6} | 显式权衡干净精度 |
-| AT-tgt | **逐样本**定向 PGD：推向 body 级 c_k 最小的类 k*（ε = 4/255，模拟 δ）+ 非定向一步（σ = 4/255，模拟 ξ），在扰动样本上训正确标签 | §1.1 事实 1–2；F-081：body 级 c_{y_t} ≈ 0、其余类 0.1–0.5 → 不需要知道 y_t |
+| AT-tgt | **逐样本**定向 PGD：推向 body 级 c_k 最小的类 k*（ε = 4/255，模拟 δ；真实类已是 k* 的样本跳过定向步，D-105）+ 非定向一步（σ = 4/255，模拟 ξ），在扰动样本上训正确标签 | §1.1 事实 1–2；F-081：body 级 c_{y_t} ≈ 0、其余类 0.1–0.5 → 不需要知道 y_t |
 | AT-sau | SAU：在「进来的 edge 模型」与「正在净化的模型」之间找共享对抗样本并反学习，ε ∈ {8/255, 0.2}、5 步（D-103：两档都进网格，分开报） | SAU（小干净集、逐样本触发器有效）；官方 BackdoorBench 配置 `trigger_norm: 0.2`、5 步（F-093） |
 | AT-ccs | CCS 的目标函数搬到 edge：max-margin 对抗样本 + β·KL + γ·MMD（投影网络）。**不进 SA0 的 P0 网格**（D-104）：SA-C 之后离线补跑，只报告 | 检验「CCS 的对抗训练部分」放在 edge 上是否成立 |
-| C-ft | 干净微调（同数据、同步数、无对抗部分）—— **归因对照，不是候选** | Bad-PFL 表 3：FT 无效 |
+| C-ft | 干净微调（同数据、同步数、同优化器、无对抗部分）—— **归因对照，不是候选**；SAU 另配 `cft-sau-*`（Adam、不增强，D-105） | Bad-PFL 表 3：FT 无效 |
 
-× `bn` {train, frozen} × 预算 {低, 高}（epochs × PGD 步数）→ 约 24 个配置（离线筛选，零 run 成本）。
+× `bn` {train, frozen} × 预算 {低, 高}（epochs × PGD 步数）→ **36 个配置**（28 个 AT + 8 个 C-ft，`p0_configs.yaml`；离线筛选，零 run 成本）。
+PGD 步长按官方比例随 ε、K 缩放（不是官方的绝对步长，D-105）。
 
 ### 3.3 臂（在线）
 
@@ -271,7 +272,7 @@ edge 侧：作用在**上云的可训练 body**（不碰 head、不碰私有 BN 
     - C-ft 归因对照（AT 的效果减去它 = 对抗部分的贡献）；
     - 阻尼 w_e + λ(G − w_e)，λ ∈ {0.5, 0.25}；**oracle 隔离**（G 去掉 E0 = 灌入削减上界）；**cloud 侧** H_cloud(G)（2000 张，D4 离线版）；
     - `n_clean` ∈ {100, 200, 500}（DATA 离线版）；单次 AT 能否洗掉 E0 自己的模型（`A-every` 的离线代理）；加固前后各 edge 的 body 级 c_k（用正确的干净集复测 F-081 的 edge 级对比）；
-    - **CCS-clu 离线检测**：快照里各端私有 BN 统计量 → 每 edge HDBSCAN → 剔除集合对恶意端的 TPR / FPR（零成本先看 CCS 聚类在本设定下分不分得开）。
+    - ~~**CCS-clu 离线检测**~~ → `bn_private_clu`（D-105）：快照里只有各端**私有** BN 统计量（只见干净批次）→ 每 edge HDBSCAN → 只说明「数据分布单独能分开多少」；真正的 CCS-clu（聚上传的统计量）由 SA-C 在线给出。
 - **机时**：0 训练 run；离线作业约 4–6 GPU-h（s42 全配置约 3–4 h；s43 / s44 只跑冻结的前 3 名 + 对照约 1.5 h）。
 - **判定**（选配置只用 s42 → 冻结 → 读 s43 / s44）：
   - 闸 V0：离线重算的 ASR_v(G) 与 run 记录的下一轮 `post_agg` 值差 ≤ 0.01、重算的 FedAvg 与快照的 G 一致 → 否则 `invalid`；
@@ -440,7 +441,7 @@ D0 ──> SNAP
 | 会话 | 内容 | 开工前 |
 |---|---|---|
 | D0 | 阶段三登记表（SNAP / P0 / CAL）、预注册 P0 / P1 / CCSF 的判定规则（N-008）、功效分析脚本（定门槛）、文献逐条核对（凭记忆引用、还没对过原文的条目：TRADES、I-BAU、NAD、FLTrust、A3FL、EOT、Tsipras 2019、LP 等）；D-089 与台账已在 2026-10-09 完成 | — |
-| SA0 | edge 侧 AT 核心（纯算术不 import TF；TF 部分包 random 围栏，F-078）+ 快照离线探针（含触发器范数、CCS-clu 离线检测） | 语义 diff：Madry PGD-AT / TRADES / SAU 官方实现 vs 本仓库 |
+| SA0 ✅ | edge 侧 AT 核心（纯算术不 import TF；TF 部分包 random 围栏，F-078）+ 快照离线探针（含触发器范数、私有统计量聚类）。**2026-10-13 完成**（F-096、D-103 … D-105）；待 GPU 探路 | 语义 diff：Madry PGD-AT / TRADES / SAU 官方实现 vs 本仓库 |
 | SA1 | 在线接线：`cloud_upload` 上传变换、`run_edge_round` 每轮钩子、`CloudServer` 聚合后变换；`[设定11]`、`[Harden]`；BN 用 `TorchBatchNorm` 推理路径 | 守卫：开关关逐位不变、去围栏的反向锚点、`gpu_determinism_check` |
 | SA-C | CCS：客户端 AT mixin（投影网络 + KL + MMD + max-margin 对抗样本；可变形 patch 初始化按原文或记为偏差）+ edge 侧 BN 统计量 HDBSCAN（经 `robust_mean` 收口，陷阱 #10）+ flat | 语义 diff：CCS 原文（是否有官方代码待查） |
 | SA2 | 自适应攻击者 AA1 / AA2 / AA-S + 分段感知攻击者（mixin） | 语义 diff：A3FL 官方实现 |

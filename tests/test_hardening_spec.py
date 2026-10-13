@@ -1,7 +1,8 @@
 """
 阶段三 SA0：`fedavg/hardening/spec.py` 的纯算术（不 import TF，本地秒级）。
 
-- 配置网格：p0_configs.yaml 展开成 32 个确定的 id（N-008：打开 s42 之前冻结 → 这里钉住）；每个目标的步长约定 = 官方实现；
+- 配置网格：p0_configs.yaml 展开成 36 个确定的 id（32 个 + SAU 的 4 个匹配 C-ft，D-105；N-008：打开 s42 之前冻结 → 这里钉住，
+  连同每个配置的全部字段与 probe / kstar / batch / n_clean）；步长约定（按比例缩放，D-105）；
 - 分层子集：干净集按类排序（F-095），子集必须按类比例、不能是前 n 张；
 - 探针拟合：确定性、可分数据上能学会；
 - 记账、lr、R_H、精度过滤、V0 的算术：手算值。
@@ -33,7 +34,11 @@ FROZEN_IDS = [
     "sau-e51-train-low", "sau-e51-train-high", "sau-e51-frozen-low", "sau-e51-frozen-high",
     "tgt-e4-train-low", "tgt-e4-train-high", "tgt-e4-frozen-low", "tgt-e4-frozen-high",
     "cft-train-low", "cft-train-high", "cft-frozen-low", "cft-frozen-high",
+    "cft-sau-train-low", "cft-sau-train-high", "cft-sau-frozen-low", "cft-sau-frozen-high",
 ]
+# 展开后的网格（全部字段）+ 影响加固的全局设置的 sha。改了 p0_configs.yaml 的任何数值或展开规则 → 这里红；
+# 那是在改预注册的配置清单（N-008），要先在 DECISIONS 留记录、再更新这个值。
+FROZEN_CONTENT_SHA = "76eda6008dd872ed"
 
 
 @pytest.fixture(scope="module")
@@ -72,15 +77,38 @@ def test_step_sizes_follow_the_official_implementations(grid):
     assert spec.step_px(by["trades-e8-b6-train-high"]) == pytest.approx(0.007 / 0.031 * 8 / 255)
     # SAU：adv_lr = trigger_norm（每步 = ε）
     assert spec.step_px(by["sau-e51-frozen-low"]) == pytest.approx(0.2)
+    # 比例约定（D-105，不是官方的绝对步长）：SAU ε = 8/255 → 步长 8/255（官方绝对 0.2）；TRADES K = 5 → 2·官方的 0.007 比例
+    assert spec.step_px(by["sau-e8-frozen-low"]) == pytest.approx(8 / 255)
+    assert spec.step_px(by["trades-e8-b6-train-low"]) == pytest.approx(2 * 0.007 / 0.031 * 8 / 255)
     with pytest.raises(ValueError):
         spec.step_px(by["cft-train-low"])
 
 
-def test_matched_cft_has_the_same_bn_and_budget(grid):
+def test_matched_cft_has_the_same_bn_budget_optimizer_and_augmentation_d105(grid):
     _, cfgs = grid
+    by = {c["id"]: c for c in cfgs}
     for c in cfgs:
         m = spec.matched_cft(c, cfgs)
-        assert m == f"cft-{c['bn']}-{c['budget']}"
+        want = f"cft-sau-{c['bn']}-{c['budget']}" if (c["objective"] == "sau" or c["id"].startswith("cft-sau"))\
+            else f"cft-{c['bn']}-{c['budget']}"
+        assert m == want, c["id"]
+        mc = by[m]
+        assert (mc["optimizer"], mc["epochs"], spec.augments(mc)) == (c["optimizer"], c["epochs"], spec.augments(c))
+        if c["optimizer"] == "adam":
+            assert mc["lr"] == c["lr"] and mc["sau"]["amsgrad"] == c["sau"]["amsgrad"]
+    # 反向锚点：只按 bn × 预算配（旧规则）会给 SAU 配上 SGD + 增强的 C-ft
+    old = next(x for x in cfgs if x["id"] == "cft-frozen-low")
+    assert (old["optimizer"], spec.augments(old)) != (by["sau-e8-frozen-low"]["optimizer"],
+                                                       spec.augments(by["sau-e8-frozen-low"]))
+
+
+def test_frozen_grid_content_sha(grid):
+    """配置清单的**内容**（不只 id）：每个配置的全部字段 + batch / n_clean / probe / kstar。"""
+    import hashlib
+    g, cfgs = grid
+    blob = json.dumps({"grid": cfgs, "batch": g["batch"], "n_clean": g["n_clean"], "probe": g["probe"],
+                       "kstar": g["kstar"], "select": g["select"]}, sort_keys=True, default=str)
+    assert hashlib.sha256(blob.encode()).hexdigest()[:16] == FROZEN_CONTENT_SHA
 
 
 def test_parse_px_and_labels():
@@ -187,8 +215,23 @@ def test_accuracy_filter_pool_and_edge_thresholds():
 def test_v0_check():
     ok = spec.v0_check(0.0, {0: 0.5, 1: None}, {0: 0.505, 1: None}, {0: 0.3}, {0: 0.3})
     assert ok["pass"] and ok["post_max_abs"] == pytest.approx(0.005)
-    bad = spec.v0_check(2e-5, {0: 0.5}, {0: 0.52}, {0: 0.3}, {0: None})
-    assert not bad["pass"] and len(bad["reasons"]) == 3
+    bad = spec.v0_check(2e-5, {0: 0.5}, {0: 0.52}, {0: 0.3}, {0: None}, edges=[0])
+    assert not bad["pass"] and len(bad["reasons"]) == 4         # 权重、A 差、一边 None、A 无可比 edge
+
+
+def test_v0_judges_the_victim_mean_as_n008_says_d105():
+    """N-008：|A 离线 − A 记录| ≤ 0.01，A = 受害三 edge 均值。逐 edge 差只记录（攻击者 edge 0 不进 A）。"""
+    off = {0: 0.90, 1: 0.50, 2: 0.40, 3: 0.30}
+    rec = {0: 0.95, 1: 0.515, 2: 0.39, 3: 0.30}               # 受害 edge 的差 +0.015 / −0.01 / 0 → 均值差 0.00167
+    r = spec.v0_check(0.0, off, rec, off, off, edges=[1, 2, 3])
+    assert r["pass"] and r["post_abs"] == pytest.approx(0.005 / 3) and r["post_max_abs"] == pytest.approx(0.015)
+    # 反向锚点：不限定受害 edge（把攻击者 edge 0 也算进来）会判不过
+    assert not spec.v0_check(0.0, off, rec, off, off)["pass"]
+    # 均值本身超差 → 不过
+    rec2 = {**rec, 1: 0.54, 2: 0.42}
+    assert not spec.v0_check(0.0, off, rec2, off, off, edges=[1, 2, 3])["pass"]
+    # 受害 edge 一边 None → 不过
+    assert not spec.v0_check(0.0, off, {**rec, 2: None}, off, off, edges=[1, 2, 3])["pass"]
 
 
 def test_max_abs_diff_and_victims():
@@ -206,3 +249,47 @@ def test_spec_does_not_import_tensorflow():
     assert "tensorflow" not in names
     assert "random" not in names                               # 不碰 Python random
     assert "np.random.seed" not in src and "np.random.rand" not in src
+
+
+# ── 新模块不碰全局随机数（第二轮审查：旧守卫只扫 spec.py、按子串）───────────────────
+RNG_MODULES = ["fedavg/hardening/spec.py", "fedavg/hardening/core.py", "fedavg/analysis/p0_snapshot.py",
+               "fedavg/analysis/bn_cluster.py", "harness/p0_verdict.py"]
+PY_RANDOM_DRAWS = {"random", "uniform", "randint", "randrange", "choice", "choices", "shuffle", "sample", "gauss",
+                   "normalvariate", "seed", "betavariate", "expovariate", "triangular"}
+
+
+def _global_rng_calls(src: str) -> list:
+    import ast
+    bad = []
+    for n in ast.walk(ast.parse(src)):
+        if not isinstance(n, ast.Call) or not isinstance(n.func, ast.Attribute):
+            continue
+        f = n.func
+        chain = []
+        cur = f
+        while isinstance(cur, ast.Attribute):
+            chain.append(cur.attr)
+            cur = cur.value
+        if isinstance(cur, ast.Name):
+            chain.append(cur.id)
+        chain = chain[::-1]
+        if chain[:2] in (["np", "random"], ["numpy", "random"]) and len(chain) == 3 \
+                and chain[2] not in ("default_rng", "Generator", "PCG64", "SeedSequence"):
+            bad.append((".".join(chain), n.lineno))
+        elif chain[:2] == ["tf", "random"]:
+            bad.append((".".join(chain), n.lineno))
+        elif chain[0] == "random" and len(chain) == 2 and chain[1] in PY_RANDOM_DRAWS:
+            bad.append((".".join(chain), n.lineno))
+    return bad
+
+
+@pytest.mark.parametrize("path", RNG_MODULES)
+def test_new_modules_do_not_draw_from_global_rngs(path):
+    assert _global_rng_calls((ROOT / path).read_text(encoding="utf-8")) == []
+
+
+def test_global_rng_scan_catches_planted_calls():
+    planted = "import numpy as np\nimport random\nimport tensorflow as tf\n" \
+              "a = np.random.normal(size=3)\nb = random.shuffle(x)\nc = tf.random.uniform((2,))\n" \
+              "ok = np.random.default_rng(0)\nst = random.getstate()\n"
+    assert [c for c, _ in _global_rng_calls(planted)] == ["np.random.normal", "random.shuffle", "tf.random.uniform"]

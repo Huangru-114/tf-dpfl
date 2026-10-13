@@ -69,6 +69,7 @@ def sau_shared(logits_p, pert_label_ref, poison, n_classes):
 def make_optimizer(cfg: dict, lr: float | None):
     """
     SGD（客户端 body 同款，无动量）或 SAU 的 Adam。SAU 照官方 torch.optim.Adam(lr, betas=(.9, .999), amsgrad=True, eps=1e-8)。
+    jit_compile=False：每次加固都新建优化器，XLA 会每次重新编译更新步（GPU 上缺省开 XLA）。
     Keras 的 ε 加在未做偏差校正的 √v 上（torch 加在校正后的上）→ 等价于 torch 的 ε/√(1−β2^t)，t = 1 时 3.2e-7、
     随 t 收敛到 1e-8；`tests/test_hardening_tf.py` 在先 1e-2 后 1e-4 的梯度序列上与 torch 公式逐步对过（差 ≤ 3.8e-4 个 lr）。
     """
@@ -76,10 +77,10 @@ def make_optimizer(cfg: dict, lr: float | None):
         s = cfg.get("sau") or {}
         return tf.keras.optimizers.Adam(learning_rate=float(cfg["lr"]), beta_1=0.9, beta_2=0.999,
                                         epsilon=float(s.get("adam_epsilon", 1e-8)),
-                                        amsgrad=bool(s.get("amsgrad", True)))
+                                        amsgrad=bool(s.get("amsgrad", True)), jit_compile=False)
     if lr is None:
         raise ValueError("SGD 目标需要 lr（客户端 body 的 lr，spec.lr_at）")
-    return tf.keras.optimizers.SGD(learning_rate=float(lr))
+    return tf.keras.optimizers.SGD(learning_rate=float(lr), jit_compile=False)
 
 
 class EdgeHardener:
@@ -244,9 +245,14 @@ class EdgeHardener:
         return tf.stop_gradient(pert)
 
     def tgt_adv(self, x, y, kstar, eps_in, alpha_in, steps, sigma_in, training):
-        """AT-tgt：定向 PGD 推向 k*（模拟 δ，无随机起点）+ 一步无目标 FGSM（模拟 ξ），总扰动投影到 ε+σ 球。"""
+        """
+        AT-tgt：定向 PGD 推向 k*（模拟 δ，无随机起点）+ 一步无目标 FGSM（模拟 ξ），总扰动投影到 ε+σ 球。
+        真实类已经是 k* 的样本不做定向步（定向下降会降低它们的 CE(y)；与 c_k「y ≠ k 才算推向」的口径一致，D-105），只做 FGSM。
+        """
         x0 = tf.convert_to_tensor(x, tf.float32)
-        xa = self.pgd_ce(x0, y, eps_in, alpha_in, steps, training, start="none", target=kstar)
+        xt = self.pgd_ce(x0, y, eps_in, alpha_in, steps, training, start="none", target=kstar)
+        keep = tf.reshape(tf.cast(y, tf.int64) == int(kstar), (-1, 1, 1, 1))
+        xa = tf.where(keep, x0, xt)
         with tf.GradientTape() as tape:
             tape.watch(xa)
             loss = tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(
@@ -320,8 +326,10 @@ class EdgeHardener:
             training = cfg["bn"] == "train"
             self.model.set_weights([np.asarray(w) for w in weights])
             info = {"id": cfg["id"], "n_clean": int(len(y))}
+            # 探针拟合的随机数用一个子种子：无论拟不拟合都先抽它 → head_init 诊断与主配置的其余随机数逐位配对
+            prng = np.random.default_rng(int(rng.integers(2 ** 62)))
             if head_init is None:
-                F = self.features(x, training, rng)
+                F = self.features(x, training, prng)
                 p = spec.fit_probe(F, y, self.K, steps=int(self.probe_cfg["steps"]),
                                    lr=float(self.probe_cfg["lr"]), l2=float(self.probe_cfg.get("l2", 1e-4)))
                 W0, b0 = p["W"], p["b"]
@@ -353,7 +361,8 @@ class EdgeHardener:
                 att = spec.stratified_subset(y, int(self.kstar_cfg["n"]), rng)
                 c = self.body_ck(x, y, x[att], y[att])
                 kstar, ties = self.pick_kstar(c, rng)
-                info.update({"ck": c, "kstar": kstar, "kstar_ties": ties})
+                info.update({"ck": c, "kstar": kstar, "kstar_ties": ties,
+                             "frac_y_is_kstar": None if kstar is None else float(np.mean(y == kstar))})
                 if kstar is None:
                     raise ValueError("AT-tgt：所有类的 c_k 都无定义，选不出 k*")
             opt = make_optimizer(cfg, lr)

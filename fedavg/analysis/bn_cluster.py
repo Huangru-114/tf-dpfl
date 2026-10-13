@@ -1,9 +1,8 @@
 """
 analysis/bn_cluster.py  —  CCS 的聚类部分（离线检测）：用客户端上传的 BN moving 统计量做 HDBSCAN、剔除离群端
 
-阶段三 P0 的附加读数（PLAN §4 P0「CCS-clu 离线检测」；只报告，不进判定）：快照里各端的私有 BN 统计量 → 每个 edge 聚一次 →
-剔除集合对恶意端的 TPR / FPR。零训练成本，先看 CCS 的聚类在本设定下分不分得开（F-085：统计量通道单独 AUROC 约 0.90）。
-
+用法：SA-C 的在线臂聚**上传**的统计量（这才是 CCS-clu）；阶段三 P0 的附加读数 `bn_private_clu`（只报告，不进判定）聚的是快照里
+各端的**私有**统计量 —— head_first 下它们只见干净批次，只反映数据分布、不含投毒信号（D-105），所以 P0 的那个读数不是 CCS-clu 的 TPR / FPR。
 照 CCS 官方 `src/defence/AT/hdbscan_detect.py`（FINDINGS F-090）：
   · 每端一条向量 = 全部 BN 层的 running_mean 与 running_var 拼起来；
   · **余弦距离**；`min_cluster_size = n // 2 + 2`、`min_samples = 1`、`allow_single_cluster = True`；

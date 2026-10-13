@@ -170,7 +170,7 @@ H1 规则（均值 ≥ 0.15 且最小 seed ≥ 0.10 → `protects`；三个 |Δ|
   `J_t` = run 记录的 `jump(t+1)`；`R_H = [A(G) − A(G'_H)] / J_t`，`G'_H` = 4 个 edge **都**经 H 加固后按样本加权 FedAvg；`J_t < 0.05` 的快照不计。
   分散布点只报告 `D_H = P(G) − P(G'_H)`（池化），不进判定（PLAN §4 H3：`A-pre` 在分散布点预期 `no_effect`）。
 - 闸 `V0`（每个快照）：离线 FedAvg(各 edge 权重) 与快照的 `global` 逐元素 max |差| ≤ 1e-5；`|A(G) − run 记录的 post_agg(t+1)| ≤ 0.01`；`|A(edge 模型) − run 记录的第 t 云轮全量点| ≤ 0.01` → 否则 `invalid`。
-- 精度过滤（每个配置 × 快照 × seed）：fresh 池化 `MTA(G) − MTA(G'_H) ≤ 0.02` 且每个 edge ≤ 0.04。配置在某 seed 上「过滤通过」= 两个快照都通过。
+- 精度过滤（每个配置 × 快照 × seed）：fresh 池化 `MTA(G) − MTA(G'_H) ≤ 0.02` 且每个 edge ≤ 0.04。配置在某 seed 上「过滤通过」= 两个快照都通过。（[D-105] 判定脚本照原文：与 J_t 无关；SAU 的归因对照是 `cft-sau-*`；网格 36 个配置。）
 - **选择**（只用 s42）：在过滤通过的 AT 配置里，按 `min(R_H@6, R_H@15)` 排序，取前 3 名冻结（并列按单次加固的前向反向次数少者优先）；
   C-ft、阻尼、oracle、cloud 侧、`n_clean` 敏感性、CCS-clu 离线检测随行（只报告）。冻结清单 commit 之后才读 s43 / s44。
 - 标签：
@@ -178,7 +178,7 @@ H1 规则（均值 ≥ 0.15 且最小 seed ≥ 0.10 → `protects`；三个 |Δ|
   - `kill_pre`：s42 上**全部** AT 配置、以及冻结配置在 s43 / s44 上，两个快照的 `R_H` 都 < 0.2 → `A-pre` 止步（`A-every` 不由 P0 判死）；
   - `accuracy_bound`：s42 上没有过滤通过的配置满足 `R_H ≥ 0.5`（两个快照），但有过滤**不**通过的配置满足 → 用户定；
   - `inconclusive`：其余（P1 照做，只作探路）。
-- 必报：最佳配置的 `R_H − R_H(C-ft)`（逐 seed，对抗部分的贡献）；触发器范数 ‖δ‖∞ / ‖ξ‖∞ / ‖δ+ξ‖∞（像素与模型输入两个空间）；CCS-clu 离线剔除的 TPR / FPR（逐 edge）。
+- 必报：最佳配置的 `R_H − R_H(C-ft)`（逐 seed，对抗部分的贡献）；触发器范数 ‖δ‖∞ / ‖ξ‖∞ / ‖δ+ξ‖∞（像素与模型输入两个空间）；~~CCS-clu 离线剔除的 TPR / FPR（逐 edge）~~ **[D-105]** 快照里没有上传的统计量，做不了 → 报私有统计量聚类 `bn_private_clu`（只作参照），CCS-clu 由 SA-C 在线给出。
 
 **P1**（SA1 实现；s42 单 seed、筛选，不进结论；对照 = SNAP s42 同布点）：
 - 闸：通用闸 + 第一次加固之前的 `[Checksum]` 与 SNAP s42 逐轮相同（具体哪一行在 SA1 定、先写进 git）+ `[Harden]` 行数 = 预期（`A-pre` 4 × 60、`A-every` 4 × 300、`A-cloud` 60）。
@@ -246,3 +246,30 @@ H1 规则（均值 ≥ 0.15 且最小 seed ≥ 0.10 → `protects`；三个 |Δ|
 - **不影响**：3-C（锯齿）、`norm_w` / 余弦的 3-D 结论（不用 c_k）；阶段三的 SNAP（`D-base` 没开 update_ck）。
 - **阶段三的处理**：SA0 的 AT-tgt 求 k\* 时用全部 500 张或按类分层的子集；加固时每个 epoch 先打乱干净集（PLAN SA0 语义 diff 的修正 2 / 3）。
   `update_ck.py` 的取样要不要改、REPORT §5.13 要不要加注，由用户定（还没改）。
+
+## 2026-10-10 … 10-13（SA0 会话：edge 侧对抗训练核心 + P0 离线驱动 + 判定脚本）
+
+### F-096 `confirmed`（代码 + 本地测试；GPU 上**没有**数据）—— SA0 实现完成；两轮对抗式审查确认的 4 + 10 处已改；V0 在 CPU 小 HFL 上逐位成立
+
+- **实现**（`8d9a63c` → `9af2527` → 本次）：`fedavg/hardening/{spec,core}.py`（加固核心，SA1 在线复用）、`fedavg/analysis/{p0_snapshot,bn_cluster}.py`（离线反事实驱动）、
+  `harness/p0_verdict.py`（选择 + N-008 判定）、`p0_configs.yaml`（36 个配置，D-103 / D-104 / D-105）、`p0.sbatch`。语义 diff 表见计划文件（会话内批准），要点进了 D-103 … D-105。
+- **V0 在 CPU 上逐位**（`tests/test_p0_snapshot_tf.py`，本地 TF 2.15、2 edge × 3 客户端的小 HFL）：FedAvg(快照 edge) = 快照 global；离线云聚合后点 = run 的 `[PostAgg]`（ASR / pm_acc / margin）；
+  离线第 t 轮全量点 = run 的主列（client_benign + margin 中位数，margin 非零）。**GPU 上没有证据** —— 探路作业（current-focus）先看这三项。
+- **记账**（`spec.fb_*`，单位 = 一个 batch 的一次前向 + 反向）：SNAP 设定下一个云周期的客户端训练 ≈ 3 300；`pgd-e8-high` 每 edge 825 × 4 edge = 3 300（≈ 一个云周期），
+  pgd / trades / tgt 的 low 约 90–105 × 4 ≈ 11–13%；SAU 的 low / high 每 edge 202.5 / 1 012.5。SAU 在本预算下只有官方约 1 000 步（100 epoch × 10 批 × 256）的 ≤ 8%（步数）/ 约 1%（样本数）。
+- **第一轮审查**（只完成「官方实现忠实度」一维，4 条，全部成立、已改，`9af2527`）：
+  R1 SAU 的 Shared_PGD 在 tape 里裁剪 → 贴边坐标梯度 0、`init max` 下卡在 +ε（改成投影；全贴边的输入上一步后移动的坐标 0% → 62%）；
+  R2 SAU 不增强；R3 Adam(amsgrad, ε 1e-8)（与 torch 公式逐步差 ≤ 3.8e-4 个 lr；Keras 缺省 Adam 差 0.035 个 lr）；R4 SAU 参照探针在推理模式特征上拟合。
+- **第二轮审查**（5 维 × 反驳验证，9 / 10 个 agent 完成；tests-adequacy 的验证撞上用量上限，那一维我逐条对过代码）：成立并已改的 ——
+  - 配置 / 判定（D-105）：SAU 的 C-ft 对照不匹配（major）→ `cft-sau-*`；缺快照 / 缺配置被当成 J < 0.05 静默排除（major）→ `incomplete` / `insufficient`；
+    精度过滤只看计入的快照 → 两个快照都看；V0 比 N-008 严（逐 edge、含攻击者 edge）→ 受害 edge 均值；分散布点的 V0 不过会让整个 P0 invalid → 只让该 run 的 D_H 失效；
+    `grid_sha` 不核对 → 核对；必报项没进判定输出 → `aux` 原样转抄；步长约定没写进表 → 记偏差；AT-tgt 对 y = k\* 做定向下降 → 跳过。
+  - 驱动：**「CCS-clu」聚的是私有统计量**（major）—— head_first 下私有统计量在 head 阶段末截取（`hier_fedrep._head_phase`），只见干净批次，CCS 聚的是上传物 → 改名 `bn_private_clu`（D-105 ④）；
+    `own` / `ck` / `head_diag` 与主配置用不同随机数 → 复用主评估的加固权重、探针子种子配对（测试：给 head_init = 主配置拟合的探针时两次加固逐位相同）；
+    优化器每次新建 → `jit_compile=False`（GPU 上缺省 XLA 每次重编译；CPU 上 Keras 自己关掉，测试改查源码）。
+  - 测试（假绿）：扰动预算测试的探针 head 全零 → 梯度为 0、什么都不动也能过 → 改随机 head 并断言扰动真的动了；各目标的训练 loss 没钉 → 逐目标对手写组合；
+    V0③ 在小世界里比的是 0 == 0 → 加 margin；判定的两快照语义、缺数据、grid_sha、分散布点 V0 的反向锚点；配置清单守卫改钉全部内容的 sha；全局 RNG 的 AST 扫描扩到全部新模块（带植入的正对照）。
+  - 反向锚点实测：判定的 5 条新测试在旧 `p0_verdict.py` 上红；AT-tgt 掩码、head_diag 配对在旧 `core.py` 上红；R1–R4 的 4 条在改动前的 `core.py` 上红。
+  - 判为不成立：`accuracy_bound` 下不报 C-ft 归因（N-008 只要求最佳配置的归因）。
+- **私有统计量的 HDBSCAN 也会误剔良性端**（`tests/test_bn_cluster.py`）：官方参数（`allow_single_cluster`、`min_samples = 1`）在紧凑的合成良性群上也把一部分标成噪声（sklearn 1.9：7 / 20）→ P0 报 FPR，不是实现错误。
+- **没有证据的**：探针 head 与受害端私有 head 的迁移缺口（语义 diff A2，`head_diag` 读数会给出）；比例步长相对官方绝对步长的效果差别；小预算 AT 在 GPU 上的墙钟（探路作业回传）。

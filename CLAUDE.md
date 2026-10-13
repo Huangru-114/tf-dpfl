@@ -512,6 +512,15 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
     Δ = 0 时 c_i == c_before、一次评分不改任何权重 / RNG、批量 PGD == 逐类 PGD）/ `test_update_geometry.py`（拆分的手算值）/ `test_g1_scores.py` /
     `test_collect_s6.py`（schema 11）/ `test_s6_switches.py`（§4h + G1 27 run 的配置自洽）。
 
+- **阶段三 SA0：edge 侧对抗训练核心 + P0 离线工具**（2026-10-13；`experiments/defense/edge-native/` FINDINGS F-096、DECISIONS D-103 … D-105）。
+  - `fedavg/hardening/spec.py`（**不 import TF**：配置网格、像素 ↔ 输入空间、分层子集、numpy 探针、记账、R_H / 精度过滤 / V0）+ `core.py`
+    （`EdgeHardener`：PGD-AT / TRADES / SAU / AT-tgt / C-ft；只改 body 可训练变量，head 与 BN 统计量写回；临时线性探针 head；random 围栏）—— SA1 在线复用。
+  - `fedavg/analysis/p0_snapshot.py`：按 main.py 重建世界、从 SNAP 快照复原、V0、G′_H 用 run 自己的云聚合后评估；`harness/p0_verdict.py`（N-008）；
+    配置清单 `p0_configs.yaml`（36 个，内容 sha 由 `tests/test_hardening_spec.py` 钉住 —— **改它就是改预注册**，先留 DECISIONS）；作业 `p0.sbatch`。
+  - ⚠ 快照里的 BN 统计量是**私有**的（head_first 下只见干净批次）→ 离线做不了 CCS-clu，读数叫 `bn_private_clu`（D-105）。
+  - ⚠ edge 干净集按类排序（F-095）：取子集一律 `spec.stratified_subset`，不要取前 n 张。
+  - 守卫：`test_hardening_spec` / `test_p0_verdict` / `test_bn_cluster` / `test_p0_snapshot`（本地）+ `test_hardening_tf` / `test_p0_snapshot_tf`（TF；V0 在 CPU 小 HFL 上逐位）。
+
 **留了接口但没有实现的**（不要以为它们能用）：
 - 主动防御（需要客户端配合的防御）：接口齐了（`BaseDefense.layers` /
   `client_mixin` / `make_control` + 客户端侧 `set_control` / `get_aux`），无任何实现。

@@ -9,11 +9,11 @@ analysis/p0_snapshot.py  —  阶段三 P0：SNAP 快照上的零训练离线反
      （`_light_acc` + `_light_asr(phase="post")`，同一随机数键）重算，与 run 记录的第 t+1 轮 `per_edge_post_agg_rounds` 比；
      ③ edge 设回 w_e，用全量点的主列评估（`_attacker_trigger` + `evaluate_hierarchical_asr`，同一随机数键）重算第 t 轮的 `per_edge_rounds`；
   3. 每个配置 H：4 个 edge 都加固（`hardening.core.EdgeHardener`）→ G′_H = FedAvg(H(w_e)) → 每个 edge 设成 G′_H → 同一个云聚合后评估；
-  4. 附加读数（只报告）：阻尼、隔离攻击者 edge 的上界、触发器范数、CCS 聚类离线检测；冻结阶段另有 cloud 侧加固、干净集大小、
+  4. 附加读数（只报告）：阻尼、隔离攻击者 edge 的上界、触发器范数、私有 BN 统计量聚类（bn_private_clu：不是 CCS-clu，D-105）；冻结阶段另有 cloud 侧加固、干净集大小、
      只洗自己、加固前后 c_k、私有 head 均值当探针。
 
 两个阶段（p0_configs.yaml 的 select / aux；N-008：配置清单在打开 s42 之前冻结）：
-  screen  全部 32 个配置 + V0 + 基线 + 每快照附加读数 —— 只对 s42 collocated 跑，结果交 `harness/p0_verdict.py --select` 选前 3 名；
+  screen  全部 36 个配置 + V0 + 基线 + 每快照附加读数 —— 只对 s42 collocated 跑，结果交 `harness/p0_verdict.py --select` 选前 3 名；
   frozen  冻结的前 3 名 + 同预算的 C-ft + 冻结阶段的附加读数 —— s42–44 × {collocated, distributed}。
 
 用法（cwd = fedavg，经 cluster_env.sh 的容器；作业脚本 experiments/defense/edge-native/p0.sbatch）：
@@ -213,8 +213,20 @@ def eval_post(world: World, weights_by_edge: dict, t: int, phase: str = "post") 
     return summarize(world, acc, asr)
 
 
-def eval_full_main(world: World, snap: dict, t: int) -> dict:
-    """第 t 轮全量点的主列（`_backdoor_eval` 的同一调用：键 0xE7A1、先 global 再 edge 再各端）→ {edge: client_benign}。"""
+def edge_margins(m: dict, target, n_classes) -> dict:
+    """一次 evaluate_hierarchical_asr 的逐端记录 → {edge: 良性端 margin 中位数}（run 的 `[EvalDetailEdge]` 同一个 summarize）。"""
+    from attack.eval_detail import summarize as _summ
+    by_edge = {}
+    for r in m.get("client_detail") or []:
+        by_edge.setdefault(int(r["edge_id"]), []).append(r)
+    return {e: _summ(rs, target, n_classes).get("margin_p50") for e, rs in by_edge.items()}
+
+
+def eval_full_main(world: World, snap: dict, t: int, detail: bool = False) -> dict:
+    """
+    第 t 轮全量点的主列（`_backdoor_eval` 的同一调用：键 0xE7A1、先 global 再 edge 再各端）→ {edge: client_benign}。
+    detail=True → {edge: {client_benign, margin_p50}}（测试用：小世界里 ASR 常为 0，margin 才分辨得出复原错没错）。
+    """
     from attack.backdoor_eval import evaluate_hierarchical_asr
     cloud = world.cloud
     set_edges(world, snap["edges"])
@@ -231,7 +243,11 @@ def eval_full_main(world: World, snap: dict, t: int) -> dict:
     finally:
         cloud._edge_w_cache = None
         random.setstate(st)
-    return {int(d["edge_id"]): d.get("client_benign") for d in m.get("per_edge") or []}
+    cb = {int(d["edge_id"]): d.get("client_benign") for d in m.get("per_edge") or []}
+    if not detail:
+        return cb
+    mg = edge_margins(m, cloud.bd_target, cloud._n_classes)
+    return {e: {"client_benign": v, "margin_p50": mg.get(e)} for e, v in cb.items()}
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -305,8 +321,13 @@ def trigger_norms(world: World, t: int, n: int) -> dict:
     return {"n": int(len(x)), "delta": q(delta), "xi": q(xi), "delta_plus_xi": q(delta + xi)}
 
 
-def ccs_clu(world: World, snap: dict) -> dict:
-    """每个 edge：有私有 BN 统计量的端 → HDBSCAN（bn_cluster.detect）→ 剔除对恶意端的 TPR / FPR。"""
+def bn_private_clu(world: World, snap: dict) -> dict:
+    """
+    每个 edge：有私有 BN 统计量的端 → HDBSCAN（bn_cluster.detect）→ 剔除对恶意端的 TPR / FPR。
+    ⚠ 不是 CCS-clu（D-105）：快照里的是**私有**统计量，head_first 下在 head 阶段末截取（`hier_fedrep._head_phase`），
+    只见干净批次 → 只反映各端的数据分布、不含投毒信号。CCS 聚的是**上传**的统计量（body 阶段、投毒批次），
+    SNAP 没存每端上传物 → 真正的 CCS-clu TPR / FPR 由 SA-C 的在线臂给出。这里只是「数据分布单独能分开多少」的参照。
+    """
     out = {}
     for e in world.edges:
         vec = {}
@@ -361,9 +382,12 @@ def harden_all(world, hardener, snap, cfg, cfg_index, t, lr, *, n_clean=None, he
     return new, infos
 
 
-def eval_config(world, hardener, snap, cfg, cfg_index, t, lr, **kw) -> dict:
+def eval_config(world, hardener, snap, cfg, cfg_index, t, lr, *, keep=None, **kw) -> dict:
+    """keep：dict → 把加固后的各 edge 权重存进 keep[cfg id]（冻结阶段的附加读数复用同一份，逐位配对）。"""
     t0 = time.perf_counter()
     new, infos = harden_all(world, hardener, snap, cfg, cfg_index, t, lr, **kw)
+    if keep is not None:
+        keep[cfg["id"]] = new
     G_h = fedavg(world, new)
     ev = eval_post(world, {int(e.edge_id): G_h for e in world.edges}, t)
     return {"eval": ev, "harden": {str(k): v for k, v in infos.items()},
@@ -431,7 +455,7 @@ def run(args) -> dict:
         full = eval_full_main(world, snap, t)
         S["v0"] = spec.v0_check(spec.max_abs_diff(G_re, snap["global"]),
                                 {e: v["client_benign"] for e, v in base["per_edge"].items()}, rec["post"],
-                                full, rec["full"])
+                                full, rec["full"], edges=(world.victims or None))
         S["base"] = base
         flush()
         if not S["v0"]["pass"] and not args.ignore_v0:
@@ -441,8 +465,8 @@ def run(args) -> dict:
         if aux.get("trigger_norms"):
             set_edges(world, {int(e.edge_id): snap["global"] for e in world.edges})
             S["aux"]["trigger_norms"] = trigger_norms(world, t, int(aux["trigger_norms"].get("n", 256)))
-        if aux.get("ccs_clu"):
-            S["aux"]["ccs_clu"] = ccs_clu(world, snap)
+        if aux.get("bn_private_clu"):
+            S["aux"]["bn_private_clu"] = bn_private_clu(world, snap)
         for lam in aux.get("damping_lambda") or []:
             damp = {int(e.edge_id): [w + float(lam) * (g - w) for w, g in zip(snap["edges"][int(e.edge_id)],
                                                                               snap["global"])]
@@ -453,18 +477,32 @@ def run(args) -> dict:
             S["aux"]["oracle_isolation"] = eval_post(world, {int(e.edge_id): G_iso for e in world.edges}, t)
         flush()
         # 配置
+        hardened = {}
+        top_set = set((frozen or {}).get("frozen") or [])
         for cid in cfg_ids:
-            S["configs"][cid] = eval_config(world, hardener, snap, by_id[cid], index_of[cid], t, lr)
+            S["configs"][cid] = eval_config(world, hardener, snap, by_id[cid], index_of[cid], t, lr,
+                                            keep=hardened if cid in top_set else None)
             flush()
         # 冻结阶段的附加读数
         if args.stage == "frozen" and not args.only:
-            S["aux"].update(frozen_aux(world, hardener, snap, frozen, by_id, index_of, t, lr, aux))
+            S["aux"].update(frozen_aux(world, hardener, snap, frozen, by_id, index_of, t, lr, aux, hardened))
             flush()
     return out
 
 
-def frozen_aux(world, hardener, snap, frozen, by_id, index_of, t, lr, aux) -> dict:
+def frozen_aux(world, hardener, snap, frozen, by_id, index_of, t, lr, aux, hardened=None) -> dict:
+    """
+    冻结配置的附加读数。hardened：{cfg id: {edge: 主评估用的加固权重}} → `own`、`ck` 直接复用（与 R_H 的那份逐位相同）；
+    缺了就用同一个随机数键（salt 0）重算（结果相同，只是多花时间）。`head_diag` 也用 salt 0：harden 先抽探针子种子，
+    所以与主配置只差 head 的初值。`n_clean` 换了数据量，本来就配不上对，用自己的 salt。
+    """
     top = list(frozen["frozen"])
+    hardened = dict(hardened or {})
+
+    def main_weights(cid):
+        if cid not in hardened:
+            hardened[cid], _ = harden_all(world, hardener, snap, by_id[cid], index_of[cid], t, lr)
+        return hardened[cid]
     res = {}
     if aux.get("cloud_side") and top:
         xs = np.concatenate([world.clean[int(e.edge_id)][0] for e in world.edges])
@@ -482,21 +520,21 @@ def frozen_aux(world, hardener, snap, frozen, by_id, index_of, t, lr, aux) -> di
                                                  n_clean=int(n), salt=2)
     if aux.get("head_diag") and top:
         res["head_diag"] = {cid: eval_config(world, hardener, snap, by_id[cid], index_of[cid], t, lr,
-                                             head_diag=True, salt=3) for cid in top}
+                                             head_diag=True) for cid in top}
     if aux.get("e0_own") and top:
         att_edges = [int(e.edge_id) for e in world.edges if int(e.edge_id) not in world.victims]
         base = eval_post(world, snap["edges"], t, phase="light")
         res["own"] = {"edges": att_edges, "base": base, "configs": {}}
         for cid in top:
-            new, infos = harden_all(world, hardener, snap, by_id[cid], index_of[cid], t, lr,
-                                    only_edges=set(att_edges), salt=4)
-            res["own"]["configs"][cid] = {"eval": eval_post(world, new, t, phase="light"),
-                                          "harden": {str(k): v for k, v in infos.items()}}
+            hw = main_weights(cid)
+            new = {int(e.edge_id): (hw[int(e.edge_id)] if int(e.edge_id) in att_edges else snap["edges"][int(e.edge_id)])
+                   for e in world.edges}
+            res["own"]["configs"][cid] = {"eval": eval_post(world, new, t, phase="light")}
     if aux.get("ck_before_after") and top:
         n = int(aux["ck_before_after"].get("n", 100))
         res["ck"] = {}
         for cid in top:
-            new, _ = harden_all(world, hardener, snap, by_id[cid], index_of[cid], t, lr, salt=5)
+            new = main_weights(cid)
             per = {}
             for e in world.edges:
                 eid = int(e.edge_id)

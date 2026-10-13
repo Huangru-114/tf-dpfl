@@ -57,8 +57,11 @@ def _px(d):
 
 # ── 扰动预算 ─────────────────────────────────────────────────────────────────
 def test_perturbations_stay_in_the_pixel_budget_and_valid_range():
+    """探针 head 用随机值（全零 head 的梯度为 0 → 扰动不动、预算断言假绿，第二轮审查）；另断言每种扰动真的动了。"""
     m, h = _hardener()
     h.model.set_weights(m.get_weights())
+    h.ref.set_weights(m.get_weights())
+    Wr, br = _random_heads(h)
     x, y = _data()
     xt, yt = tf.constant(x), tf.constant(y)
     eps, eps4 = 8 / 255, 4 / 255
@@ -69,13 +72,19 @@ def test_perturbations_stay_in_the_pixel_budget_and_valid_range():
                         rng=rng, start="uniform"),
         "trades": h.trades_adv(xt, h.to_in(eps), h.to_in(0.01), 3, False, rng),
         "tgt": h.tgt_adv(xt, yt, 1, h.to_in(eps4), h.to_in(0.01), 3, h.to_in(eps4), False),
-        "sau": xt + h.sau_pert(xt, yt, h.to_in(eps), h.to_in(eps), 3, False, h.W, h.b, 0.01, 1.0),
+        "sau": xt + h.sau_pert(xt, yt, h.to_in(eps), h.to_in(eps), 3, False, Wr, br, 0.01, 1.0),
     }
+    # 不带随机起点 / 只靠梯度的那几种：起点之外真的走了
+    base = {"pgd": None, "trades": None, "tgt": xt, "sau": xt + h._project_pert(tf.zeros_like(xt) + h.to_in(eps), xt,
+                                                                                   h.to_in(eps))}
     budgets = {"pgd": eps, "trades": eps, "tgt": 2 * eps4, "sau": eps}
     for k, xa in cases.items():
         d = (xa.numpy() - x) * np.array([0.2470, 0.2435, 0.2616])
         assert np.max(np.abs(d)) <= budgets[k] + 1e-6, k
         assert np.all(xa.numpy() >= lo - 1e-6) and np.all(xa.numpy() <= hi + 1e-6), k
+        assert np.max(np.abs(d)) > 0.5 / 255, k                 # 扰动不是零（梯度确实回传了）
+        if base[k] is not None:
+            assert not np.allclose(xa.numpy(), base[k].numpy()), k
 
 
 # ── SAU：审查 R1–R4 ───────────────────────────────────────────────────────────
@@ -282,3 +291,135 @@ def test_without_the_fence_constructing_the_scratch_models_moves_python_random(m
     monkeypatch.setattr(random, "setstate", lambda s: None)     # 去掉围栏
     C.EdgeHardener(m, CFG)
     assert random.getstate() != st
+
+
+# ── 第二轮审查（D-105）：各目标的训练 loss、AT-tgt 掩码、中途写回、lr、随机数配对 ─────────
+def _ce(z, y):
+    z = z - z.max(axis=1, keepdims=True)
+    return -(z[np.arange(len(y)), y] - np.log(np.exp(z).sum(axis=1)))
+
+
+@pytest.mark.parametrize("cid", ["pgd-e8-frozen-low", "trades-e8-b6-frozen-low", "sau-e8-frozen-low",
+                                 "tgt-e4-frozen-low", "cft-frozen-low"])
+def test_training_loss_of_each_objective_is_the_documented_combination(cid, monkeypatch):
+    """对抗样本换成固定张量 → 闭包的值 = 用 h.logits 手写的组合（pgd 不能退化成 C-ft、TRADES 的 β·KL/B、SAU 的 λ 与掩码）。"""
+    m, h = _hardener()
+    h.model.set_weights(m.get_weights())
+    h.ref.set_weights(m.get_weights())
+    Wr, br = _random_heads(h)
+    x, y = _data(n=8)
+    xb, yb = tf.constant(x), tf.constant(y)
+    xa = tf.constant(_data(n=8, seed=11)[0])                     # 「对抗样本」= 另一批图（只为让两组 logits 明显不同）
+    monkeypatch.setattr(h, "pgd_ce", lambda *a, **k: xa)
+    monkeypatch.setattr(h, "trades_adv", lambda *a, **k: xa)
+    monkeypatch.setattr(h, "tgt_adv", lambda *a, **k: xa)
+    monkeypatch.setattr(h, "sau_pert", lambda *a, **k: xa - xb)
+    cfg = BY[cid]
+    got = float(h.batch_loss(cfg, xb, yb, False, rng=np.random.default_rng(0), kstar=1, ref=(Wr, br))())
+    ln, la = h.logits(xb, False).numpy(), h.logits(xa, False).numpy()
+    obj = cfg["objective"]
+    if obj in ("pgd", "tgt"):
+        want = _ce(la, y).mean()
+        assert abs(want - _ce(ln, y).mean()) > 1e-4             # 能分辨「只在对抗样本上训」与 C-ft
+    elif obj == "cft":
+        want = _ce(ln, y).mean()
+    elif obj == "trades":
+        p, q = _softmax(ln), _softmax(la)
+        want = _ce(ln, y).mean() + 6.0 * np.sum(p * (np.log(p) - np.log(q))) / len(y)
+    else:
+        s = cfg["sau"]
+        lrc, lrp = h.logits_ref(xb, Wr, br).numpy(), h.logits_ref(xa, Wr, br).numpy()
+        plr = lrp.argmax(1)
+        pois = (plr != y) & (plr != lrc.argmax(1))
+        q = _softmax(la)
+        pos = q[np.arange(len(y)), plr]
+        term = -np.log(1e-6 + np.minimum(1 - pos, 0.999)) - np.log(1 + 1e-6 - np.maximum(pos, 0.001))
+        want = (s["lmd_1"] * _ce(ln, y).mean() + s["lmd_2"] * _ce(la, y).mean()
+                + s["lmd_3"] * np.sum(term[pois]) / 2 / len(y))
+    assert got == pytest.approx(want, rel=1e-4, abs=1e-6)
+
+
+def test_tgt_skips_the_targeted_step_for_samples_already_in_kstar_d105():
+    """y == k* 的行只做 FGSM：扰动 = σ·sign(∇CE(y)) 投影（定向下降会降低它们的 CE(y)）。"""
+    m, h = _hardener()
+    h.model.set_weights(m.get_weights())
+    _random_heads(h)
+    x, y = _data(n=8)
+    kstar = 1
+    eps4, sig = h.to_in(4 / 255), h.to_in(4 / 255)
+    xa = h.tgt_adv(tf.constant(x), tf.constant(y), kstar, eps4, h.to_in(0.01), 3, sig, False).numpy()
+    rows = y == kstar
+    assert rows.any() and (~rows).any()
+    with tf.GradientTape() as tape:
+        xt = tf.constant(x)
+        tape.watch(xt)
+        loss = tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=tf.constant(y),
+                                                                            logits=h.logits(xt, False)))
+    want = np.clip(x + sig.numpy() * np.sign(tape.gradient(loss, xt).numpy()), *spec.valid_range(CFG))
+    np.testing.assert_allclose(xa[rows], want[rows], atol=1e-6)
+    assert not np.allclose(xa[~rows], want[~rows], atol=1e-6)   # 其余行做了定向步
+
+
+def test_bn_train_restores_the_stats_before_ck_and_the_reference(monkeypatch):
+    """bn=train：拟合探针的训练模式前向会改 moving 统计量 → 求 c_k 之前必须写回输入值（否则 k* 跟着变）。"""
+    m, h = _hardener()
+    w0 = m.get_weights()
+    stat = get_bn_stat_indices(m)
+    seen = []
+    orig = h.body_ck
+
+    def spy(*a, **k):
+        cur = h.model.get_weights()
+        seen.append(all(np.array_equal(cur[i], w0[i]) for i in stat))
+        return orig(*a, **k)
+    monkeypatch.setattr(h, "body_ck", spy)
+    x, y = _data()
+    h.harden(w0, x, y, BY["tgt-e4-train-low"], rng=np.random.default_rng(0), lr=0.05)
+    assert seen == [True]
+
+
+def test_lr_is_used_zero_lr_leaves_the_body_unchanged():
+    m, h = _hardener()
+    w0 = m.get_weights()
+    x, y = _data()
+    new0, _ = h.harden(w0, x, y, BY["cft-frozen-low"], rng=np.random.default_rng(0), lr=0.0)
+    for a, b in zip(new0, w0):
+        np.testing.assert_array_equal(a, b)
+    new1, _ = h.harden(w0, x, y, BY["cft-frozen-low"], rng=np.random.default_rng(0), lr=0.05)
+    assert any(not np.array_equal(a, b) for a, b in zip(new1, w0))
+
+
+def test_head_init_run_differs_from_the_main_run_only_by_the_head(monkeypatch):
+    """head_diag 的配对：harden 先抽探针子种子（拟不拟合都抽）→ 给 head_init = 主配置拟合出的探针时，两次结果逐位相同。"""
+    m, h = _hardener()
+    w0 = m.get_weights()
+    x, y = _data()
+    fitted = {}
+    orig = C.spec.fit_probe
+
+    def keep(F, *a, **k):
+        r = orig(F, *a, **k)
+        fitted.setdefault("p", r)
+        return r
+    monkeypatch.setattr(C.spec, "fit_probe", keep)
+    cfg = BY["pgd-e8-train-low"]
+    a, _ = h.harden(w0, x, y, cfg, rng=np.random.default_rng(5), lr=0.05)
+    b, _ = h.harden(w0, x, y, cfg, rng=np.random.default_rng(5), lr=0.05,
+                    head_init=(fitted["p"]["W"], fitted["p"]["b"]))
+    for u, v in zip(a, b):
+        np.testing.assert_array_equal(u, v)
+
+
+def test_optimizers_do_not_jit_compile():
+    """
+    每次加固都新建优化器 → GPU 上缺省的 XLA 会每次重编译。Keras 在没有 GPU 时自己把 jit_compile 关掉，
+    所以 get_config() 在 CPU 上分辨不出来 → 查源码：make_optimizer 里每个优化器构造都显式传 jit_compile=False。
+    """
+    import ast
+    import inspect
+    calls = [n for n in ast.walk(ast.parse(inspect.getsource(C.make_optimizer).strip()))
+             if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr in ("Adam", "SGD")]
+    assert len(calls) == 2
+    for c in calls:
+        kw = {k.arg: k.value for k in c.keywords}
+        assert isinstance(kw.get("jit_compile"), ast.Constant) and kw["jit_compile"].value is False

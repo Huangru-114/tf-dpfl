@@ -54,3 +54,34 @@ def test_hdbscan_rejects_the_odd_ones_out():
 def test_stat_vector_concatenates_in_order():
     v = BC.stat_vector([np.array([1.0, 2.0]), np.array([[3.0]])])
     np.testing.assert_array_equal(v, [1.0, 2.0, 3.0])
+
+
+class _FakeHDBSCAN:
+    """替身：直接返回给定的标签（测「保留最大簇 / 全噪声」的规则本身，与 sklearn 版本无关）。"""
+    labels = None
+
+    def __init__(self, **kw):
+        self.kw = kw
+
+    def fit(self, D):
+        self.labels_ = np.asarray(type(self).labels)
+        return self
+
+
+def _with_labels(monkeypatch, labels):
+    sk = pytest.importorskip("sklearn.cluster")
+    _FakeHDBSCAN.labels = labels
+    monkeypatch.setattr(sk, "HDBSCAN", _FakeHDBSCAN)
+    return {i: np.ones(3) + i for i in range(len(labels))}
+
+
+def test_keeps_the_largest_cluster_ties_to_the_smaller_label(monkeypatch):
+    d = BC.detect(_with_labels(monkeypatch, [1, 1, 1, 0, 0, -1]))
+    assert d["status"] == "ok" and d["admitted"] == [0, 1, 2] and d["rejected"] == [3, 4, 5]
+    d = BC.detect(_with_labels(monkeypatch, [1, 1, 0, 0, -1]))      # 并列 → 编号小的簇（0）
+    assert d["admitted"] == [2, 3] and d["rejected"] == [0, 1, 4]
+
+
+def test_all_noise_rejects_nobody(monkeypatch):
+    d = BC.detect(_with_labels(monkeypatch, [-1, -1, -1, -1]))
+    assert d["status"] == "all_noise" and d["rejected"] == [] and d["admitted"] == [0, 1, 2, 3]

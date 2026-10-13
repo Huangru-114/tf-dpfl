@@ -11,16 +11,20 @@ harness/p0_verdict.py  —  阶段三 P0 的选择与判定（FINDINGS N-008 P0 
 输入是 `fedavg/analysis/p0_snapshot.py` 写的 JSON（每个 run × 阶段一个文件）。量（集中布点）：
   R_H = [A(G) − A(G′_H)] / J_t（`hardening.spec.r_h`）；A = 受害 edge 良性端 fresh-PM ASR 的三 edge 均值（离线重算）；
   J_t = run 记录的第 t+1 轮云聚合后点 − 第 t 轮全量点；J_t < 0.05 的快照不计。
-  精度过滤（`spec.accuracy_ok`）：池化 fresh ΔMTA ≤ 0.02 且每个 edge ≤ 0.04；配置在某 seed 上「过滤通过」= 该 seed 计入的快照都通过。
+  精度过滤（`spec.accuracy_ok`）：池化 fresh ΔMTA ≤ 0.02 且每个 edge ≤ 0.04；配置在某 seed 上「过滤通过」= **两个快照**都通过
+  （N-008 原文；与 J_t 无关 —— J_t 只决定 R_H 计不计）。
 规则（N-008）：
-  invalid        任一用到的快照 V0 不过（离线 FedAvg ≠ 快照 G，或离线重算与 run 记录的 ASR 差 > 0.01）
+  invalid        任一 collocated 快照 V0 不过（离线 FedAvg ≠ 快照 G，或受害 edge 均值 A 与 run 记录差 > 0.01）；
+                 或结果的 grid_sha 与冻结清单不一致。distributed 的 V0 不过只让那个 run 的 D_H 标成 invalid（只报告）
+  incomplete / insufficient  结果里缺快照、缺配置、或 A 是 None（不能当成 J_t < 0.05 悄悄排除）
   选择（只用 s42 collocated 的 screen）：过滤通过的 AT 配置按 min(R_H) 降序取前 3（并列 → 前向反向次数少 → id）
   go_online      冻结的前 3 名里有配置在三个 seed、全部计入的快照上 R_H ≥ 0.5 且三个 seed 都过滤通过 → 取名次最高的
   kill_pre       s42 上全部 AT 配置、以及冻结配置在 s43 / s44 上，计入的快照 R_H 都 < 0.2（A-every 不由 P0 判死）
   accuracy_bound s42 上没有过滤通过的配置在全部计入的快照上 R_H ≥ 0.5，但有过滤不通过的配置做到了 → 用户定
   inconclusive   其余（P1 照做，只作探路）
   insufficient   缺 run，或某 seed 没有计入的快照
-另报（不进判定）：最佳配置的 R_H − 同预算 C-ft 的 R_H（逐 seed、逐快照）；分散布点的 D_H = 池化良性 ASR 之差；附加读数原样转抄。
+另报（不进判定）：最佳配置的 R_H − 匹配的 C-ft 的 R_H（逐 seed、逐快照；SAU 配 cft-sau-*，D-105）；分散布点的 D_H = 池化良性 ASR 之差；
+各 run × 快照的附加读数（trigger_norms、bn_private_clu …）原样转抄进 `aux`。
 纯标准库 + `fedavg/hardening/spec.py`（numpy），不 import TF。
 """
 
@@ -38,6 +42,7 @@ from hardening import spec      # noqa: E402
 
 SEEDS = (42, 43, 44)
 SELECT_SEED = 42
+SNAPSHOTS = (6, 15)          # p0_configs.yaml select.snapshots 的缺省
 GRID = HERE.parent / "experiments/defense/edge-native/p0_configs.yaml"
 
 
@@ -80,12 +85,35 @@ def v0_failures(res: dict) -> list:
             if S.get("v0") is not None and not S["v0"].get("pass")]
 
 
-def seed_summary(rows: dict) -> dict:
-    """一个配置在一个 seed 上：计入的快照、min / max R_H、是否全部过滤通过。"""
+def incomplete(res: dict, cfgs, snapshots=SNAPSHOTS) -> list:
+    """结果里缺什么：快照、V0、基线 A、配置、配置的 A（集中布点）/ 池化良性（分散布点）。空 = 齐全。"""
+    out, rid = [], res.get("run_id")
+    key = "victim_asr" if res.get("placement") == "collocated" else "pooled_benign"
+    snaps = res.get("snapshots") or {}
+    for t in snapshots:
+        S = snaps.get(str(t))
+        if S is None:
+            out.append(f"{rid} 缺第 {t} 轮快照")
+            continue
+        if S.get("v0") is None:
+            out.append(f"{rid} 第 {t} 轮没有 V0")
+        if (S.get("base") or {}).get(key) is None:
+            out.append(f"{rid} 第 {t} 轮基线 {key} 是 None")
+        for cid in cfgs:
+            c = (S.get("configs") or {}).get(cid)
+            if c is None:
+                out.append(f"{rid} 第 {t} 轮缺配置 {cid}")
+            elif (c.get("eval") or {}).get(key) is None:
+                out.append(f"{rid} 第 {t} 轮 {cid} 的 {key} 是 None")
+    return out
+
+
+def seed_summary(rows: dict, snapshots=SNAPSHOTS) -> dict:
+    """一个配置在一个 seed 上：计入的快照、min / max R_H（只看计入的）、是否**全部快照**都过滤通过（不管 J_t）。"""
     used = {t: r for t, r in rows.items() if r["usable"]}
     rh = [r["r_h"] for r in used.values()]
     return {"n_used": len(used), "rh_min": min(rh) if rh else None, "rh_max": max(rh) if rh else None,
-            "acc_ok": bool(used) and all(r["acc_ok"] for r in used.values()),
+            "acc_ok": all(int(t) in rows for t in snapshots) and all(r["acc_ok"] for r in rows.values()),
             "per_snapshot": {str(t): {k: _r(v) if isinstance(v, float) else v for k, v in r.items()}
                              for t, r in sorted(rows.items())}}
 
@@ -94,7 +122,8 @@ def seed_summary(rows: dict) -> dict:
 # 选择
 # ══════════════════════════════════════════════════════════════════════════
 
-def select(screen: dict, grid: list, top: int = 3, n_clean: int = 500, batch: int = 32) -> dict:
+def select(screen: dict, grid: list, top: int = 3, n_clean: int = 500, batch: int = 32,
+           snapshots=SNAPSHOTS) -> dict:
     """s42 collocated 的 screen 结果 → 冻结的前 top 名（只在过滤通过的 AT 配置里选）。"""
     bad = v0_failures(screen)
     if bad:
@@ -102,13 +131,16 @@ def select(screen: dict, grid: list, top: int = 3, n_clean: int = 500, batch: in
     if screen.get("stage") != "screen" or screen.get("seed") != SELECT_SEED or screen.get("placement") != "collocated":
         return {"frozen": [], "status": "wrong_input",
                 "reasons": [f"选择只用 s{SELECT_SEED} collocated 的 screen：收到 {screen.get('run_id')} / {screen.get('stage')}"]}
+    gaps = incomplete(screen, [c["id"] for c in grid], snapshots)
+    if gaps:
+        return {"frozen": [], "status": "incomplete", "reasons": gaps}
     by_id = {c["id"]: c for c in grid}
     ranking = []
     for cid in screen.get("configs") or []:
         cfg = by_id[cid]
         if cfg["objective"] not in spec.AT_OBJECTIVES:
             continue
-        s = seed_summary(snapshot_rows(screen, cid))
+        s = seed_summary(snapshot_rows(screen, cid), snapshots)
         ranking.append({"id": cid, "rh_min": s["rh_min"], "acc_ok": s["acc_ok"], "n_used": s["n_used"],
                         "fb": spec.fb_harden(cfg, n_clean, batch)})
     elig = [r for r in ranking if r["acc_ok"] and r["rh_min"] is not None]
@@ -125,16 +157,24 @@ def select(screen: dict, grid: list, top: int = 3, n_clean: int = 500, batch: in
 # 判定
 # ══════════════════════════════════════════════════════════════════════════
 
-def judge(results: list, frozen_doc: dict, grid: list) -> dict:
+def judge(results: list, frozen_doc: dict, grid: list, snapshots=SNAPSHOTS) -> dict:
     """results：p0_snapshot 的全部 JSON；frozen_doc：select 的输出（已 commit）。"""
     by_id = {c["id"]: c for c in grid}
     frozen = list(frozen_doc.get("frozen") or [])
     col = {(r["seed"], r["stage"]): r for r in results if r.get("placement") == "collocated"}
     dist = [r for r in results if r.get("placement") == "distributed"]
-    bad = sum((v0_failures(r) for r in results), [])
     out = {"frozen": frozen, "rule": {"R_GO": spec.R_GO, "R_KILL": spec.R_KILL, "JUMP_MIN": spec.JUMP_MIN,
                                       "MTA_POOL_MAX": spec.MTA_POOL_MAX, "MTA_EDGE_MAX": spec.MTA_EDGE_MAX},
-           "preregistered": "FINDINGS N-008（D-101）"}
+           "preregistered": "FINDINGS N-008（D-101）；D-105"}
+    # 附加读数原样转抄（必报项：触发器范数等）
+    out["aux"] = {f"{r.get('placement')}/s{r.get('seed')}/{r.get('stage')}":
+                  {t: S.get("aux") for t, S in sorted((r.get("snapshots") or {}).items())}
+                  for r in sorted(results, key=lambda r: (str(r.get("placement")), r.get("seed") or 0,
+                                                         str(r.get("stage"))))}
+    want_sha = frozen_doc.get("grid_sha")
+    bad = sum((v0_failures(r) for r in col.values()), [])
+    bad += [f"{r.get('run_id')} / {r.get('stage')}：grid_sha {r.get('grid_sha')} ≠ 冻结清单的 {want_sha}"
+            for r in results if want_sha is not None and r.get("grid_sha") != want_sha]
     if bad:
         return {**out, "verdict": "invalid", "reasons": bad}
     screen = col.get((SELECT_SEED, "screen"))
@@ -148,6 +188,8 @@ def judge(results: list, frozen_doc: dict, grid: list) -> dict:
             return screen
         return col.get((seed, "frozen"))
 
+    if screen is not None:
+        missing += incomplete(screen, [c["id"] for c in grid], snapshots)
     per = {}
     for cid in frozen:
         per[cid] = {}
@@ -156,7 +198,8 @@ def judge(results: list, frozen_doc: dict, grid: list) -> dict:
             if r is None or cid not in (r.get("configs") or []):
                 missing.append(f"s{s} collocated {cid}")
                 continue
-            per[cid][s] = seed_summary(snapshot_rows(r, cid))
+            missing += incomplete(r, [cid], snapshots)
+            per[cid][s] = seed_summary(snapshot_rows(r, cid), snapshots)
     out["frozen_per_seed"] = {cid: {f"s{s}": v for s, v in d.items()} for cid, d in per.items()}
     if missing:
         return {**out, "verdict": "insufficient", "missing": sorted(set(missing))}
@@ -167,7 +210,7 @@ def judge(results: list, frozen_doc: dict, grid: list) -> dict:
     go = [cid for cid in frozen
           if all(per[cid][s]["rh_min"] >= spec.R_GO and per[cid][s]["acc_ok"] for s in SEEDS)]
     s42_at = [cid for cid in screen.get("configs") or [] if by_id[cid]["objective"] in spec.AT_OBJECTIVES]
-    s42 = {cid: seed_summary(snapshot_rows(screen, cid)) for cid in s42_at}
+    s42 = {cid: seed_summary(snapshot_rows(screen, cid), snapshots) for cid in s42_at}
     kill = (all(v["rh_max"] is not None and v["rh_max"] < spec.R_KILL for v in s42.values())
             and all(per[cid][s]["rh_max"] < spec.R_KILL for cid in frozen for s in SEEDS if s != SELECT_SEED))
     good = [cid for cid, v in s42.items() if v["rh_min"] is not None and v["rh_min"] >= spec.R_GO]
@@ -197,10 +240,15 @@ def judge(results: list, frozen_doc: dict, grid: list) -> dict:
                              for t in a if t in b and a[t]["usable"] and b[t]["usable"]}
         out["attribution_vs_cft"] = {"cft": cft, "per_seed": attr}
     # 只报告：分散布点的 D_H（池化良性 ASR 之差）
-    out["distributed_D_H"] = {
-        f"s{r['seed']}": {cid: {str(t): _r(v["d_pooled_benign"]) for t, v in snapshot_rows(r, cid).items()}
-                          for cid in r.get("configs") or []}
-        for r in sorted(dist, key=lambda r: r["seed"])}
+    def dist_entry(r):
+        fails = v0_failures(r)
+        if fails:
+            return {"invalid": fails}
+        gaps = incomplete(r, r.get("configs") or [], snapshots)
+        body = {cid: {str(t): _r(v["d_pooled_benign"]) for t, v in snapshot_rows(r, cid).items()}
+                for cid in r.get("configs") or []}
+        return {**body, "incomplete": gaps} if gaps else body
+    out["distributed_D_H"] = {f"s{r['seed']}": dist_entry(r) for r in sorted(dist, key=lambda r: r["seed"])}
     return out
 
 
@@ -224,11 +272,12 @@ def main(argv=None):
         screen = json.loads(Path(a.screen).read_text(encoding="utf-8"))
         sel = gspec.get("select") or {}
         res = select(screen, grid, top=int(sel.get("top", 3)), n_clean=int(gspec.get("n_clean", 500)),
-                     batch=int(gspec.get("batch", 32)))
+                     batch=int(gspec.get("batch", 32)), snapshots=tuple(sel.get("snapshots", SNAPSHOTS)))
         res["screen_sha"] = hashlib.sha256(Path(a.screen).read_bytes()).hexdigest()[:12]
     else:
         results = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(Path(a.dir).glob("*.json"))]
-        res = judge(results, json.loads(Path(a.frozen).read_text(encoding="utf-8")), grid)
+        res = judge(results, json.loads(Path(a.frozen).read_text(encoding="utf-8")), grid,
+                    snapshots=tuple((gspec.get("select") or {}).get("snapshots", SNAPSHOTS)))
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     Path(a.out).write_text(json.dumps(res, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     print(json.dumps({k: res.get(k) for k in ("verdict", "status", "frozen", "best") if k in res},
