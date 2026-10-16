@@ -1,0 +1,383 @@
+{
+ "schema": 1,
+ "run_id": "SNAP__collocated__s42",
+ "seed": 42,
+ "placement": "collocated",
+ "victims": [
+  1,
+  2,
+  3
+ ],
+ "malicious": [
+  6,
+  7,
+  9,
+  10,
+  15,
+  16,
+  17,
+  19,
+  20,
+  24
+ ],
+ "stage": "screen",
+ "grid_sha": "e33b09b1e19c",
+ "frozen": null,
+ "frozen_sha": null,
+ "configs": [
+  "pgd-e8-frozen-low"
+ ],
+ "fb_clients_per_cloud_round": 3300.0,
+ "snapshots": {
+  "6": {
+   "lr": 0.07858690127248708,
+   "J": 0.23086666666666664,
+   "configs": {
+    "pgd-e8-frozen-low": {
+     "eval": {
+      "victim_asr": 1.0,
+      "margin_v": NaN,
+      "pooled_benign": 1.0,
+      "margin_pooled": NaN,
+      "b0": 1.0,
+      "pm_acc": 0.10079999999999997,
+      "per_edge": {
+       "0": {
+        "client_benign": 1.0,
+        "client_malicious": 1.0,
+        "pm_acc": 0.112,
+        "margin_p50": NaN
+       },
+       "1": {
+        "client_benign": 1.0,
+        "client_malicious": null,
+        "pm_acc": 0.09728000000000002,
+        "margin_p50": NaN
+       },
+       "2": {
+        "client_benign": 1.0,
+        "client_malicious": null,
+        "pm_acc": 0.09728,
+        "margin_p50": NaN
+       },
+       "3": {
+        "client_benign": 1.0,
+        "client_malicious": null,
+        "pm_acc": 0.09664000000000002,
+        "margin_p50": NaN
+       }
+      }
+     },
+     "harden": {
+      "0": {
+       "id": "pgd-e8-frozen-low",
+       "n_clean": 500,
+       "probe_acc": 1.0,
+       "lr": 0.07858690127248708,
+       "augment": true,
+       "steps": 15,
+       "loss_first": 20.673826217651367,
+       "loss_last": NaN,
+       "fb": 90.0,
+       "seconds": 5.094
+      },
+      "1": {
+       "id": "pgd-e8-frozen-low",
+       "n_clean": 500,
+       "probe_acc": 0.996,
+       "lr": 0.07858690127248708,
+       "augment": true,
+       "steps": 15,
+       "loss_first": 15.149023056030273,
+       "loss_last": NaN,
+       "fb": 90.0,
+       "seconds": 5.054
+      },
+      "2": {
+       "id": "pgd-e8-frozen-low",
+       "n_clean": 500,
+       "probe_acc": 0.972,
+       "lr": 0.07858690127248708,
+       "augment": true,
+       "steps": 15,
+       "loss_first": 12.795799255371094,
+       "loss_last": NaN,
+       "fb": 90.0,
+       "seconds": 5.034
+      },
+      "3": {
+       "id": "pgd-e8-frozen-low",
+       "n_clean": 500,
+       "probe_acc": 0.992,
+       "lr": 0.07858690127248708,
+       "augment": true,
+       "steps": 15,
+       "loss_first": 14.186539649963379,
+       "loss_last": NaN,
+       "fb": 90.0,
+       "seconds": 5.034
+      }
+     },
+     "seconds": 55.47
+    }
+   },
+   "aux": {
+    "trigger_norms": {
+     "n": 256,
+     "delta": {
+      "input_max": 0.06443532556295395,
+      "input_p50": 0.06443532556295395,
+      "pixel_max": 0.015690000727772713,
+      "pixel_p50": 0.015690000727772713,
+      "pixel_max_x255": 4.000950185582042
+     },
+     "xi": {
+      "input_max": 0.06443536281585693,
+      "input_p50": 0.06443536281585693,
+      "pixel_max": 0.01569002866744995,
+      "pixel_p50": 0.015690011903643608,
+      "pixel_max_x255": 4.0009573101997375
+     },
+     "delta_plus_xi": {
+      "input_max": 0.12887069582939148,
+      "input_p50": 0.12887069582939148,
+      "pixel_max": 0.031380027532577515,
+      "pixel_p50": 0.03138001263141632,
+      "pixel_max_x255": 8.001907020807266
+     }
+    },
+    "bn_private_clu": {
+     "0": {
+      "status": "ok",
+      "min_cluster_size": 13,
+      "rejected": [
+       2,
+       4,
+       5,
+       7,
+       8,
+       13,
+       14,
+       15,
+       20,
+       21
+      ],
+      "n": 23,
+      "n_malicious": 10,
+      "tpr": 0.3,
+      "fpr": 0.5384615384615384
+     },
+     "1": {
+      "status": "ok",
+      "min_cluster_size": 14,
+      "rejected": [
+       25,
+       29,
+       31,
+       35,
+       36,
+       37,
+       40,
+       44,
+       45,
+       46
+      ],
+      "n": 24,
+      "n_malicious": 0,
+      "tpr": null,
+      "fpr": 0.4166666666666667
+     },
+     "2": {
+      "status": "ok",
+      "min_cluster_size": 14,
+      "rejected": [
+       50,
+       53,
+       54,
+       55,
+       62,
+       64,
+       65,
+       66,
+       69,
+       74
+      ],
+      "n": 24,
+      "n_malicious": 0,
+      "tpr": null,
+      "fpr": 0.4166666666666667
+     },
+     "3": {
+      "status": "ok",
+      "min_cluster_size": 14,
+      "rejected": [
+       76,
+       81,
+       85,
+       86,
+       87,
+       91,
+       94,
+       98,
+       99
+      ],
+      "n": 24,
+      "n_malicious": 0,
+      "tpr": null,
+      "fpr": 0.375
+     }
+    },
+    "damping_0.5": {
+     "victim_asr": 0.2878413825709859,
+     "margin_v": -1.5742789742245078,
+     "pooled_benign": 0.35637072655464525,
+     "margin_pooled": -1.1893326151754655,
+     "b0": 0.699017446472942,
+     "pm_acc": 0.6802400000000001,
+     "per_edge": {
+      "0": {
+       "client_benign": 0.699017446472942,
+       "client_malicious": 0.7082519136863354,
+       "pm_acc": 0.6592,
+       "margin_p50": 1.2483970763031857
+      },
+      "1": {
+       "client_benign": 0.35793136164681905,
+       "client_malicious": null,
+       "pm_acc": 0.7299200000000002,
+       "margin_p50": -0.9840032825514871
+      },
+      "2": {
+       "client_benign": 0.24706978000032973,
+       "client_malicious": null,
+       "pm_acc": 0.6329600000000001,
+       "margin_p50": -1.9127615376029885
+      },
+      "3": {
+       "client_benign": 0.2585230060658089,
+       "client_malicious": null,
+       "pm_acc": 0.6988799999999998,
+       "margin_p50": -1.8260721025190476
+      }
+     }
+    },
+    "damping_0.25": {
+     "victim_asr": 0.23567710393996535,
+     "margin_v": -2.133198520167771,
+     "pooled_benign": 0.3248712750142183,
+     "margin_pooled": -1.6493937618841343,
+     "b0": 0.7708421303854831,
+     "pm_acc": 0.6676799999999999,
+     "per_edge": {
+      "0": {
+       "client_benign": 0.7708421303854831,
+       "client_malicious": 0.7936057499774287,
+       "pm_acc": 0.6383999999999999,
+       "margin_p50": 1.790955499272811
+      },
+      "1": {
+       "client_benign": 0.30796477677552675,
+       "client_malicious": null,
+       "pm_acc": 0.7203199999999997,
+       "margin_p50": -1.5308958820838678
+      },
+      "2": {
+       "client_benign": 0.18465911831449147,
+       "client_malicious": null,
+       "pm_acc": 0.64128,
+       "margin_p50": -2.5250155155538825
+      },
+      "3": {
+       "client_benign": 0.21440741672987787,
+       "client_malicious": null,
+       "pm_acc": 0.67072,
+       "margin_p50": -2.3436841628655625
+      }
+     }
+    },
+    "oracle_isolation": {
+     "victim_asr": 0.35481721941304345,
+     "margin_v": -1.0756292687377724,
+     "pooled_benign": 0.34487372279810946,
+     "margin_pooled": -1.1609214774057577,
+     "b0": 0.29515623972343885,
+     "pm_acc": 0.63016,
+     "per_edge": {
+      "0": {
+       "client_benign": 0.29515623972343885,
+       "client_malicious": 0.31205676053175013,
+       "pm_acc": 0.6361600000000002,
+       "margin_p50": -1.6605568082862345
+      },
+      "1": {
+       "client_benign": 0.4411259773172756,
+       "client_malicious": null,
+       "pm_acc": 0.6768,
+       "margin_p50": -0.4074783695335722
+      },
+      "2": {
+       "client_benign": 0.31424214099220954,
+       "client_malicious": null,
+       "pm_acc": 0.54336,
+       "margin_p50": -1.3118074982986354
+      },
+      "3": {
+       "client_benign": 0.30908353992964527,
+       "client_malicious": null,
+       "pm_acc": 0.6643199999999998,
+       "margin_p50": -1.5076019383811097
+      }
+     }
+    }
+   },
+   "v0": {
+    "pass": true,
+    "reasons": [],
+    "fedavg_max_abs": 0.0,
+    "post_abs": 1.56043102790826e-05,
+    "full_abs": 0.0004145241474644845,
+    "edges": [
+     1,
+     2,
+     3
+    ],
+    "post_max_abs": 3.281261368243138e-05,
+    "full_max_abs": 0.0004655239507746489
+   },
+   "base": {
+    "victim_asr": 0.4281843956897209,
+    "margin_v": -0.5372982863061094,
+    "pooled_benign": 0.4280062204187593,
+    "margin_pooled": -0.5666418302409131,
+    "b0": 0.42711534406395113,
+    "pm_acc": 0.6580000000000001,
+    "per_edge": {
+     "0": {
+      "client_benign": 0.42711534406395113,
+      "client_malicious": 0.4414479306329727,
+      "pm_acc": 0.6681600000000001,
+      "margin_p50": -0.6519203150304553
+     },
+     "1": {
+      "client_benign": 0.5094155723362499,
+      "client_malicious": null,
+      "pm_acc": 0.6976,
+      "margin_p50": 0.0025782253175404835
+     },
+     "2": {
+      "client_benign": 0.3853704273465952,
+      "client_malicious": null,
+      "pm_acc": 0.57504,
+      "margin_p50": -0.7900528863663859
+     },
+     "3": {
+      "client_benign": 0.38976718738631755,
+      "client_malicious": null,
+      "pm_acc": 0.6912,
+      "margin_p50": -0.824420197869483
+     }
+    }
+   }
+  }
+ }
+}
