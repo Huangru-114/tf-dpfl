@@ -370,7 +370,8 @@ class EdgeHardener:
             aug = bool(augment) and spec.augments(cfg)                 # SAU 不增强（审查 R2）
             info["augment"] = aug
             var = self.body_vars + [self.W, self.b]
-            n_steps, losses = 0, []
+            n_steps, losses, g_body, g_probe, diverged = 0, [], [], [], None
+            nb = len(self.body_vars)
             for _ in range(int(cfg["epochs"])):
                 for idx in spec.epoch_batches(len(y), self.batch, rng):
                     xb = augment_batch(x[idx], rng) if aug else x[idx]
@@ -379,12 +380,31 @@ class EdgeHardener:
                     with tf.GradientTape() as tape:
                         loss = loss_fn()
                     grads = tape.gradient(loss, var)
+                    lv = float(loss)
+                    gb, gp = float(tf.linalg.global_norm(grads[:nb])), float(tf.linalg.global_norm(grads[nb:]))
+                    losses.append(lv)
+                    g_body.append(gb)
+                    g_probe.append(gp)
+                    if not (np.isfinite(lv) and np.isfinite(gb) and np.isfinite(gp)):
+                        diverged = n_steps                      # 不再更新：这一步的梯度已经不是数
+                        break
                     opt.apply_gradients(zip(grads, var))
-                    losses.append(float(loss))
                     n_steps += 1
+                if diverged is not None:
+                    break
             new = self._restore(weights, out=self.model.get_weights())
+            if diverged is None and not all(np.all(np.isfinite(w)) for w in new):
+                diverged = n_steps
+            body = [i for i in range(len(new)) if i not in set(self.stat_idx + self.head_idx)]
+            # 发散（loss / 梯度 / 权重出现 NaN 或 Inf）→ diverged_at = 第几步（0 起）。调用方不得评估这份权重（P0：驱动把它记成发散、不评估）。
             info.update({"steps": n_steps, "loss_first": losses[0] if losses else None,
-                         "loss_last": losses[-1] if losses else None,
+                         "loss_last": losses[-1] if losses else None, "diverged_at": diverged,
+                         "loss_trace": [round(v, 4) for v in losses],
+                         "gnorm_body": [round(v, 4) for v in g_body], "gnorm_probe": [round(v, 4) for v in g_probe],
+                         "dw_body_absmax": (None if diverged is not None else
+                                            float(max(np.max(np.abs(np.asarray(new[i], np.float64)
+                                                                    - np.asarray(weights[i], np.float64)))
+                                                      for i in body))),
                          "fb": spec.fb_harden(cfg, len(y), self.batch),
                          "seconds": round(time.perf_counter() - t0, 3)})
             return new, info

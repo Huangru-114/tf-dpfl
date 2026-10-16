@@ -13,6 +13,7 @@
 #   sbatch experiments/defense/edge-native/p0.sbatch SNAP__collocated__s42 screen
 #   sbatch experiments/defense/edge-native/p0.sbatch SNAP__collocated__s43 frozen        # 冻结清单 commit 之后
 #   sbatch experiments/defense/edge-native/p0.sbatch SNAP__collocated__s42 screen --only pgd-e8-frozen-low --rounds 6   # 探路
+#   sbatch experiments/defense/edge-native/p0.sbatch SNAP__collocated__s42 screen --harden-only --only … --rounds 6   # 诊断（只加固、不评估）
 #
 # 只传参数，不改配置（陷阱 #19）：配置 = 本目录 configs/<run_id>.yaml（SNAP 的 materialize 结果），
 # 快照 = $ROOT/../tfdpfl-dumps 里 metrics.json 的 manifest 指向的文件（sha 核对）。
@@ -36,6 +37,7 @@ DUMPS="${TFDPFL_DUMPDIR:-$ROOT/../tfdpfl-dumps}"
 OUTDIR="$HERE/analysis/p0"
 case " $* " in *" --only "*) OUTDIR="$HERE/analysis/p0_probe" ;; esac
 OUT="$OUTDIR/${RUN_ID}.${STAGE}.json"
+case " $* " in *" --harden-only "*) OUTDIR="$HERE/analysis/p0_probe"; OUT="$OUTDIR/${RUN_ID}.${STAGE}.diag.json" ;; esac
 LOGDIR="${TFDPFL_LOGDIR:-$ROOT/../tfdpfl-logs}"
 LOG="$LOGDIR/p0_${RUN_ID}.${STAGE}.${SLURM_JOB_ID:-local}.log"
 FROZEN_ARGS=()

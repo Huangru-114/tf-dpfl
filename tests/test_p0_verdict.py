@@ -369,3 +369,11 @@ def test_kill_boundary_is_exact_not_float_rounding():
     rows = V.snapshot_rows(exact(43), doc["frozen"][0])
     assert rows[6]["r_h"] == 0.2 and rows[15]["r_h"] == 0.2
     assert V.judge([sc, exact(43), exact(44)], doc, GRID)["verdict"] == "inconclusive"
+
+
+def test_diverged_config_makes_the_screen_incomplete():
+    sc = _top_screen()
+    c = sc["snapshots"]["6"]["configs"]["pgd-e8-frozen-low"]
+    c["eval"], c["diverged"] = None, {"0": 3}
+    d = _doc(sc)
+    assert d["status"] == "incomplete" and any("发散" in r for r in d["reasons"])

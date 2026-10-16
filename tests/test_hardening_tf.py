@@ -584,3 +584,14 @@ def test_sau_stops_early_when_every_sample_is_shared(monkeypatch):
     monkeypatch.setattr(h, "_project_pert", lambda *a: calls.append(1) or orig(*a))
     h.sau_pert(X0, tf.constant(y), h.to_in(8 / 255), h.to_in(8 / 255), 5, False, None, None, 0.01, 1.0)
     assert len(calls) == 2                                        # 起点 1 次 + 一次更新；不提前停会是 1 + 5
+
+
+# ── GPU 探路（2026-10-16）：pgd-e8-frozen-low 在真实快照上 15 步内发散成 NaN → 发散要被拦下、要有逐步记录 ──────
+def test_divergence_is_detected_and_traced():
+    m, h = _hardener()
+    x, y = _data()
+    _, info = h.harden(m.get_weights(), x, y, BY["cft-frozen-low"], rng=np.random.default_rng(0), lr=0.05)
+    assert info["diverged_at"] is None and len(info["loss_trace"]) == len(info["gnorm_body"]) == info["steps"]
+    assert all(np.isfinite(info["gnorm_body"])) and info["dw_body_absmax"] > 0
+    _, info = h.harden(m.get_weights(), x, y, BY["cft-frozen-low"], rng=np.random.default_rng(0), lr=1e30)
+    assert info["diverged_at"] is not None and info["dw_body_absmax"] is None

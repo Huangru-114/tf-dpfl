@@ -386,6 +386,10 @@ def eval_config(world, hardener, snap, cfg, cfg_index, t, lr, *, keep=None, **kw
     """keep：dict → 把加固后的各 edge 权重存进 keep[cfg id]（冻结阶段的附加读数复用同一份，逐位配对）。"""
     t0 = time.perf_counter()
     new, infos = harden_all(world, hardener, snap, cfg, cfg_index, t, lr, **kw)
+    div = {str(k): v["diverged_at"] for k, v in infos.items() if v.get("diverged_at") is not None}
+    if div:                                       # 发散的权重不评估（NaN 权重会把预测塌成一个类 → ASR 1.0，像「加固反而更糟」）
+        return {"eval": None, "diverged": div, "harden": {str(k): v for k, v in infos.items()},
+                "seconds": round(time.perf_counter() - t0, 2)}
     if keep is not None:
         keep[cfg["id"]] = new
     G_h = fedavg(world, new)
@@ -461,7 +465,9 @@ def run(args) -> dict:
         if not S["v0"]["pass"] and not args.ignore_v0:
             print(f"[p0] 第 {t} 轮 V0 不过：{S['v0']['reasons']} —— 停（N-008：invalid）", file=sys.stderr)
             break
-        # 每快照的附加读数（与配置无关）
+        # 每快照的附加读数（与配置无关；诊断模式不做）
+        if args.harden_only:
+            aux = {}
         if aux.get("trigger_norms"):
             set_edges(world, {int(e.edge_id): snap["global"] for e in world.edges})
             S["aux"]["trigger_norms"] = trigger_norms(world, t, int(aux["trigger_norms"].get("n", 256)))
@@ -480,11 +486,15 @@ def run(args) -> dict:
         hardened = {}
         top_set = set((frozen or {}).get("frozen") or [])
         for cid in cfg_ids:
-            S["configs"][cid] = eval_config(world, hardener, snap, by_id[cid], index_of[cid], t, lr,
-                                            keep=hardened if cid in top_set else None)
+            if args.harden_only:                       # 诊断：只加固、记逐步 loss / 梯度范数，不评估（不读任何 ASR）
+                _, infos = harden_all(world, hardener, snap, by_id[cid], index_of[cid], t, lr)
+                S["configs"][cid] = {"harden_only": True, "harden": {str(k): v for k, v in infos.items()}}
+            else:
+                S["configs"][cid] = eval_config(world, hardener, snap, by_id[cid], index_of[cid], t, lr,
+                                                keep=hardened if cid in top_set else None)
             flush()
         # 冻结阶段的附加读数
-        if args.stage == "frozen" and not args.only:
+        if args.stage == "frozen" and not args.only and not args.harden_only:
             S["aux"].update(frozen_aux(world, hardener, snap, frozen, by_id, index_of, t, lr, aux, hardened))
             flush()
     return out
@@ -500,8 +510,10 @@ def frozen_aux(world, hardener, snap, frozen, by_id, index_of, t, lr, aux, harde
     hardened = dict(hardened or {})
 
     def main_weights(cid):
+        """主评估的加固权重；发散 → None（不评估）。"""
         if cid not in hardened:
-            hardened[cid], _ = harden_all(world, hardener, snap, by_id[cid], index_of[cid], t, lr)
+            w_, inf_ = harden_all(world, hardener, snap, by_id[cid], index_of[cid], t, lr)
+            hardened[cid] = None if any(v.get("diverged_at") is not None for v in inf_.values()) else w_
         return hardened[cid]
     res = {}
     if aux.get("cloud_side") and top:
@@ -511,7 +523,8 @@ def frozen_aux(world, hardener, snap, frozen, by_id, index_of, t, lr, aux, harde
         for cid in top:
             Gc, info = hardener.harden(snap["global"], xs, ys, by_id[cid],
                                        rng=rng_for(world, t, 99, index_of[cid], 1), lr=lr)
-            res["cloud_side"][cid] = {"eval": eval_post(world, {int(e.edge_id): Gc for e in world.edges}, t),
+            res["cloud_side"][cid] = {"eval": (None if info.get("diverged_at") is not None else
+                                               eval_post(world, {int(e.edge_id): Gc for e in world.edges}, t)),
                                       "harden": info}
     if aux.get("n_clean") and top:
         res["n_clean"] = {}
@@ -527,6 +540,9 @@ def frozen_aux(world, hardener, snap, frozen, by_id, index_of, t, lr, aux, harde
         res["own"] = {"edges": att_edges, "base": base, "configs": {}}
         for cid in top:
             hw = main_weights(cid)
+            if hw is None:
+                res["own"]["configs"][cid] = {"eval": None, "diverged": True}
+                continue
             new = {int(e.edge_id): (hw[int(e.edge_id)] if int(e.edge_id) in att_edges else snap["edges"][int(e.edge_id)])
                    for e in world.edges}
             res["own"]["configs"][cid] = {"eval": eval_post(world, new, t, phase="light")}
@@ -535,6 +551,9 @@ def frozen_aux(world, hardener, snap, frozen, by_id, index_of, t, lr, aux, harde
         res["ck"] = {}
         for cid in top:
             new = main_weights(cid)
+            if new is None:
+                res["ck"][cid] = {"diverged": True}
+                continue
             per = {}
             for e in world.edges:
                 eid = int(e.edge_id)
@@ -564,6 +583,8 @@ def main(argv=None):
     ap.add_argument("--rounds", nargs="+", default=["6", "15"])
     ap.add_argument("--only", nargs="+", help="只跑这几个配置（探路作业）；不跑冻结阶段的附加读数")
     ap.add_argument("--ignore-v0", action="store_true", help="V0 不过也继续（只用于排查，结果不进判定）")
+    ap.add_argument("--harden-only", action="store_true",
+                    help="诊断：只加固并记录逐步 loss / 梯度范数 / 是否发散，不评估（不读 ASR；结果不进判定）")
     ap.add_argument("--out", required=True)
     a = ap.parse_args(argv)
     if a.stage == "frozen" and not a.frozen:

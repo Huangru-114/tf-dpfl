@@ -310,3 +310,21 @@ def test_victim_jump_on_the_real_snap_metrics_matches_f094(seed):
     m = json.loads(files[-1].read_text())
     for t, want in F094_J[seed].items():
         assert round(P0.victim_jump(P0.recorded(m, t), [1, 2, 3]), 4) == pytest.approx(want, abs=1e-4)
+
+
+def test_diverged_config_is_not_evaluated(restored):
+    w, snap = restored
+    h = EdgeHardener(w.global_model, w.config, probe={"steps": 10, "lr": 0.05}, batch=8)
+    by = {c["id"]: c for c in GRID}
+    r = P0.eval_config(w, h, snap, by["cft-frozen-low"], 1, 1, 1e30)
+    assert r["eval"] is None and set(r["diverged"]) == {"0", "1"}
+
+
+def test_main_harden_only_records_traces_and_reads_no_asr(e2e):
+    call, _ = e2e
+    rc, res = call(extra=["--harden-only"])
+    S = res["snapshots"]["1"]
+    assert rc == 0 and S["aux"] == {}
+    for c in S["configs"].values():
+        assert c["harden_only"] and "eval" not in c
+        assert all(len(h["loss_trace"]) == h["steps"] for h in c["harden"].values())

@@ -11,6 +11,17 @@
 - 两轮对抗式审查确认的问题都已改（F-096）；决定 D-103（SAU 两档 ε）、D-104（AT-ccs 不进 P0）、D-105（SAU 匹配的 C-ft、比例步长、AT-tgt 掩码、`bn_private_clu` 不是 CCS-clu、判定照 N-008 原文）。
 - 顺带：F-095（G1 / G1R5 的在线 c_k 只在飞机 / 汽车上测）—— `update_ck.py` 改不改、REPORT 加不加注**还等用户定**。
 
+## 状态（2026-10-16）：GPU 探路回传 —— V0 过了，但加固发散（F-097）
+
+- V0 在真实 SNAP 上成立（FedAvg 逐位、ASR 差 ≤ 4e-4）。`pgd-e8-frozen-low` 在 4 个 edge 上 15 步内发散成 NaN；驱动现在遇到发散不评估、判定当 `incomplete`。
+- **现在要交的是诊断作业**（只加固、不评估、不读 ASR；约 10 分钟）：
+
+  `sbatch experiments/defense/edge-native/p0.sbatch SNAP__collocated__s42 screen --harden-only --only cft-frozen-low cft-train-low pgd-e8-frozen-low pgd-e8-train-low --rounds 6`
+
+  → 回传 `analysis/p0_probe/SNAP__collocated__s42.screen.diag.json`（每个 edge × 配置：`loss_trace`、`gnorm_body`、`gnorm_probe`、`diverged_at`、`dw_body_absmax`）。
+  读法：cft-frozen 也发散 → 原因 ①（推理模式 BN + 客户端 lr）；只有对抗配置发散 → 看探针 / 对抗 loss 的尺度。修法定了改 `p0_configs.yaml` = 改预注册 → 先留 DECISIONS。
+- 下面第 1 步（探路）已做完；第 2 步（s42 screen）等发散修好再交。
+
 ## 下一步（按顺序；每一步的产物先回传再走下一步）
 
 1. **GPU 探路**（约 10 分钟，陷阱 #23：GPU 才会抛的东西先短作业探路）：

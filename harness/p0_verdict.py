@@ -103,6 +103,8 @@ def incomplete(res: dict, cfgs, snapshots=SNAPSHOTS) -> list:
             c = (S.get("configs") or {}).get(cid)
             if c is None:
                 out.append(f"{rid} 第 {t} 轮缺配置 {cid}")
+            elif c.get("diverged"):
+                out.append(f"{rid} 第 {t} 轮 {cid} 加固发散（edge: 步）{c['diverged']} —— 没有评估，先查原因")
             elif (c.get("eval") or {}).get(key) is None:
                 out.append(f"{rid} 第 {t} 轮 {cid} 的 {key} 是 None")
     return out
