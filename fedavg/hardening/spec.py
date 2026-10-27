@@ -87,6 +87,7 @@ def expand_grid(spec: dict) -> list:
     """
     budgets = spec["budgets"]
     bn_modes = list(spec.get("bn", BN_MODES))
+    lr_scale = {b: float(v) for b, v in (spec.get("lr_scale") or {}).items()}     # D-107；缺省 = 1（旧行为）
     for b in bn_modes:
         if b not in BN_MODES:
             raise ValueError(f"bn 只能是 {BN_MODES}：{b!r}")
@@ -114,7 +115,8 @@ def expand_grid(spec: dict) -> list:
                                "bn": bn, "budget": bname, "epochs": int(b["epochs"]),
                                "pgd_steps": 0 if obj == "cft" else steps,
                                "optimizer": SAU_DEFAULTS["optimizer"] if obj == "sau" else "sgd",
-                               "lr": SAU_DEFAULTS["lr"] if obj == "sau" else None,   # None = 客户端 body 的 lr
+                               "lr": SAU_DEFAULTS["lr"] if obj == "sau" else None,   # None = 客户端 body 的 lr × lr_scale
+                               "lr_scale": None if obj == "sau" else lr_scale.get(bn, 1.0),
                                "sau": dict(SAU_DEFAULTS) if obj == "sau" else None}
                         out.append(cfg)
     # SAU 的归因对照（D-105）：C-ft 要与被比较的 AT「同数据、同步数、同优化器」（语义 diff B6）。
@@ -124,12 +126,20 @@ def expand_grid(spec: dict) -> list:
             for bname, b in budgets.items():
                 out.append({"id": f"cft-sau-{bn}-{bname}", "objective": "cft", "eps_px": None, "sigma_px": None,
                             "beta": None, "bn": bn, "budget": bname, "epochs": int(b["epochs"]), "pgd_steps": 0,
-                            "optimizer": SAU_DEFAULTS["optimizer"], "lr": SAU_DEFAULTS["lr"],
+                            "optimizer": SAU_DEFAULTS["optimizer"], "lr": SAU_DEFAULTS["lr"], "lr_scale": None,
                             "sau": dict(SAU_DEFAULTS)})
     ids = [c["id"] for c in out]
     if len(set(ids)) != len(ids):
         raise ValueError(f"配置 id 重复：{sorted(i for i in ids if ids.count(i) > 1)}")
     return out
+
+
+def harden_lr(cfg: dict, lr_client):
+    """一次加固的 SGD lr = 客户端 body 的 lr × 该配置的 lr_scale（D-107）；Adam 配置（SAU）返回 None（用 cfg["lr"]）。"""
+    if cfg["optimizer"] == "adam" or lr_client is None:
+        return None
+    s = cfg.get("lr_scale")
+    return float(lr_client) * (1.0 if s is None else float(s))
 
 
 def augments(cfg: dict) -> bool:

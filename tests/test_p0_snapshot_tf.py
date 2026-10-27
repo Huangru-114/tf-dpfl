@@ -370,3 +370,23 @@ def test_main_lr_scan_reads_accuracy_only_and_picks_per_bn_mode(e2e, restored, m
             for row in scan_out["scan"][cid].values():
                 assert (row["pm_acc"] is None) == row["diverged"]
         assert set(scan_out["scan"][f"sau-e8-{bn}-low"]) == {"adam"}
+
+
+def test_harden_all_applies_the_d107_lr_scale_and_lr_scan_does_not(restored, monkeypatch):
+    w, snap = restored
+    h = EdgeHardener(w.global_model, w.config, probe={"steps": 5, "lr": 0.05}, batch=8)
+    seen = []
+    monkeypatch.setattr(h, "harden", lambda wts, x, y, cfg, **k: (seen.append(k["lr"]), (wts, {}))[1])
+    g = spec.expand_grid({"bn": ["train", "frozen"], "lr_scale": {"train": 0.1, "frozen": 0.03},
+                          "budgets": {"low": {"epochs": 1, "pgd_steps": 1}},
+                          "objectives": {"pgd": {"eps_px": ["8/255"]}, "sau": {"eps_px": ["8/255"]}}})
+    by = {c["id"]: c for c in g}
+    P0.harden_all(w, h, snap, by["pgd-e8-frozen-low"], 0, 1, 0.08)
+    P0.harden_all(w, h, snap, by["pgd-e8-train-low"], 0, 1, 0.08)
+    P0.harden_all(w, h, snap, by["sau-e8-train-low"], 0, 1, 0.08)
+    P0.harden_all(w, h, snap, by["pgd-e8-train-low"], 0, 1, 0.08, raw_lr=True)
+    n = len(w.edges)
+    assert seen[:n] == pytest.approx([0.08 * 0.03] * n)              # frozen × 0.03
+    assert seen[n:2 * n] == pytest.approx([0.08 * 0.1] * n)          # train × 0.1
+    assert seen[2 * n:3 * n] == [None] * n                          # SAU：Adam，用 cfg["lr"]
+    assert seen[3 * n:] == pytest.approx([0.08] * n)                # lr 扫描：原样

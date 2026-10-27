@@ -371,9 +371,35 @@ def test_kill_boundary_is_exact_not_float_rounding():
     assert V.judge([sc, exact(43), exact(44)], doc, GRID)["verdict"] == "inconclusive"
 
 
-def test_diverged_config_makes_the_screen_incomplete():
-    sc = _top_screen()
-    c = sc["snapshots"]["6"]["configs"]["pgd-e8-frozen-low"]
+def _diverge(res, t, cid):
+    c = res["snapshots"][str(t)]["configs"][cid]
     c["eval"], c["diverged"] = None, {"0": 3}
+
+
+def test_diverged_config_fails_the_filter_and_is_not_selected_d107():
+    """D-107：发散 = 该 seed 精度过滤不通过 → 不能被选中；screen 不因此卡住。"""
+    sc = _top_screen()
+    _diverge(sc, 6, "pgd-e8-frozen-low")                          # R_H 最高的那个在第 6 轮发散
     d = _doc(sc)
-    assert d["status"] == "incomplete" and any("发散" in r for r in d["reasons"])
+    assert d["status"] == "ok" and "pgd-e8-frozen-low" not in d["frozen"]
+    row = [r for r in d["ranking"] if r["id"] == "pgd-e8-frozen-low"][0]
+    assert row["acc_ok"] is False
+
+
+def test_diverged_frozen_config_cannot_go_online_and_counts_below_kill_d107():
+    sc = _top_screen()
+    doc = _doc(sc)
+    f43 = _frozen(43, {c: 0.6 for c in TOP})
+    for c in TOP:
+        _diverge(f43, 15, c)                                      # s43 第 15 轮全部发散
+    res = V.judge([sc, f43, _frozen(44, {c: 0.6 for c in TOP})], doc, GRID)
+    assert res["verdict"] == "inconclusive"                       # 不能 go_online，也不是 insufficient
+    # kill：s42 全部 < 0.2，冻结配置在 s43 两个快照都发散、s44 < 0.2 → 发散算「没达到 0.2」→ kill_pre
+    sc = _screen(0.15)
+    doc = _doc(sc)
+    f43 = _frozen(43, {c: 0.1 for c in doc["frozen"]})
+    for t in (6, 15):
+        for c in doc["frozen"]:
+            _diverge(f43, t, c)
+    res = V.judge([sc, f43, _frozen(44, {c: 0.1 for c in doc["frozen"]})], doc, GRID)
+    assert res["verdict"] == "kill_pre"

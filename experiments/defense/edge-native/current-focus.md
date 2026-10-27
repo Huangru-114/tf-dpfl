@@ -11,6 +11,17 @@
 - 两轮对抗式审查确认的问题都已改（F-096）；决定 D-103（SAU 两档 ε）、D-104（AT-ccs 不进 P0）、D-105（SAU 匹配的 C-ft、比例步长、AT-tgt 掩码、`bn_private_clu` 不是 CCS-clu、判定照 N-008 原文）。
 - 顺带：F-095（G1 / G1R5 的在线 c_k 只在飞机 / 汽车上测）—— `update_ck.py` 改不改、REPORT 加不加注**还等用户定**。
 
+## 状态（2026-10-27，晚）：lr 已定（D-107），交 s42 screen
+
+- lr 扫描（F-099）→ train ×0.1、frozen ×0.03，已写进 `p0_configs.yaml`；发散的判读规则 D-107（= 精度过滤不通过）。
+- 已知：AT 在这个 lr 下池化精度降 0.12–0.17 → screen 很可能没有对抗配置过精度过滤（D-107 ③：照跑）。
+- **现在交**（先 `git pull`，确认在 D-107 的那个 commit 上）：
+
+  `sbatch -t 06:00:00 experiments/defense/edge-native/p0.sbatch SNAP__collocated__s42 screen`
+
+  → 36 个配置 × 第 6 / 15 轮 × 4 个 edge = 288 次加固 + 72 次评估；预计 2.7–4 GPU-h。回传 `analysis/p0/SNAP__collocated__s42.screen.json`（逐配置写盘，中途断了已完成的不丢）。
+  回传后：`python3 harness/p0_verdict.py select …` → commit `p0_frozen.json` → 冻结阶段 6 个作业。
+
 ## 状态（2026-10-27）：发散原因已定（F-098），等 lr 扫描（D-106）
 
 - 诊断（2 × 2）：bn=frozen 下连干净微调都 3 步发散 → 原因是「推理模式 BN + 客户端 lr」；bn=train 不发散但干净 loss 被抬到 4–8 → 客户端 lr 对加固太大。

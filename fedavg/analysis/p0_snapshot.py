@@ -251,7 +251,7 @@ def lr_scan(world, hardener, snap, by_id, index_of, t, lr) -> dict:
             out["scan"][cid] = {}
             for sc in scales:
                 lr_s = lr if sc == "adam" else lr * sc
-                new, infos = harden_all(world, hardener, snap, cfg, index_of[cid], t, lr_s)
+                new, infos = harden_all(world, hardener, snap, cfg, index_of[cid], t, lr_s, raw_lr=True)
                 div = any(v.get("diverged_at") is not None for v in infos.values())
                 row = {"lr": None if sc == "adam" else lr_s, "diverged": div,
                        "harden": {str(k): v for k, v in infos.items()}, "pm_acc": None, "per_edge": None}
@@ -406,8 +406,12 @@ def rng_for(world: World, t: int, edge_id: int, cfg_index: int, salt: int = 0) -
 
 
 def harden_all(world, hardener, snap, cfg, cfg_index, t, lr, *, n_clean=None, head_diag=False,
-               only_edges=None, salt=0):
-    """每个 edge 用自己的干净集加固上传前的 w_e。返回 ({edge: 新权重}, {edge: info})。"""
+               only_edges=None, salt=0, raw_lr=False):
+    """
+    每个 edge 用自己的干净集加固上传前的 w_e。返回 ({edge: 新权重}, {edge: info})。
+    lr = 客户端 body 的 lr；实际用 spec.harden_lr(cfg, lr)（× 该配置的 lr_scale，D-107）。raw_lr=True：原样使用（lr 扫描）。
+    """
+    lr = lr if raw_lr else spec.harden_lr(cfg, lr)
     new, infos = {}, {}
     for e in world.edges:
         eid = int(e.edge_id)
@@ -568,7 +572,7 @@ def frozen_aux(world, hardener, snap, frozen, by_id, index_of, t, lr, aux, harde
         res["cloud_side"] = {}
         for cid in top:
             Gc, info = hardener.harden(snap["global"], xs, ys, by_id[cid],
-                                       rng=rng_for(world, t, 99, index_of[cid], 1), lr=lr)
+                                       rng=rng_for(world, t, 99, index_of[cid], 1), lr=spec.harden_lr(by_id[cid], lr))
             res["cloud_side"][cid] = {"eval": (None if info.get("diverged_at") is not None else
                                                eval_post(world, {int(e.edge_id): Gc for e in world.edges}, t)),
                                       "harden": info}

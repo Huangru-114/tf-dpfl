@@ -38,7 +38,7 @@ FROZEN_IDS = [
 ]
 # 展开后的网格（全部字段）+ 影响加固的全局设置的 sha。改了 p0_configs.yaml 的任何数值或展开规则 → 这里红；
 # 那是在改预注册的配置清单（N-008），要先在 DECISIONS 留记录、再更新这个值。
-FROZEN_CONTENT_SHA = "76eda6008dd872ed"
+FROZEN_CONTENT_SHA = "41ab5518e4062061"     # D-107（原 76eda6008dd872ed，D-105）
 
 
 @pytest.fixture(scope="module")
@@ -329,3 +329,16 @@ def test_lr_scan_configs_exist_in_the_frozen_grid(grid):
     for bn, cs in spec.LR_SCAN_CONFIGS.items():
         assert set(cs) <= ids and f"sau-e8-{bn}-low" in ids
     assert spec.LR_SCALES == (1.0, 0.3, 0.1, 0.03, 0.01)
+
+
+
+# ── D-107：选出的 lr 倍数写进配置清单 ──────────────────────────────────────────────
+def test_lr_scale_is_the_d107_pick_and_applies_to_sgd_only(grid):
+    _, cfgs = grid
+    for c in cfgs:
+        if c["optimizer"] == "adam":
+            assert c["lr_scale"] is None and spec.harden_lr(c, 0.0786) is None
+        else:
+            assert c["lr_scale"] == {"train": 0.1, "frozen": 0.03}[c["bn"]]
+            assert spec.harden_lr(c, 0.0786) == pytest.approx(0.0786 * c["lr_scale"])
+    assert spec.harden_lr({"optimizer": "sgd", "lr_scale": None}, 0.05) == 0.05        # 缺省 = 旧行为

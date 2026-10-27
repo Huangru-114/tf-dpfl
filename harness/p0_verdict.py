@@ -17,6 +17,7 @@ harness/p0_verdict.py  —  阶段三 P0 的选择与判定（FINDINGS N-008 P0 
   invalid        任一 collocated 快照 V0 不过（离线 FedAvg ≠ 快照 G，或受害 edge 均值 A 与 run 记录差 > 0.01）；
                  或结果的 grid_sha 与冻结清单不一致。distributed 的 V0 不过只让那个 run 的 D_H 标成 invalid（只报告）
   incomplete / insufficient  结果里缺快照、缺配置、或 A 是 None（不能当成 J_t < 0.05 悄悄排除）
+  发散（D-107）  加固出现 NaN / Inf 的配置 × 快照：该 seed 上精度过滤不通过（不能被选中、不能 go_online）；kill_pre 里算「没达到 0.2」
   选择（只用 s42 collocated 的 screen）：过滤通过的 AT 配置按 min(R_H) 降序取前 3（并列 → 前向反向次数少 → id）
   go_online      冻结的前 3 名里有配置在三个 seed、全部计入的快照上 R_H ≥ 0.5 且三个 seed 都过滤通过 → 取名次最高的
   kill_pre       s42 上全部 AT 配置、以及冻结配置在 s43 / s44 上，计入的快照 R_H 都 < 0.2（A-every 不由 P0 判死）
@@ -67,13 +68,17 @@ def snapshot_rows(res: dict, cid: str) -> dict:
         c = (S.get("configs") or {}).get(cid)
         if c is None:
             continue
+        if c.get("diverged"):                      # D-107：发散 = 这个快照上精度过滤不通过、R_H 无定义（不计入）
+            out[int(t)] = {"r_h": None, "usable": False, "acc_ok": False, "diverged": True,
+                           "d_pool": None, "d_edge_max": None, "d_pooled_benign": None, "J": S.get("J")}
+            continue
         base, hard = S["base"], c["eval"]
         J = S.get("J")
         rh = spec.r_h(base.get("victim_asr"), hard.get("victim_asr"), J)
         acc = spec.accuracy_ok(base, hard)
         db = (None if base.get("pooled_benign") is None or hard.get("pooled_benign") is None
               else base["pooled_benign"] - hard["pooled_benign"])
-        out[int(t)] = {"r_h": rh, "usable": rh is not None, "acc_ok": acc["ok"],
+        out[int(t)] = {"r_h": rh, "usable": rh is not None, "acc_ok": acc["ok"], "diverged": False,
                        "d_pool": acc["d_pool"], "d_edge_max": acc["d_edge_max"], "d_pooled_benign": db,
                        "J": J}
     return out
@@ -104,7 +109,7 @@ def incomplete(res: dict, cfgs, snapshots=SNAPSHOTS) -> list:
             if c is None:
                 out.append(f"{rid} 第 {t} 轮缺配置 {cid}")
             elif c.get("diverged"):
-                out.append(f"{rid} 第 {t} 轮 {cid} 加固发散（edge: 步）{c['diverged']} —— 没有评估，先查原因")
+                pass                                # D-107：发散不算缺数据（= 精度过滤不通过，见 snapshot_rows）
             elif (c.get("eval") or {}).get(key) is None:
                 out.append(f"{rid} 第 {t} 轮 {cid} 的 {key} 是 None")
     return out
@@ -115,6 +120,7 @@ def seed_summary(rows: dict, snapshots=SNAPSHOTS) -> dict:
     used = {t: r for t, r in rows.items() if r["usable"]}
     rh = [r["r_h"] for r in used.values()]
     return {"n_used": len(used), "rh_min": min(rh) if rh else None, "rh_max": max(rh) if rh else None,
+            "diverged": any(r.get("diverged") for r in rows.values()),
             "acc_ok": all(int(t) in rows for t in snapshots) and all(r["acc_ok"] for r in rows.values()),
             "per_snapshot": {str(t): {k: _r(v) if isinstance(v, float) else v for k, v in r.items()}
                              for t, r in sorted(rows.items())}}
@@ -223,16 +229,20 @@ def judge(results: list, frozen_doc: dict, grid: list, snapshots=SNAPSHOTS, *, g
     out["frozen_per_seed"] = {cid: {f"s{s}": v for s, v in d.items()} for cid, d in per.items()}
     if missing:
         return {**out, "verdict": "insufficient", "missing": sorted(set(missing))}
-    no_used = [f"s{s} {cid}" for cid, d in per.items() for s, v in d.items() if v["n_used"] == 0]
+    no_used = [f"s{s} {cid}" for cid, d in per.items() for s, v in d.items() if v["n_used"] == 0 and not v["diverged"]]
     if no_used:
         return {**out, "verdict": "insufficient", "reasons": [f"没有计入的快照（J_t < {spec.JUMP_MIN}）：{no_used}"]}
 
+    def below_kill(v):                             # D-107：发散的配置算「没达到 0.2」（部署不了）
+        return v["diverged"] or (v["rh_max"] is not None and v["rh_max"] < spec.R_KILL)
+
     go = [cid for cid in frozen
-          if all(per[cid][s]["rh_min"] >= spec.R_GO and per[cid][s]["acc_ok"] for s in SEEDS)]
+          if all(per[cid][s]["rh_min"] is not None and per[cid][s]["rh_min"] >= spec.R_GO and per[cid][s]["acc_ok"]
+                 for s in SEEDS)]
     s42_at = [cid for cid in screen.get("configs") or [] if by_id[cid]["objective"] in spec.AT_OBJECTIVES]
     s42 = {cid: seed_summary(snapshot_rows(screen, cid), snapshots) for cid in s42_at}
-    kill = (all(v["rh_max"] is not None and v["rh_max"] < spec.R_KILL for v in s42.values())
-            and all(per[cid][s]["rh_max"] < spec.R_KILL for cid in frozen for s in SEEDS if s != SELECT_SEED))
+    kill = (all(below_kill(v) for v in s42.values())
+            and all(below_kill(per[cid][s]) for cid in frozen for s in SEEDS if s != SELECT_SEED))
     good = [cid for cid, v in s42.items() if v["rh_min"] is not None and v["rh_min"] >= spec.R_GO]
     acc_bound = bool(good) and not any(s42[c]["acc_ok"] for c in good)
     if go:
