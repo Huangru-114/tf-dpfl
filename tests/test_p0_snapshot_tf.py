@@ -328,3 +328,45 @@ def test_main_harden_only_records_traces_and_reads_no_asr(e2e):
     for c in S["configs"].values():
         assert c["harden_only"] and "eval" not in c
         assert all(len(h["loss_trace"]) == h["steps"] for h in c["harden"].values())
+
+
+SCAN_GRID = dict(E2E_GRID, grid={"bn": ["train", "frozen"],
+                                 "budgets": {"low": {"epochs": 1, "pgd_steps": 1}, "high": {"epochs": 2, "pgd_steps": 1}},
+                                 "objectives": {"pgd": {"eps_px": ["8/255"]}, "sau": {"eps_px": ["8/255"]}, "cft": {}}})
+
+
+def test_main_lr_scan_reads_accuracy_only_and_picks_per_bn_mode(e2e, restored, monkeypatch):
+    """扫描期间一次 ASR 都不算（_light_asr / evaluate_hierarchical_asr 都不被调用）；每个 BN 模式给出一个选择。"""
+    call, tmp = e2e
+    w, _ = restored
+    (tmp / "grid.yaml").write_text(yaml.safe_dump(SCAN_GRID))
+    state = {"in_scan": False, "asr_calls": 0}
+    orig_scan, orig_light = P0.lr_scan, w.cloud._light_asr
+
+    def scan(*a, **k):
+        state["in_scan"] = True
+        try:
+            return orig_scan(*a, **k)
+        finally:
+            state["in_scan"] = False
+
+    def light_asr(*a, **k):
+        state["asr_calls"] += state["in_scan"]
+        return orig_light(*a, **k)
+    monkeypatch.setattr(P0, "lr_scan", scan)
+    monkeypatch.setattr(w.cloud, "_light_asr", light_asr)
+    orig_eha = BS.evaluate_hierarchical_asr
+    monkeypatch.setattr(BS, "evaluate_hierarchical_asr",
+                        lambda *a, **k: (state.__setitem__("asr_calls", state["asr_calls"] + state["in_scan"]),
+                                         orig_eha(*a, **k))[1])
+    rc, res = call(extra=["--lr-scan"])
+    S = res["snapshots"]["1"]
+    assert rc == 0 and S["configs"] == {} and S["aux"] == {} and state["asr_calls"] == 0
+    scan_out = S["lr_scan"]
+    assert set(scan_out["pick"]) == {"train", "frozen"} and scan_out["base"]["pm_acc"] is not None
+    for bn, ids in spec.LR_SCAN_CONFIGS.items():
+        for cid in ids:
+            assert set(scan_out["scan"][cid]) == {f"{x:g}" for x in spec.LR_SCALES}
+            for row in scan_out["scan"][cid].values():
+                assert (row["pm_acc"] is None) == row["diverged"]
+        assert set(scan_out["scan"][f"sau-e8-{bn}-low"]) == {"adam"}

@@ -247,6 +247,46 @@ def fit_probe(features, y, n_classes: int, steps: int = 300, lr: float = 0.01,
 # 记账：一次加固的前向反向次数（单位 = 一个 batch 的一次前向 + 一次反向）
 # ══════════════════════════════════════════════════════════════════════════
 
+# ══════════════════════════════════════════════════════════════════════════
+# 加固 lr 的选择（D-106：GPU 诊断 F-098 —— 客户端 body 的 lr 在 bn=frozen 下 3 步内发散、bn=train 下把干净 loss 抬到 4–8）
+# 规则在看 lr 扫描数据之前写定：只看训练是否发散 + 干净精度（不读任何 ASR）。
+# ══════════════════════════════════════════════════════════════════════════
+
+LR_SCALES = (1.0, 0.3, 0.1, 0.03, 0.01)       # 乘在客户端 body 的 lr 上（spec.lr_at）
+LR_SCAN_CONFIGS = {"train": ("cft-train-low", "cft-train-high", "pgd-e8-train-low"),
+                   "frozen": ("cft-frozen-low", "cft-frozen-high", "pgd-e8-frozen-low")}
+
+
+def pick_lr_scale(scan: dict, base_pm: float, cft_ids, max_drop: float = MTA_POOL_MAX) -> dict:
+    """
+    一种 BN 模式的 lr 倍数选择（D-106）：在 LR_SCALES 里取**最大**的倍数 s，满足
+      ① 这个模式下扫描的每个配置、每个 edge 都没有发散；
+      ② 每个 C-ft 配置（cft_ids）加固后 G′ 的池化 fresh pm_acc 比 G 低 ≤ max_drop（0.02，= N-008 的池化精度门槛）。
+    scan：{cfg id: {str(scale): {"diverged": bool, "pm_acc": float | None}}}；base_pm：A 同一个快照上 G 的池化 pm_acc。
+    缺数据的倍数视为不满足。都不满足 → scale None（这个 BN 模式退出网格，D-106）。
+    """
+    reasons = {}
+    for sc in sorted(LR_SCALES, reverse=True):
+        why = []
+        for cid, by in scan.items():
+            r = by.get(f"{sc:g}")
+            if r is None:
+                why.append(f"{cid} 缺数据")
+            elif r.get("diverged"):
+                why.append(f"{cid} 发散")
+        for cid in cft_ids:
+            r = (scan.get(cid) or {}).get(f"{sc:g}") or {}
+            pm = r.get("pm_acc")
+            if not r.get("diverged") and (pm is None or base_pm is None):
+                why.append(f"{cid} 没有 pm_acc")
+            elif pm is not None and base_pm - pm > max_drop:
+                why.append(f"{cid} pm_acc 降 {base_pm - pm:.4f} > {max_drop}")
+        if not why:
+            return {"scale": sc, "rejected": reasons}
+        reasons[f"{sc:g}"] = why
+    return {"scale": None, "rejected": reasons}
+
+
 def fb_per_batch(cfg: dict) -> float:
     """
     一个训练 batch 的前向 + 反向次数（近似：只前向的那一次记 0.5）。

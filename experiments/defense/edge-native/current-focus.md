@@ -11,6 +11,16 @@
 - 两轮对抗式审查确认的问题都已改（F-096）；决定 D-103（SAU 两档 ε）、D-104（AT-ccs 不进 P0）、D-105（SAU 匹配的 C-ft、比例步长、AT-tgt 掩码、`bn_private_clu` 不是 CCS-clu、判定照 N-008 原文）。
 - 顺带：F-095（G1 / G1R5 的在线 c_k 只在飞机 / 汽车上测）—— `update_ck.py` 改不改、REPORT 加不加注**还等用户定**。
 
+## 状态（2026-10-27）：发散原因已定（F-098），等 lr 扫描（D-106）
+
+- 诊断（2 × 2）：bn=frozen 下连干净微调都 3 步发散 → 原因是「推理模式 BN + 客户端 lr」；bn=train 不发散但干净 loss 被抬到 4–8 → 客户端 lr 对加固太大。
+- **现在要交的是 lr 扫描**（只算精度、不读 ASR；预计 20–40 分钟）：
+
+  `sbatch experiments/defense/edge-native/p0.sbatch SNAP__collocated__s42 screen --lr-scan --rounds 6`
+
+  → 回传 `analysis/p0_probe/SNAP__collocated__s42.screen.lrscan.json`。`snapshots."6".lr_scan.pick` 就是按 D-106 规则选出的每个 BN 模式的 lr 倍数（`null` = 该模式退出网格）。
+  之后：把倍数写进 `p0_configs.yaml` + `spec`（改预注册、留 DECISIONS）→ 测试 → 再交 s42 screen。
+
 ## 状态（2026-10-16）：GPU 探路回传 —— V0 过了，但加固发散（F-097）
 
 - V0 在真实 SNAP 上成立（FedAvg 逐位、ASR 差 ≤ 4e-4）。`pgd-e8-frozen-low` 在 4 个 edge 上 15 步内发散成 NaN；驱动现在遇到发散不评估、判定当 `incomplete`。

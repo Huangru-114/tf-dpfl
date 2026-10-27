@@ -293,3 +293,39 @@ def test_global_rng_scan_catches_planted_calls():
               "a = np.random.normal(size=3)\nb = random.shuffle(x)\nc = tf.random.uniform((2,))\n" \
               "ok = np.random.default_rng(0)\nst = random.getstate()\n"
     assert [c for c, _ in _global_rng_calls(planted)] == ["np.random.normal", "random.shuffle", "tf.random.uniform"]
+
+
+# ── D-106：加固 lr 倍数的选择规则（写于 lr 扫描数据之前）───────────────────────────
+def _row(div=False, pm=None):
+    return {"diverged": div, "pm_acc": pm}
+
+
+def test_pick_lr_scale_takes_the_largest_stable_scale_with_small_clean_drop():
+    base = 0.66
+    scan = {"cft-train-low": {"1": _row(pm=0.60), "0.3": _row(pm=0.645), "0.1": _row(pm=0.655),
+                              "0.03": _row(pm=0.66), "0.01": _row(pm=0.66)},
+            "cft-train-high": {"1": _row(pm=0.55), "0.3": _row(pm=0.639), "0.1": _row(pm=0.65),
+                               "0.03": _row(pm=0.66), "0.01": _row(pm=0.66)},
+            "pgd-e8-train-low": {k: _row() for k in ("1", "0.3", "0.1", "0.03", "0.01")}}
+    r = spec.pick_lr_scale(scan, base, ["cft-train-low", "cft-train-high"])
+    assert r["scale"] == 0.1                                         # 0.3：high 降 0.021 > 0.02
+    assert any("cft-train-high" in w for w in r["rejected"]["0.3"])
+    scan["pgd-e8-train-low"]["0.1"] = _row(div=True)                 # 对抗配置在 0.1 发散 → 退到 0.03
+    assert spec.pick_lr_scale(scan, base, ["cft-train-low", "cft-train-high"])["scale"] == 0.03
+
+
+def test_pick_lr_scale_none_when_nothing_qualifies_and_missing_data_is_not_ok():
+    scan = {"cft-frozen-low": {k: _row(div=True) for k in ("1", "0.3", "0.1", "0.03", "0.01")}}
+    assert spec.pick_lr_scale(scan, 0.66, ["cft-frozen-low"])["scale"] is None
+    scan = {"cft-frozen-low": {"0.01": _row(pm=0.66)}}                 # 只有最小倍数有数据 → 只能选它
+    assert spec.pick_lr_scale(scan, 0.66, ["cft-frozen-low"])["scale"] == 0.01
+    scan = {"cft-frozen-low": {"0.01": _row(pm=None)}}
+    assert spec.pick_lr_scale(scan, 0.66, ["cft-frozen-low"])["scale"] is None
+
+
+def test_lr_scan_configs_exist_in_the_frozen_grid(grid):
+    _, cfgs = grid
+    ids = {c["id"] for c in cfgs}
+    for bn, cs in spec.LR_SCAN_CONFIGS.items():
+        assert set(cs) <= ids and f"sau-e8-{bn}-low" in ids
+    assert spec.LR_SCALES == (1.0, 0.3, 0.1, 0.03, 0.01)

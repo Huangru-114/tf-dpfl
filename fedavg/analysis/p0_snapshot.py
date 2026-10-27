@@ -222,6 +222,48 @@ def edge_margins(m: dict, target, n_classes) -> dict:
     return {e: _summ(rs, target, n_classes).get("margin_p50") for e, rs in by_edge.items()}
 
 
+def eval_acc(world: World, weights_by_edge: dict) -> dict:
+    """只算精度（run 的 `_light_acc`：fresh pm_acc 池化 + 逐 edge、EM 精度），**不碰 ASR**（lr 扫描用，D-106）。"""
+    cloud = world.cloud
+    set_edges(world, weights_by_edge)
+    st = random.getstate()
+    try:
+        cloud.begin_pm_eval()
+        acc = cloud._light_acc()
+    finally:
+        cloud._edge_w_cache = None
+        random.setstate(st)
+    return {"pm_acc": acc.get("pm_acc"),
+            "per_edge": {int(e): {"pm_acc": v.get("pm_acc")} for e, v in (acc.get("per_edge") or {}).items()}}
+
+
+def lr_scan(world, hardener, snap, by_id, index_of, t, lr) -> dict:
+    """
+    D-106 的 lr 扫描：spec.LR_SCAN_CONFIGS 的每个 SGD 配置 × spec.LR_SCALES，4 个 edge 都加固 → FedAvg → 只算精度。
+    SAU（Adam，lr 固定为官方 1e-4，不随倍数变）各 BN 模式只跑一次，标成 "adam"。不评估任何 ASR。
+    返回 {"base": G 的精度, "scan": {cfg: {scale: {...}}}, "pick": {bn: spec.pick_lr_scale(...)}}。
+    """
+    out = {"base": eval_acc(world, {int(e.edge_id): snap["global"] for e in world.edges}), "scan": {}, "pick": {}}
+    for bn, ids in spec.LR_SCAN_CONFIGS.items():
+        for cid in list(ids) + [f"sau-e8-{bn}-low"]:
+            cfg = by_id[cid]
+            scales = ["adam"] if cfg["optimizer"] == "adam" else list(spec.LR_SCALES)
+            out["scan"][cid] = {}
+            for sc in scales:
+                lr_s = lr if sc == "adam" else lr * sc
+                new, infos = harden_all(world, hardener, snap, cfg, index_of[cid], t, lr_s)
+                div = any(v.get("diverged_at") is not None for v in infos.values())
+                row = {"lr": None if sc == "adam" else lr_s, "diverged": div,
+                       "harden": {str(k): v for k, v in infos.items()}, "pm_acc": None, "per_edge": None}
+                if not div:
+                    a = eval_acc(world, {int(e.edge_id): fedavg(world, new) for e in world.edges})
+                    row["pm_acc"], row["per_edge"] = a["pm_acc"], a["per_edge"]
+                out["scan"][cid]["adam" if sc == "adam" else f"{sc:g}"] = row
+        sgd = {c: out["scan"][c] for c in ids}
+        out["pick"][bn] = spec.pick_lr_scale(sgd, out["base"]["pm_acc"], [c for c in ids if c.startswith("cft-")])
+    return out
+
+
 def eval_full_main(world: World, snap: dict, t: int, detail: bool = False) -> dict:
     """
     第 t 轮全量点的主列（`_backdoor_eval` 的同一调用：键 0xE7A1、先 global 再 edge 再各端）→ {edge: client_benign}。
@@ -466,7 +508,7 @@ def run(args) -> dict:
             print(f"[p0] 第 {t} 轮 V0 不过：{S['v0']['reasons']} —— 停（N-008：invalid）", file=sys.stderr)
             break
         # 每快照的附加读数（与配置无关；诊断模式不做）
-        if args.harden_only:
+        if args.harden_only or args.lr_scan:
             aux = {}
         if aux.get("trigger_norms"):
             set_edges(world, {int(e.edge_id): snap["global"] for e in world.edges})
@@ -485,6 +527,10 @@ def run(args) -> dict:
         # 配置
         hardened = {}
         top_set = set((frozen or {}).get("frozen") or [])
+        if args.lr_scan:                               # D-106：只扫 lr，不跑网格配置
+            S["lr_scan"] = lr_scan(world, hardener, snap, by_id, index_of, t, lr)
+            flush()
+            continue
         for cid in cfg_ids:
             if args.harden_only:                       # 诊断：只加固、记逐步 loss / 梯度范数，不评估（不读任何 ASR）
                 _, infos = harden_all(world, hardener, snap, by_id[cid], index_of[cid], t, lr)
@@ -583,6 +629,8 @@ def main(argv=None):
     ap.add_argument("--rounds", nargs="+", default=["6", "15"])
     ap.add_argument("--only", nargs="+", help="只跑这几个配置（探路作业）；不跑冻结阶段的附加读数")
     ap.add_argument("--ignore-v0", action="store_true", help="V0 不过也继续（只用于排查，结果不进判定）")
+    ap.add_argument("--lr-scan", action="store_true",
+                    help="D-106：加固 lr 倍数扫描（spec.LR_SCALES × LR_SCAN_CONFIGS），只算精度、不读 ASR；结果不进判定")
     ap.add_argument("--harden-only", action="store_true",
                     help="诊断：只加固并记录逐步 loss / 梯度范数 / 是否发散，不评估（不读 ASR；结果不进判定）")
     ap.add_argument("--out", required=True)
