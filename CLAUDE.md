@@ -520,6 +520,8 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
   - ⚠ 快照里的 BN 统计量是**私有**的（head_first 下只见干净批次）→ 离线做不了 CCS-clu，读数叫 `bn_private_clu`（D-105）。
   - ⚠ edge 干净集按类排序（F-095）：取子集一律 `spec.stratified_subset`，不要取前 n 张。
   - 守卫：`test_hardening_spec` / `test_p0_verdict` / `test_bn_cluster` / `test_p0_snapshot`（本地）+ `test_hardening_tf` / `test_p0_snapshot_tf`（TF；V0 在 CPU 小 HFL 上逐位）。
+  - **P0 已判 `accuracy_bound`**（2026-10-28，F-100 / D-108）；**SA1 最小版**：开关 `defense.edge_harden`（P0 配置 id，缺省关）在交错调度的上传处加固（`hardening/online.py`），
+    `[Harden]` / `[HardenAgg]`（P1 的闸：第 1 云轮没洗过的上传物聚合 = 对照的 `[Checksum] Round 1`），collect_metrics **schema 12**；判定 `harness/p1_verdict.py`。下一个会话 = SA-C（CCS），交接见 current-focus。
 
 **留了接口但没有实现的**（不要以为它们能用）：
 - 主动防御（需要客户端配合的防御）：接口齐了（`BaseDefense.layers` /
