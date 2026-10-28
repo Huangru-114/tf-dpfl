@@ -3,6 +3,21 @@
 > **写于 2026-10-13**（SA0 会话）。上一版（2026-10-10，「D0 完成、SNAP 已回传，交接给 SA0」）的内容：D0 → `FINDINGS.md` F-091 … F-094、N-008（D-101 生效）。
 > ⚠️ 阶段三的实验全部做完之前，不要把分支合并到 main（CLAUDE.md 分支纪律，用户 2026-10-10）。
 
+## 状态（2026-10-28）：P0 判 accuracy_bound（F-100）；SA1 最小版已接好，交 P1 一个 run（D-108）
+
+- P0：能砍掉灌入的配置都过不了精度过滤 → `accuracy_bound`（s42 已决定，冻结阶段不跑，D-108 ①）。逐方法对比表 `analysis/p0_s42_screen_tables.md`。
+- SA1 最小版（D-108 ②）：`defense.edge_harden: sau-e8-train-high` → 每个云轮各区域上交前用 500 张干净图按 SAU 洗一遍（P0 的同一个实现）。
+- **现在交**（先 `git pull`）：
+
+  `RUN_GROUPS=P1 bash experiments/defense/edge-native/submit.sh --dry-run`（看一眼）→ 去掉 `--dry-run` 提交
+
+  → 1 个 run（P1__col-pre__s42），预计约 7.5 GPU-h（SNAP 约 3.9 h + 加固 60 云轮 × 4 区 × 约 53 s）。
+  回传 `results/P2/P1/P1__col-pre__s42.metrics.json`，然后：
+  `python3 harness/p1_verdict.py --arm experiments/defense/edge-native/results/P2/P1/P1__col-pre__s42.metrics.json --control experiments/defense/edge-native/results/P2/SNAP/SNAP__collocated__s42.metrics.json --out experiments/defense/edge-native/analysis/p1_verdict.json`
+  先看闸：第 1 云轮 `[HardenAgg] unhardened` = SNAP 的 `[Checksum] Round 1`（D-108 ③）。
+- 判定（N-008 P1）：对照 V = 0.995、jump_half = 0.220 → 天花板规则大概率生效（两边 V ≥ 0.95 时看受害 margin 降 ≥ 2.0）。
+- 之后要讨论的（用户 2026-10-28 提出）：① 用本区域合成数据代替真实干净集；② 客户端训练中同时做对抗训练（= PLAN 的 CCS 主线）。
+
 ## SA0 做了什么
 
 - **加固核心** `fedavg/hardening/`：`spec.py`（纯算术：网格、像素 ↔ 输入空间、分层子集、探针、记账、R_H / 精度过滤 / V0）+ `core.py`（TF：`EdgeHardener`，五种目标，只改 body 可训练变量，random 围栏）。SA1 在线复用。

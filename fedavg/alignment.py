@@ -131,6 +131,10 @@ EXTRA_SWITCHES = (
            (),                                      "A28", "D-087", "hier_fedrep"),
     Switch("evaluation.update_ck_steps",   5,            None,
            (),                                      "A28", "D-087", "hier_fedrep"),
+    # 阶段三 SA1 / D-108：edge 上传前加固（区域服务器把模型交给中心之前，用自己的干净集按 P0 的某个配置洗一遍）。
+    #   值 = experiments/defense/edge-native/p0_configs.yaml 展开后的配置 id（如 "sau-e8-train-high"）；None = 关（逐字节不变）。
+    Switch("defense.edge_harden",          None,         None,
+           (),                                      "A28", "D-108", "hier_fedrep"),   # 行号沿用 A28（同 eval_grid / snapshot_rounds 等阶段性开关）
 )
 
 ALL = {s.key: s for s in SWITCHES + EXTRA_SWITCHES}

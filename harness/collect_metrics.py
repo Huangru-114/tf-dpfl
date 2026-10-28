@@ -100,7 +100,9 @@ from utils.kvline import parse_kv, collect_kv, parse_list   # noqa: E402
 #     ck_before（[CkBefore]：本 edge 轮下发模型的 c_k）；update_geometry 加 norm_w / norm_s / cos_edge_w /
 #     cos_global_w（可训练权重部分 / BN 统计量部分，旧列仍是整个 body）；timing_summary.ck_eval_total_s。
 #     老日志 → 空表 / None。
-SCHEMA_VERSION = 11
+# 12 = 阶段三 SA1（上传前加固，D-108）：run.edge_harden（[设定11]；"none" = 没开）；新表 harden（[Harden]：每次加固一行）/
+#     harden_agg（[HardenAgg]：每云轮一行，没洗过的上传物聚合后的短哈希 —— P1 的闸）。老日志 → None / 空表。
+SCHEMA_VERSION = 12
 
 # A4 的副列：key=value 行（utils/kvline.py）→ rounds[] / acc_rounds[] 的字段。
 # 缺行（旧口径、或该列本 run 没开）→ null，**不是 0**。
@@ -339,6 +341,7 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
     setg8 = None
     setg9 = None
     setg10 = None
+    setg11 = None
     data = None
     data_edges = []
     for ln in lines:
@@ -363,6 +366,9 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
         d = parse_kv(ln, "[设定10]")
         if d is not None:
             setg10 = d
+        d = parse_kv(ln, "[设定11]")
+        if d is not None:
+            setg11 = d
         d = parse_kv(ln, "[Partition]")
         if d is not None:
             data = d
@@ -432,6 +438,8 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
         "update_ck_every":   setg10.get("update_ck_every") if setg10 else None,
         "update_ck_n":       setg10.get("update_ck_n") if setg10 else None,
         "update_ck_steps":   setg10.get("update_ck_steps") if setg10 else None,
+        # 阶段三 SA1 上传前加固（[设定11]）。None = 老日志（不知道）；"none" = 没开。
+        "edge_harden":       setg11.get("edge_harden") if setg11 else None,
         # ── 自适应轮数：这一格跑到第几轮、为什么停 ──────────────────────
         #   全 None = 固定轮数（没配 stopping，或老日志）。
         #   stop_reason='cap_reached' 是 **censored**，不是「收敛在 cap」。
@@ -766,6 +774,22 @@ def _collect_ck_before(lines) -> dict:
     return {"columns": list(CK_BEFORE_COLUMNS), "rows": rows}
 
 
+def _collect_harden(lines) -> list:
+    """[Harden] → harden[]：每次上传前加固一行（round / edge / cfg / steps / diverged_at / loss / 精度 / 秒数）。"""
+    return list(collect_kv(lines, "[Harden]"))
+
+
+def _collect_harden_agg(lines) -> list:
+    """[HardenAgg] → harden_agg[]：{round, unhardened}。哈希按字符串读（十六进制可能长得像数字）。"""
+    out = []
+    for ln in lines:
+        if ln.startswith("[HardenAgg]"):
+            m = re.search(r"round=(\d+).*unhardened=([0-9a-f]+)", ln)
+            if m:
+                out.append({"round": int(m.group(1)), "unhardened": m.group(2)})
+    return out
+
+
 def _collect_post_agg(lines) -> list:
     """[PostAgg] → post_agg_rounds[]：云聚合后评估点（S6a ②）。列同 light_rounds。"""
     return [{c: d.get(c) for c in LIGHT_COLUMNS} for d in collect_kv(lines, "[PostAgg]")]
@@ -956,6 +980,9 @@ def collect(log_text: str) -> dict:
         "ck_scores": _collect_ck_scores(lines),
         "ck_before": _collect_ck_before(lines),
         "post_agg_rounds": _collect_post_agg(lines),
+        # 阶段三 SA1（schema 12）：上传前加固的逐次记录 + P1 的闸（没洗过的上传物聚合后的短哈希）
+        "harden": _collect_harden(lines),
+        "harden_agg": _collect_harden_agg(lines),
         "per_edge_post_agg_rounds": _collect_post_agg_edge(lines),
         "frozen_rounds": _collect_frozen(lines),
         "frozen_edge_rounds": _collect_frozen_edge(lines),

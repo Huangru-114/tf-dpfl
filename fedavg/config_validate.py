@@ -546,6 +546,28 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
         if _n_ck > _clean:
             _fail(f"evaluation.update_ck_n={_n_ck} 超过 federation.design.clean_per_edge={_clean}：PGD 的图片取自 edge 干净集。")
 
+    # ── 4i. 阶段三 SA1：edge 上传前加固（defense.edge_harden，D-108）──────────────────
+    #   值必须是 P0 配置清单里的 id；只接在交错调度的上传处、要 edge 干净集、要 FedRep 的 body / head 拆分。
+    _eh = _gs(config, "defense.edge_harden")
+    if _eh is not None:
+        if not isinstance(_eh, str):
+            _fail(f"defense.edge_harden 必须是 P0 配置 id（字符串），收到 {_eh!r}")
+        else:
+            from hardening.online import load_grid, GRID_PATH
+            _, _by = load_grid()
+            if _eh not in _by:
+                _fail(f"defense.edge_harden={_eh!r} 不在 {GRID_PATH} 展开的 {len(_by)} 个配置里")
+        if _gs(config, "federation.edge_schedule") != "interleaved":
+            _fail("defense.edge_harden 只接在交错调度的上传处（federation.edge_schedule = interleaved）。")
+        if method != "hier_fedrep":
+            _fail("defense.edge_harden 只对 hier_fedrep 实现（加固只动 body、要 head 索引）。")
+        if str(fed.get("partition", "")) not in ("designed", "hdir", "equal_random"):
+            _fail("defense.edge_harden 要求 S3 划分（只有它们会切出每个 edge 的干净集，D-064）。")
+        if int((fed.get("design") or {}).get("clean_per_edge", 0) or 0) < 1:
+            _fail("defense.edge_harden 要求 federation.design.clean_per_edge ≥ 1（edge 干净集）。")
+        if (config.get("defense") or {}).get("name", "none") not in (None, "none"):
+            _fail("defense.edge_harden 不与鲁棒聚合防御（defense.name）同开（P1 只测加固本身）。")
+
     # ── 4c. 对齐开关（A4；fedavg/alignment.py + config/alignment_p2.yaml）──
     #   三种写错都会静默跑错：取值拼错（回退旧行为）、P2 配置少开一项（与其他
     #   P2 格子不可比）、方法专属开关开在别的方法上（什么也不发生）。
@@ -784,4 +806,8 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
         "update_ck_n": int(_gs(config, "evaluation.update_ck_n")),
         "update_ck_steps": int(_gs(config, "evaluation.update_ck_steps")),
     }))
+
+    # ── 6i. 阶段三 SA1 上传前加固（[设定11]，D-108）────────────────────────
+    #   独立 kv 行，不扩 [设定10]。none = 没开（与 SA1 之前的 run 是同一种 run）。
+    print(format_kv("[设定11]", {"edge_harden": _gs(config, "defense.edge_harden") or "none"}))
     return warnings

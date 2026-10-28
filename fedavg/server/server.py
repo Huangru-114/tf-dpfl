@@ -141,6 +141,11 @@ class CloudServer(RobustAggregationMixin):
             for _e in edge_servers:
                 _e.score_observer = self._ck
         self.post_agg_eval = bool(get_switch(config, "evaluation.post_agg_eval"))
+        # ── 阶段三 SA1：edge 上传前加固（defense.edge_harden；缺省关 → 下面的上传路径一字不变）──────
+        self._harden = None
+        if get_switch(config, "defense.edge_harden"):
+            from hardening.online import OnlineHardener
+            self._harden = OnlineHardener(config, global_model)
 
         # ── 评估用的 PM（A28 / D-033，开关 evaluation.pm_model）──────────────
         #   stale（旧）：client.model；fresh：[当前 edge body, 自己的私有部分]。
@@ -337,11 +342,25 @@ class CloudServer(RobustAggregationMixin):
                 _arr = self._geo.take_round_arrays()
                 if _arr is not None:
                     self._write_geo_dump(round_idx, _arr)
+            raw = []
             for edge in self.edge_servers:
                 eid = int(edge.edge_id)
                 w, n, loss, t, comm = edge.cloud_upload(losses[eid], times[eid])
+                if self._harden is not None:               # SA1（D-108）：上传前加固
+                    raw.append((w, n, loss, t))
+                    w, info = self._harden.harden_upload(edge, w, round_idx)
+                    print(format_kv("[Harden]", {
+                        "round": round_idx, "edge": eid, "cfg": self._harden.cfg_id,
+                        "steps": info.get("steps"), "diverged_at": info.get("diverged_at"),
+                        "loss_first": info.get("loss_first"), "loss_last": info.get("loss_last"),
+                        "probe_acc": info.get("probe_acc"), "ref_acc": info.get("ref_acc"),
+                        "lr": info.get("lr"), "dw_body_absmax": info.get("dw_body_absmax"),
+                        "seconds": info.get("seconds_total")}))
                 edge_updates.append((w, n, loss, t))
                 comm_ce += comm
+            if self._harden is not None:                   # P1 的闸：没洗过的上传物聚合后的短哈希
+                print(format_kv("[HardenAgg]", {"round": round_idx,
+                                                "unhardened": weights_checksum(aggregate(raw))}))
         else:
             for edge in self.edge_servers:
                 w, n, loss, t, comm = edge.run(round_idx)

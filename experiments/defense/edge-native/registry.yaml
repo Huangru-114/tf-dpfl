@@ -29,7 +29,7 @@ base: ../../attack/hfl-mechanism/base.yaml
 overlays:
   - ../../../fedavg/config/alignment_p2.yaml        # 「P2 对齐」模板（同 hfl-mechanism）
 audit: ../../attack/hfl-mechanism/AUDIT.md
-available: [d0-prereg]   # d0-prereg：N-008 用户确认（2026-10-10，D-101）。阶段三的代码会话（SA0 / SA1 / SA-C / …）完成时把 token 加进来
+available: [d0-prereg, sa1-pre]   # sa1-pre：D-108（2026-10-28）； d0-prereg：N-008 用户确认（2026-10-10，D-101）。阶段三的代码会话（SA0 / SA1 / SA-C / …）完成时把 token 加进来
 
 # ── D-base（PLAN §3.1）= G1R5 的 set 去掉 update_geometry / update_ck*，加 post_agg_eval + frozen_trigger ──
 # YAML 锚点只为少抄一遍；展开后每组的 set 是完整的（registry.py 读的是展开结果）。
@@ -83,6 +83,17 @@ groups:
       placement:
         - {label: collocated,  set: {backdoor.malicious_per_edge: [10, 0, 0, 0]}}
         - {label: distributed, set: {backdoor.malicious_per_edge: [3, 3, 2, 2]}}
+
+  P1:
+    purpose: "PLAN §4 P1 的最小版（D-108）：上传前加固（A-pre）在线跑满 60 云轮，集中布点、s42、单 run；对照 = SNAP__collocated__s42"
+    requires: [audit, sa1-pre]     # sa1-pre：SA1 的「上传前加固」接线完成（D-108）。不用 SA1（那个 token 会顺带放行 CAL）
+    seeds: [42]
+    # 与 SNAP-collocated 只差：加固开关 + 不存快照（快照只是记录，不改训练）。配置 = P0 里精度代价最小、又砍得动的那个（F-100）。
+    set:
+      <<: *d_base
+      defense.edge_harden: sau-e8-train-high
+    cells:
+      - {cell: col-pre, set: {backdoor.malicious_per_edge: [10, 0, 0, 0]}}
 
   CAL:
     purpose: "不饱和工作点 W2 的选择（PLAN §4 CAL）：V 末值 ∈ [0.3, 0.8] 且 E0 良性 ≥ 0.7 的最强设置"

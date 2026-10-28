@@ -1,7 +1,7 @@
 # 阶段三（edge 原生防御）实验计划 —— 定稿 v1（2026-10-09）
 
 > **状态**：定稿（本目录 `DECISIONS.md` D-089 … D-095）。**D0 已完成（2026-10-09）**：登记表 `registry.yaml`（SNAP 可交；CAL / CCSF 占位）、
-> 提交脚本 `submit.sh`、功效分析 F-091、SNAP 核对 F-092、文献核对 F-093、预注册 N-008（2026-10-10 用户确认生效，D-101）；SNAP 已回传且有效（F-094）。**SA0 已完成（2026-10-13，F-096，D-103 … D-105）**：P0 的离线工具齐了，待 GPU 探路。交接见 `current-focus.md`。
+> 提交脚本 `submit.sh`、功效分析 F-091、SNAP 核对 F-092、文献核对 F-093、预注册 N-008（2026-10-10 用户确认生效，D-101）；SNAP 已回传且有效（F-094）。**SA0 已完成（2026-10-13，F-096，D-103 … D-105）**；**P0 已判 `accuracy_bound`（2026-10-28，F-100，D-108）**；SA1 最小版（只有 A-pre × 集中布点 × s42）已接好，P1 一个 run 待交。交接见 `current-focus.md`。
 > 台账：本目录 `DECISIONS.md` / `FINDINGS.md`（编号接续 `experiments/attack/hfl-mechanism/`）；文献：`LITERATURE.md`。
 > `PLAN-draft.md`（2026-10-03）已被本文件取代。
 
