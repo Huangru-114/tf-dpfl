@@ -375,3 +375,26 @@ H1 规则（均值 ≥ 0.15 且最小 seed ≥ 0.10 → `protects`；三个 |Δ|
   - oracle 隔离（G 去掉 E0）：R 0.32 / 0.90，ΔMTA 0.028 / 0.016。
   - 私有 BN 统计量聚类：E0 TPR 0.3 / 0.4、各 edge FPR 0.32–0.54 → 分不开（D-105 的预期）。
   - 触发器 ‖δ+ξ‖∞ 两个快照都是 8.0/255。
+
+## 2026-10-28（SA-C 会话：CCS 的语义对照与实现）
+
+### F-101 `confirmed`（代码核对 + 本地可复现的计算）—— CCS 官方代码本身跑不起来；对抗样本在标准化空间里做且带 clamp；聚类与官方 `hdbscan` 包逐例相同，且在彼此很近的良性端上也会剔掉一部分
+
+- 来源：`chenjian0924/paper-code @ b4b8653`，`CCS/`（只读 clone，未进 git；接 F-090）。
+- **① 发布的代码跑不起来，两处**：
+  - `src/client/fedavg.py:281` 调 `perturb_input(..., perturb_steps=15, ...)`，`src/defence/AT/AT.py:17` 的签名**没有** `perturb_steps` → `TypeError`；
+  - `hdbscan_detect.py` 取 `package.get("model_params", package["client_gradient"])`。client 包里没有 `model_params`（`client/fedavg.py:218-258`）；`client_gradient` 只含 `named_parameters()` 里名字带 `base` 的键（`:51`、`:246-251`）—— BN 的 running_mean / var 是 buffer，**不在里面** → 统计量列表为空，`torch.cat([])` 报错。
+  ⇒ 产出 CCS 表 1 的不是这一版代码。本仓库照的是它的**意图**（D-109），不可能逐位对拍。
+- **② 对抗样本在标准化后的输入空间里做**：训练 transform 含 `Normalize`（`server/fedavg.py:434-440`，std 用的是常见的 (0.2023, 0.1994, 0.201)），而 `l_inf_patch` 分支的贴片 U(0,1)、eps 0.5、`clamp(0,1)` 都写在这个空间里。
+  按常数换算（未在真实图上实测）：标准化的 [0,1] = 像素 [μ, μ+σ] ≈ [0.48, 0.69]，eps 0.5 ≈ 26/255（本仓库 σ ≈ 0.25 → ≈ 31/255）；
+  clamp 把比均值暗的、比 μ+σ 亮的像素整个夹过去 —— 对抗分支看到的是一张低对比度的图。原文没写这一层。
+  TF 测试 `test_one_step_equals_the_numpy_reference[input]` 里，掩码外的像素离**原图**最多 3.5（标准化单位），离 clamp 过的原图 ≤ eps —— 就是这个效应。
+- **③ DPR 退化成固定圆盘**：`l_inf_patch` 分支 36 个扇区半径全取 10 → 圆心 ∈ [10, 22) 的半径 10 的 36 边形（约占 32×32 图的 30%），里面 U(0,1) 噪声；然后对**整张图** 15 步 sign 梯度（步长 0.1）上升无目标 max-margin、投影到初值 ±0.5。
+  numpy 移植 `defense/ccs_spec.dpr_mask`：像素格点数与 36 边形面积 ½·36·r²·sin 10° ≈ 312.6 相差 < 15（`tests/test_ccs_spec.py`）。
+- **④ BN 模式**：`perturb_input` 先 `model.eval()`；损失里的对抗前向也在 eval 模式（`model.train()` 在它**之后**才调，`client/fedavg.py:283-285`）→ 对抗分支不更新 BN 统计量。KL = `kl_div(log_softmax(adv), softmax(clean), batchmean)` = KL(p_clean ‖ p_adv)，两边都不 detach；AT 路径另有 `clip_grad_norm_(10)`。
+- **⑤ 投影网络**：模型是作者自己加了投影层的 `PResNet18`（`models.py:556-601`）：avgpool → project（512→256→512）→ classifier；FedPer 下 project 与 classifier 都私有（`client/fedper.py:10-12`）；MMD 算在 project 输出上。MMD 函数不在仓库里（F-093）。
+- **⑥ 系数三套**：原文 β = γ = 0.01；`config/defaults.yaml` 的 `AT_alpha 0.1 / AT_beta 0.01`；`src/utils/constants.py:120-121` 的 0.1 / 5（合并顺序未核）。攻击端走 `attack()` 不走 `fit()`（`client/fedavg.py:139-142`）→ 非自适应。聚合按样本加权（`server/fedavg.py:727-736`）。
+- **⑦ 聚类：sklearn 的 HDBSCAN 与官方的 `hdbscan` 包逐例相同**（本地实测：同一组余弦距离矩阵、官方参数，300 组合成数据标签全部一致；`tests/test_ccs_spec.py::test_labels_match_the_official_hdbscan_package`，装了 `hdbscan` 才跑）。
+- **⑧ 官方参数（min_samples = 1、min_cluster_size = n // 2 + 2）在彼此很近的良性端上也会剔掉一部分**：10 个只差 1% 噪声的向量里 2–3 个被判成噪声（两个库都是）。
+  → CCS 的聚类有**固有的良性剔除率**，与攻击无关；CCSF 的 `rejection.fpr` 要按这个读（不是实现的 bug）。在真实上传统计量上 FPR 有多大，**没有数据**。
+- 对计划的影响：语义对照表与取舍见 D-109；对抗样本空间的取舍等离线探针（`analysis/ccs_space_probe.py`）回传后由用户定（CCSF 挂 `ccs-space`）。

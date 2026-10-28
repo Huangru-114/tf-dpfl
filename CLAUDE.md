@@ -521,11 +521,22 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
   - ⚠ edge 干净集按类排序（F-095）：取子集一律 `spec.stratified_subset`，不要取前 n 张。
   - 守卫：`test_hardening_spec` / `test_p0_verdict` / `test_bn_cluster` / `test_p0_snapshot`（本地）+ `test_hardening_tf` / `test_p0_snapshot_tf`（TF；V0 在 CPU 小 HFL 上逐位）。
   - **P0 已判 `accuracy_bound`**（2026-10-28，F-100 / D-108）；**SA1 最小版**：开关 `defense.edge_harden`（P0 配置 id，缺省关）在交错调度的上传处加固（`hardening/online.py`），
-    `[Harden]` / `[HardenAgg]`（P1 的闸：第 1 云轮没洗过的上传物聚合 = 对照的 `[Checksum] Round 1`），collect_metrics **schema 12**；判定 `harness/p1_verdict.py`。下一个会话 = SA-C（CCS），交接见 current-focus。
+    `[Harden]` / `[HardenAgg]`（P1 的闸：第 1 云轮没洗过的上传物聚合 = 对照的 `[Checksum] Round 1`），collect_metrics **schema 12**；判定 `harness/p1_verdict.py`。
+
+- **阶段三 SA-C：CCS**（2026-10-28；`experiments/defense/edge-native/` FINDINGS F-101、DECISIONS D-109）。⚠ **CCS 官方代码本身跑不起来**（F-101 ①），照的是意图。
+  - `defense.name: ccs` + `layers: [client, edge]` + 自成一块的 `defense.ccs.*`（`fedavg/defense/ccs_spec.py`，不 import TF；**不放 `defense.params`** —— base 的 params 里堆着别的防御的键）。
+    `at` / `cluster` 两个布尔 = CCSP 三臂；`space ∈ {input, pixel}`（官方在标准化空间里做、带 clamp，F-101 ②）；`pool ∈ {round, edge_cache}`（分层用缓存池）。
+  - 客户端：`client/ccs_mixin.py`（`CCSAttack` 与离线探针 `analysis/ccs_space_probe.py` 共用）；新钩子 `FLClientBase.on_body_step`（缺省 None；目前只有 HierFedRep 的 body 阶段调）。
+    服务端：`defense/ccs.py`（复用 `analysis/bn_cluster.detect`，与官方 `hdbscan` 包逐例相同；彼此很近的良性端也会被剔掉一部分，F-101 ⑧）。
+    工厂：防御类有 `from_config` 就用它建（参数自成一块的防御）；`client_mixin_ref` 让 config_validate 不为核对而 import TF。
+  - 模型 `resnet10_torch_proj` = resnet10_torch + 私有投影（`proj_*` 归进 head，`models.cnn.PRIVATE_HEAD_PREFIXES`）；P2 核对视为与模板等价（`alignment.P2_EQUIVALENT`，`[设定4]` 照实打印）。
+  - 自描述 `[设定12]`、`[MalShare]`、每次 edge 聚合一行 `[CCS]` → collect_metrics **schema 13**；判定 `harness/ccsf_verdict.py`（N-008 CCSF 段）。CCSF 挂 `ccs-space`（等探针）。
+  - 守卫：`test_ccs_spec` / `test_ccs_config` / `test_ccsf_verdict`（本地）+ `test_ccs_tf`（TF）。交接见 current-focus。
 
 **留了接口但没有实现的**（不要以为它们能用）：
 - 主动防御（需要客户端配合的防御）：接口齐了（`BaseDefense.layers` /
-  `client_mixin` / `make_control` + 客户端侧 `set_control` / `get_aux`），无任何实现。
+  `client_mixin` / `make_control` + 客户端侧 `set_control` / `get_aux`）。**第一个实现是 CCS**（SA-C，只用了
+  `client_mixin` + `on_body_step`；`make_control` / `set_control` / `get_aux` 仍没有人用）。
 - cloud 层防御：`defense.layers` 缺省 `["edge"]`，写成 `[edge, cloud]` 才启用。
 - cloud 层的方法专属聚合：`CloudServer.aggregate_edges` 是空壳，见陷阱 #8
   （唯一的非 FedAvg 行为是 S8 的「edge 段不聚合」，只在 `edge_shared_blocks > 0` 时生效）。

@@ -81,7 +81,9 @@ UNIMPLEMENTED_METHODS = {
 # ── 防御轴 ───────────────────────────────────────────────────────────────
 AGGREGATION_DEFENSES = {"trimmed_mean", "median", "multi_krum", "flame", "dnc"}
 POST_HOC_DEFENSES    = {"simple_tuning"}
-VALID_DEFENSES       = {"none"} | AGGREGATION_DEFENSES | POST_HOC_DEFENSES
+# 客户端 + edge 两侧配合的防御：不是「任何方法都能挂」的纯聚合防御，方法限制由各自的段落核对（ccs：§4j）
+CLIENT_DEFENSES      = {"ccs"}
+VALID_DEFENSES       = {"none"} | AGGREGATION_DEFENSES | POST_HOC_DEFENSES | CLIENT_DEFENSES
 
 # ── 攻击轴 ───────────────────────────────────────────────────────────────
 VALID_STRATEGIES = {"vanilla", "neurotoxin", "cerp", "badpfl"}
@@ -116,7 +118,10 @@ def _declared_layers(name: str) -> set:
 def _client_mixin_of(name: str):
     from defense import defense_class
     cls = defense_class(name)
-    return getattr(cls, "client_mixin", None) if cls is not None else None
+    if cls is None:
+        return None
+    # mixin 依赖 TF 的防御（ccs）声明一个字符串引用：这里只核对「有没有」，不为此 import TF
+    return getattr(cls, "client_mixin_ref", None) or getattr(cls, "client_mixin", None)
 
 
 def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
@@ -182,7 +187,7 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
     if bad_layers:
         _fail(f"未知的 defense.layers 取值：{sorted(bad_layers)}\n"
               f"  合法取值：{sorted(VALID_DEFENSE_LAYERS)}")
-    if defense in AGGREGATION_DEFENSES:
+    if defense in AGGREGATION_DEFENSES | CLIENT_DEFENSES:
         declared = _declared_layers(defense)
         unsupported = set(cfg_layers) - declared
         if unsupported:
@@ -687,6 +692,31 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
             warnings.append(f"{EDGE_SHARED_KEY}={_k_edge} 而 n_edges={n_edges}：只有一个 edge 时"
                             f"「edge 内共享」与「上云共享」等价，(a)/(b)/(c) 三臂没有区别。")
 
+    # ── 4j. CCS（阶段三 SA-C；defense/ccs_spec.py，D-109）────────────────────
+    #   写错的后果都是「静默不是 CCS」：参数拼错（ccs_params 拒绝未知键）、方法不是 FedRep（对抗训练挂在
+    #   HierFedRep 的 body 步上，别的方法没有这个钩子 → 静默没做）、开了对抗训练却没有投影层（MMD 无处可算）、
+    #   开了对抗训练却没在 client 层启用（mixin 不会组合进客户端）、没在 edge 层启用（聚类不生效）。
+    if defense == "ccs":
+        from defense.ccs_spec import ccs_params
+        try:
+            _ccs = ccs_params(config)
+        except ValueError as e:
+            _fail(str(e))
+        if method != "hier_fedrep":
+            _fail(f"defense.name = ccs 只在 hier_fedrep 下实现（对抗训练挂在 HierFedRepClient 的 body 步上）；"
+                  f"drift_correction = {method!r} 会让客户端那一半静默不生效。")
+        if "edge" not in cfg_layers:
+            _fail("defense.name = ccs：defense.layers 必须含 edge（聚类在 edge 的 robust_mean 里；"
+                  "只做对抗训练的臂写 defense.ccs.cluster: false，仍要 edge 层）。")
+        if _ccs["at"] and "client" not in cfg_layers:
+            _fail("defense.name = ccs 且 defense.ccs.at = true：defense.layers 必须含 client，"
+                  "否则对抗训练的 mixin 不会组合进客户端 —— 静默没做。")
+        if _ccs["at"] and _ccs["mmd"] > 0 and str((config.get("model") or {}).get("arch", "")) != "resnet10_torch_proj":
+            _fail("defense.name = ccs 且 MMD 系数 > 0：MMD 算在私有投影网络的输出上，"
+                  "model.arch 必须是 resnet10_torch_proj（D-109 Q3）。")
+        if "cloud" in cfg_layers:
+            _fail("defense.name = ccs 不支持 cloud 层：cloud 看不到单个客户端的统计量（PLAN §3.3）。")
+
     # ── 4f. S3 新划分（data/designed_partition.py；D-062 … D-068）──────────────
     #   写错的后果都是「划分静默不是声明的那个」：比例表是 4 edge 的、特殊列是 class 0、
     #   等大小要求 n_per_client × test_ratio 为整数、需求不能超过每类 6000 张的供给（F-057）。
@@ -810,4 +840,9 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
     # ── 6i. 阶段三 SA1 上传前加固（[设定11]，D-108）────────────────────────
     #   独立 kv 行，不扩 [设定10]。none = 没开（与 SA1 之前的 run 是同一种 run）。
     print(format_kv("[设定11]", {"edge_harden": _gs(config, "defense.edge_harden") or "none"}))
+
+    # ── 6j. 阶段三 SA-C CCS（[设定12]，D-109）──────────────────────────────
+    #   独立 kv 行，不扩 [设定11]。ccs=false = 没开（与 SA-C 之前的 run 是同一种 run）。
+    from defense.ccs_spec import settings_row as _ccs_row
+    print(format_kv("[设定12]", _ccs_row(config)))
     return warnings

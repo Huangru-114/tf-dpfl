@@ -214,17 +214,27 @@ def effective_values(config: dict) -> dict:
     return out
 
 
+# 与模板值**等价**的取值（只用于 P2 核对，[设定4] 仍照实打印）：
+# resnet10_torch_proj = resnet10_torch + CCS 的私有投影网络（阶段三 SA-C，D-109 Q3）——
+# body（共享部分）逐层相同，对齐的是同一套 A29 语义；多出的投影层属于私有 head。
+P2_EQUIVALENT = {"model.arch": {"resnet10_torch_proj": "resnet10_torch"}}
+
+
+def _p2_value(key: str, val):
+    return P2_EQUIVALENT.get(key, {}).get(val, val)
+
+
 def p2_mismatches(config: dict, template: dict | None = None) -> list:
     """[(key, 模板值, 实际值)]：P2 配置里与模板不一致的开关。空 = 全部打开。"""
     tpl = template if template is not None else load_template()
     eff = effective_values(config)
-    return [(k, v, eff.get(k)) for k, v in tpl.items() if eff.get(k) != v]
+    return [(k, v, eff.get(k)) for k, v in tpl.items() if _p2_value(k, eff.get(k)) != v]
 
 
 def template_state(config: dict) -> str:
     """p2（模板全开）/ legacy（全是旧值）/ mixed（部分打开：消融或写错）。"""
     eff = effective_values(config)
-    on = [eff[s.key] == s.p2 for s in SWITCHES]
+    on = [_p2_value(s.key, eff[s.key]) == s.p2 for s in SWITCHES]
     if all(on):
         return "p2"
     if not any(on):

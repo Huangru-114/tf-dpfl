@@ -19,6 +19,7 @@ from .trimmed_mean import TrimmedMeanDefense, MedianDefense
 from .multi_krum import MultiKrumDefense
 from .flame import FlameDefense
 from .dnc import DnCDefense
+from .ccs import CCSDefense
 
 _REGISTRY = {
     "trimmed_mean": TrimmedMeanDefense,
@@ -26,6 +27,7 @@ _REGISTRY = {
     "multi_krum":   MultiKrumDefense,
     "flame":        FlameDefense,
     "dnc":          DnCDefense,
+    "ccs":          CCSDefense,        # 阶段三 SA-C（D-109）：客户端对抗训练 + 上传 BN 统计量聚类
 }
 
 # 训练后、客户端侧的后处理防御（不在聚合层；见 simple_tuning.py）。
@@ -95,6 +97,12 @@ def create_defense(config: dict, layer: str = "edge"):
     # 这里再兜一次底，避免在半配好的 config 上静默生效。
     if layer not in cls.layers:
         return None
+
+    if hasattr(cls, "from_config"):
+        # 参数自成一块的防御（ccs：`defense.ccs`，D-109）—— 不与 defense.params 里别的防御的键混在一起
+        defense = cls.from_config(config)
+        print(f"[Defense] enabled: {name} @ {layer} | {name}={dict(dcfg.get(name) or {})}")
+        return defense
 
     params = dict(dcfg.get("params", {}) or {})
     # num_malicious 缺省时自动估算（multi_krum / dnc 需要）

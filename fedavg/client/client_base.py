@@ -288,6 +288,18 @@ class FLClientBase(ABC):
         """
         return tf.constant(0.0, dtype=tf.float32)
 
+    def on_body_step(self, x, y):
+        """
+        替换「产出 upload 的那一步」的整个训练步（不是叠加一项损失）。默认 None = 不替换。
+
+        `on_extra_loss` 拿不到 batch，也碰不到磁带外的东西；客户端对抗训练（CCS，D-109）要先在 eager 里
+        对输入求梯度造对抗样本、再在同一次梯度里算 CE + KL + MMD → 只能整步替换。
+        返回 None 时方法类照常走自己的 @tf.function 步：off 路径只多一次返回 None 的 Python 调用，图与数值不变。
+        返回值 = 本步的主损失（标量张量，用于日志的 loss 均值）。目前只有 HierFedRepClient 的 body 阶段调它
+        （config_validate §4j 把 ccs 限定在 hier_fedrep）。
+        """
+        return None
+
     def on_upload(self, upload: list, round_idx: int):
         """
         返回给 edge 之前，对**上传权重列表**的最后一次变换。默认恒等。

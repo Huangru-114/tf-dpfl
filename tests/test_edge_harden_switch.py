@@ -75,7 +75,7 @@ def test_collect_parses_settings_harden_and_gate_lines():
         "[HardenAgg] round=2 | unhardened=1234e5678901",          # 长得像数字的哈希：按字符串读
     ])
     m = CM.collect(log)
-    assert m["schema_version"] == 12 and m["run"]["edge_harden"] == "sau-e8-train-high"
+    assert m["schema_version"] == 13 and m["run"]["edge_harden"] == "sau-e8-train-high"
     assert [h["diverged_at"] for h in m["harden"]] == [None, 12] and m["harden"][0]["steps"] == 75
     assert m["harden_agg"] == [{"round": 1, "unhardened": "0123456789ab"}, {"round": 2, "unhardened": "1234e5678901"}]
     old = CM.collect("[Round   1] Broadcasting to 4 edges...")

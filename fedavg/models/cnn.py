@@ -314,6 +314,36 @@ def build_resnet10_torch(input_shape=(32, 32, 3), num_classes=10):
     return tf.keras.Model(inp, out, name="resnet10_torch")
 
 
+def build_resnet10_torch_proj(input_shape=(32, 32, 3), num_classes=10):
+    """resnet10_torch + CCS 的私有投影网络（阶段三 SA-C，D-109 Q3）。
+
+    CCS 官方用的不是普通 ResNet-18，而是自己加了投影层的 `PResNet18`（paper-code `src/utils/models.py:556-601`）：
+    avgpool → project（Linear 512→256、ReLU、Linear 256→512）→ classifier；FedPer 下 project 与 classifier 都私有
+    （`client/fedper.py:10-12`），MMD 算在 project 的输出上。这里照搬到 resnet10_torch 上：
+    GAP → proj_1 Dense(256, relu) → proj_2 Dense(512) → head Dense(num_classes, softmax)。
+    `get_base_head_indices` 把 proj_* 归进 head（私有）。torch Linear 的初始化同 head（kaiming_uniform(a=√5) + U(±1/√fan_in)）。
+    **冻结的 build_resnet10_torch 一字不改**：前面的层逐层同名，base 索引与它相同（守卫 tests/test_ccs_tf.py）。
+    """
+    import math
+    L = tf.keras.layers
+    base = build_resnet10_torch(input_shape=input_shape, num_classes=num_classes)
+    x = base.get_layer("gap").output
+
+    def _dense(units, act, name, h):
+        bound = 1.0 / math.sqrt(int(h.shape[-1]))
+        return L.Dense(units, activation=act, name=name, kernel_initializer=_torch_kernel_init(),
+                       bias_initializer=tf.keras.initializers.RandomUniform(-bound, bound))(h)
+
+    x = _dense(256, "relu", "proj_1", x)
+    x = _dense(512, None, "proj_2", x)
+    out = _dense(num_classes, "softmax", "head", x)
+    return tf.keras.Model(base.inputs, out, name="resnet10_torch_proj")
+
+
+# 属于私有 head 的额外层（名字前缀）：CCS 的投影网络（D-109 Q3）。没有这种层的模型不受影响。
+PRIVATE_HEAD_PREFIXES = ("proj_",)
+
+
 def build_model(input_shape=(32, 32, 3), num_classes=10, arch="cifar_cnn_3conv",
                 rep_dim=64):
     registry = {
@@ -323,6 +353,7 @@ def build_model(input_shape=(32, 32, 3), num_classes=10, arch="cifar_cnn_3conv",
         "fedavg_cnn":  build_fedavg_cnn,
         "resnet10":  build_resnet10,
         "resnet10_torch":  build_resnet10_torch,     # A29 / D-034
+        "resnet10_torch_proj":  build_resnet10_torch_proj,   # 阶段三 SA-C / D-109（CCS 的私有投影）
     }
     assert arch in registry, f"Unknown arch: {arch}. Choose from {list(registry)}"
     if arch == "fedavg_cnn":
@@ -398,6 +429,11 @@ def get_base_head_indices(model, num_classes, edge_shared_blocks=0):
         )
 
     head_weight_indices = sorted([head_kernel_idx, head_bias_idx])
+    # CCS 的私有投影网络（resnet10_torch_proj，D-109）也是 head 的一部分；别的模型没有这些层 → 不变
+    owners = weight_owner_names(model)
+    extra = [i for i, nm in enumerate(owners) if nm and nm.startswith(PRIVATE_HEAD_PREFIXES)]
+    if extra:
+        head_weight_indices = sorted(set(head_weight_indices) | set(extra))
     head_weight_set     = set(head_weight_indices)
     base_weight_indices = [i for i in range(n) if i not in head_weight_set]
 

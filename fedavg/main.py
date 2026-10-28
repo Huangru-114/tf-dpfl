@@ -498,6 +498,10 @@ def build_clients(images_np, labels_np, global_model, config, s3_out=None):
         print(f"[Backdoor] resolved malicious clients "
               f"(placement={bd_cfg.get('malicious_placement', 'spread')}): "
               f"{bd_cfg['malicious_ids']}")
+        # 恶意端训练数据占比（只打印）：旧 noniid 划分客户端不等大 → 不再恰为名义的 10%（D-098；CCSF 要报告）
+        _n_all = sum(len(ix) for ix in client_indices)
+        _n_mal = sum(len(client_indices[i]) for i in bd_cfg["malicious_ids"] if i < len(client_indices))
+        print(f"[MalShare] n_mal={_n_mal} | n_all={_n_all} | share={(_n_mal / _n_all if _n_all else 0.0):.4f}")
     if s3 is not None:
         # 自描述（S3）：[Partition] + 每 edge 一条 [PartitionEdge] → metrics.json 的 run.data（collect_metrics schema 6）
         for ln in data_lines(s3, malicious_ids=sorted(malicious_ids) if bd_enabled else None):

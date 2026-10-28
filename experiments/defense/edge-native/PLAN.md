@@ -443,7 +443,7 @@ D0 ──> SNAP
 | D0 | 阶段三登记表（SNAP / P0 / CAL）、预注册 P0 / P1 / CCSF 的判定规则（N-008）、功效分析脚本（定门槛）、文献逐条核对（凭记忆引用、还没对过原文的条目：TRADES、I-BAU、NAD、FLTrust、A3FL、EOT、Tsipras 2019、LP 等）；D-089 与台账已在 2026-10-09 完成 | — |
 | SA0 ✅ | edge 侧 AT 核心（纯算术不 import TF；TF 部分包 random 围栏，F-078）+ 快照离线探针（含触发器范数、私有统计量聚类）。**2026-10-13 完成**（F-096、D-103 … D-105）；待 GPU 探路 | 语义 diff：Madry PGD-AT / TRADES / SAU 官方实现 vs 本仓库 |
 | SA1 ◐ | **最小版已做（2026-10-28，D-108）**：只有 A-pre（`defense.edge_harden`），P1 一个 run 在跑；A-every / A-cloud 未做。原定：在线接线：`cloud_upload` 上传变换、`run_edge_round` 每轮钩子、`CloudServer` 聚合后变换；`[设定11]`、`[Harden]`；BN 用 `TorchBatchNorm` 推理路径 | 守卫：开关关逐位不变、去围栏的反向锚点、`gpu_determinism_check` |
-| SA-C ← **下一个会话** | CCS：客户端 AT mixin（投影网络 + KL + MMD + max-margin 对抗样本；可变形 patch 初始化按原文或记为偏差）+ edge 侧 BN 统计量 HDBSCAN（经 `robust_mean` 收口，陷阱 #10）+ flat | 语义 diff：CCS 原文（是否有官方代码待查） |
+| SA-C ✅ | **代码完成（2026-10-28，D-109 / F-101）**：客户端 AT mixin（`client/ccs_mixin.py`，投影网络 `resnet10_torch_proj` + KL + MMD + DPR / max-margin 对抗样本，照官方代码的意图）+ edge 侧上传 BN 统计量 HDBSCAN（`defense/ccs.py`，经 `robust_mean`）+ CCSF 登记与判定（`harness/ccsf_verdict.py`）；对抗样本空间等离线探针（CCSF 挂 `ccs-space`） | 语义 diff：CCS 原文 + 官方代码（F-090 / F-101：官方代码本身跑不起来） |
 | SA2 | 自适应攻击者 AA1 / AA2 / AA-S + 分段感知攻击者（mixin） | 语义 diff：A3FL 官方实现 |
 | SA3 | 修陷阱 #9 / #2 / #3；Median / Trimmed / Multi-Krum / FLAME / RLR 登记 | 语义 diff：FLAME、RLR 官方 |
 | SA4 | FedBAP（改写为 L∞ 球内 PGD，客户端 mixin）+ SHIELD | 语义 diff：两篇原文 / 官方代码 |

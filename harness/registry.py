@@ -97,6 +97,11 @@ EXPECT_KEYS = (
     ("update_ck_every",      "evaluation.update_ck_every"),
     ("update_ck_n",          "evaluation.update_ck_n"),
     ("update_ck_steps",      "evaluation.update_ck_steps"),
+    # 阶段三 SA-C（CCSF / CCSP）：CCS 的两个组件与对抗样本空间静默没按声明生效（[设定12]）→ mismatch。
+    ("ccs_at",               "defense.ccs.at"),
+    ("ccs_cluster",          "defense.ccs.cluster"),
+    ("ccs_space",            "defense.ccs.space"),
+    ("ccs_pool",             "defense.ccs.pool"),
 )
 
 AUDIT_STATUSES = ("open", "align", "deviate", "done")

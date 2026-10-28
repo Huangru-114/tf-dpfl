@@ -68,6 +68,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "fedavg"))
 from utils.provenance import parse_provenance   # noqa: E402
 from utils.kvline import parse_kv, collect_kv, parse_list   # noqa: E402
+# [设定12] 的字段（= fedavg/defense/ccs_spec.SETTINGS_KEYS；抄一份是为了不 import defense 包 ——
+# pack.sbatch 的端到端测试只拷 fedavg/utils；守卫 tests/test_ccs_config.py 断言两份相同）
+CCS_SETTINGS_KEYS = ("at", "cluster", "kl", "mmd", "steps", "step", "eps", "radius", "n_regions",
+                     "space", "clip_norm", "pool", "min_pool")
 
 # metrics.json 的结构版本。2 = 加了 run.provenance / run.cli_overrides。
 # 3 = A4：run.alignment / eval_attacker，rounds[] 的副列（[ASR4] [ASRwb] [StaleASR]），
@@ -102,7 +106,10 @@ from utils.kvline import parse_kv, collect_kv, parse_list   # noqa: E402
 #     老日志 → 空表 / None。
 # 12 = 阶段三 SA1（上传前加固，D-108）：run.edge_harden（[设定11]；"none" = 没开）；新表 harden（[Harden]：每次加固一行）/
 #     harden_agg（[HardenAgg]：每云轮一行，没洗过的上传物聚合后的短哈希 —— P1 的闸）。老日志 → None / 空表。
-SCHEMA_VERSION = 12
+# 13 = 阶段三 SA-C（CCS，D-109）：run.ccs + run.ccs_*（[设定12]；ccs=false = 没开）；新表 ccs_decisions
+#     （[CCS]：每次 edge 聚合一行 —— 本轮上传的 id、池大小、HDBSCAN 状态、被剔除的 id；剔除 TPR / FPR 的原料）；
+#     run.malicious_data_share（[MalShare]：恶意端训练数据占比，旧 noniid 下不等于名义比例）。老日志 → None / 空表。
+SCHEMA_VERSION = 13
 
 # A4 的副列：key=value 行（utils/kvline.py）→ rounds[] / acc_rounds[] 的字段。
 # 缺行（旧口径、或该列本 run 没开）→ null，**不是 0**。
@@ -342,6 +349,8 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
     setg9 = None
     setg10 = None
     setg11 = None
+    setg12 = None
+    malshare = None
     data = None
     data_edges = []
     for ln in lines:
@@ -369,6 +378,12 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
         d = parse_kv(ln, "[设定11]")
         if d is not None:
             setg11 = d
+        d = parse_kv(ln, "[设定12]")
+        if d is not None:
+            setg12 = d
+        d = parse_kv(ln, "[MalShare]")
+        if d is not None:
+            malshare = d
         d = parse_kv(ln, "[Partition]")
         if d is not None:
             data = d
@@ -440,6 +455,11 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
         "update_ck_steps":   setg10.get("update_ck_steps") if setg10 else None,
         # 阶段三 SA1 上传前加固（[设定11]）。None = 老日志（不知道）；"none" = 没开。
         "edge_harden":       setg11.get("edge_harden") if setg11 else None,
+        # 阶段三 SA-C CCS（[设定12]）。None = 老日志（不知道）；false = 没开。参数平铺成 ccs_*（status 核对）。
+        "ccs":               setg12.get("ccs") if setg12 else None,
+        **{f"ccs_{k}": (setg12.get(k) if setg12 else None) for k in CCS_SETTINGS_KEYS},
+        # 恶意端训练数据占比（[MalShare]，schema 13）；旧 noniid 下不等于名义比例（D-098）。None = 老日志。
+        "malicious_data_share": malshare.get("share") if malshare else None,
         # ── 自适应轮数：这一格跑到第几轮、为什么停 ──────────────────────
         #   全 None = 固定轮数（没配 stopping，或老日志）。
         #   stop_reason='cap_reached' 是 **censored**，不是「收敛在 cap」。
@@ -779,6 +799,16 @@ def _collect_harden(lines) -> list:
     return list(collect_kv(lines, "[Harden]"))
 
 
+def _collect_ccs(lines) -> list:
+    """[CCS] edgeK | cur=a/b/… | n_pool=N | status=… | rejected=…：每次 edge 聚合一行，按出现顺序。"""
+    out = []
+    for d in collect_kv(lines, "[CCS]"):
+        out.append({"edge": d.get("edge_id"), "cur": parse_list(d.get("cur")) or [],
+                    "n_pool": d.get("n_pool"), "status": d.get("status"),
+                    "rejected": parse_list(d.get("rejected")) or []})
+    return out
+
+
 def _collect_harden_agg(lines) -> list:
     """[HardenAgg] → harden_agg[]：{round, unhardened}。哈希按字符串读（十六进制可能长得像数字）。"""
     out = []
@@ -983,6 +1013,8 @@ def collect(log_text: str) -> dict:
         # 阶段三 SA1（schema 12）：上传前加固的逐次记录 + P1 的闸（没洗过的上传物聚合后的短哈希）
         "harden": _collect_harden(lines),
         "harden_agg": _collect_harden_agg(lines),
+        # 阶段三 SA-C（schema 13）：CCS 每次 edge 聚合的聚类判决（本轮有谁 + 剔了谁）
+        "ccs_decisions": _collect_ccs(lines),
         "per_edge_post_agg_rounds": _collect_post_agg_edge(lines),
         "frozen_rounds": _collect_frozen(lines),
         "frozen_edge_rounds": _collect_frozen_edge(lines),

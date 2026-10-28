@@ -217,7 +217,9 @@ class HierFedRepClient(FLClientBase):
         for _ in range(epochs):
             for x, y in self._epoch():
                 x, y = self.on_batch(x, y)
-                loss = self._train_backbone_step(x, y)
+                loss = self.on_body_step(x, y)          # 缺省 None；CCS 的对抗训练整步替换（D-109）
+                if loss is None:
+                    loss = self._train_backbone_step(x, y)
                 losses.append(float(loss.numpy()))
 
     def _local_train_body_first(self, round_idx, plocal, local, losses, t0):

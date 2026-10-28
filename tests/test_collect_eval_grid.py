@@ -110,9 +110,9 @@ def test_light_line_keys_are_the_metrics_field_names():
 # ══════════════════════════════════════════════════════════════════════════
 # collect_metrics
 # ══════════════════════════════════════════════════════════════════════════
-def test_schema_is_12():
-    assert CM.SCHEMA_VERSION == 12
-    assert CM.collect("\n".join(HEAD))["schema_version"] == 12
+def test_schema_is_13():
+    assert CM.SCHEMA_VERSION == 13
+    assert CM.collect("\n".join(HEAD))["schema_version"] == 13
 
 
 def test_settings8_round_trips_into_the_run_block():

@@ -64,7 +64,7 @@ def test_snap_has_six_runs_and_only_snap_is_unblocked(reg):
     assert snap == [f"SNAP__{p}__s{s}" for p in ("collocated", "distributed") for s in (42, 43, 44)]
     assert reg.unmet_requires("SNAP") == []
     assert "SA1" in reg.unmet_requires("CAL")
-    assert reg.unmet_requires("CCSF") == ["SA-C"]                       # 划分已定（D-098）
+    assert reg.unmet_requires("CCSF") == ["ccs-space"]                  # D-098 划分已定；SA-C 已完成，等对抗空间探针（D-109）
     assert reg.unmet_requires("SNAP5") == ["h-main"]                    # D-099：H1 / H3 真要跑才放行
     assert "P0" in reg.raw["offline"] and "P0" not in reg.groups      # 离线组不产生训练 run
 
