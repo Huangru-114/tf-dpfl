@@ -35,16 +35,12 @@
 
 **还开着的**：D-096（「CCS 消融里对抗训练约占 85%」的出处）—— 找到要在 **CCSP 交作业之前**补成预注册预测。CCSP 登记时每布点补一个 off 臂（D-109 ②）。
 
-## 二、正在集群上跑的：P1（在线上传前加固，D-108）
+## 二、P1（在线上传前加固，D-108）：已回传、判 `go_main_col`（2026-10-29，F-103）
 
-- 1 个 run：`P1__col-pre__s42`（每个云轮各区域上交前用 500 张干净图按 SAU 洗一遍：8/255、BN 更新、5 遍；对照 = SNAP__collocated__s42）。用户 2026-10-28 已提交，预计约 7.5 GPU-h。
-- 回传 `results/P2/P1/P1__col-pre__s42.metrics.json` 后：
-
-  `python3 harness/p1_verdict.py --arm experiments/defense/edge-native/results/P2/P1/P1__col-pre__s42.metrics.json --control experiments/defense/edge-native/results/P2/SNAP/SNAP__collocated__s42.metrics.json --out experiments/defense/edge-native/analysis/p1_verdict.json`
-
-  先看闸（D-108 ③）：第 1 云轮 `[HardenAgg] unhardened` = SNAP 的 `[Checksum] Round 1`；`[Harden]` 240 行。判定规则 = N-008 P1 段
-  （对照 V = 0.995 → 天花板规则大概率生效：两边 V ≥ 0.95 时看受害 margin 降 ≥ 2.0；且精度损失 ≤ 0.02）。结果记 FINDINGS（F-101 起）。
-- 这个结果**不阻塞** SA-C：两条线独立。
+- `P1__col-pre__s42`（SAU 8/255、BN 更新、5 遍，上传前加固）vs SNAP__collocated__s42。闸通过（第 1 云轮 `[HardenAgg] unhardened` = SNAP `[Checksum] Round 1`；`[Harden]` 240 行、0 发散）。
+- 受害 edge V 0.995 → 0.519（ΔV 0.476）、ΔMTA 0.0086 → `go_main_col`；但 jump 只降 21%（比值 0.79，jump 那一项不过）、攻击者 edge E0 0.998 → 0.950 基本没动；
+  臂的 V 不是平台值（第 46–60 云轮 0.24–0.65 振荡）→ **单 seed，幅度没有可外推的证据**。加固墙钟 +116% round_time。
+- 判定 `analysis/p1_verdict.json`。**等用户定**：按 PLAN 进 s43–44 复验（`P1__col-pre__s4{3,4}`，各约 7.5 GPU-h），还是先做分散布点 / A-every。
 
 ## 三、到现在为止的结论（细节见 FINDINGS）
 
@@ -55,10 +51,10 @@
 | 加固 lr | 客户端 lr 在 BN 固定模式下发散；按预注册规则选 train ×0.1、frozen ×0.03 | F-098、F-099、D-106、D-107 |
 | P0（离线回放，s42 全 36 个配置） | `accuracy_bound`：砍得动的都伤精度（PGD 4/255 砍 83–88%、精度降约 0.10；SAU 8/255 BN 更新 5 遍砍 44–58%、降 0.02–0.03）；只做干净微调砍不动；BN 固定模式多数更糟 | F-100、D-108；对比表 `analysis/p0_s42_screen_tables.md` |
 | 「只吸收部分中心更新」（阻尼） | 一次性回放里看起来好，但只是延缓灌入，对持久 / 强攻击（如 IBA）无用 → 只作参照，不当候选 | 用户 2026-10-28 |
-| P1（在线 SAU 一个 run） | 在跑 | D-108 |
+| P1（在线 SAU 一个 run，s42） | `go_main_col`：受害 V 0.995 → 0.519、ΔMTA 0.009；jump 只降 21%、E0 不动、末段振荡 | F-103 |
 
 **用户 2026-10-28 提出的另一条路线**（还没讨论完）：用本区域数据产生的**合成数据**代替区域服务器手里的真实干净集。
-看法（会话里已说明）：可以去掉「区域服务器持有真实数据」这个强假设，但合成数据可能把后门特征一起反演出来，且依赖于区域侧加固本身先被证明有用 → 排在 P1 结果之后再议。
+看法（会话里已说明）：可以去掉「区域服务器持有真实数据」这个强假设，但合成数据可能把后门特征一起反演出来，且依赖于区域侧加固本身先被证明有用 → 排在 P1 结果之后再议（P1 已回传，F-103）。
 
 ## 四、还等用户定的旧事项
 
