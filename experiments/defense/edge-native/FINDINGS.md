@@ -455,3 +455,46 @@ H1 规则（均值 ≥ 0.15 且最小 seed ≥ 0.10 → `protects`；三个 |Δ|
   1. 机理上的读法（**推断**）：jump 只降 21%、但 V 降了一半 → 收益主要不在「每次云聚合灌进来的量」，而在**周期内 edge 自清洁之后、下一次灌入之前**积累不上去（margin 从 6.7 掉到约 0）。这与 P0 的设定（只量一次灌入的削减率 R_H）不是同一个量，P0 的 `accuracy_bound` 不能直接套到在线结果上。
   2. 精度：在线 ΔMTA 0.0086 低于 P0 离线同配置的池化降 0.032 / 0.023（F-100）—— 但两者是不同的量（P0 是快照上一次性回放后的池化精度，这里是 run 末的 MTA），**不能据此说在线精度代价更小已被证实**。
   3. 下一步按 PLAN：`go_main` 的臂进 s43–44 复验（PLAN 「P1 / CCSP 判 go_main 的臂 × s43–44」）；分散布点（H3）与 A-every 仍未做。由用户定。
+
+## 2026-10-29（D-111 批次回传：H1 col-pre s43 / s44、P1 dist-pre s42；CCSF 两格）
+
+### F-104 `confirmed`（数据，`analysis/h1_pre_verdict.json`；PLAN §4 H1 + D-101，脚本 `harness/h1_verdict.py` 先于数据 commit 于 `451dd23`）—— A-pre 集中布点 3 seed 判 `protects_victims`；攻击者 edge 的良性端 `no_effect`；每次云聚合的灌入量基本不变
+
+- 闸：三个配对都通过（第 1 云轮 `[HardenAgg] unhardened` = 对照 `[Checksum] Round 1`；`[Harden]` 240 行、0 发散；exit 0、`client_failures` 为空）。
+- 逐 seed（对照 − 臂；V / B0 / MTA 都是第 51–60 云轮的均值）：
+
+  | seed | V 对照 → 臂 | ΔV | ΔB0 | ΔMTA | jump 比值（臂 / 对照） | 臂的受害 margin p50 |
+  |---|---|---|---|---|---|---|
+  | 42 | 0.995 → 0.519 | 0.476 | 0.048 | 0.009 | 0.79 | 0.02 |
+  | 43 | 0.997 → 0.475 | 0.522 | 0.002 | 0.013 | 1.01 | −0.17 |
+  | 44 | 0.996 → 0.769 | 0.228 | 0.000 | 0.015 | 0.96 | 0.73 |
+
+  ΔV 均值 0.409、最小 0.228（门槛 0.15 / 0.10）；ΔMTA 均值 0.012、最大 0.015（门槛 0.02 / 0.025）→ `protects_victims`。`treats_E0` = `no_effect`。天花板规则不适用。
+- 读法：
+  1. seed 间差别大（0.23 – 0.52），s44 的臂 V 0.77。3 seed 是用户定的结案数（D-112），**没有 5 seed 的 CI**。
+  2. jump 比值 0.79 / 1.01 / 0.96 → 每次云聚合灌进受害 edge 的量**没有被砍小**；ASR 被压低发生在两次灌入之间（与 F-103 读法 1 同向）。这一条只是从 jump 与 V 的对比得出的**推断**，没有直接测量机制的量。
+  3. 机制项（Δexcess，要 ρ=0 的 floor run）没有做 → 结论只能写「压低受害 edge 的 ASR」，不能写「清除后门」。
+  4. E0 不受保护：与 PLAN E3 的事先预测一致。
+
+### F-105 `confirmed`（数据，`analysis/p1_dist_verdict.json`；N-008 P1 分散规则）—— A-pre 分散布点判 `marginal`：ASR 降得动，但精度代价超门槛，末段振荡；**只记录、不进 H3**（D-112）
+
+- 闸通过（同 F-104）。P（全体良性端池化 ASR）0.998 → 0.713（ΔP 0.285 ≥ 0.10）；margin p50 5.23 → 1.40（Δ 3.83 ≥ 2.0）；ΔMTA **0.030 > 0.02** → 不是 `go_main_dist`；也不满足 stop → `marginal`。
+- 逐轮（对照 → 臂，全量评估点的 P）：第 1–15 云轮两边相近（第 15 轮 0.70 → 0.76，臂反而略高），第 20 轮起分开（0.87 → 0.65）；
+  第 51–60 轮臂依次为 0.77 / 0.75 / 0.72 / 0.83 / 0.41 / 0.81 / 0.78 / 0.41 / 0.88 / 0.77 → 0.713 不是平台值。
+- 精度：臂的 MTA 末段持续低于对照（第 60 轮 0.797 vs 0.870）；末轮逐 edge pm_acc 降 0.04–0.12（E0 0.853 → 0.815、E1 0.901 → 0.820、E2 0.836 → 0.716、E3 0.891 → 0.837）—— 集中布点的逐 edge 降幅只有 −0.011 … +0.016（F-103）。
+- 与 PLAN H3 的事先预测（A-pre 在分散布点 `no_effect`）相比：ASR 降幅比预测大，但精度代价超门槛。为什么分散布点下精度代价比集中布点大一倍多，**没有证据**。
+
+### F-106 `confirmed`（数据，`results/P2/H1/H1__col-pre__pack-k2-s43.gpu.json`、`results/P2/P1/P1__dist-pre__pack-k1-s42.gpu.json`）—— 两个加固 run 装一张卡（K=2），墙钟只比单跑多约 3%
+
+- K=2 包 `wall_s` 27 500 s（7.6 h）；单跑（k=1）26 617 s（7.4 h）。真实显存峰值 16.96 / 16.95 GiB / run，无 OOM、无主机 OOM。
+- 由此，D-111 ④ 担心的「加固 run 并行会被 GPU 计算拖长墙钟」在 K=2 上不成立。K=3 仍没有测过（SNAP 的不加固 K=3 包是 4.35 h）。
+- 单跑那份 gpu.json 的 `util_mean` 是 5.3%，与 K=2 包的 66.7% 对不上；原因不明，只记录、不解释。
+
+### F-107 `confirmed`（数据 + 代码）—— CCSF ccs-full 一启动就崩：`CCSDefense.set_stat_indices` 在生产代码里从没被调用；L1 绿是因为测试替它调了（陷阱 #18 同类）
+
+- `results/P2/CCSF/CCSF__ccs-full__s42.metrics.json`：exit 1、0 个评估点。第 1 个 edge 轮聚合时（`hier_fedrep.run_edge_round` → `robust_mean` → `CCSDefense.aggregate`）抛
+  `RuntimeError: CCSDefense：没有注入 BN 统计量索引`。
+- 原因：`defense/ccs.py` 写着「main.py 建好 edge server 后注入」，但 SA-C 没有在 main.py / edge server 里加这一步；全仓库唯一的调用在 `tests/test_ccs_tf.py`（手工注入）。
+- 修法（D-112）：`EdgeServerBase.__init__` 建好防御后，若防御有 `set_stat_indices` 就用 `get_bn_stat_indices(self.model)` 注入。测试里的手工注入删掉，让这条 TF 测试走生产路径；
+  另加本地 AST 守卫：`defense/ccs.py` 以外的 `fedavg/` 代码里必须有这一调用。
+- CCSF off 正常（exit 0、60 个评估点、无 client_failures），不重跑。ccs-full 修好后先 30 分钟探路、再整跑（用户 2026-10-29）。

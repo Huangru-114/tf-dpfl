@@ -147,3 +147,23 @@ def test_old_logs_have_no_ccs():
     assert m["run"]["ccs"] is None and m["ccs_decisions"] == []
     m = CM.collect(format_kv("[设定12]", settings_row({"defense": {"name": "none"}})))
     assert m["run"]["ccs"] is False and m["run"]["ccs_at"] is None
+
+
+def test_stat_indices_are_injected_by_production_code():
+    """F-107：CCSDefense 要 BN 统计量索引，SA-C 只在测试里手工注入 → CCSF ccs-full 在集群上第 1 个 edge 轮就崩。
+    守卫：`defense/ccs.py` 以外的 fedavg/ 非测试代码里必须有人调 `set_stat_indices`（AST，本地秒级）。"""
+    import ast
+    callers = []
+    for p in sorted((ROOT / "fedavg").rglob("*.py")):
+        rel = p.relative_to(ROOT / "fedavg").as_posix()
+        if rel == "defense/ccs.py" or "test" in p.name:
+            continue
+        try:
+            tree = ast.parse(p.read_text(encoding="utf-8"))
+        except SyntaxError:                       # 死文件（test_main_names_are_bound 的 DEAD_FILES）
+            continue
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                    and node.func.attr == "set_stat_indices"):
+                callers.append(rel)
+    assert "server/edge_server_base.py" in callers, callers

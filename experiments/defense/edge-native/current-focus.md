@@ -1,67 +1,49 @@
-# current-focus —— 阶段三（edge 原生防御）· 交接给 SA-C（CCS）
+# current-focus —— 阶段三（edge 原生防御）· A-pre 结案、CCSF ccs-full 重跑
 
 > **写于 2026-10-28**（SA0 / P0 / SA1 会话收尾；同日 SA-C 会话改写第一节）。这一版取代之前叠在一起的各段状态；过程与数字都在本目录 `FINDINGS.md`（F-090 … F-100）与 `DECISIONS.md`（D-096 … D-108）。
 > ⚠️ 阶段三的实验全部做完之前，不要把分支合并到 main（CLAUDE.md 分支纪律，用户 2026-10-10）。分支 `claude/eloquent-faraday-b9kmop`。
 
-## 一、SA-C（CCS）：代码已完成（2026-10-28，D-109 / F-101）；下一步 = 集群上跑对抗空间探针 → 用户定空间 → 交 CCSF
+## 一、现在要做的：CCSF ccs-full 重跑（先探路）
 
-**做了什么**（语义对照表与取舍：DECISIONS D-109；官方代码的读法：FINDINGS F-101 —— 官方代码本身跑不起来，照的是意图）：
-- 开关：`defense.name: ccs` + `defense.layers: [client, edge]` + `defense.ccs.{at, cluster, space, pool, kl, mmd, steps, …}`（`fedavg/defense/ccs_spec.py`，纯算术、不 import TF）。
-  CCSP 的三臂 = `at` / `cluster` 两个布尔；只聚类的臂可以用 `resnet10_torch`、不要 client 层。
-- 客户端：`client/ccs_mixin.py`（`CCSClientMixin` + 与离线探针共用的 `CCSAttack`）；`FLClientBase.on_body_step` 新钩子（缺省 None = 原样走方法类的 body 步）。
-- 服务端：`defense/ccs.py`（复用 `analysis/bn_cluster.detect`；`[CCS]` 行 + 统一的 `[Decision]` 行）；`pool: edge_cache` 给 CCSP 用。
-- 模型：`resnet10_torch_proj`（私有投影网络，P2 核对视为与模板等价）。自描述 `[设定12]`、`[MalShare]`；collect_metrics **schema 13**（`run.ccs*`、`run.malicious_data_share`、`ccs_decisions[]`）。
-- 判定：`harness/ccsf_verdict.py`（N-008 CCSF 段，**已 commit**）。登记：CCSF 两格已补 `set:`，挂 `ccs-space`（`SA-C` 已加进 available）。
-- 守卫：`tests/test_ccs_spec.py`（本地）/ `test_ccs_config.py`（本地）/ `test_ccsf_verdict.py`（本地）/ `test_ccs_tf.py`（TF）。
-
-**对抗样本空间已定**（2026-10-29，F-102 / D-110）：探针显示标准化空间（照官方代码）与像素空间都让模型全错、像素约强 1.9 倍（同一量级）→ CCSF 只跑 input；
-`ccs-space` 已放行，CCSF 两格已 materialize（`configs/CCSF__{off,ccs-full}__s42.yaml`）。机时更正：每个 ccs run 约 6–7 GPU-h（不是之前写的 15–25）。
-
-**集群上要做的**（用户）：
-1. `git pull`，看 `git log --oneline -1`。
-2. 先探路（新模型 + 新代码路径第一次上 GPU；陷阱 #23：对抗训练在推理模式的 BN 上求梯度）：只交 ccs-full、短时限，回来看日志里没有被吞的客户端异常、`[CCS]` 每轮一行、显存：
-
-   `RUN_GROUPS=CCSF bash experiments/defense/edge-native/submit.sh --dry-run`（先看会交什么）
-
-   探路可以直接 `sbatch -t 0:30:00 experiments/attack/hfl-mechanism/cell.sbatch experiments/defense/edge-native/configs/CCSF__ccs-full__s42.yaml CCSF__ccs-full__s42 <临时 metrics 路径>`
-   （metrics 写到 results/ 以外，免得被当成完成的 run）。
-3. 探路没问题 → `RUN_GROUPS=CCSF bash experiments/defense/edge-native/submit.sh`（2 run；off 约 3–4 GPU-h，ccs-full 约 6–7 GPU-h）。
-4. 回传后：
-
-   `python3 harness/ccsf_verdict.py --off experiments/defense/edge-native/results/P2/CCSF/CCSF__off__s42.metrics.json --ccs experiments/defense/edge-native/results/P2/CCSF/CCSF__ccs-full__s42.metrics.json --out experiments/defense/edge-native/analysis/ccsf_verdict.json`
-
-   读 `rejection.fpr` 时记住 F-101 ⑧：官方聚类参数在彼此很近的良性端上也会剔掉一部分。判定不是 `ccs_reproduces` → pixel 版是第一个排查项（D-110）。
-   ccs-full 的日志会有一条「backdoor.enabled=false 但 defense.name=…」的假警告，是已有代码的问题（F-102 末条），不用管。
-
-**还开着的**：D-096（「CCS 消融里对抗训练约占 85%」的出处）—— 找到要在 **CCSP 交作业之前**补成预注册预测。CCSP 登记时每布点补一个 off 臂（D-109 ②）。
-
-## 二、P1 → 下一批（D-111）：3 个加固 run，约 20 GPU-h
-
-**P1 结果**（2026-10-29，F-103）：`P1__col-pre__s42` 判 `go_main_col`。受害 edge V 从 0.995 降到 0.519，ΔMTA 0.0086；但 jump 只降 21%，E0 基本没动，后半程振荡，单 seed。判定 `analysis/p1_verdict.json`。
-
-**下一批**（已 materialize；判定脚本已 commit）：
-| run | 作用 | 对照（已有） | 判定 |
-|---|---|---|---|
-| `H1__col-pre__s43`、`H1__col-pre__s44` | 补 seed：与 P1__col-pre 同配置，凑 3 seed | SNAP__collocated__s43 / s44 | `harness/h1_verdict.py` |
-| `P1__dist-pre__s42` | 分散布点 [3,3,2,2] 的第一次筛选（PLAN H3 预测 `no_effect`） | SNAP__distributed__s42 | `p1_verdict.py --placement distributed` |
+- 第一次整跑一启动就崩（F-107）：`CCSDefense.set_stat_indices` 生产代码从没调过。已修（`EdgeServerBase.__init__` 注入，D-112 ③），带守卫。
+- CCSF off 已正常回传（不重跑）；ccs-full 那份 exit 1 的 metrics 在 `submit.sh` 眼里是 todo，配置 sha 不变。
 
 **集群上**（先 `git pull`、`git log --oneline -1`）：
+1. 探路 30 分钟（metrics 写到 results/ 以外）：
 
-```bash
-PACK=2 RUN_GROUPS="H1 P1" bash experiments/defense/edge-native/submit.sh --dry-run
-```
-应看到 2 个作业：`H1__col-pre__pack-k2-s43`（s43 + s44 一包，`-c 8 --mem=48G`）、`P1__dist-pre__pack-k1-s42`（单跑）。确认后去掉 `--dry-run` 再交。
-墙钟：dist-pre 约 7.8 h；K=2 包没有实测（估 ≤ 12 h，**无证据**），回来看 `results/P2/H1/H1__col-pre__pack-k2-s43.gpu.json` 的 `wall_s`，记 FINDINGS。
+   ```bash
+   sbatch -t 0:30:00 experiments/attack/hfl-mechanism/cell.sbatch experiments/defense/edge-native/configs/CCSF__ccs-full__s42.yaml CCSF__ccs-full__s42 ../tfdpfl-logs/probe/CCSF__ccs-full__s42.metrics.json
+   ```
+   30 分钟到点作业会被 SLURM 杀掉，`collect_metrics` 来不及跑 → 直接看日志 `../tfdpfl-logs/exp3v2_CCSF__ccs-full__s42.<作业号>.log`：
 
-**回传后**：
+   ```bash
+   grep -c "\[CCS\]" ../tfdpfl-logs/exp3v2_CCSF__ccs-full__s42.*.log
+   ```
+   ```bash
+   grep -n "Traceback\|Error\|failed" ../tfdpfl-logs/exp3v2_CCSF__ccs-full__s42.*.log | head
+   ```
+   要看到：`[CCS]` 随 edge 轮增长（flat 下每个 edge 轮一行）、没有 Traceback、没有被吞掉的客户端异常。
+2. 探路没问题 → `RUN_GROUPS=CCSF bash experiments/defense/edge-native/submit.sh`（只交 ccs-full；约 6–7 GPU-h）。
+3. 回传后：
 
-```bash
-python3 harness/h1_verdict.py --pair experiments/defense/edge-native/results/P2/P1/P1__col-pre__s42.metrics.json experiments/defense/edge-native/results/P2/SNAP/SNAP__collocated__s42.metrics.json --pair experiments/defense/edge-native/results/P2/H1/H1__col-pre__s43.metrics.json experiments/defense/edge-native/results/P2/SNAP/SNAP__collocated__s43.metrics.json --pair experiments/defense/edge-native/results/P2/H1/H1__col-pre__s44.metrics.json experiments/defense/edge-native/results/P2/SNAP/SNAP__collocated__s44.metrics.json --out experiments/defense/edge-native/analysis/h1_pre_verdict.json
-```
-```bash
-python3 harness/p1_verdict.py --placement distributed --arm experiments/defense/edge-native/results/P2/P1/P1__dist-pre__s42.metrics.json --control experiments/defense/edge-native/results/P2/SNAP/SNAP__distributed__s42.metrics.json --out experiments/defense/edge-native/analysis/p1_dist_verdict.json
-```
-然后用户定：H1 要不要补 s45 / s46（连同 SNAP5 的 2 个集中对照，D-111 ①）；CAL 要不要交（只在 partial / no_effect 时有用）。
+   ```bash
+   python3 harness/ccsf_verdict.py --off experiments/defense/edge-native/results/P2/CCSF/CCSF__off__s42.metrics.json --ccs experiments/defense/edge-native/results/P2/CCSF/CCSF__ccs-full__s42.metrics.json --out experiments/defense/edge-native/analysis/ccsf_verdict.json
+   ```
+   读 `rejection.fpr` 时记住 F-101 ⑧（官方聚类参数在彼此很近的良性端上也会剔掉一部分）。判定不是 `ccs_reproduces` → pixel 版是第一个排查项（D-110）。
+   日志里「backdoor.enabled=false 但 defense.name=…」是已知的假警告（F-102 末条）。
+
+**还开着的**：D-096（「CCS 消融里对抗训练约占 85%」的出处）要在 CCSP 交作业之前补成预注册预测；CCSP 登记时每布点补一个 off 臂（D-109 ②）。
+
+## 二、上传前加固（A-pre）：已结案（D-112）
+
+| 格子 | 判定 | 要点 | 出处 |
+|---|---|---|---|
+| 集中布点 H1（s42–44） | `protects_victims` | 受害 edge ASR 平均降 0.409（0.476 / 0.522 / 0.228）、精度平均降 0.012；E0 良性端 `no_effect`；每次云聚合灌入量不变 | F-104，`analysis/h1_pre_verdict.json` |
+| 分散布点 P1（s42） | `marginal` → 只记录、不进 H3 | ΔP 0.285、Δmargin 3.83，但 ΔMTA 0.030 > 0.02；末段振荡 | F-105，`analysis/p1_dist_verdict.json` |
+
+- 用户定：H1 停在 3 seed（不补 s45 / s46，SNAP5 继续挂 `h-main`）；数字都是第 51–60 云轮（加固了 50–60 次之后）的均值。
+- 打包：两个加固 run 一张卡只多约 3% 墙钟（F-106）→ 以后加固格子默认 K=2。
+- 下一步候选（用户定）：A-every（每个 edge 轮都加固，唯一能碰到 E0 / 分散布点里本 edge 良性端的 edge 侧做法，**未实现**）、CCSP（等 CCSF）。
 
 ## 三、到现在为止的结论（细节见 FINDINGS）
 
@@ -73,6 +55,8 @@ python3 harness/p1_verdict.py --placement distributed --arm experiments/defense/
 | P0（离线回放，s42 全 36 个配置） | `accuracy_bound`：砍得动的都伤精度（PGD 4/255 砍 83–88%、精度降约 0.10；SAU 8/255 BN 更新 5 遍砍 44–58%、降 0.02–0.03）；只做干净微调砍不动；BN 固定模式多数更糟 | F-100、D-108；对比表 `analysis/p0_s42_screen_tables.md` |
 | 「只吸收部分中心更新」（阻尼） | 一次性回放里看起来好，但只是延缓灌入，对持久 / 强攻击（如 IBA）无用 → 只作参照，不当候选 | 用户 2026-10-28 |
 | P1（在线 SAU 一个 run，s42） | `go_main_col`：受害 V 0.995 → 0.519、ΔMTA 0.009；jump 只降 21%、E0 不动、末段振荡 | F-103 |
+| H1 A-pre（集中 3 seed） | `protects_victims`；E0 `no_effect` | F-104 |
+| P1 A-pre 分散（s42） | `marginal`，只记录 | F-105 |
 
 **用户 2026-10-28 提出的另一条路线**（还没讨论完）：用本区域数据产生的**合成数据**代替区域服务器手里的真实干净集。
 看法（会话里已说明）：可以去掉「区域服务器持有真实数据」这个强假设，但合成数据可能把后门特征一起反演出来，且依赖于区域侧加固本身先被证明有用 → 排在 P1 结果之后再议（P1 已回传，F-103）。
@@ -86,6 +70,7 @@ python3 harness/p1_verdict.py --placement distributed --arm experiments/defense/
 
 - 本地 L1：Python 3.11 venv（F-089）；本地 TF 测试用 tensorflow-cpu 2.15（Keras 2）+ scikit-learn 的 venv，`TFDPFL_PY=<venv>/bin/python bash run_l1.sh`。
   2026-10-28 基线（`1b22d10`）：无 TF 1719 passed / 53 skipped / 3 xfailed；有 TF 只有陷阱 #4 的 2 条红。
+  D-112 之后（2026-10-29 实测，`edge_server_base` 注入 CCS 统计量索引）：无 TF **1796 passed / 52 skipped / 3 xfailed**；有 TF（tensorflow-cpu 2.15 + wandb）**2058 passed / 26 skipped / 3 xfailed / 2 failed**（陷阱 #4）。
   SA-C 之后（2026-10-28 实测）：无 TF **1781 passed / 52 skipped / 3 xfailed**；有 TF（tensorflow-cpu 2.15）**2043 passed / 26 skipped / 3 xfailed / 2 failed**（陷阱 #4；改动前同环境 1972 / 26 / 3 / 2）。
 - 集群：先 `git pull`，看 `git log --oneline -1` 再交；作业脚本只传参数（陷阱 #19）；排队靠 fairshare（10-27 实测 `sprio` 全部来自 FAIRSHARE），短作业用 `sbatch -t …` 改短时限便于回填。
 - 机时：上限约 100 GPU-h / 周（D-047）。

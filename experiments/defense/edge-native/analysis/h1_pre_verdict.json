@@ -1,0 +1,126 @@
+{
+ "preregistered": "PLAN §4 H1 + D-101；本批 D-111",
+ "arm_cfg": "sau-e8-train-high",
+ "n_pairs": 3,
+ "per_seed": [
+  {
+   "seed": 42,
+   "arm": {
+    "V": 0.5189,
+    "B0": 0.9497,
+    "P": 0.5907,
+    "margin_p50": 0.1912,
+    "margin_v": 0.0222,
+    "MTA": 0.8533,
+    "jump_half": 0.1741,
+    "n_jump": 29.0
+   },
+   "control": {
+    "V": 0.995,
+    "B0": 0.9978,
+    "P": 0.9955,
+    "margin_p50": 6.9431,
+    "margin_v": 6.6924,
+    "MTA": 0.8619,
+    "jump_half": 0.2202,
+    "n_jump": 29.0
+   },
+   "dV": 0.4761,
+   "dB0": 0.0481,
+   "dMTA": 0.0086,
+   "dmargin_v": 6.6702,
+   "jump_ratio": 0.7906,
+   "harden_seconds": 12781.1
+  },
+  {
+   "seed": 43,
+   "arm": {
+    "V": 0.4745,
+    "B0": 0.9978,
+    "P": 0.5617,
+    "margin_p50": 0.1246,
+    "margin_v": -0.17,
+    "MTA": 0.8629,
+    "jump_half": 0.2234,
+    "n_jump": 29.0
+   },
+   "control": {
+    "V": 0.9965,
+    "B0": 1.0,
+    "P": 0.9971,
+    "margin_p50": 5.6625,
+    "margin_v": 5.3893,
+    "MTA": 0.8756,
+    "jump_half": 0.2219,
+    "n_jump": 29.0
+   },
+   "dV": 0.5219,
+   "dB0": 0.0022,
+   "dMTA": 0.0126,
+   "dmargin_v": 5.5592,
+   "jump_ratio": 1.0067,
+   "harden_seconds": 13841.9
+  },
+  {
+   "seed": 44,
+   "arm": {
+    "V": 0.7686,
+    "B0": 1.0,
+    "P": 0.8071,
+    "margin_p50": 0.9887,
+    "margin_v": 0.7336,
+    "MTA": 0.8528,
+    "jump_half": 0.1425,
+    "n_jump": 29.0
+   },
+   "control": {
+    "V": 0.9963,
+    "B0": 1.0,
+    "P": 0.9969,
+    "margin_p50": 7.4441,
+    "margin_v": 7.2471,
+    "MTA": 0.8673,
+    "jump_half": 0.148,
+    "n_jump": 29.0
+   },
+   "dV": 0.2276,
+   "dB0": 0.0,
+   "dMTA": 0.0146,
+   "dmargin_v": 6.5135,
+   "jump_ratio": 0.9624,
+   "harden_seconds": 13396.5
+  }
+ ],
+ "excess": null,
+ "ceiling_rule": false,
+ "three_seed": {
+  "seeds": [
+   42,
+   43,
+   44
+  ],
+  "dV": [
+   0.4761,
+   0.5219,
+   0.2276
+  ],
+  "dV_mean": 0.4086,
+  "dV_min": 0.2276,
+  "dB0": [
+   0.0481,
+   0.0022,
+   0.0
+  ],
+  "dMTA": [
+   0.0086,
+   0.0126,
+   0.0146
+  ],
+  "dMTA_mean": 0.0119,
+  "mta_ok": true,
+  "asr_label": "protects",
+  "treats_E0": "no_effect",
+  "verdict": "protects_victims"
+ },
+ "verdict": "protects_victims"
+}

@@ -14,7 +14,7 @@ defense/ccs.py  —  CCS（Cui et al., ICASSP 2026）的服务端：按**上传�
   · pool：`round` = 只聚本轮上传（官方）；`edge_cache` = 本轮上传 ∪ 本 edge 其余端最近一次上传（D-109 Q4，分层用）；
     每个 edge 一个防御实例（`RobustAggregationMixin._init_defense`），缓存天然按 edge 分开。
 
-纯 numpy + scikit-learn，不 import TF。统计量索引由 main.py 建好 edge server 之后注入（`set_stat_indices`）。
+纯 numpy + scikit-learn，不 import TF。统计量索引由 `EdgeServerBase.__init__` 建好防御后注入（`set_stat_indices`，F-107）。
 """
 
 from __future__ import annotations
@@ -62,7 +62,7 @@ class CCSDefense(BaseDefense):
 
     def _vectors(self, client_updates):
         if self.stat_idx is None:
-            raise RuntimeError("CCSDefense：没有注入 BN 统计量索引（main.py 应在建 edge server 后调 set_stat_indices）")
+            raise RuntimeError("CCSDefense：没有注入 BN 统计量索引（应由 EdgeServerBase.__init__ 调 set_stat_indices，F-107）")
         return [stat_vector([u[0][i] for i in self.stat_idx]) for u in client_updates]
 
     def aggregate(self, client_updates: list, ref_weights: list) -> list:

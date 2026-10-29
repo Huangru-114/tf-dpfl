@@ -225,7 +225,9 @@ def test_edge_round_emits_ccs_and_decision_lines():
     edge_model.set_weights(g.get_weights())
     edge = HierFedRepEdgeServer(0, clients, edge_model, cfg)
     assert isinstance(edge.defense, CCSDefense)
-    edge.defense.set_stat_indices(get_bn_stat_indices(g), label=0)
+    # F-107：索引由 EdgeServerBase.__init__ 注入（生产路径）。这里**不**再手工注入 —— 手工注入正是当初让 L1 绿、
+    # 集群上第 1 个 edge 轮就崩的原因。
+    assert edge.defense.stat_idx == list(get_bn_stat_indices(g)) and edge.defense.label == 0
     edge.set_test_dataset(merge_test_datasets(clients, BS))
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):

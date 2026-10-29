@@ -20,6 +20,7 @@ import numpy as np
 import tensorflow as tf
 
 from models.model_utils import get_model_bytes
+from models.cnn import get_bn_stat_indices
 from aggregation.client_update import as_client_update
 from .robust_aggregation import RobustAggregationMixin
 from .participation import edge_quota, round_index
@@ -39,6 +40,10 @@ class EdgeServerBase(RobustAggregationMixin, ABC):
         # ── 后门防御（鲁棒聚合）。None=不设防 → robust_mean 回退普通加权平均。──
         # robust_mean 现在来自 RobustAggregationMixin（cloud 层共用同一份实现）。
         self._init_defense(config, layer="edge")
+        # 按上传物的 BN 统计量判的防御（CCS）要知道统计量在权重列表里的位置 —— 在这里注入，
+        # 不留给 main.py（F-107：SA-C 只在测试里手工注入，CCSF ccs-full 在集群上第 1 个 edge 轮就崩）。
+        if hasattr(self.defense, "set_stat_indices"):
+            self.defense.set_stat_indices(get_bn_stat_indices(model), label=edge_id)
 
         # ── 独立播种的 RNG：客户端选取必须可复现，否则矩阵里同一格重跑对不上。
         # 每个 edge 一条独立流（seed, edge_id），互不干扰全局 np.random。
