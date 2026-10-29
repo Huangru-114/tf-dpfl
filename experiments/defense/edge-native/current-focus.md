@@ -35,12 +35,33 @@
 
 **还开着的**：D-096（「CCS 消融里对抗训练约占 85%」的出处）—— 找到要在 **CCSP 交作业之前**补成预注册预测。CCSP 登记时每布点补一个 off 臂（D-109 ②）。
 
-## 二、P1（在线上传前加固，D-108）：已回传、判 `go_main_col`（2026-10-29，F-103）
+## 二、P1 → 下一批（D-111）：3 个加固 run，约 20 GPU-h
 
-- `P1__col-pre__s42`（SAU 8/255、BN 更新、5 遍，上传前加固）vs SNAP__collocated__s42。闸通过（第 1 云轮 `[HardenAgg] unhardened` = SNAP `[Checksum] Round 1`；`[Harden]` 240 行、0 发散）。
-- 受害 edge V 0.995 → 0.519（ΔV 0.476）、ΔMTA 0.0086 → `go_main_col`；但 jump 只降 21%（比值 0.79，jump 那一项不过）、攻击者 edge E0 0.998 → 0.950 基本没动；
-  臂的 V 不是平台值（第 46–60 云轮 0.24–0.65 振荡）→ **单 seed，幅度没有可外推的证据**。加固墙钟 +116% round_time。
-- 判定 `analysis/p1_verdict.json`。**等用户定**：按 PLAN 进 s43–44 复验（`P1__col-pre__s4{3,4}`，各约 7.5 GPU-h），还是先做分散布点 / A-every。
+**P1 结果**（2026-10-29，F-103）：`P1__col-pre__s42` 判 `go_main_col`。受害 edge V 从 0.995 降到 0.519，ΔMTA 0.0086；但 jump 只降 21%，E0 基本没动，后半程振荡，单 seed。判定 `analysis/p1_verdict.json`。
+
+**下一批**（已 materialize；判定脚本已 commit）：
+| run | 作用 | 对照（已有） | 判定 |
+|---|---|---|---|
+| `H1__col-pre__s43`、`H1__col-pre__s44` | 补 seed：与 P1__col-pre 同配置，凑 3 seed | SNAP__collocated__s43 / s44 | `harness/h1_verdict.py` |
+| `P1__dist-pre__s42` | 分散布点 [3,3,2,2] 的第一次筛选（PLAN H3 预测 `no_effect`） | SNAP__distributed__s42 | `p1_verdict.py --placement distributed` |
+
+**集群上**（先 `git pull`、`git log --oneline -1`）：
+
+```bash
+PACK=2 RUN_GROUPS="H1 P1" bash experiments/defense/edge-native/submit.sh --dry-run
+```
+应看到 2 个作业：`H1__col-pre__pack-k2-s43`（s43 + s44 一包，`-c 8 --mem=48G`）、`P1__dist-pre__pack-k1-s42`（单跑）。确认后去掉 `--dry-run` 再交。
+墙钟：dist-pre 约 7.8 h；K=2 包没有实测（估 ≤ 12 h，**无证据**），回来看 `results/P2/H1/H1__col-pre__pack-k2-s43.gpu.json` 的 `wall_s`，记 FINDINGS。
+
+**回传后**：
+
+```bash
+python3 harness/h1_verdict.py --pair experiments/defense/edge-native/results/P2/P1/P1__col-pre__s42.metrics.json experiments/defense/edge-native/results/P2/SNAP/SNAP__collocated__s42.metrics.json --pair experiments/defense/edge-native/results/P2/H1/H1__col-pre__s43.metrics.json experiments/defense/edge-native/results/P2/SNAP/SNAP__collocated__s43.metrics.json --pair experiments/defense/edge-native/results/P2/H1/H1__col-pre__s44.metrics.json experiments/defense/edge-native/results/P2/SNAP/SNAP__collocated__s44.metrics.json --out experiments/defense/edge-native/analysis/h1_pre_verdict.json
+```
+```bash
+python3 harness/p1_verdict.py --placement distributed --arm experiments/defense/edge-native/results/P2/P1/P1__dist-pre__s42.metrics.json --control experiments/defense/edge-native/results/P2/SNAP/SNAP__distributed__s42.metrics.json --out experiments/defense/edge-native/analysis/p1_dist_verdict.json
+```
+然后用户定：H1 要不要补 s45 / s46（连同 SNAP5 的 2 个集中对照，D-111 ①）；CAL 要不要交（只在 partial / no_effect 时有用）。
 
 ## 三、到现在为止的结论（细节见 FINDINGS）
 

@@ -93,6 +93,19 @@ groups:
       <<: *d_base
       defense.edge_harden: sau-e8-train-high
     cells:
+      - {cell: col-pre,  set: {backdoor.malicious_per_edge: [10, 0, 0, 0]}}
+      # D-111（2026-10-29）：分散布点的筛选，对照 = SNAP__distributed__s42；判定 p1_verdict.py --placement distributed
+      - {cell: dist-pre, set: {backdoor.malicious_per_edge: [3, 3, 2, 2]}}
+
+  H1:
+    purpose: "PLAN §4 H1 的 A-pre 臂（D-111）：P1__col-pre 判 go_main_col（F-103）→ 同配置补 s43 / s44，s42 复用 P1；对照 = SNAP__collocated__s4x。先 3 seed（D-111 偏离 D-099 的 5 seed，s45 / s46 等 3 seed 结果再定）"
+    requires: [audit, sa1-pre]
+    seeds: [43, 44]
+    # 与 P1 col-pre 逐字同一个 set（守卫 test_h1_differs_from_p1_col_pre_only_in_seed）。判定 harness/h1_verdict.py（先 commit 再交）。
+    set:
+      <<: *d_base
+      defense.edge_harden: sau-e8-train-high
+    cells:
       - {cell: col-pre, set: {backdoor.malicious_per_edge: [10, 0, 0, 0]}}
 
   CAL:

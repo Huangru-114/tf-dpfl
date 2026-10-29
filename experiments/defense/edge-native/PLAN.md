@@ -252,6 +252,29 @@ PGD 步长按官方比例随 ε、K 缩放（不是官方的绝对步长，D-105
 
 记号：`组__单元__s<seed>`；「条件」= 只有前置组给出相应标签才交。
 
+### 总表（2026-10-29，D-111）
+
+读法：
+- **布点**：`col` 集中 = `[10,0,0,0]`，攻击者全在 E0，E1–E3 内部干净，后门只能经云聚合传过去；`dist` 分散 = `[3,3,2,2]`，每个 edge 内部都有攻击者。
+- **臂**：`A-pre` = 每个云轮末，edge 在上传前用自己的 500 张干净图做 SAU 对抗训练（`defense.edge_harden: sau-e8-train-high`）。
+- **单元名** = 布点-臂，例如 `col-pre`。
+- **筛选**组（P1 / CCSP）只跑 s42、不进结论；判 `go_main` 的臂进 H1 / H3 补 seed。
+
+| 组 | 回答的问题 | 格子 × seed | run | 状态 | 判定 |
+|---|---|---|---|---|---|
+| SNAP | 无防御对照 + 快照 | {col, dist} × s42–44 | 6 | ✅ F-094 | 有效性闸 |
+| P0 | 离线：一次加固砍掉多少灌入 | 36 配置 × 2 快照 | 0 | ✅ `accuracy_bound` F-100 | N-008 |
+| P1 col-pre | 在线 A-pre，集中，筛选 | s42 | 1 | ✅ `go_main_col` F-103 | N-008 P1 |
+| P1 dist-pre | 在线 A-pre，分散，筛选 | s42 | 1 | 待交（D-111） | N-008 P1（分散） |
+| H1 col-pre | A-pre 集中主检验（补 seed；s42 = P1） | s43–44（s45 / s46 待定） | 2 | 待交（D-111） | `h1_verdict.py` |
+| SNAP5 | 5 seed 的对照 | {col, dist} × s45–46 | 4 | 挂 `h-main` | — |
+| CAL | 不饱和工作点 | 6 格 × s42 | 6 | 挂 `SA1`（D-111 暂不放行） | 选择规则 |
+| CCSF | CCS flat 复现闸 | {off, ccs-full} × s42 | 2 | 已就绪，先探路 | `ccsf_verdict.py` |
+| CCSP | CCS 三臂 HFL 筛选 | 3 臂 × {col, dist} × s42 | 6 | 等 CCSF | P1 规则 |
+| H3 | 分散主检验 | go 的臂 × s43–46 | ≤ 8 | 等 P1 dist / CCSP | H3 |
+| H1 / H3 floor、CLD、FLAT、DATA、W2 | 见下 | 见下 | — | 条件；A-every / A-cloud 未实现 | — |
+| AA、H2、ATK2、H5 | 见下 | 见下 | — | 要 SA2–SA6 | — |
+
 ### SNAP —— 快照 + 对照臂（不改代码，D0 之后即可交）
 
 - **目的**：P0 的原料（S3 划分上的上传前 body + edge 干净集 + 各端私有 BN 统计量）；所有主检验的无防御对照。

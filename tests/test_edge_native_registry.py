@@ -251,3 +251,23 @@ def test_power_script_sums_with_fsum():
         if re.search(r"(?<![\w.])sum\(", ln):
             assert re.search(r"sum\(1 for", ln), ln               # 只许整数计数
     assert math.fsum([0.1] * 10) == 1.0
+
+
+# ── D-111：H1（A-pre 补 seed）与 P1 dist-pre ────────────────────────────────────
+def test_h1_differs_from_p1_col_pre_only_in_seed(reg):
+    """H1 = P1__col-pre 同配置补 s43 / s44（s42 复用 P1）。"""
+    by = {r["run_id"]: r for r in reg.runs()}
+    assert sorted(r for r in by if r.startswith("H1__")) == ["H1__col-pre__s43", "H1__col-pre__s44"]
+    a = reg.declared_config(by["P1__col-pre__s42"])
+    b = reg.declared_config(by["H1__col-pre__s43"])
+    assert _diff(a, b) == {"seed", "meta.group", "meta.run_id"}
+    assert reg.unmet_requires("H1") == []
+
+
+@pytest.mark.parametrize("cell,snap", [("col-pre", "collocated"), ("dist-pre", "distributed")])
+def test_p1_cells_differ_from_their_snap_control_only_in_the_hardening_switch(reg, cell, snap):
+    """P1 的闸（第 1 云轮 [HardenAgg] = 对照 [Checksum]）要求：与同布点的 SNAP 只差加固开关与快照开关（快照只是记录）。"""
+    by = {r["run_id"]: r for r in reg.runs()}
+    a = reg.declared_config(by[f"P1__{cell}__s42"])
+    b = reg.declared_config(by[f"SNAP__{snap}__s42"])
+    assert _diff(a, b) == {"defense.edge_harden", "evaluation.snapshot_rounds", "meta.group", "meta.run_id"}
