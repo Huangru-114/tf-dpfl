@@ -14,23 +14,24 @@
 - 判定：`harness/ccsf_verdict.py`（N-008 CCSF 段，**已 commit**）。登记：CCSF 两格已补 `set:`，挂 `ccs-space`（`SA-C` 已加进 available）。
 - 守卫：`tests/test_ccs_spec.py`（本地）/ `test_ccs_config.py`（本地）/ `test_ccsf_verdict.py`（本地）/ `test_ccs_tf.py`（TF）。
 
+**对抗样本空间已定**（2026-10-29，F-102 / D-110）：探针显示标准化空间（照官方代码）与像素空间都让模型全错、像素约强 1.9 倍（同一量级）→ CCSF 只跑 input；
+`ccs-space` 已放行，CCSF 两格已 materialize（`configs/CCSF__{off,ccs-full}__s42.yaml`）。机时更正：每个 ccs run 约 6–7 GPU-h（不是之前写的 15–25）。
+
 **集群上要做的**（用户）：
-1. `git pull` → 交离线探针（零训练，约 10–20 GPU-分钟）：
+1. `git pull`，看 `git log --oneline -1`。
+2. 先探路（新模型 + 新代码路径第一次上 GPU；陷阱 #23：对抗训练在推理模式的 BN 上求梯度）：只交 ccs-full、短时限，回来看日志里没有被吞的客户端异常、`[CCS]` 每轮一行、显存：
 
-   `sbatch experiments/defense/edge-native/ccs_probe.sbatch`
+   `RUN_GROUPS=CCSF bash experiments/defense/edge-native/submit.sh --dry-run`（先看会交什么）
 
-   回传 `experiments/defense/edge-native/analysis/ccs_space_probe.SNAP__collocated__s42.r15.json`。
-2. 下一个会话读探针：`summary` 里 input-15 与 pixel-15 的 `kl` / `adv_acc` / `feat_rel` / `dpx_*` 量级是否相近 →
-   相近：主臂 = input（照官方代码）；差一个量级：CCSF 加一格 `ccs-full-pixel`。由用户定，记 DECISIONS；然后把 `ccs-space` 加进 `available`、
-   **不带 `--group`** materialize、交 CCSF（2 或 3 run）。
-3. **机时**：每个 body 批 = 15 步输入梯度 + 两次前向 → body 阶段估计 ×10 上下（PLAN 原估 ×2.5–4）。探针的 `seconds_per_batch`（batch 32）× 每 run 的 body 批数
-   （每轮 10 端 × 375/32 ≈ 11 批 × 5 epoch × 300 轮）就是对抗样本的额外墙钟 —— 交 CCSF 之前先用它估一遍（可能 15–25 GPU-h / run，而非 2.5）。
-   新模型 + 新代码路径第一次上 GPU：先交一个短时限的 ccs-full（`-t 0:30:00`）看 `client_failures` 为空（陷阱 #23：AT 在推理模式 BN 上求梯度）、显存。
-4. CCSF 回传后：
+   探路可以直接 `sbatch -t 0:30:00 experiments/attack/hfl-mechanism/cell.sbatch experiments/defense/edge-native/configs/CCSF__ccs-full__s42.yaml CCSF__ccs-full__s42 <临时 metrics 路径>`
+   （metrics 写到 results/ 以外，免得被当成完成的 run）。
+3. 探路没问题 → `RUN_GROUPS=CCSF bash experiments/defense/edge-native/submit.sh`（2 run；off 约 3–4 GPU-h，ccs-full 约 6–7 GPU-h）。
+4. 回传后：
 
    `python3 harness/ccsf_verdict.py --off experiments/defense/edge-native/results/P2/CCSF/CCSF__off__s42.metrics.json --ccs experiments/defense/edge-native/results/P2/CCSF/CCSF__ccs-full__s42.metrics.json --out experiments/defense/edge-native/analysis/ccsf_verdict.json`
 
-   读 `rejection.fpr` 时记住 F-101 ⑧：官方聚类参数在彼此很近的良性端上也会剔掉一部分。
+   读 `rejection.fpr` 时记住 F-101 ⑧：官方聚类参数在彼此很近的良性端上也会剔掉一部分。判定不是 `ccs_reproduces` → pixel 版是第一个排查项（D-110）。
+   ccs-full 的日志会有一条「backdoor.enabled=false 但 defense.name=…」的假警告，是已有代码的问题（F-102 末条），不用管。
 
 **还开着的**：D-096（「CCS 消融里对抗训练约占 85%」的出处）—— 找到要在 **CCSP 交作业之前**补成预注册预测。CCSP 登记时每布点补一个 off 臂（D-109 ②）。
 

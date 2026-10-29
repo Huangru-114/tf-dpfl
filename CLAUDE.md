@@ -530,7 +530,7 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
     服务端：`defense/ccs.py`（复用 `analysis/bn_cluster.detect`，与官方 `hdbscan` 包逐例相同；彼此很近的良性端也会被剔掉一部分，F-101 ⑧）。
     工厂：防御类有 `from_config` 就用它建（参数自成一块的防御）；`client_mixin_ref` 让 config_validate 不为核对而 import TF。
   - 模型 `resnet10_torch_proj` = resnet10_torch + 私有投影（`proj_*` 归进 head，`models.cnn.PRIVATE_HEAD_PREFIXES`）；P2 核对视为与模板等价（`alignment.P2_EQUIVALENT`，`[设定4]` 照实打印）。
-  - 自描述 `[设定12]`、`[MalShare]`、每次 edge 聚合一行 `[CCS]` → collect_metrics **schema 13**；判定 `harness/ccsf_verdict.py`（N-008 CCSF 段）。CCSF 挂 `ccs-space`（等探针）。
+  - 自描述 `[设定12]`、`[MalShare]`、每次 edge 聚合一行 `[CCS]` → collect_metrics **schema 13**；判定 `harness/ccsf_verdict.py`（N-008 CCSF 段）。探针 F-102 → CCSF 对抗空间 = input（D-110），已放行。
   - 守卫：`test_ccs_spec` / `test_ccs_config` / `test_ccsf_verdict`（本地）+ `test_ccs_tf`（TF）。交接见 current-focus。
 
 **留了接口但没有实现的**（不要以为它们能用）：
