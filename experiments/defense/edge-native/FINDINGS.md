@@ -498,3 +498,41 @@ H1 规则（均值 ≥ 0.15 且最小 seed ≥ 0.10 → `protects`；三个 |Δ|
 - 修法（D-112）：`EdgeServerBase.__init__` 建好防御后，若防御有 `set_stat_indices` 就用 `get_bn_stat_indices(self.model)` 注入。测试里的手工注入删掉，让这条 TF 测试走生产路径；
   另加本地 AST 守卫：`defense/ccs.py` 以外的 `fedavg/` 代码里必须有这一调用。
 - CCSF off 正常（exit 0、60 个评估点、无 client_failures），不重跑。ccs-full 修好后先 30 分钟探路、再整跑（用户 2026-10-29）。
+
+## 2026-10-29（CCSF ccs-full 修好接线后的两次运行：探路 job 4618401、整跑 job 4621764）
+
+### F-108 `confirmed`（数据 + 本地实测）—— 主机内存：24G 不够，48G 下峰值约 31 GiB；大头是「每个客户端一整套模型和计算图」，CCS 端每个约是普通端的 1.8 倍
+
+- 第一次 30 分钟探路（job 4617499，24G）：约 26 分钟被 cgroup OOM 杀掉（exit 137，`oom_kill event`）。
+  48G 下：探路 1 h 的 MaxRSS 32 639 808 K（31.1 GiB），整跑 31 001 152 K（29.6 GiB），都没有 OOM。CCSF off 在 24G 下跑完。
+- 本地实测（tensorflow-cpu 2.15，真实 `resnet10_torch_proj`、32×32、batch 32、steps 15；每多建一个客户端、跑两步训练后主机 RSS 的增量）：
+  普通 FedRep 端中位 **118 MiB / 个**，CCS 良性端中位 **211 MiB / 个**。模型参数本身只有约 20 MB，其余是每个客户端各自的 Keras 模型对象、优化器、编译好的 `@tf.function` 图；
+  CCS 多出的部分来自对抗样本的 15 步 PGD：在图里展开成 15 份前向 + 反向，每个良性端各编译一份。外推：90 个良性端多约 8 GiB，与「16.7 GiB 基线 + 8 GiB > 24G」对得上（GPU / XLA 下主机侧的量**没有直接测**）。
+- 根本原因是仿真的写法：`main.py:575` 给 100 个客户端各 `clone_model` 一份完整模型，而训练是串行的（`n_workers=1`）。根治 = 所有客户端共用一个训练模型、只存私有部分 —— 是一次大改，单开会话。
+- 顺带：作业脚本没有 `PYTHONUNBUFFERED`，stdout 经管道给 `tee` 是块缓冲，进程被 SIGKILL 时缓冲区里的行全丢（第一次探路的日志里一行训练输出都没有）。临时办法：`sbatch --export=ALL,PYTHONUNBUFFERED=1`。
+
+### F-109 `confirmed`（数据 + 官方代码核对）—— ccs-full 的主任务在第 10 轮起就垮了，第 54 轮良性端 NaN 后崩溃；官方代码核实：PResNet 投影层在分类路径上、FedPer 每步联合训练，与我们 FedRep 的分阶段训练是不同的优化问题
+
+- **运行**：整跑（job 4621764，git `71b1255`，48G）在第 54 轮崩溃：良性端 25 的 loss 为 `nan` → 上传的 BN 统计量含 NaN → `HDBSCAN` 报 `np.nan values found in precomputed-dense`（exit 1）。metrics.json 留在 results/（status = failed）。
+- **崩之前主任务已经垮了**（off 对 ccs-full，同 seed）：
+
+  | 轮 | off EM / PM | ccs-full EM / PM | off 良性 ASR | ccs-full 良性 ASR |
+  |---|---|---|---|---|
+  | 10 | 0.468 / 0.497 | 0.389 / 0.313 | 0.046 | 0.070 |
+  | 20 | 0.587 / 0.623 | 0.539 / 0.358 | 0.187 | 0.072 |
+  | 30 | 0.668 / 0.674 | 0.586 / 0.360 | 0.227 | 0.053 |
+  | 40 | 0.687 / 0.741 | 0.619 / 0.346 | 0.346 | 0.183 |
+  | 50 | 0.735 / 0.763 | 0.609 / 0.341 | 0.607 | 0.122 |
+
+  PM 从第 10 轮起停在 0.34–0.37；ccs-full 的低 ASR **不能读作防御有效**（主任务学不上去，后门也学不进去）。原文 CCS 的 MTA 是 79.76%。
+- **PM < EM**：edge 模型的 head 与投影层从不更新（`server/hier_fedrep.py` 只聚合 body，一直是初始化值）。ccs-full 里用这组没训过的 head 得 0.61，用客户端训过的私有 head 只有 0.34；off 里是 0.73 < 0.76。→ 坏的是「私有部分与共享 body 对不上」，不是 body 本身。
+- **聚类**：每轮剔 3/10（`n // 2 + 2 = 7` 的上限），与 F-101 ⑧ 的固有良性剔除一致；会减慢训练，解释不了 PM 停在 0.34。
+- **官方代码核实**（2026-10-29 重读 `chenjian0924/paper-code @ b4b8653`，`CCS/`）：
+  1. `src/utils/models.py`：`PResNet(DecoupledModel)` = `base`（ResNet-18 主干到 `AvgPool2d(4)` + `Flatten`）→ `project`（`Linear(512, 256)` → ReLU → `Linear(256, 512)`）→ `classifier`；`PResNet18` 登记在 `MODELS`；`config/defaults.yaml` 的 `name: PResNet18`。
+     原文 Eq. 5–7 提到「个性化投影网络 p_i」，但**没写它的结构、也没写它在分类路径上** —— 只能从代码看出来。
+  2. `src/client/fedper.py`：state_dict 里名字含 `classifier` / `project` 的都私有；**不重写 `fit()`** → 沿用 `FedAvgClient`，所有参数每一步一起训。
+  3. `config/defaults.yaml`：`local_epoch: 2`、`batch_size: 64`、`lr: 0.1`、`momentum: 0`。原文正文写「两步本地训练」，与代码的 2 个 epoch 对不上。
+     **更正**：会话里一度说「原文每轮 2 步、对抗训练量差 27 倍」—— 按代码是 2 个 epoch，我们 body 5 epoch、batch 32：数据遍数约 2.5 倍、更新步数约 5 倍。
+- **由此的语义差异**（D-109 ⑥ 只写了「FedRep vs FedPer」，没写到这一层）：原文里投影层与分类头每一步都和 body 一起、以 lr 0.1 被 CE + KL + MMD 训练；
+  我们的 FedRep 里它们只在 head 阶段用干净 CE 训（每轮 1 epoch、lr 0.005 衰减），**KL / MMD 的梯度永远到不了投影层**，MMD 只能靠改 body 去迁就一个几乎不动的投影层。
+  这是主任务崩坏的首要嫌疑，**没有消融证据**；NaN 的来源也还不知道。下一步：加 FedPer 方法后本地消融（D-113）。
