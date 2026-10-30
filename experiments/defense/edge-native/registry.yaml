@@ -133,10 +133,30 @@ groups:
     # CCS 参数全取缺省（defense/ccs_spec.py DEFAULTS：原文系数 0.01 / 0.01、官方代码的对抗样本、space=input、pool=round）；
     #   space：探针（analysis/ccs_space_probe.py，F-102）显示 input / pixel 同一量级 → D-110 定 input、不加格；
     #   pixel 版留作 CCSF 不是 ccs_reproduces 时的排查项。
+    # D-113 / D-114（2026-10-30）：FedRep 下 ccs-full 的主任务垮了（F-109）→ CCSF 改在**官方框架**下验证实现：
+    #   hier_fedper（每步联合训练 body + proj + head，BN 统计量共享）+ 官方超参数（config/defaults.yaml：
+    #   local_epoch 2、batch 64、lr 0.1 常数、无 momentum）。旧的 FedRep 版两格结果留在 results/（sha 不同 → stale），作「迁移」参照。
+    #   内存：ccs 格子主机内存峰值约 31 GiB（F-108）→ 提交时 PACK=2 PACK_MEM_PER_RUN_GB=48。
     set: {federation.n_edges: 1, federation.edge_rounds: 1, federation.n_rounds: 300, stopping: null,
           evaluation.eval_grid: 5, evaluation.eval_interval: 5, backdoor.eval_interval: 5,
-          backdoor.malicious_per_edge: [10], model.arch: resnet10_torch_proj}
+          backdoor.malicious_per_edge: [10], model.arch: resnet10_torch_proj,
+          training.drift_correction: hier_fedper, training.local_epochs: 2, data.batch_size: 64,
+          training.learning_rate: 0.1, training.lr_decay: 1.0}
     cells:
       - {cell: "off"}
       - {cell: ccs-full, set: {defense.name: ccs, defense.layers: [client, edge], defense.ccs.at: true,
                                defense.ccs.cluster: true, defense.ccs.space: input, defense.ccs.pool: round}}
+
+  CCSA:
+    purpose: "D-113 的消融（F-110）：FedPer + **我们的**超参数（5 epoch、batch 32、lr 0.1 按有效轮衰减），30 轮。与 CCSF（FedPer + 官方超参数）的前 30 轮、旧 FedRep 版 CCSF 的前 30 轮对比 → 分清主任务崩坏来自框架还是超参数"
+    requires: [audit, SA-C, ccs-space]
+    seeds: [42]
+    # 只比 CCSF 少两处：训练量 / batch / lr 日程用 base 的值（不覆盖），n_rounds 30（第 10 轮主任务就已分开，F-109）。
+    set: {federation.n_edges: 1, federation.edge_rounds: 1, federation.n_rounds: 30, stopping: null,
+          evaluation.eval_grid: 5, evaluation.eval_interval: 5, backdoor.eval_interval: 5,
+          backdoor.malicious_per_edge: [10], model.arch: resnet10_torch_proj,
+          training.drift_correction: hier_fedper}
+    cells:
+      - {cell: fedper-ours-off}
+      - {cell: fedper-ours-ccs, set: {defense.name: ccs, defense.layers: [client, edge], defense.ccs.at: true,
+                                      defense.ccs.cluster: true, defense.ccs.space: input, defense.ccs.pool: round}}

@@ -109,7 +109,9 @@ CCS_SETTINGS_KEYS = ("at", "cluster", "kl", "mmd", "steps", "step", "eps", "radi
 # 13 = 阶段三 SA-C（CCS，D-109）：run.ccs + run.ccs_*（[设定12]；ccs=false = 没开）；新表 ccs_decisions
 #     （[CCS]：每次 edge 聚合一行 —— 本轮上传的 id、池大小、HDBSCAN 状态、被剔除的 id；剔除 TPR / FPR 的原料）；
 #     run.malicious_data_share（[MalShare]：恶意端训练数据占比，旧 noniid 下不等于名义比例）。老日志 → None / 空表。
-SCHEMA_VERSION = 13
+# 14 = 阶段三 Hier-FedPer（D-114）：run.fedper / run.fedper_bn_stats（[设定13]；FedPer 的 BN 统计量固定共享，
+#     [设定4] 的 fedrep_bn_stats 对它无效）。老日志 → None。
+SCHEMA_VERSION = 14
 
 # A4 的副列：key=value 行（utils/kvline.py）→ rounds[] / acc_rounds[] 的字段。
 # 缺行（旧口径、或该列本 run 没开）→ null，**不是 0**。
@@ -350,6 +352,7 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
     setg10 = None
     setg11 = None
     setg12 = None
+    setg13 = None
     malshare = None
     data = None
     data_edges = []
@@ -381,6 +384,9 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
         d = parse_kv(ln, "[设定12]")
         if d is not None:
             setg12 = d
+        d = parse_kv(ln, "[设定13]")
+        if d is not None:
+            setg13 = d
         d = parse_kv(ln, "[MalShare]")
         if d is not None:
             malshare = d
@@ -458,6 +464,9 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
         # 阶段三 SA-C CCS（[设定12]）。None = 老日志（不知道）；false = 没开。参数平铺成 ccs_*（status 核对）。
         "ccs":               setg12.get("ccs") if setg12 else None,
         **{f"ccs_{k}": (setg12.get(k) if setg12 else None) for k in CCS_SETTINGS_KEYS},
+        # 阶段三 Hier-FedPer（[设定13]，schema 14）。None = 老日志（不知道）；false = 不是 FedPer。
+        "fedper":            setg13.get("fedper") if setg13 else None,
+        "fedper_bn_stats":   setg13.get("bn_stats") if setg13 else None,
         # 恶意端训练数据占比（[MalShare]，schema 13）；旧 noniid 下不等于名义比例（D-098）。None = 老日志。
         "malicious_data_share": malshare.get("share") if malshare else None,
         # ── 自适应轮数：这一格跑到第几轮、为什么停 ──────────────────────

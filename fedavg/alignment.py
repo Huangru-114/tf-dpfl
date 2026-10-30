@@ -140,9 +140,9 @@ EXTRA_SWITCHES = (
 ALL = {s.key: s for s in SWITCHES + EXTRA_SWITCHES}
 
 # evaluation.pm_model=fresh 需要方法定义「私有部分」（client.private_state）：
-# FedAvg 没有私有部分 → fresh-PM = 当前 edge 模型（D-033）；FedRep = head（+ 统计量，A27）。
+# FedAvg 没有私有部分 → fresh-PM = 当前 edge 模型（D-033）；FedRep = head（+ 统计量，A27）；FedPer = head + proj（统计量共享，D-114）。
 # 其他方法没定义，config_validate 拒绝 fresh（无从组装，不能静默退化）。
-PM_FRESH_METHODS = frozenset({"fedavg", "hierfedavg", "hier_fedrep"})
+PM_FRESH_METHODS = frozenset({"fedavg", "hierfedavg", "hier_fedrep", "hier_fedper"})
 
 # model.arch 历来由 build_model 直接读（`config["model"]["arch"]`），不走 get_switch。
 READ_DIRECTLY = frozenset({"model.arch"})

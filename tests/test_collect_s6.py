@@ -77,7 +77,7 @@ def _log():
 
 
 def test_schema_is_13():
-    assert CM.SCHEMA_VERSION == 13
+    assert CM.SCHEMA_VERSION == 14
 
 
 def test_settings9_becomes_four_scalars_in_the_run_block():

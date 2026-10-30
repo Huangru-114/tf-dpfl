@@ -100,6 +100,13 @@ class HierFedRepClient(FLClientBase):
         self._head_opt = tf.keras.optimizers.SGD(learning_rate=self._head_lr_var)
         self._base_opt = tf.keras.optimizers.SGD(learning_rate=self.lr_schedule)
 
+    # ── 训练步接口：CCS mixin 的对抗训练步对这组变量求梯度、用这个优化器（FedPer 覆写为全部变量，D-114）──
+    def step_vars(self):
+        return self._base_tvars
+
+    def step_optimizer(self):
+        return self._base_opt
+
     def apply_round_lr(self, round_idx: int):
         """除基类 lr（backbone）外，个性化 head 的 lr 也按 global round 衰减。"""
         super().apply_round_lr(round_idx)

@@ -3,7 +3,7 @@ seed: 42
 data:
   dataset: cifar10
   img_size: 32
-  batch_size: 32
+  batch_size: 64
   shuffle_buffer: 2000
   num_classes: 10
   per_client_test_ratio: 0.25
@@ -31,10 +31,10 @@ federation:
   edge_schedule: interleaved
   quota_round_axis: effective
 training:
-  local_epochs: 5
+  local_epochs: 2
   learning_rate: 0.1
-  lr_decay: 0.992
-  drift_correction: hier_fedrep
+  lr_decay: 1.0
+  drift_correction: hier_fedper
   proximal_ref: edge
   mu: 1.0
   mu_edge: 0.1

@@ -513,7 +513,7 @@ H1 规则（均值 ≥ 0.15 且最小 seed ≥ 0.10 → `protects`；三个 |Δ|
 
 ### F-109 `confirmed`（数据 + 官方代码核对）—— ccs-full 的主任务在第 10 轮起就垮了，第 54 轮良性端 NaN 后崩溃；官方代码核实：PResNet 投影层在分类路径上、FedPer 每步联合训练，与我们 FedRep 的分阶段训练是不同的优化问题
 
-- **运行**：整跑（job 4621764，git `71b1255`，48G）在第 54 轮崩溃：良性端 25 的 loss 为 `nan` → 上传的 BN 统计量含 NaN → `HDBSCAN` 报 `np.nan values found in precomputed-dense`（exit 1）。metrics.json 留在 results/（status = failed）。
+- **运行**：整跑（job 4621764，git `71b1255`，48G）在第 54 轮崩溃：良性端 25 的 loss 为 `nan` → 上传的 BN 统计量含 NaN → `HDBSCAN` 报 `np.nan values found in precomputed-dense`（exit 1）。metrics.json 留在 results/（status = failed）→ 2026-10-30 与 off 一起移到 `legacy/CCSF-fedrep/`（CCSF 改成 FedPer 后，新 run 会写同一路径，D-114 ⑥）。
 - **崩之前主任务已经垮了**（off 对 ccs-full，同 seed）：
 
   | 轮 | off EM / PM | ccs-full EM / PM | off 良性 ASR | ccs-full 良性 ASR |

@@ -533,6 +533,12 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
   - 自描述 `[设定12]`、`[MalShare]`、每次 edge 聚合一行 `[CCS]` → collect_metrics **schema 13**；判定 `harness/ccsf_verdict.py`（N-008 CCSF 段）。探针 F-102 → CCSF 对抗空间 = input（D-110），已放行。
   - 守卫：`test_ccs_spec` / `test_ccs_config` / `test_ccsf_verdict`（本地）+ `test_ccs_tf`（TF）。交接见 current-focus。
 
+- **阶段三 Hier-FedPer**（2026-10-30；`experiments/defense/edge-native/` FINDINGS F-109、DECISIONS D-113 / D-114）。
+  `training.drift_correction: hier_fedper`（`client/hier_fedper.py` / `server/hier_fedper.py`，继承 FedRep 的类）：照 CCS 官方代码的 FedPer ——
+  每个批一步对**全部可训练变量**求梯度（无 head 阶段，`plocal_epochs` 不用）；私有 = head + `proj_*`；**BN 统计量固定共享**（不读 `fedrep_bn_stats`）。
+  CCS mixin 的训练步经 `step_vars()` / `step_optimizer()`（FedRep = body，FedPer = 全部）。自描述 `[设定13]`，collect_metrics **schema 14**。
+  CCSF 用它 + 官方超参数（2 epoch、batch 64、lr 0.1 常数）；CCSA = 我们的超参数的消融。守卫 `tests/test_hier_fedper_tf.py`（TF）+ `test_ccs_config` / `test_edge_native_registry`（本地）。
+
 **留了接口但没有实现的**（不要以为它们能用）：
 - 主动防御（需要客户端配合的防御）：接口齐了（`BaseDefense.layers` /
   `client_mixin` / `make_control` + 客户端侧 `set_control` / `get_aux`）。**第一个实现是 CCS**（SA-C，只用了

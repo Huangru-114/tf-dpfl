@@ -10,8 +10,9 @@ client/ccs_mixin.py  —  CCS 的客户端那一半：良性端在 body 阶段�
      u0 = (1 − m)·u + m·noise，steps 步 sign 梯度**上升** max-margin（模型推理模式 = TorchBatchNorm 的非 fused 路径，陷阱 #23），
      投影到 u0 ± eps、clamp [0, 1]；
   3. `_ccs_train`（@tf.function）：先对抗前向（推理模式，不更新 BN 统计量）、再干净前向（训练模式），
-     L = CE + kl·KL(p_clean ‖ p_adv) + mmd·MMD_rbf(f_clean, f_adv)，f = proj_2 的输出；只对 body 变量求梯度，
-     clip 全局范数后用方法类自己的 body 优化器更新。KL 两边都不 detach（官方 `F.kl_div` 的写法）。
+     L = CE + kl·KL(p_clean ‖ p_adv) + mmd·MMD_rbf(f_clean, f_adv)，f = proj_2 的输出；对 `step_vars()` 求梯度，
+     clip 全局范数后用方法类自己的优化器更新（`step_vars` / `step_optimizer`：FedRep = body，FedPer = 全部，D-114）。
+     KL 两边都不 detach（官方 `F.kl_div` 的写法）。
 logits = f·W_head + b_head（softmax 之前的量；max-margin 与 KL 都要它），CE 用模型自己的 softmax 输出（与 off 臂同一个 loss_fn）。
 """
 
@@ -125,9 +126,10 @@ class CCSClientMixin:
             la = tf.nn.log_softmax(atk.logits(f_adv))
             kl = tf.reduce_mean(tf.reduce_sum(tf.exp(lc) * (lc - la), axis=1))
             total = ce + p["kl"] * kl + p["mmd"] * _mmd_rbf_tf(f_cln, f_adv)
-        grads = tape.gradient(total, self._base_tvars)
+        tvars = self.step_vars()                            # FedRep：body；FedPer：全部可训练变量（D-114）
+        grads = tape.gradient(total, tvars)
         grads, _ = tf.clip_by_global_norm(grads, p["clip_norm"])
-        self._base_opt.apply_gradients(zip(grads, self._base_tvars))
+        self.step_optimizer().apply_gradients(zip(grads, tvars))
         return ce
 
     def ccs_adversarial(self, x, y):

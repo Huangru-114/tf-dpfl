@@ -97,7 +97,9 @@ def test_three_checks_for_every_declared_set(reg):
         cfg = reg.declared_config(run)
         fed, ev = cfg["federation"], cfg["evaluation"]
         assert len(cfg["backdoor"]["malicious_per_edge"]) == fed["n_edges"], run["run_id"]
-        assert fed["n_rounds"] * fed["edge_rounds"] == 300, run["run_id"]
+        # CCSA（D-113 的消融）刻意只跑 30 轮：第 10 轮主任务就已分开（F-109），对照是 CCSF / 旧 FedRep 版的前 30 轮
+        want = 30 if run["group"] == "CCSA" else 300
+        assert fed["n_rounds"] * fed["edge_rounds"] == want, run["run_id"]
         assert cfg.get("stopping") is None, run["run_id"]
         grids.add(ev["eval_grid"])
     assert grids == {5}
@@ -271,3 +273,22 @@ def test_p1_cells_differ_from_their_snap_control_only_in_the_hardening_switch(re
     a = reg.declared_config(by[f"P1__{cell}__s42"])
     b = reg.declared_config(by[f"SNAP__{snap}__s42"])
     assert _diff(a, b) == {"defense.edge_harden", "evaluation.snapshot_rounds", "meta.group", "meta.run_id"}
+
+
+# ── D-113 / D-114：CCSF 改在 FedPer + 官方超参数下；CCSA 只差超参数 ───────────────
+def test_ccsf_is_fedper_with_the_official_hyperparameters(reg):
+    """官方 config/defaults.yaml：local_epoch 2、batch 64、lr 0.1、无 momentum（lr 常数 = lr_decay 1.0）。"""
+    for r in (x for x in reg.runs() if x["group"] == "CCSF"):
+        cfg = reg.declared_config(r)
+        t = cfg["training"]
+        assert t["drift_correction"] == "hier_fedper", r["run_id"]
+        assert (t["local_epochs"], cfg["data"]["batch_size"], t["learning_rate"], t["lr_decay"]) == (2, 64, 0.1, 1.0)
+
+
+def test_ccsa_differs_from_ccsf_only_in_hyperparameters_and_length(reg):
+    by = {r["run_id"]: r for r in reg.runs()}
+    for ccsf, ccsa in (("CCSF__off__s42", "CCSA__fedper-ours-off__s42"),
+                       ("CCSF__ccs-full__s42", "CCSA__fedper-ours-ccs__s42")):
+        d = _diff(reg.declared_config(by[ccsf]), reg.declared_config(by[ccsa]))
+        assert d == {"training.local_epochs", "data.batch_size", "training.lr_decay", "federation.n_rounds",
+                     "meta.group", "meta.run_id"}, d

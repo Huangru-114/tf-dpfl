@@ -24,12 +24,14 @@ from client.hier_ditto_rep      import HierDittoRepClient
 from client.hier_pfedme_rep     import HierPFedMeRepClient
 from client.hier_ditto          import HierDittoClient
 from client.hier_fedrep         import HierFedRepClient
+from client.hier_fedper         import HierFedPerClient
 from server.edge_server_pfedme import PFedMeEdgeServer
 from server.edge_server_fedavg import FedAvgEdgeServer
 from server.hier_ditto_rep      import HierDittoRepEdgeServer
 from server.hier_pfedme_rep     import HierPFedMeRepEdgeServer
 from server.hier_ditto          import HierDittoEdgeServer
 from server.hier_fedrep         import HierFedRepEdgeServer
+from server.hier_fedper         import HierFedPerEdgeServer
 from server.server      import CloudServer   # 原来是 FLServer
 from server.backdoor_server import BackdoorCloudServer
 from attack.triggers        import build_trigger
@@ -62,6 +64,7 @@ def _select_method_classes(config):
         "hier_pfedme_rep": HierPFedMeRepClient,
         "hier_ditto":      HierDittoClient,
         "hier_fedrep":     HierFedRepClient,
+        "hier_fedper":     HierFedPerClient,
     }.get(method, PFedMeClient)
     edge_cls = {
         "fedavg":          FedAvgEdgeServer,
@@ -70,6 +73,7 @@ def _select_method_classes(config):
         "hier_pfedme_rep": HierPFedMeRepEdgeServer,
         "hier_ditto":      HierDittoEdgeServer,
         "hier_fedrep":     HierFedRepEdgeServer,
+        "hier_fedper":     HierFedPerEdgeServer,
     }.get(method, PFedMeEdgeServer)
     return client_cls, edge_cls
 from utils.logger       import FLLogger

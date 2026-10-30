@@ -1,19 +1,32 @@
-# current-focus —— 阶段三（edge 原生防御）· A-pre 结案；CCS 暂停，先加 FedPer
+# current-focus —— 阶段三（edge 原生防御）· A-pre 结案；CCS 改在 FedPer 下验证
 
 > **写于 2026-10-28**（SA0 / P0 / SA1 会话收尾；同日 SA-C 会话改写第一节）。这一版取代之前叠在一起的各段状态；过程与数字都在本目录 `FINDINGS.md`（F-090 … F-100）与 `DECISIONS.md`（D-096 … D-108）。
 > ⚠️ 阶段三的实验全部做完之前，不要把分支合并到 main（CLAUDE.md 分支纪律，用户 2026-10-10）。分支 `claude/eloquent-faraday-b9kmop`。
 
-## 一、现在要做的：CCS 暂停上 GPU，先加 FedPer、本地消融（D-113）
+## 一、现在要做的：交 CCSF（FedPer 版）+ CCSA 消融（D-113 / D-114）
 
-- CCSF ccs-full 修好接线后（F-107），48G 下跑到第 54 轮崩溃：良性端 NaN → HDBSCAN 报错。更要紧的是，**主任务从第 10 轮起就垮了**（PM 0.34，off 0.76；F-109）。
-- 官方代码核实：投影层在分类路径上（`PResNet`），FedPer 每一步联合训练 body + 投影 + head。我们的 FedRep 里，KL / MMD 的梯度到不了投影层 → 首要嫌疑，**没有消融证据**。
-- 用户定（D-113）：模型结构照官方代码；CCSF 改在 FedPer + 近原文超参数下单独验证实现。
-- **下一步**：
-  1. FedPer 方法的语义 diff 表 → 用户确认；
-  2. 写 `hier_fedper`（客户端 + edge server + CCS mixin 的可训练变量接口 + 测试）；
-  3. 本地 CPU 消融：FedRep / FedPer×我们的超参数 / FedPer×原文超参数，各 off / CCS，并定位 NaN；
-  4. 改 CCSF 登记 → 上 GPU（48G，`PACK=2 PACK_MEM_PER_RUN_GB=48`）。
-- 内存（F-108）：每个客户端一整套模型和计算图（普通端约 118 MiB，CCS 端约 211 MiB）；根治 = 所有客户端共用一个训练模型，单开会话。
+- FedRep 下 ccs-full 主任务垮了（F-109）。已加 `hier_fedper`（照官方 FedPer：每步联合训练 body + 投影 + head，BN 统计量共享），
+  CCSF 两格改成 FedPer + 官方超参数（2 epoch、batch 64、lr 0.1 常数），另登记消融组 CCSA（FedPer + 我们的超参数，30 轮）。
+- 本地拿不到 CIFAR-10 → 消融在集群上做（D-114 ⑥）。
+
+**集群上**（先 `git pull`、`git log --oneline -1`）：
+
+```bash
+PACK=2 PACK_MEM_PER_RUN_GB=48 RUN_GROUPS="CCSF CCSA" bash experiments/defense/edge-native/submit.sh --dry-run
+```
+应列出 4 个 run：CCSF 的 off / ccs-full（300 轮），CCSA 的 fedper-ours-off / fedper-ours-ccs（30 轮）。旧的 FedRep 版 CCSF 结果已移到 `legacy/CCSF-fedrep/`（D-114 ⑥ 的 FedRep 两臂），所以 CCSF 两格都是 todo。
+确认后去掉 `--dry-run`，并在命令前加 `PYTHONUNBUFFERED=1`。ccs 格子主机内存峰值约 31 GiB（F-108），48G 够。
+正式提交时在命令前加 `PYTHONUNBUFFERED=1`（sbatch 默认 `--export=ALL`，会带进作业）：万一被杀，日志不会丢行（F-108）。
+
+**回传后先看消融**（第 10–30 轮的 PM / EM 精度；读法：FedPer 两版都正常而 FedRep 垮 → 主因是框架；FedPer 官方超参数正常、我们的超参数垮 → 主因是超参数；都垮 → 实现 bug）。
+然后：
+
+```bash
+python3 harness/ccsf_verdict.py --off experiments/defense/edge-native/results/P2/CCSF/CCSF__off__s42.metrics.json --ccs experiments/defense/edge-native/results/P2/CCSF/CCSF__ccs-full__s42.metrics.json --out experiments/defense/edge-native/analysis/ccsf_verdict.json
+```
+读 `rejection.fpr` 时记住 F-101 ⑧（官方聚类参数在彼此很近的良性端上也会剔掉一部分）。判定不是 `ccs_reproduces` → pixel 版是第一个排查项（D-110）。
+
+**还开着的**：D-096（CCS 消融「对抗训练约占 85%」的出处）；CCSP 登记时每布点补同模型的 off 臂（D-109 ②、D-113 ①）；NaN 的来源（F-109）。
 
 ## 二、上传前加固（A-pre）：已结案（D-112）
 

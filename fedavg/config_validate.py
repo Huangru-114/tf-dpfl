@@ -57,6 +57,7 @@ METHOD_SUPPORTS_DEFENSE = {
     "hierpfedme":      True,   # PFedMeEdgeServer
     "hier_ditto":      True,   # HierDittoEdgeServer
     "hier_fedrep":     True,   # HierFedRepEdgeServer
+    "hier_fedper":     True,   # HierFedPerEdgeServer（= HierFedRep 的 edge 层，D-114）
     "hier_ditto_rep":  True,   # HierDittoRepEdgeServer
     "hier_pfedme_rep": True,   # 继承 HierDittoRepEdgeServer
 }
@@ -591,6 +592,9 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
                       f"  {k}: 模板 {want!r}，实际 {got!r}" for k, want, got in mism)
                   + "\n  消融请登记在 pilot 表（P1 口径），不要写成 P2。")
     _strategy = str(bd.get("malicious_strategy", "vanilla")).lower() if bd_enabled else None
+    if method == "hier_fedper":
+        warnings.append("hier_fedper：每步联合训练全部变量，没有 head 阶段 → training.plocal_epochs 不用；"
+                        "BN 统计量固定共享（D-114）。")
     for sw in SWITCHES + EXTRA_SWITCHES:
         if sw.scope is None:
             continue
@@ -702,8 +706,8 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
             _ccs = ccs_params(config)
         except ValueError as e:
             _fail(str(e))
-        if method != "hier_fedrep":
-            _fail(f"defense.name = ccs 只在 hier_fedrep 下实现（对抗训练挂在 HierFedRepClient 的 body 步上）；"
+        if method not in ("hier_fedrep", "hier_fedper"):
+            _fail(f"defense.name = ccs 只在 hier_fedrep / hier_fedper 下实现（对抗训练挂在这两个客户端的训练步上，D-114）；"
                   f"drift_correction = {method!r} 会让客户端那一半静默不生效。")
         if "edge" not in cfg_layers:
             _fail("defense.name = ccs：defense.layers 必须含 edge（聚类在 edge 的 robust_mean 里；"
@@ -845,4 +849,9 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
     #   独立 kv 行，不扩 [设定11]。ccs=false = 没开（与 SA-C 之前的 run 是同一种 run）。
     from defense.ccs_spec import settings_row as _ccs_row
     print(format_kv("[设定12]", _ccs_row(config)))
+
+    # ── 6k. 阶段三 Hier-FedPer（[设定13]，D-114）──────────────────────────────
+    #   独立 kv 行。FedPer 的 BN 统计量固定共享（不读 training.fedrep_bn_stats；[设定4] 里那一项对它无效）。
+    _fp = str((config.get("training") or {}).get("drift_correction", "")).lower() == "hier_fedper"
+    print(format_kv("[设定13]", {"fedper": _fp, "bn_stats": "shared" if _fp else None}))
     return warnings

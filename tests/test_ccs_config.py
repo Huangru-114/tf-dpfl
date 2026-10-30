@@ -133,7 +133,7 @@ def test_settings12_and_ccs_lines_roundtrip():
              "    " + format_kv("[CCS]", {"cur": fmt_list([5]), "n_pool": 10, "status": "ok",
                                          "rejected": fmt_list([5])}, edge_id=2)]
     m = CM.collect("\n".join(lines))
-    assert m["schema_version"] == 13
+    assert m["schema_version"] == 14
     assert m["run"]["ccs"] is True and m["run"]["ccs_pool"] == "edge_cache" and m["run"]["ccs_kl"] == 0.01
     assert all(f"ccs_{k}" in m["run"] for k in SETTINGS_KEYS)
     assert CM.CCS_SETTINGS_KEYS == SETTINGS_KEYS                     # 回程解析器里抄的那一份没走样
@@ -167,3 +167,22 @@ def test_stat_indices_are_injected_by_production_code():
                     and node.func.attr == "set_stat_indices"):
                 callers.append(rel)
     assert "server/edge_server_base.py" in callers, callers
+
+
+def test_settings13_fedper_roundtrip_and_validation(ccsf, capsys):
+    """D-114：CCSF（FedPer）打 [设定13] fedper=true | bn_stats=shared → run.fedper / fedper_bn_stats；老日志 → None。"""
+    cfg = copy.deepcopy(ccsf[1]["ccs-full"])
+    assert cfg["training"]["drift_correction"] == "hier_fedper"
+    warns = validate_config(cfg)
+    out = capsys.readouterr().out
+    line = next(ln for ln in out.splitlines() if ln.startswith("[设定13]"))
+    m = CM.collect(line)
+    assert m["run"]["fedper"] is True and m["run"]["fedper_bn_stats"] == "shared"
+    assert any("hier_fedper" in w and "plocal_epochs" in w for w in warns)
+    assert any("fedrep_bn_stats" in w for w in warns)                 # P2 模板里的 private 对 FedPer 无效 → 给警告
+    m = CM.collect("[Round 1]\n")
+    assert m["run"]["fedper"] is None and m["run"]["fedper_bn_stats"] is None
+    cfg["training"]["drift_correction"] = "hier_fedrep"
+    validate_config(cfg)
+    line = next(ln for ln in capsys.readouterr().out.splitlines() if ln.startswith("[设定13]"))
+    assert CM.collect(line)["run"]["fedper"] is False
