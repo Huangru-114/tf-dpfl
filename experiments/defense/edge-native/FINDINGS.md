@@ -536,3 +536,24 @@ H1 规则（均值 ≥ 0.15 且最小 seed ≥ 0.10 → `protects`；三个 |Δ|
 - **由此的语义差异**（D-109 ⑥ 只写了「FedRep vs FedPer」，没写到这一层）：原文里投影层与分类头每一步都和 body 一起、以 lr 0.1 被 CE + KL + MMD 训练；
   我们的 FedRep 里它们只在 head 阶段用干净 CE 训（每轮 1 epoch、lr 0.005 衰减），**KL / MMD 的梯度永远到不了投影层**，MMD 只能靠改 body 去迁就一个几乎不动的投影层。
   这是主任务崩坏的首要嫌疑，**没有消融证据**；NaN 的来源也还不知道。下一步：加 FedPer 方法后本地消融（D-113）。
+
+## 2026-10-30（CCSA / CCSF 的 FedPer 版回传 + 为什么 Bad-PFL 在 FedPer 下没传到良性端）
+
+### F-110 `confirmed`（数据：`results/P2/CCSA/*`、`results/P2/CCSF/*`、`legacy/CCSF-fedrep/*`；代码核对：CCS 官方仓库、`Huangru-114/CCS-reproduce`、`Huangru-114/Bad-PFL` 的非 main 分支）—— 主任务崩坏来自框架（FedRep）；FedPer + CCS 官方超参数下，攻击只植入了共享模型、没传到大多数良性端，复现闸判 `invalid_no_attack`；首要嫌疑是每轮本地训练量太小
+
+- **有效性**：4 个 run 都是 exit 0、无 client_failures、攻击者都参与了、`[设定13] fedper=true | bn_stats=shared`。机时：CCSA off 0.35 h / ccs 1.0 h，CCSF off 1.82 h / ccs 2.98 h；显存 16.8–17.1 GiB / run，无 OOM。
+- **消融**（第 30 轮 PM 精度，off → ccs）：FedRep 0.67 → 0.36（−0.31）；FedPer + 我们的超参数 0.75 → 0.71（−0.04）；FedPer + 官方超参数 0.63 → 0.58（−0.05）。
+  → F-109 的主任务崩坏来自 FedRep 框架（KL / MMD 梯度到不了私有投影层），不是超参数，也不是实现 bug。FedPer 的 run 都没有 NaN。
+- **CCSF 判定 `invalid_no_attack`**（`analysis/ccsf_verdict.json`）：P(off) = 0.387（不过滤 0.412）< 0.5；ccs 0.084。另报：ΔMTA 0.21（0.833 → 0.622，第 30 轮时只差 0.05，代价随轮数累积，原因没有证据）；剔除 TPR 0.56 / FPR 0.25。
+- **攻击植入了共享模型，没传到良性端**（FedPer + 官方超参数，off）：第 150 轮起 GM ASR 0.994–0.997、攻击者自身 1.000，良性端只有 0.41（> 0.5 的良性端占 42%）。
+  第 300 轮逐端：90 个良性端中 28 个 < 0.1、13 个 > 0.9，中位数 0.32；逐端 ASR 与 yt_clean（干净样本被判为目标类的比例）Spearman 0.71，与测试集大小 −0.46；yt_clean < 0.5% 的 39 个端平均 0.16。
+  同一组客户端在 FedRep 下（legacy off）平均 0.86，良性端中位数 1.0。
+- **CCS 官方代码里没有可用的 Bad-PFL**（`chenjian0924/paper-code @ b4b8653`）：`attack()` 里 `badpfl` 落到 else 分支，**训练时不投毒**；评估用的 `trigger_gen` 随机初始化、`gen_optimizer` 全仓库无人调用；`src/attack/` 目录不存在。
+  评估口径本身与我们相同（只测良性端、各自的个性化模型、本地训练前），但它的「Bad-PFL」评估 = 被测模型上 1 步 PGD + 未训练生成器的噪声 + 全部标签设为 0。
+- **用户补全的 `Huangru-114/CCS-reproduce`**（`578b3a6`，照官方 `fba.py` 补了生成器训练与 0.2 投毒）：能植入 FedPer、不能植入 FedRep —— 与我们正好相反。与我们的差别（读代码，没有数值证据）：
+  ξ / δ 的 4/255 直接加在**标准化后**的输入上、`pgd_attack` 在标准化空间 clamp 到 [0,1]（约 61% 的像素被夹，F-102）；评估 ξ 在被测模型上求（白盒）；评估 δ 用被测端自己的、从没训练过的生成器；ASR 不排除目标类样本。
+- **官方 Bad-PFL 只实现了 FedBN**（`Huangru-114/Bad-PFL` main 的 `main.py`）；在它上面加 FedRep 的尝试（分支 `claude/federated-learning-experiment-review-pt5j1b`，HANDOFF §5c）ASR 只有 0.066–0.111、已暂停，原因未定。
+  → **FedPer / FedRep 都没有官方代码的基准**；Bad-PFL 原文的 FedRep 约 98% 也没有可运行的出处。
+- **剂量反应**（同一分支 HANDOFF §5d，官方 FedBN、150 轮、唯一自变量 = 本地步数）：15 / 45 / 75 步 → ASR（过滤）0.22 / 0.80 / 0.88。
+  CCSF 的官方超参数（2 epoch、batch 64）约 12 步 / 轮，落在「攻击起不来」的区间；第 30 轮 FedPer + 我们的超参数（约 55 步）与 FedRep 几乎同步（良性端 0.21 vs 0.23、GM 0.49 vs 0.51），FedPer + 官方超参数的 GM 只有 0.05。
+  → **首要嫌疑：每轮本地训练量太小**（推断）。检验：CCSL（D-115）。

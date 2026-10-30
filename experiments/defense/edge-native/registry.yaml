@@ -147,6 +147,18 @@ groups:
       - {cell: ccs-full, set: {defense.name: ccs, defense.layers: [client, edge], defense.ccs.at: true,
                                defense.ccs.cluster: true, defense.ccs.space: input, defense.ccs.pool: round}}
 
+  CCSL:
+    purpose: "D-115：FedPer 下 Bad-PFL 没传到良性端（F-110）是不是因为本地训练量太小 —— 官方 Bad-PFL（FedBN）的剂量反应：每轮 15 / 45 / 75 步 → ASR 0.22 / 0.80 / 0.88；CCSF 的官方超参数约 12 步 / 轮。FedPer + 我们的训练量（5 epoch、batch 32，约 55 步 / 轮）、无防御、300 轮"
+    requires: [audit, SA-C, ccs-space]
+    seeds: [42]
+    # 与 CCSA__fedper-ours-off 逐字同配置，只差 n_rounds（守卫 test_ccsl_is_ccsa_off_with_300_rounds）
+    set: {federation.n_edges: 1, federation.edge_rounds: 1, federation.n_rounds: 300, stopping: null,
+          evaluation.eval_grid: 5, evaluation.eval_interval: 5, backdoor.eval_interval: 5,
+          backdoor.malicious_per_edge: [10], model.arch: resnet10_torch_proj,
+          training.drift_correction: hier_fedper}
+    cells:
+      - {cell: fedper-ours-off}
+
   CCSA:
     purpose: "D-113 的消融（F-110）：FedPer + **我们的**超参数（5 epoch、batch 32、lr 0.1 按有效轮衰减），30 轮。与 CCSF（FedPer + 官方超参数）的前 30 轮、旧 FedRep 版 CCSF 的前 30 轮对比 → 分清主任务崩坏来自框架还是超参数"
     requires: [audit, SA-C, ccs-space]

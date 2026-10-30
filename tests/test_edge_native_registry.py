@@ -292,3 +292,11 @@ def test_ccsa_differs_from_ccsf_only_in_hyperparameters_and_length(reg):
         d = _diff(reg.declared_config(by[ccsf]), reg.declared_config(by[ccsa]))
         assert d == {"training.local_epochs", "data.batch_size", "training.lr_decay", "federation.n_rounds",
                      "meta.group", "meta.run_id"}, d
+
+
+def test_ccsl_is_ccsa_off_with_300_rounds(reg):
+    """D-115：CCSL 只把 CCSA 的无防御格子拉长到 300 轮（剂量反应的检验）。"""
+    by = {r["run_id"]: r for r in reg.runs()}
+    d = _diff(reg.declared_config(by["CCSA__fedper-ours-off__s42"]), reg.declared_config(by["CCSL__fedper-ours-off__s42"]))
+    assert d == {"federation.n_rounds", "meta.group", "meta.run_id"}, d
+    assert reg.declared_config(by["CCSL__fedper-ours-off__s42"])["federation"]["n_rounds"] == 300

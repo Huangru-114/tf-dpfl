@@ -1,0 +1,32 @@
+{
+ "preregistered": "FINDINGS N-008 CCSF（D-101）；实现 D-109",
+ "off": {
+  "P": 0.3874,
+  "P_unfiltered": 0.4116,
+  "MTA": 0.8334,
+  "margin_p50": -1.9796
+ },
+ "ccs": {
+  "P": 0.0835,
+  "P_unfiltered": 0.1206,
+  "MTA": 0.6224,
+  "margin_p50": -2.6638
+ },
+ "rejection": {
+  "tpr": 0.5571,
+  "fpr": 0.2545,
+  "n_malicious_uploads": 289,
+  "n_benign_uploads": 2711,
+  "status": {
+   "ok": 300
+  }
+ },
+ "malicious_data_share": {
+  "off": 0.0921,
+  "ccs": 0.0921
+ },
+ "verdict": "invalid_no_attack",
+ "reasons": [
+  "P(off) = 0.3874 < 0.5：攻击没植入，复现无从谈起"
+ ]
+}
