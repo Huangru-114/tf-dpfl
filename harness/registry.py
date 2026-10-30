@@ -10,7 +10,7 @@ harness/registry.py  —  实验登记表：**声明**每个 run 应该是什么
 登记表格式（YAML）：
 
     study: hfl-mechanism
-    protocol: P2                  # 这些 run 属于哪个口径版本（fedavg/utils/provenance.py）
+    protocol: P2                  # 这些 run 属于哪个口径版本（fedavg/utils/provenance.py）；组里可写 protocol 覆盖（只进 meta.protocol）
     layout: nested                # nested: results/<protocol>/<group>/<run_id>.metrics.json
                                   # flat:   results/<run_id>.metrics.json（旧方案）
     results_dir: results          # 相对登记表所在目录
@@ -311,8 +311,11 @@ class Registry:
         for k, v in run["set"].items():
             set_dotted(cfg, k, copy.deepcopy(v))
         cfg["seed"] = run["seed"]
+        # 组可以声明自己的口径（如 P2-ablation：刻意偏离对齐模板的消融，D-117）；不写 = 整张表的口径（逐字节同以前）。
+        # 只写进配置的 meta.protocol（config_validate 只对 "P2" 逐键核对模板）；结果目录仍按整张表的口径。
+        proto = (self.groups.get(run["group"]) or {}).get("protocol", self.protocol)
         cfg["meta"] = {"study": self.study, "group": run["group"], "run_id": run["run_id"],
-                       "protocol": self.protocol}
+                       "protocol": proto}
         return cfg
 
     def intended_config(self, run: dict) -> dict:

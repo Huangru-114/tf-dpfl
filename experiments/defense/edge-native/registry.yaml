@@ -147,6 +147,19 @@ groups:
       - {cell: ccs-full, set: {defense.name: ccs, defense.layers: [client, edge], defense.ccs.at: true,
                                defense.ccs.cluster: true, defense.ccs.space: input, defense.ccs.pool: round}}
 
+  CCSB30:
+    purpose: "D-117：FedRep + CCS 的主任务崩坏是不是因为客户端保存的私有 BatchNorm 统计量与新主干失配（F-112：陈旧个性化 0.54、新鲜个性化 0.32；FedPer 统计量共享则不垮）。与旧 FedRep 版 CCS（legacy/CCSF-fedrep/）只差 training.fedrep_bn_stats: shared 与 n_rounds 30"
+    protocol: P2-ablation          # 刻意偏离对齐模板（模板要求统计量私有）→ 如实标成消融口径；config_validate 不逐键核对模板
+    requires: [audit, SA-C, ccs-space]
+    seeds: [42]
+    set: {federation.n_edges: 1, federation.edge_rounds: 1, federation.n_rounds: 30, stopping: null,
+          evaluation.eval_grid: 5, evaluation.eval_interval: 5, backdoor.eval_interval: 5,
+          backdoor.malicious_per_edge: [10], model.arch: resnet10_torch_proj,
+          training.fedrep_bn_stats: shared}
+    cells:
+      - {cell: fedrep-bnshared-ccs, set: {defense.name: ccs, defense.layers: [client, edge], defense.ccs.at: true,
+                                          defense.ccs.cluster: true, defense.ccs.space: input, defense.ccs.pool: round}}
+
   CCSR30:
     purpose: "D-116 第一步：FedRep + 私有投影网络两段都训练（training.fedrep_proj_phase: both，照用户的 CCS 复现仓库的 FedRep）+ CCS，30 轮。只看主任务有没有在前 30 轮垮掉（旧 FedRep 版 CCS 第 10 轮就垮了）；对照 = legacy/CCSF-fedrep 的不加防御结果的前 30 轮"
     requires: [audit, SA-C, ccs-space]

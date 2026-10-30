@@ -98,7 +98,7 @@ def test_three_checks_for_every_declared_set(reg):
         fed, ev = cfg["federation"], cfg["evaluation"]
         assert len(cfg["backdoor"]["malicious_per_edge"]) == fed["n_edges"], run["run_id"]
         # CCSA（D-113 的消融）刻意只跑 30 轮：第 10 轮主任务就已分开（F-109），对照是 CCSF / 旧 FedRep 版的前 30 轮
-        want = 30 if run["group"] in ("CCSA", "CCSR30") else 300     # CCSR30：D-116 第一步，只看前 30 轮主任务
+        want = 30 if run["group"] in ("CCSA", "CCSR30", "CCSB30") else 300   # 30 轮的诊断组：只看前 30 轮主任务
         assert fed["n_rounds"] * fed["edge_rounds"] == want, run["run_id"]
         assert cfg.get("stopping") is None, run["run_id"]
         grids.add(ev["eval_grid"])
@@ -311,3 +311,21 @@ def test_ccsr30_is_fedrep_with_projection_trained_in_both_phases(reg):
     assert _diff(a, b) == {"training.drift_correction", "training.local_epochs", "data.batch_size", "training.lr_decay",
                            "training.fedrep_proj_phase", "federation.n_rounds", "meta.group", "meta.run_id"}
     assert reg.unmet_requires("CCSR") == ["ccsr-30-ok"]
+
+
+def test_group_protocol_override_only_touches_its_own_meta(reg):
+    """D-117：组可以声明 protocol（如 P2-ablation）；不写的组照旧是整张表的 P2（逐字节同以前）。"""
+    by = {r["run_id"]: r for r in reg.runs()}
+    assert reg.declared_config(by["CCSB30__fedrep-bnshared-ccs__s42"])["meta"]["protocol"] == "P2-ablation"
+    others = [r for r in reg.runs() if r["group"] != "CCSB30"]
+    assert others and all(reg.declared_config(r)["meta"]["protocol"] == "P2" for r in others)
+
+
+def test_ccsb30_differs_from_ccsr30_only_in_the_bn_and_projection_switches(reg):
+    """D-117：CCSB30 = 旧 FedRep 版 CCS + 统计量共享（投影网络照原写法），30 轮；与 CCSR30 只差这两个开关与口径。"""
+    by = {r["run_id"]: r for r in reg.runs()}
+    a = reg.declared_config(by["CCSR30__fedrep-projboth-ccs__s42"])
+    b = reg.declared_config(by["CCSB30__fedrep-bnshared-ccs__s42"])
+    assert b["training"]["fedrep_bn_stats"] == "shared" and "fedrep_proj_phase" not in b["training"]
+    assert _diff(a, b) == {"training.fedrep_bn_stats", "training.fedrep_proj_phase", "meta.protocol",
+                           "meta.group", "meta.run_id"}
