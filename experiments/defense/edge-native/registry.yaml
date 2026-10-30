@@ -147,6 +147,32 @@ groups:
       - {cell: ccs-full, set: {defense.name: ccs, defense.layers: [client, edge], defense.ccs.at: true,
                                defense.ccs.cluster: true, defense.ccs.space: input, defense.ccs.pool: round}}
 
+  CCSR30:
+    purpose: "D-116 第一步：FedRep + 私有投影网络两段都训练（training.fedrep_proj_phase: both，照用户的 CCS 复现仓库的 FedRep）+ CCS，30 轮。只看主任务有没有在前 30 轮垮掉（旧 FedRep 版 CCS 第 10 轮就垮了）；对照 = legacy/CCSF-fedrep 的不加防御结果的前 30 轮"
+    requires: [audit, SA-C, ccs-space]
+    seeds: [42]
+    # 与旧 FedRep 版 CCSF__ccs-full（legacy/CCSF-fedrep/）只差：fedrep_proj_phase both + n_rounds 30
+    set: {federation.n_edges: 1, federation.edge_rounds: 1, federation.n_rounds: 30, stopping: null,
+          evaluation.eval_grid: 5, evaluation.eval_interval: 5, backdoor.eval_interval: 5,
+          backdoor.malicious_per_edge: [10], model.arch: resnet10_torch_proj,
+          training.fedrep_proj_phase: both}
+    cells:
+      - {cell: fedrep-projboth-ccs, set: {defense.name: ccs, defense.layers: [client, edge], defense.ccs.at: true,
+                                          defense.ccs.cluster: true, defense.ccs.space: input, defense.ccs.pool: round}}
+
+  CCSR:
+    purpose: "D-116 第二步：FedRep + 投影网络两段都训练，不加防御 / 开 CCS 两格，300 轮。三个条件：不加防御时良性端攻击成功率 ≥ 0.5；开 CCS 后降 ≥ 0.5；主任务精度降 ≤ 0.02"
+    requires: [audit, SA-C, ccs-space, ccsr-30-ok]   # ccsr-30-ok：CCSR30 的前 30 轮主任务没垮、用户放行后加进 available
+    seeds: [42]
+    set: {federation.n_edges: 1, federation.edge_rounds: 1, federation.n_rounds: 300, stopping: null,
+          evaluation.eval_grid: 5, evaluation.eval_interval: 5, backdoor.eval_interval: 5,
+          backdoor.malicious_per_edge: [10], model.arch: resnet10_torch_proj,
+          training.fedrep_proj_phase: both}
+    cells:
+      - {cell: fedrep-projboth-off}
+      - {cell: fedrep-projboth-ccs, set: {defense.name: ccs, defense.layers: [client, edge], defense.ccs.at: true,
+                                          defense.ccs.cluster: true, defense.ccs.space: input, defense.ccs.pool: round}}
+
   CCSL:
     purpose: "D-115：FedPer 下 Bad-PFL 没传到良性端（F-110）是不是因为本地训练量太小 —— 官方 Bad-PFL（FedBN）的剂量反应：每轮 15 / 45 / 75 步 → ASR 0.22 / 0.80 / 0.88；CCSF 的官方超参数约 12 步 / 轮。FedPer + 我们的训练量（5 epoch、batch 32，约 55 步 / 轮）、无防御、300 轮"
     requires: [audit, SA-C, ccs-space]

@@ -1,24 +1,26 @@
-# current-focus —— 阶段三（edge 原生防御）· A-pre 结案；CCS：先查 FedPer 下的攻击强度（CCSL）
+# current-focus —— 阶段三（edge 原生防御）· A-pre 结案；CCS：FedRep + 投影网络两段都训练（CCSR30）
 
 > **写于 2026-10-28**（SA0 / P0 / SA1 会话收尾；同日 SA-C 会话改写第一节）。这一版取代之前叠在一起的各段状态；过程与数字都在本目录 `FINDINGS.md`（F-090 … F-100）与 `DECISIONS.md`（D-096 … D-108）。
 > ⚠️ 阶段三的实验全部做完之前，不要把分支合并到 main（CLAUDE.md 分支纪律，用户 2026-10-10）。分支 `claude/eloquent-faraday-b9kmop`。
 
-## 一、现在要做的：交 CCSL（D-115），检验「FedPer 下攻击起不来是因为训练量太小」
+## 一、现在要做的：交 CCSR30（D-116 第一步）
 
-- CCSF（FedPer + CCS 官方超参数）判 `invalid_no_attack`：攻击植入了共享模型（GM ASR ≈ 1.0），但没传到大多数良性端（0.41）；
-  官方 Bad-PFL 的剂量反应（15 / 45 / 75 步 → 0.22 / 0.80 / 0.88）提示训练量太小（约 12 步 / 轮）是首要嫌疑（F-110）。
-- CCSL = FedPer + 我们的训练量（5 epoch、batch 32）、无防御、300 轮，1 个 run，约 3.5 GPU-h（外推）。
+- 目标：一个「不加防御时后门能植入良性端（≥ 0.5）、开 CCS 后攻击成功率降 ≥ 0.5、主任务精度降 ≤ 0.02」的组合。
+- 现状：FedRep 下后门能植入（0.93），但开 CCS 后主任务垮（0.34）；FedPer 下 CCS 不伤主任务，但后门本来就传不到约 6 成良性端（0.41，加大训练量也一样，F-111）。
+- 这次试：**FedRep + 私有投影网络在训练主干那一段也一起训练**（`training.fedrep_proj_phase: both`，照用户的 CCS 复现仓库）+ CCS，先只跑 30 轮看主任务。
+- 含 NaN 的上传物现在会被剔除并在 `[CCS]` 行报告有效端数；有效端占比 < 0.5 时打 `[CCSStop]` 并停止训练。
 
 **集群上**（先 `git pull`、`git log --oneline -1`）：
 
 ```bash
-PACK=2 RUN_GROUPS=CCSL bash experiments/defense/edge-native/submit.sh --dry-run
+PACK=2 PACK_MEM_PER_RUN_GB=48 RUN_GROUPS=CCSR30 bash experiments/defense/edge-native/submit.sh --dry-run
 ```
-应列出 1 个作业（`CCSL__fedper-ours-off__pack-k1-s42`，`--mem=24G`）。确认后去掉 `--dry-run`，并在命令前加 `PYTHONUNBUFFERED=1`。
+应列出 1 个作业（`CCSR30__fedrep-projboth-ccs__pack-k1-s42`，`--mem=48G`）。确认后去掉 `--dry-run`，并在命令前加 `PYTHONUNBUFFERED=1`。约 1 GPU-h（外推）。
 
-**回传后**：看良性端 ASR（末 10 点，过滤目标类）。≥ 0.5 → CCSF 改在这个训练量下重做（D-115）；仍在 0.4 左右 → 回头查 FedPer 私有层。
+**回传后**：比第 5–30 轮的个性化模型精度（对照：`legacy/CCSF-fedrep/CCSF__off__s42.metrics.json` 同轮）。旧 FedRep 版 CCS 在第 10 轮就停在 0.31–0.37。
+没垮 → 用户放行（registry.yaml 的 `available` 加 `ccsr-30-ok`、全量 materialize）→ 交 CCSR 两格 300 轮（约 12 GPU-h）。
 
-**还开着的**：CCS 的长期精度代价（FedPer 下 ΔMTA 0.21，F-110）；D-096；CCSP 每布点补同模型 off 臂；NaN（只在 FedRep 下出现过，F-109）。
+**还开着的**：CCS 在 FedPer 下的长期精度代价（ΔMTA 0.21，F-110）；D-096；CCSP 每布点补同模型 off 臂。
 
 ## 二、上传前加固（A-pre）：已结案（D-112）
 

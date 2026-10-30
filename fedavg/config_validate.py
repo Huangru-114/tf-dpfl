@@ -696,6 +696,14 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
             warnings.append(f"{EDGE_SHARED_KEY}={_k_edge} 而 n_edges={n_edges}：只有一个 edge 时"
                             f"「edge 内共享」与「上云共享」等价，(a)/(b)/(c) 三臂没有区别。")
 
+    # ── 4k. 私有投影网络在哪一段训练（D-116）────────────────────────────────
+    #   both 只在 FedRep 的两段式训练里有意义，且要有 proj_* 层；别的组合下静默无效 → 直接拒绝。
+    if get_switch(config, "training.fedrep_proj_phase") == "both":
+        if method != "hier_fedrep":
+            _fail(f"training.fedrep_proj_phase = both 只对 hier_fedrep 实现（两段式训练）；当前方法 {method!r}。")
+        if str((config.get("model") or {}).get("arch", "")) != "resnet10_torch_proj":
+            _fail("training.fedrep_proj_phase = both 要求 model.arch = resnet10_torch_proj（只有它有私有投影网络 proj_*）。")
+
     # ── 4j. CCS（阶段三 SA-C；defense/ccs_spec.py，D-109）────────────────────
     #   写错的后果都是「静默不是 CCS」：参数拼错（ccs_params 拒绝未知键）、方法不是 FedRep（对抗训练挂在
     #   HierFedRep 的 body 步上，别的方法没有这个钩子 → 静默没做）、开了对抗训练却没有投影层（MMD 无处可算）、

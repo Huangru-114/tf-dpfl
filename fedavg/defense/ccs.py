@@ -26,7 +26,7 @@ from utils.kvline import fmt_list, format_kv
 from analysis.bn_cluster import detect, stat_vector
 
 from .base_defense import BaseDefense
-from .ccs_spec import ccs_params
+from .ccs_spec import ccs_params, finite_upload
 
 
 class _LazyClientMixin:
@@ -65,15 +65,40 @@ class CCSDefense(BaseDefense):
             raise RuntimeError("CCSDefense：没有注入 BN 统计量索引（应由 EdgeServerBase.__init__ 调 set_stat_indices，F-107）")
         return [stat_vector([u[0][i] for i in self.stat_idx]) for u in client_updates]
 
+    def _finite_gate(self, client_updates, ids):
+        """D-116：上传物含 NaN / inf 的端先剔除（不进聚类、不进聚合、不进缓存）；有效占比过低 → 停止训练。
+
+        返回 (有效端的下标列表, 非有限端的 id 列表)。停止用 RuntimeError（edge 聚合在主线程，不会被
+        `_collect_updates_*` 吞掉 → run 以非 0 退出，日志里有 [CCSStop] 行与 traceback）。
+        """
+        n = len(client_updates)
+        ok = [j for j, u in enumerate(client_updates) if finite_upload(u[0])]
+        bad = [ids[j] for j in range(n) if j not in set(ok)]
+        frac = (len(ok) / n) if n else 1.0
+        if n and frac < self.p["min_valid_frac"]:
+            print("    " + format_kv("[CCSStop]", {"n_valid": len(ok), "n": n, "frac": round(frac, 4),
+                                                 "min_valid_frac": self.p["min_valid_frac"],
+                                                 "nonfinite": fmt_list(sorted(bad))}, edge_id=self.label))
+            raise RuntimeError(f"CCS：本次 edge 聚合只有 {len(ok)}/{n} 个上传物是有限的（< {self.p['min_valid_frac']}），"
+                               f"非有限的端 {sorted(bad)} —— 停止训练（D-116）")
+        return ok, bad
+
     def aggregate(self, client_updates: list, ref_weights: list) -> list:
         n = len(client_updates)
+        ids_all = [int(getattr(u, "client_id", j)) for j, u in enumerate(client_updates)]
+        ok, bad = self._finite_gate(client_updates, ids_all)
         if not self.p["cluster"]:
-            self.last_admitted = list(range(n))
+            self.last_admitted = list(ok)
             self.last_status = "off"
-            return fedavg_aggregate(client_updates)
+            if bad:
+                print("    " + format_kv("[CCS]", {"cur": fmt_list(sorted(ids_all)), "n_pool": len(ok),
+                                                 "status": "off", "rejected": fmt_list([]),
+                                                 "n_valid": len(ok), "nonfinite": fmt_list(sorted(bad))},
+                                         edge_id=self.label))
+            return fedavg_aggregate([client_updates[j] for j in ok])
 
-        ids = [int(getattr(u, "client_id", j)) for j, u in enumerate(client_updates)]
-        cur = dict(zip(ids, self._vectors(client_updates)))
+        ids = [ids_all[j] for j in ok]
+        cur = dict(zip(ids, self._vectors([client_updates[j] for j in ok])))
         if self.p["pool"] == "edge_cache":
             pool = {k: v for k, v in self._cache.items() if k not in cur}
             pool.update(cur)
@@ -86,10 +111,13 @@ class CCSDefense(BaseDefense):
             res = detect(pool)
         rejected = set(res["rejected"]) & set(cur)
         self.last_status = res["status"]
-        self.last_admitted = [j for j, cid in enumerate(ids) if cid not in rejected]
-        # 剔除 TPR / FPR 的原料（[Decision] 行只有被剔除的 id，没有本轮有谁）
-        print("    " + format_kv("[CCS]", {"cur": fmt_list(sorted(cur)), "n_pool": len(pool),
-                                         "status": res["status"], "rejected": fmt_list(sorted(rejected))},
+        # 下标是相对**全部**上传的（record_decision 按它翻译成 client_id）；非有限的端不在其中 = 被剔除
+        self.last_admitted = [j for j in ok if ids_all[j] not in rejected]
+        # 剔除 TPR / FPR 的原料（[Decision] 行只有被剔除的 id，没有本轮有谁）。cur = 本轮全部上传（含非有限的端），
+        # n_valid / nonfinite = D-116 的有限性检查（老日志没有这两列 → 解析成 None / []）
+        print("    " + format_kv("[CCS]", {"cur": fmt_list(sorted(ids_all)), "n_pool": len(pool),
+                                         "status": res["status"], "rejected": fmt_list(sorted(rejected)),
+                                         "n_valid": len(ok), "nonfinite": fmt_list(sorted(bad))},
                                  edge_id=self.label))
         kept = [client_updates[j] for j in self.last_admitted]
         if not kept:

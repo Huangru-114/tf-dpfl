@@ -24,6 +24,7 @@ from aggregation.client_update import ClientUpdate        # noqa: E402
 from aggregation.fedavg import aggregate as fedavg_aggregate   # noqa: E402
 from defense import ccs_spec as S                          # noqa: E402
 from defense.ccs import CCSDefense                         # noqa: E402
+import collect_metrics as CM                                # noqa: E402
 
 pytest.importorskip("sklearn")
 
@@ -256,3 +257,73 @@ def test_defense_registry_and_lazy_mixin_ref():
     cls = defense_class("ccs")
     assert cls is CCSDefense and cls.layers == {"client", "edge"}
     assert cls.client_mixin_ref == "client.ccs_mixin.CCSClientMixin"
+
+
+# ── D-116：上传物含 NaN / inf 的端在聚类与聚合前剔除；有效占比过低 → 停止训练 ─────────
+def _poison_nan(ups, j, where=0):
+    w = [np.array(a, copy=True) for a in ups[j][0]]
+    w[where] = w[where].copy()
+    w[where].flat[0] = np.nan
+    return ClientUpdate(w, ups[j][1], ups[j][2], ups[j][3], client_id=ups[j].client_id)
+
+
+def test_nonfinite_upload_is_excluded_reported_and_counted_as_rejected(capsys):
+    ups = _ups(_benign_and_outliers())
+    ups[3] = _poison_nan(ups, 3, where=1)                     # 统计量里有 NaN（集群上第 54 轮的情形）
+    ups[5] = _poison_nan(ups, 5, where=0)                     # 可训练权重里有 NaN
+    d = _defense()
+    agg = d.aggregate(ups, ups[0][0])
+    d.record_decision(ups)
+    assert 3 not in d.last_admitted and 5 not in d.last_admitted
+    assert {103, 105} <= set(d.last_rejected_ids)
+    assert all(np.isfinite(a).all() for a in agg)
+    line = [ln for ln in capsys.readouterr().out.splitlines() if "[CCS]" in ln][0]
+    assert "n_valid=8" in line and "nonfinite=103/105" in line and "n_pool=8" in line
+    m = CM.collect(line)
+    dec = m["ccs_decisions"][0]
+    assert dec["n_valid"] == 8 and dec["nonfinite"] == [103, 105] and len(dec["cur"]) == 10
+    assert m["ccs_stop"] == []
+
+
+def test_too_few_finite_uploads_stop_training(capsys):
+    ups = _ups(_benign_and_outliers())
+    for j in range(6):
+        ups[j] = _poison_nan(ups, j)
+    d = _defense()                                            # min_valid_frac 缺省 0.5；4 / 10 < 0.5
+    with pytest.raises(RuntimeError, match="停止训练"):
+        d.aggregate(ups, ups[0][0])
+    out = capsys.readouterr().out
+    line = [ln for ln in out.splitlines() if "[CCSStop]" in ln][0]
+    stop = CM.collect(line)["ccs_stop"][0]
+    assert stop["n_valid"] == 4 and stop["n"] == 10 and stop["nonfinite"] == [100, 101, 102, 103, 104, 105]
+    assert CM.collect(line)["ccs_decisions"] == []            # [CCS] 的解析不会误收 [CCSStop]
+    d2 = _defense(min_valid_frac=0.4)                         # 阈值可调：4 / 10 ≥ 0.4 → 继续
+    d2.aggregate(ups, ups[0][0])
+
+
+def test_cluster_off_arm_also_drops_nonfinite():
+    ups = _ups(_benign_and_outliers())
+    ups[2] = _poison_nan(ups, 2)
+    d = _defense(cluster=False)
+    agg = d.aggregate(ups, ups[0][0])
+    assert d.last_admitted == [j for j in range(10) if j != 2]
+    want = fedavg_aggregate([ups[j] for j in d.last_admitted])
+    assert all(np.array_equal(a, b) for a, b in zip(agg, want))
+
+
+def test_all_finite_uploads_aggregate_exactly_as_before():
+    """反向锚点：没有非有限的端时，剔除结果与聚合值与有限性检查加入之前相同（同一组 last_admitted、同一个 FedAvg）。"""
+    ups = _ups(_benign_and_outliers(), ns=[10, 20, 30, 10, 10, 10, 10, 10, 50, 50])
+    d = _defense()
+    agg = d.aggregate(ups, ups[0][0])
+    from analysis.bn_cluster import detect, stat_vector
+    res = detect({u.client_id: stat_vector([u[0][i] for i in STAT_IDX]) for u in ups})
+    assert d.last_admitted == [j for j, u in enumerate(ups) if u.client_id not in set(res["rejected"])]
+    assert all(np.array_equal(a, b) for a, b in zip(agg, fedavg_aggregate([ups[j] for j in d.last_admitted])))
+
+
+def test_min_valid_frac_is_validated():
+    for bad in (0, -0.1, 1.5):
+        with pytest.raises(ValueError, match="min_valid_frac"):
+            S.ccs_params({"defense": {"ccs": {"min_valid_frac": bad}}})
+    assert "min_valid_frac" not in S.SETTINGS_KEYS            # 不进 [设定12]：已有结果的 run 块对账不受影响

@@ -111,7 +111,9 @@ CCS_SETTINGS_KEYS = ("at", "cluster", "kl", "mmd", "steps", "step", "eps", "radi
 #     run.malicious_data_share（[MalShare]：恶意端训练数据占比，旧 noniid 下不等于名义比例）。老日志 → None / 空表。
 # 14 = 阶段三 Hier-FedPer（D-114）：run.fedper / run.fedper_bn_stats（[设定13]；FedPer 的 BN 统计量固定共享，
 #     [设定4] 的 fedrep_bn_stats 对它无效）。老日志 → None。
-SCHEMA_VERSION = 14
+# 15 = 阶段三 D-116：ccs_decisions[] 加 n_valid / nonfinite（上传物含 NaN / inf 的端在聚类前剔除）；新表 ccs_stop
+#     （[CCSStop]：有效端占比低于 defense.ccs.min_valid_frac、停止训练的那一次）。老日志 → None / []。
+SCHEMA_VERSION = 15
 
 # A4 的副列：key=value 行（utils/kvline.py）→ rounds[] / acc_rounds[] 的字段。
 # 缺行（旧口径、或该列本 run 没开）→ null，**不是 0**。
@@ -814,8 +816,17 @@ def _collect_ccs(lines) -> list:
     for d in collect_kv(lines, "[CCS]"):
         out.append({"edge": d.get("edge_id"), "cur": parse_list(d.get("cur")) or [],
                     "n_pool": d.get("n_pool"), "status": d.get("status"),
-                    "rejected": parse_list(d.get("rejected")) or []})
+                    "rejected": parse_list(d.get("rejected")) or [],
+                    # D-116 的有限性检查（schema 15）。老日志没有这两列 → None / []
+                    "n_valid": d.get("n_valid"), "nonfinite": parse_list(d.get("nonfinite")) or []})
     return out
+
+
+def _collect_ccs_stop(lines) -> list:
+    """[CCSStop] edgeK | n_valid | n | frac | min_valid_frac | nonfinite：有效端占比过低、停止训练的那一次（D-116）。"""
+    return [{"edge": d.get("edge_id"), "n_valid": d.get("n_valid"), "n": d.get("n"), "frac": d.get("frac"),
+             "min_valid_frac": d.get("min_valid_frac"), "nonfinite": parse_list(d.get("nonfinite")) or []}
+            for d in collect_kv(lines, "[CCSStop]")]
 
 
 def _collect_harden_agg(lines) -> list:
@@ -1024,6 +1035,7 @@ def collect(log_text: str) -> dict:
         "harden_agg": _collect_harden_agg(lines),
         # 阶段三 SA-C（schema 13）：CCS 每次 edge 聚合的聚类判决（本轮有谁 + 剔了谁）
         "ccs_decisions": _collect_ccs(lines),
+        "ccs_stop": _collect_ccs_stop(lines),
         "per_edge_post_agg_rounds": _collect_post_agg_edge(lines),
         "frozen_rounds": _collect_frozen(lines),
         "frozen_edge_rounds": _collect_frozen_edge(lines),

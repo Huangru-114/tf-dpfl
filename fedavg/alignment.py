@@ -135,6 +135,11 @@ EXTRA_SWITCHES = (
     #   值 = experiments/defense/edge-native/p0_configs.yaml 展开后的配置 id（如 "sau-e8-train-high"）；None = 关（逐字节不变）。
     Switch("defense.edge_harden",          None,         None,
            (),                                      "A28", "D-108", "hier_fedrep"),   # 行号沿用 A28（同 eval_grid / snapshot_rounds 等阶段性开关）
+    # 阶段三 D-116：FedRep 下私有投影网络（proj_*）在哪一段训练。head = 只在训练私有部分的那一段（旧行为，逐字节不变）；
+    #   both = 训练主干那一段也一起训（照用户的 CCS 复现仓库 src/client/fedrep.py：第二遍只清分类头的梯度）。
+    #   只对 hier_fedrep + resnet10_torch_proj 有意义（config_validate 核对）。
+    Switch("training.fedrep_proj_phase",   "head",       None,
+           ("head", "both"),                        "A26", "D-116", "hier_fedrep"),
 )
 
 ALL = {s.key: s for s in SWITCHES + EXTRA_SWITCHES}

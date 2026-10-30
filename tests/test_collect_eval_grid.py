@@ -111,8 +111,8 @@ def test_light_line_keys_are_the_metrics_field_names():
 # collect_metrics
 # ══════════════════════════════════════════════════════════════════════════
 def test_schema_is_13():
-    assert CM.SCHEMA_VERSION == 14
-    assert CM.collect("\n".join(HEAD))["schema_version"] == 14
+    assert CM.SCHEMA_VERSION == 15
+    assert CM.collect("\n".join(HEAD))["schema_version"] == 15
 
 
 def test_settings8_round_trips_into_the_run_block():

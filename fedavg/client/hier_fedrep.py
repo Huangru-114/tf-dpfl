@@ -45,7 +45,7 @@ import tensorflow as tf
 
 from .client_base import FLClientBase
 from alignment import get_switch
-from models.cnn import get_base_head_indices, get_bn_stat_indices
+from models.cnn import PRIVATE_HEAD_PREFIXES, get_base_head_indices, get_bn_stat_indices
 
 
 class HierFedRepClient(FLClientBase):
@@ -72,6 +72,19 @@ class HierFedRepClient(FLClientBase):
         tv = model.trainable_variables
         self._head_tvars = [tv[j] for j in self._head_tv_idx]
         self._base_tvars = [tv[j] for j in self._base_tv_idx]
+
+        # D-116：私有投影网络（proj_*）在哪一段训练。head（缺省）= 只在私有部分那一段 → 主干那一段的变量就是
+        # self._base_tvars 本身（同一个列表对象，tf.function 捕获的变量与改动前完全相同）；
+        # both = 主干那一段也训投影网络（分类头仍冻结），照用户的 CCS 复现仓库的 FedRep 写法。
+        self._proj_phase = get_switch(config, "training.fedrep_proj_phase")
+        if self._proj_phase == "both":
+            proj = [v for layer in model.layers if layer.name.startswith(PRIVATE_HEAD_PREFIXES)
+                    for v in layer.trainable_variables]
+            if not proj:
+                raise ValueError("training.fedrep_proj_phase=both：模型里没有 proj_* 层（要 resnet10_torch_proj）")
+            self._body_tvars = self._base_tvars + proj
+        else:
+            self._body_tvars = self._base_tvars
 
         # ── 持久状态 ──────────────────────────────────────────────────────
         self._head_weights: list | None = None   # 私有 head（warm-start）
@@ -102,7 +115,7 @@ class HierFedRepClient(FLClientBase):
 
     # ── 训练步接口：CCS mixin 的对抗训练步对这组变量求梯度、用这个优化器（FedPer 覆写为全部变量，D-114）──
     def step_vars(self):
-        return self._base_tvars
+        return self._body_tvars
 
     def step_optimizer(self):
         return self._base_opt
@@ -179,6 +192,9 @@ class HierFedRepClient(FLClientBase):
 
         # ── 阶段 2：上传 backbone w_k 训练（冻 head，普通 CE） ─────────────
         self._body_phase(local, losses)
+        if self._proj_phase == "both":
+            # 投影网络在主干那一段也训过 → 私有部分的快照要取训练后的值（分类头这一段没动，取到的仍是第一段末的值）
+            self._head_weights = [v.numpy() for v in self._head_tvars]
         upload_weights = self.model.get_weights()  # backbone=w_k（交 edge 聚合）, head=私有
 
         # ── 个性化模型（供 PM 评估）= [共享表示 φ_e, 私有 head] ──────────────────
@@ -296,6 +312,6 @@ class HierFedRepClient(FLClientBase):
         with tf.GradientTape() as tape:
             loss = self.loss_fn(labels, self.model(images, training=True))
             total = loss + self.on_extra_loss()
-        grads = tape.gradient(total, self._base_tvars)
-        self._base_opt.apply_gradients(zip(grads, self._base_tvars))
+        grads = tape.gradient(total, self._body_tvars)
+        self._base_opt.apply_gradients(zip(grads, self._body_tvars))
         return loss

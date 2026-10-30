@@ -538,6 +538,8 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
   每个批一步对**全部可训练变量**求梯度（无 head 阶段，`plocal_epochs` 不用）；私有 = head + `proj_*`；**BN 统计量固定共享**（不读 `fedrep_bn_stats`）。
   CCS mixin 的训练步经 `step_vars()` / `step_optimizer()`（FedRep = body，FedPer = 全部）。自描述 `[设定13]`，collect_metrics **schema 14**。
   CCSF 用它 + 官方超参数（2 epoch、batch 64、lr 0.1 常数）；CCSA = 我们的超参数的消融。守卫 `tests/test_hier_fedper_tf.py`（TF）+ `test_ccs_config` / `test_edge_native_registry`（本地）。
+  **FedRep 投影网络开关**（D-116）：`training.fedrep_proj_phase: both` = 训练主干那一段也训私有投影网络（缺省 head 逐字节不变；只对 hier_fedrep + proj 模型）。
+  **CCS 剔除非有限上传物**：`[CCS]` 报 `n_valid` / `nonfinite`，有效占比 < `defense.ccs.min_valid_frac`（0.5）→ `[CCSStop]` 并停止；collect_metrics **schema 15**。守卫 `tests/test_fedrep_proj_phase_tf.py`、`test_ccs_spec`。
 
 **留了接口但没有实现的**（不要以为它们能用）：
 - 主动防御（需要客户端配合的防御）：接口齐了（`BaseDefense.layers` /

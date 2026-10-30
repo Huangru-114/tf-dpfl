@@ -133,13 +133,15 @@ def test_settings12_and_ccs_lines_roundtrip():
              "    " + format_kv("[CCS]", {"cur": fmt_list([5]), "n_pool": 10, "status": "ok",
                                          "rejected": fmt_list([5])}, edge_id=2)]
     m = CM.collect("\n".join(lines))
-    assert m["schema_version"] == 14
+    assert m["schema_version"] == 15
     assert m["run"]["ccs"] is True and m["run"]["ccs_pool"] == "edge_cache" and m["run"]["ccs_kl"] == 0.01
     assert all(f"ccs_{k}" in m["run"] for k in SETTINGS_KEYS)
     assert CM.CCS_SETTINGS_KEYS == SETTINGS_KEYS                     # 回程解析器里抄的那一份没走样
+    # D-116 之前的 [CCS] 行没有 n_valid / nonfinite 两列 → 解析成 None / []（老日志照样能读）
     assert m["ccs_decisions"] == [
-        {"edge": 0, "cur": [3, 7, 12], "n_pool": 3, "status": "degenerate", "rejected": []},
-        {"edge": 2, "cur": [5], "n_pool": 10, "status": "ok", "rejected": [5]}]
+        {"edge": 0, "cur": [3, 7, 12], "n_pool": 3, "status": "degenerate", "rejected": [],
+         "n_valid": None, "nonfinite": []},
+        {"edge": 2, "cur": [5], "n_pool": 10, "status": "ok", "rejected": [5], "n_valid": None, "nonfinite": []}]
 
 
 def test_old_logs_have_no_ccs():

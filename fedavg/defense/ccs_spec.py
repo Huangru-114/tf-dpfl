@@ -45,6 +45,9 @@ DEFAULTS = {
     "clip_norm": 10.0,      # clip_grad_norm_(max_norm=10)
     "pool": "round",        # round（官方）/ edge_cache（D-109 Q4，分层用）
     "min_pool": 5,          # edge_cache：池里少于这么多端 → degenerate、不剔除
+    # 用户 2026-10-30（D-116）：上传物含 NaN / inf 的端在聚类与聚合之前剔除；本轮有效端占比低于这个值 → 停止训练。
+    # 不进 SETTINGS_KEYS（[设定12] 的字段一变，已有结果的 run 块对账会全部判成不一致）；每次聚合的 [CCS] 行里报 n_valid。
+    "min_valid_frac": 0.5,
 }
 MMD_BANDWIDTHS = (10.0, 15.0, 20.0, 50.0)
 ACT_CC = -100.0
@@ -81,6 +84,9 @@ def ccs_params(config: dict) -> dict:
         raise ValueError(f"defense.ccs.space ∈ {SPACES}：{p['space']!r}")
     if p["pool"] not in POOLS:
         raise ValueError(f"defense.ccs.pool ∈ {POOLS}：{p['pool']!r}")
+    p["min_valid_frac"] = float(p["min_valid_frac"])
+    if not (0.0 < p["min_valid_frac"] <= 1.0):
+        raise ValueError(f"defense.ccs.min_valid_frac ∈ (0, 1]：{p['min_valid_frac']!r}")
     if not (p["at"] or p["cluster"]):
         raise ValueError("defense.name = ccs 但 at 与 cluster 都关 —— 这不是防御，写 defense.name: none")
     if p["n_regions"] < 3:
@@ -206,6 +212,11 @@ def mmd_rbf(x, y, bandwidths=MMD_BANDWIDTHS):
 # ── 自描述 ───────────────────────────────────────────────────────────────────
 SETTINGS_KEYS = ("at", "cluster", "kl", "mmd", "steps", "step", "eps", "radius", "n_regions",
                  "space", "clip_norm", "pool", "min_pool")
+
+
+def finite_upload(weights) -> bool:
+    """一个上传物（权重数组列表）是否全部有限（无 NaN / inf）。"""
+    return all(np.isfinite(np.asarray(w)).all() for w in weights)
 
 
 def settings_row(config: dict) -> dict:

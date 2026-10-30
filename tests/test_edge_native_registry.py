@@ -98,7 +98,7 @@ def test_three_checks_for_every_declared_set(reg):
         fed, ev = cfg["federation"], cfg["evaluation"]
         assert len(cfg["backdoor"]["malicious_per_edge"]) == fed["n_edges"], run["run_id"]
         # CCSA（D-113 的消融）刻意只跑 30 轮：第 10 轮主任务就已分开（F-109），对照是 CCSF / 旧 FedRep 版的前 30 轮
-        want = 30 if run["group"] == "CCSA" else 300
+        want = 30 if run["group"] in ("CCSA", "CCSR30") else 300     # CCSR30：D-116 第一步，只看前 30 轮主任务
         assert fed["n_rounds"] * fed["edge_rounds"] == want, run["run_id"]
         assert cfg.get("stopping") is None, run["run_id"]
         grids.add(ev["eval_grid"])
@@ -300,3 +300,14 @@ def test_ccsl_is_ccsa_off_with_300_rounds(reg):
     d = _diff(reg.declared_config(by["CCSA__fedper-ours-off__s42"]), reg.declared_config(by["CCSL__fedper-ours-off__s42"]))
     assert d == {"federation.n_rounds", "meta.group", "meta.run_id"}, d
     assert reg.declared_config(by["CCSL__fedper-ours-off__s42"])["federation"]["n_rounds"] == 300
+
+
+def test_ccsr30_is_fedrep_with_projection_trained_in_both_phases(reg):
+    """D-116：CCSR30 = FedRep（base 的方法与训练量）+ 投影网络两段都训练 + CCS，30 轮；300 轮那组等放行。"""
+    by = {r["run_id"]: r for r in reg.runs()}
+    a = reg.declared_config(by["CCSF__ccs-full__s42"])
+    b = reg.declared_config(by["CCSR30__fedrep-projboth-ccs__s42"])
+    assert b["training"]["drift_correction"] == "hier_fedrep" and b["training"]["fedrep_proj_phase"] == "both"
+    assert _diff(a, b) == {"training.drift_correction", "training.local_epochs", "data.batch_size", "training.lr_decay",
+                           "training.fedrep_proj_phase", "federation.n_rounds", "meta.group", "meta.run_id"}
+    assert reg.unmet_requires("CCSR") == ["ccsr-30-ok"]
