@@ -1,26 +1,26 @@
-# current-focus —— 阶段三（edge 原生防御）· A-pre 结案；CCS：查 FedRep 的 BatchNorm 统计量失配（CCSB30）
+# current-focus —— 阶段三（edge 原生防御）· A-pre 结案；CCS：统计量共享下先验证攻击（CCSBOFF）
 
 > **写于 2026-10-28**（SA0 / P0 / SA1 会话收尾；同日 SA-C 会话改写第一节）。这一版取代之前叠在一起的各段状态；过程与数字都在本目录 `FINDINGS.md`（F-090 … F-100）与 `DECISIONS.md`（D-096 … D-108）。
 > ⚠️ 阶段三的实验全部做完之前，不要把分支合并到 main（CLAUDE.md 分支纪律，用户 2026-10-10）。分支 `claude/eloquent-faraday-b9kmop`。
 
-## 一、现在要做的：交 CCSB30（D-117），检验 BatchNorm 统计量失配
+## 一、现在要做的：交 CCSBOFF（D-118 第一步），确认统计量共享下后门还能植入 FedRep
 
-- 目标仍是：不加防御时后门能植入良性端（≥ 0.5）、开 CCS 后攻击成功率降 ≥ 0.5、主任务精度降 ≤ 0.02。
-- 上一步（投影网络两段都训练）没有救回 FedRep + CCS 的主任务（第 30 轮 0.29，F-112）。
-- 新线索：陈旧个性化（客户端上次的主干 + 私有部分）没坏（0.54），新鲜个性化（当前主干 + 同一套私有部分）坏了（0.32）；FedPer 的统计量随主干聚合，就不坏。
-  → 嫌疑：FedRep 客户端私有的 BatchNorm 统计量与新主干失配。
-- CCSB30 = 旧 FedRep 版 CCS 只改统计量共享，30 轮，约 1 GPU-h。组口径 `P2-ablation`（刻意偏离对齐模板）。
+- 统计量改成共享后，FedRep + CCS 的主任务不再崩坏（第 30 轮新鲜个性化 0.70，F-113）→ 主因是客户端私有统计量与新主干失配。
+- 但统计量共享下，后门本身还能不能植入 FedRep 的良性客户端，没有数据。所以先只跑不加防御那格。
+- CCSBOFF = FedRep + 统计量共享、不加防御、300 轮，1 个 run，约 3 GPU-h（外推），24G 内存。
 
 **集群上**（先 `git pull`、`git log --oneline -1`）：
 
 ```bash
-PACK=2 PACK_MEM_PER_RUN_GB=48 RUN_GROUPS=CCSB30 bash experiments/defense/edge-native/submit.sh --dry-run
+PACK=2 RUN_GROUPS=CCSBOFF bash experiments/defense/edge-native/submit.sh --dry-run
 ```
-应列出 1 个作业（`CCSB30__fedrep-bnshared-ccs__pack-k1-s42`，`--mem=48G`）。确认后去掉 `--dry-run`，并在命令前加 `PYTHONUNBUFFERED=1`。
+应列出 1 个作业（`CCSBOFF__fedrep-bnshared-off__pack-k1-s42`，`--mem=24G`）。确认后去掉 `--dry-run`，并在命令前加 `PYTHONUNBUFFERED=1`。
 
-**回传后**：看第 10–30 轮的新鲜个性化精度。第 30 轮 ≥ 0.6 → 统计量失配是主因，下一步在「统计量共享」下登记不加防御 + 开 CCS 两格、各 300 轮；仍在 0.3 左右 → 再往下查。
+**回传后**：看良性端攻击成功率（末 10 点，过滤目标类）。
+- ≥ 0.5 → 用户放行（registry.yaml 的 `available` 加 `ccsb-attack-ok`、全量 materialize）→ 交 CCSB（同设置开 CCS、300 轮，约 10 GPU-h、48G），回传后用 `harness/ccsf_verdict.py --off CCSBOFF 的 metrics --ccs CCSB 的 metrics` 判三个条件。
+- < 0.5 → 统计量共享下后门传不过去（与 FedPer 同类的问题），开 CCS 那格不交，回头讨论。
 
-**还开着的**：CCS 在 FedPer 下的长期精度代价（ΔMTA 0.21，F-110）；CCSR（投影两段都训的 300 轮）挂起；D-096；CCSP 每布点补同模型 off 臂。
+**还开着的**：CCS 在 FedPer 下的长期精度代价（ΔMTA 0.21，F-110）；D-096；CCSP 每布点补同模型 off 臂。
 
 ## 二、上传前加固（A-pre）：已结案（D-112）
 

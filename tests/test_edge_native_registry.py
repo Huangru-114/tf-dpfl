@@ -310,14 +310,16 @@ def test_ccsr30_is_fedrep_with_projection_trained_in_both_phases(reg):
     assert b["training"]["drift_correction"] == "hier_fedrep" and b["training"]["fedrep_proj_phase"] == "both"
     assert _diff(a, b) == {"training.drift_correction", "training.local_epochs", "data.batch_size", "training.lr_decay",
                            "training.fedrep_proj_phase", "federation.n_rounds", "meta.group", "meta.run_id"}
-    assert reg.unmet_requires("CCSR") == ["ccsr-30-ok"]
+    assert "CCSR" not in reg.groups                                 # D-118：前提被否定，300 轮那组已撤
 
 
 def test_group_protocol_override_only_touches_its_own_meta(reg):
     """D-117：组可以声明 protocol（如 P2-ablation）；不写的组照旧是整张表的 P2（逐字节同以前）。"""
     by = {r["run_id"]: r for r in reg.runs()}
+    ablation = {"CCSB30", "CCSBOFF", "CCSB"}                                   # 统计量共享 = 刻意偏离对齐模板的两组（D-117 / D-118）
+    assert {g for g, d in reg.groups.items() if d.get("protocol")} == ablation
     assert reg.declared_config(by["CCSB30__fedrep-bnshared-ccs__s42"])["meta"]["protocol"] == "P2-ablation"
-    others = [r for r in reg.runs() if r["group"] != "CCSB30"]
+    others = [r for r in reg.runs() if r["group"] not in ablation]
     assert others and all(reg.declared_config(r)["meta"]["protocol"] == "P2" for r in others)
 
 
@@ -329,3 +331,17 @@ def test_ccsb30_differs_from_ccsr30_only_in_the_bn_and_projection_switches(reg):
     assert b["training"]["fedrep_bn_stats"] == "shared" and "fedrep_proj_phase" not in b["training"]
     assert _diff(a, b) == {"training.fedrep_bn_stats", "training.fedrep_proj_phase", "meta.protocol",
                            "meta.group", "meta.run_id"}
+
+
+def test_ccsb_off_first_then_ccs_after_the_attack_is_confirmed(reg):
+    """D-118：先只交不加防御（CCSBOFF，检验后门能否植入）；开 CCS（CCSB）挂 ccsb-attack-ok。
+    CCSB 的配置 = CCSB30 拉长到 300 轮；与 CCSBOFF 只差防御设置。"""
+    assert reg.unmet_requires("CCSBOFF") == [] and reg.unmet_requires("CCSB") == ["ccsb-attack-ok"]
+    by = {r["run_id"]: r for r in reg.runs()}
+    off = reg.declared_config(by["CCSBOFF__fedrep-bnshared-off__s42"])
+    ccs = reg.declared_config(by["CCSB__fedrep-bnshared-ccs__s42"])
+    short = reg.declared_config(by["CCSB30__fedrep-bnshared-ccs__s42"])
+    assert _diff(short, ccs) == {"federation.n_rounds", "meta.group", "meta.run_id"}
+    assert {k for k in _diff(off, ccs) if not k.startswith("defense.")} == {"meta.group", "meta.run_id"}
+    assert off["meta"]["protocol"] == ccs["meta"]["protocol"] == "P2-ablation"
+    assert off["training"]["fedrep_bn_stats"] == "shared" and off["federation"]["n_rounds"] == 300

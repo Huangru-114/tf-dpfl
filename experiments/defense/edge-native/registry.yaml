@@ -147,6 +147,32 @@ groups:
       - {cell: ccs-full, set: {defense.name: ccs, defense.layers: [client, edge], defense.ccs.at: true,
                                defense.ccs.cluster: true, defense.ccs.space: input, defense.ccs.pool: round}}
 
+  CCSBOFF:
+    purpose: "D-118 第一步：BatchNorm 统计量改成共享后，后门还能不能植入 FedRep 的良性客户端（条件 1：良性端攻击成功率 ≥ 0.5）。不加防御，300 轮。不过 → 开 CCS 那格不交（防御效果无从验证）"
+    protocol: P2-ablation          # 刻意偏离对齐模板（模板要求统计量私有）
+    requires: [audit, SA-C, ccs-space]
+    seeds: [42]
+    set: {federation.n_edges: 1, federation.edge_rounds: 1, federation.n_rounds: 300, stopping: null,
+          evaluation.eval_grid: 5, evaluation.eval_interval: 5, backdoor.eval_interval: 5,
+          backdoor.malicious_per_edge: [10], model.arch: resnet10_torch_proj,
+          training.fedrep_bn_stats: shared}
+    cells:
+      - {cell: fedrep-bnshared-off}
+
+  CCSB:
+    purpose: "D-118 第二步：统计量共享下 FedRep + CCS，300 轮；对照 = CCSBOFF。判定 harness/ccsf_verdict.py（条件 2：降 ≥ 0.5；条件 3：主任务精度降 ≤ 0.02）"
+    protocol: P2-ablation
+    requires: [audit, SA-C, ccs-space, ccsb-attack-ok]   # ccsb-attack-ok：CCSBOFF 的良性端攻击成功率 ≥ 0.5、用户放行后加进 available
+    seeds: [42]
+    # 与 CCSB30 只差 n_rounds；与 CCSBOFF 只差防御设置
+    set: {federation.n_edges: 1, federation.edge_rounds: 1, federation.n_rounds: 300, stopping: null,
+          evaluation.eval_grid: 5, evaluation.eval_interval: 5, backdoor.eval_interval: 5,
+          backdoor.malicious_per_edge: [10], model.arch: resnet10_torch_proj,
+          training.fedrep_bn_stats: shared}
+    cells:
+      - {cell: fedrep-bnshared-ccs, set: {defense.name: ccs, defense.layers: [client, edge], defense.ccs.at: true,
+                                          defense.ccs.cluster: true, defense.ccs.space: input, defense.ccs.pool: round}}
+
   CCSB30:
     purpose: "D-117：FedRep + CCS 的主任务崩坏是不是因为客户端保存的私有 BatchNorm 统计量与新主干失配（F-112：陈旧个性化 0.54、新鲜个性化 0.32；FedPer 统计量共享则不垮）。与旧 FedRep 版 CCS（legacy/CCSF-fedrep/）只差 training.fedrep_bn_stats: shared 与 n_rounds 30"
     protocol: P2-ablation          # 刻意偏离对齐模板（模板要求统计量私有）→ 如实标成消融口径；config_validate 不逐键核对模板
@@ -170,19 +196,6 @@ groups:
           backdoor.malicious_per_edge: [10], model.arch: resnet10_torch_proj,
           training.fedrep_proj_phase: both}
     cells:
-      - {cell: fedrep-projboth-ccs, set: {defense.name: ccs, defense.layers: [client, edge], defense.ccs.at: true,
-                                          defense.ccs.cluster: true, defense.ccs.space: input, defense.ccs.pool: round}}
-
-  CCSR:
-    purpose: "D-116 第二步：FedRep + 投影网络两段都训练，不加防御 / 开 CCS 两格，300 轮。三个条件：不加防御时良性端攻击成功率 ≥ 0.5；开 CCS 后降 ≥ 0.5；主任务精度降 ≤ 0.02"
-    requires: [audit, SA-C, ccs-space, ccsr-30-ok]   # ccsr-30-ok：CCSR30 的前 30 轮主任务没垮、用户放行后加进 available
-    seeds: [42]
-    set: {federation.n_edges: 1, federation.edge_rounds: 1, federation.n_rounds: 300, stopping: null,
-          evaluation.eval_grid: 5, evaluation.eval_interval: 5, backdoor.eval_interval: 5,
-          backdoor.malicious_per_edge: [10], model.arch: resnet10_torch_proj,
-          training.fedrep_proj_phase: both}
-    cells:
-      - {cell: fedrep-projboth-off}
       - {cell: fedrep-projboth-ccs, set: {defense.name: ccs, defense.layers: [client, edge], defense.ccs.at: true,
                                           defense.ccs.cluster: true, defense.ccs.space: input, defense.ccs.pool: round}}
 
