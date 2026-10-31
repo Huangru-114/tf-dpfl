@@ -336,7 +336,7 @@ def test_ccsb30_differs_from_ccsr30_only_in_the_bn_and_projection_switches(reg):
 def test_ccsb_off_first_then_ccs_after_the_attack_is_confirmed(reg):
     """D-118：先只交不加防御（CCSBOFF，检验后门能否植入）；开 CCS（CCSB）挂 ccsb-attack-ok。
     CCSB 的配置 = CCSB30 拉长到 300 轮；与 CCSBOFF 只差防御设置。"""
-    assert reg.unmet_requires("CCSBOFF") == [] and reg.unmet_requires("CCSB") == ["ccsb-attack-ok"]
+    assert reg.unmet_requires("CCSBOFF") == [] and reg.unmet_requires("CCSB") == []   # D-119：CCSBOFF 通过条件 1 后放行
     by = {r["run_id"]: r for r in reg.runs()}
     off = reg.declared_config(by["CCSBOFF__fedrep-bnshared-off__s42"])
     ccs = reg.declared_config(by["CCSB__fedrep-bnshared-ccs__s42"])

@@ -1,64 +1,99 @@
-# current-focus —— 阶段三（edge 原生防御）· A-pre 结案；CCS：统计量共享下先验证攻击（CCSBOFF）
+# 交接 —— 阶段三（edge 原生防御）· CCS 这条线：统计量共享下的完整验证
 
-> **写于 2026-10-28**（SA0 / P0 / SA1 会话收尾；同日 SA-C 会话改写第一节）。这一版取代之前叠在一起的各段状态；过程与数字都在本目录 `FINDINGS.md`（F-090 … F-100）与 `DECISIONS.md`（D-096 … D-108）。
-> ⚠️ 阶段三的实验全部做完之前，不要把分支合并到 main（CLAUDE.md 分支纪律，用户 2026-10-10）。分支 `claude/eloquent-faraday-b9kmop`。
+> **写于 2026-10-31**（CCS 排查会话收尾）。整份重写，取代之前叠在一起的各段状态；过程与数字在本目录 `FINDINGS.md`（到 F-114）与 `DECISIONS.md`（到 D-119）。
+> ⚠️ 阶段三的实验全部做完之前，不要把分支合并到 main（用户 2026-10-10）。分支 `claude/eloquent-faraday-b9kmop`。
 
-## 一、现在要做的：交 CCSBOFF（D-118 第一步），确认统计量共享下后门还能植入 FedRep
+## 一、正在集群上跑 / 马上要交的：CCSB（统计量共享 + CCS，300 轮）
 
-- 统计量改成共享后，FedRep + CCS 的主任务不再崩坏（第 30 轮新鲜个性化 0.70，F-113）→ 主因是客户端私有统计量与新主干失配。
-- 但统计量共享下，后门本身还能不能植入 FedRep 的良性客户端，没有数据。所以先只跑不加防御那格。
-- CCSBOFF = FedRep + 统计量共享、不加防御、300 轮，1 个 run，约 3 GPU-h（外推），24G 内存。
+**为什么跑它**：我们要的是一个组合，同时满足三个条件：
+1. 不加防御时，后门能植入良性客户端：良性客户端攻击成功率（末 10 点，排除目标类样本）≥ 0.5。
+2. 开 CCS 后，攻击成功率比不加防御至少低 0.5。
+3. 开 CCS 后，主任务精度（新鲜个性化模型，末 10 点）最多低 0.02。
 
-**集群上**（先 `git pull`、`git log --oneline -1`）：
+「FedRep + BatchNorm 统计量随主干共享」这个设定已经通过条件 1：不加防御那格（CCSBOFF）的良性端攻击成功率 0.796，主任务精度 0.894。
+**CCSB 只差开 CCS**，要达到：良性端攻击成功率 ≤ 0.296、主任务精度 ≥ 0.874。
+
+**集群上**（先 `git pull`，看 `git log --oneline -1`）：
 
 ```bash
-PACK=2 RUN_GROUPS=CCSBOFF bash experiments/defense/edge-native/submit.sh --dry-run
+PACK=2 PACK_MEM_PER_RUN_GB=48 RUN_GROUPS=CCSB bash experiments/defense/edge-native/submit.sh --dry-run
 ```
-应列出 1 个作业（`CCSBOFF__fedrep-bnshared-off__pack-k1-s42`，`--mem=24G`）。确认后去掉 `--dry-run`，并在命令前加 `PYTHONUNBUFFERED=1`。
+应列出 1 个作业（`CCSB__fedrep-bnshared-ccs__pack-k1-s42`，`--mem=48G`，约 10 GPU-h）。确认后去掉 `--dry-run`，并在命令前加 `PYTHONUNBUFFERED=1`（被杀时日志不丢行）。
 
-**回传后**：看良性端攻击成功率（末 10 点，过滤目标类）。
-- ≥ 0.5 → 用户放行（registry.yaml 的 `available` 加 `ccsb-attack-ok`、全量 materialize）→ 交 CCSB（同设置开 CCS、300 轮，约 10 GPU-h、48G），回传后用 `harness/ccsf_verdict.py --off CCSBOFF 的 metrics --ccs CCSB 的 metrics` 判三个条件。
-- < 0.5 → 统计量共享下后门传不过去（与 FedPer 同类的问题），开 CCS 那格不交，回头讨论。
+**回传后**：
 
-**还开着的**：CCS 在 FedPer 下的长期精度代价（ΔMTA 0.21，F-110）；D-096；CCSP 每布点补同模型 off 臂。
+```bash
+python3 harness/ccsf_verdict.py --off experiments/defense/edge-native/results/P2/CCSBOFF/CCSBOFF__fedrep-bnshared-off__s42.metrics.json --ccs experiments/defense/edge-native/results/P2/CCSB/CCSB__fedrep-bnshared-ccs__s42.metrics.json --out experiments/defense/edge-native/analysis/ccsb_verdict.json
+```
+- 标签含义：`ccs_reproduces` = 三条都满足；`partial_repro` = 降幅在 0.2–0.5 之间或精度超标；`ccs_not_reproduced` = 降幅 < 0.2。
+- 另外要看：
+  - `[CCS]` 行的 `n_valid`（每次聚合 10 个上传里有几个有效）与 `[CCSStop]`（有效端低于一半时会停止训练）；
+  - 聚类剔除的命中率与误伤率（判定输出里的 `rejection`）；
+  - 主任务精度在末段是否稳定（FedPer 下 CCS 的精度代价是随轮数慢慢累积出来的）。
 
-## 二、上传前加固（A-pre）：已结案（D-112）
+## 二、下个会话要做的：统计量共享本身算不算一种防御（用户 2026-10-31：「记下」）
 
-| 格子 | 判定 | 要点 | 出处 |
-|---|---|---|---|
-| 集中布点 H1（s42–44） | `protects_victims` | 受害 edge ASR 平均降 0.409（0.476 / 0.522 / 0.228）、精度平均降 0.012；E0 良性端 `no_effect`；每次云聚合灌入量不变 | F-104，`analysis/h1_pre_verdict.json` |
-| 分散布点 P1（s42） | `marginal` → 只记录、不进 H3 | ΔP 0.285、Δmargin 3.83，但 ΔMTA 0.030 > 0.02；末段振荡 | F-105，`analysis/p1_dist_verdict.json` |
+**现象**（单个种子，FedRep，不加防御，300 轮）：
 
-- 用户定：H1 停在 3 seed（不补 s45 / s46，SNAP5 继续挂 `h-main`）；数字都是第 51–60 云轮（加固了 50–60 次之后）的均值。
-- 打包：两个加固 run 一张卡只多约 3% 墙钟（F-106）→ 以后加固格子默认 K=2。
-- 下一步候选（用户定）：A-every（每个 edge 轮都加固，唯一能碰到 E0 / 分散布点里本 edge 良性端的 edge 侧做法，**未实现**）、CCSP（等 CCSF）。
-
-## 三、到现在为止的结论（细节见 FINDINGS）
-
-| 步骤 | 结果 | 出处 |
+| | 统计量私有 | 统计量共享 |
 |---|---|---|
-| SNAP（无防御对照 + 快照） | 有效；集中布点与 G1R5 逐位相同 | F-094 |
-| SA0（加固核心 + 离线回放工具） | 三轮对抗式审查后完成；离线回放在 GPU 上与原训练一致（V0） | F-096、F-097 |
-| 加固 lr | 客户端 lr 在 BN 固定模式下发散；按预注册规则选 train ×0.1、frozen ×0.03 | F-098、F-099、D-106、D-107 |
-| P0（离线回放，s42 全 36 个配置） | `accuracy_bound`：砍得动的都伤精度（PGD 4/255 砍 83–88%、精度降约 0.10；SAU 8/255 BN 更新 5 遍砍 44–58%、降 0.02–0.03）；只做干净微调砍不动；BN 固定模式多数更糟 | F-100、D-108；对比表 `analysis/p0_s42_screen_tables.md` |
-| 「只吸收部分中心更新」（阻尼） | 一次性回放里看起来好，但只是延缓灌入，对持久 / 强攻击（如 IBA）无用 → 只作参照，不当候选 | 用户 2026-10-28 |
-| P1（在线 SAU 一个 run，s42） | `go_main_col`：受害 V 0.995 → 0.519、ΔMTA 0.009；jump 只降 21%、E0 不动、末段振荡 | F-103 |
-| H1 A-pre（集中 3 seed） | `protects_victims`；E0 `no_effect` | F-104 |
-| P1 A-pre 分散（s42） | `marginal`，只记录 | F-105 |
+| 良性端攻击成功率 | 0.926 | 0.796 |
+| 几乎免疫的良性端（< 0.1） | 6 / 90 | 12 / 90 |
+| 被完全攻破的良性端（> 0.9） | 81 / 90 | 56 / 90 |
+| 逐端攻击成功率与「这个端会不会输出目标类」的相关 | 0.32 | 0.75 |
+| 共享模型攻击成功率 | ≈ 1.0 | ≈ 1.0 |
+| 主任务精度 | 0.904 | 0.894 |
 
-**用户 2026-10-28 提出的另一条路线**（还没讨论完）：用本区域数据产生的**合成数据**代替区域服务器手里的真实干净集。
-看法（会话里已说明）：可以去掉「区域服务器持有真实数据」这个强假设，但合成数据可能把后门特征一起反演出来，且依赖于区域侧加固本身先被证明有用 → 排在 P1 结果之后再议（P1 已回传，F-103）。
+- 后门在两种设定下都完整进入了共享主干，差别在「主干特征 → 个性化输出」这最后一段。
+- 推断（没有直接证据）：统计量私有时，每个端在自己的干净数据上估计统计量，触发特征被归一化成一个各端一致的强方向，压过分类头的类别偏好；统计量共享后，分类头的类别先验开始起作用，本地没有目标类的端就挡住了（FedPer 下也是这个模式，相关 0.68–0.71）。
+- 与已有结果的呼应：之前离线评估 edge 侧加固时，SAU「统计量随加固更新」砍掉 44–58% 的灌入，「统计量冻结」多数更差 → 统计量本身是影响后门迁移的杠杆。
 
-## 四、还等用户定的旧事项
+**要验证的两件事**（都还没登记，下个会话先出方案给用户确认）：
+1. **−0.13 是不是真效应**：同一设置（flat、1 个边缘服务器、100 端、FedRep、不加防御、300 轮）× 统计量 {私有, 共享} × 种子 {43, 44}，共 4 个 run，约 4 × 2.8 ≈ 11 GPU-h，同格子两个种子一包。
+   - 私有那组：旧的 FedRep 不加防御配置（现存在 `legacy/CCSF-fedrep/` 的 seed 42 结果）补种子。
+   - 共享那组：CCSBOFF 补种子。
+   - 判定前先写下规则，例如三个种子的差值都 > 0 且均值 ≥ 0.1。
+2. **一个最便宜的防御臂：边缘服务器用自己的干净数据重新估计 BatchNorm 统计量**（只做前向、不做对抗训练），在分层设置里与上传前的 SAU 加固对比。
+   - 需要新代码。可以复用上传前加固的挂点（`fedavg/hardening/online.py`）和 P0 离线回放工具，先离线看一次能砍掉多少灌入，再决定要不要在线跑。
 
-- F-095：G1 / G1R5 的在线 c_k 只在飞机 / 汽车两类上测 —— `update_ck.py` 的取样要不要改、REPORT §5.13 要不要加注。
-- PLAN §8 仍待定：G8 存盘删不删、F-089 的测试要不要改成与 Python 版本无关。
+## 三、CCS 这条线到现在的来龙去脉（按时间）
 
-## 五、环境 / 基线
+| 实验 | 设置 | 结果 | 结论 |
+|---|---|---|---|
+| FedRep + CCS（统计量私有） | 我们的主线设置 | 主任务从第 10 轮起停在 0.34；第 54 轮 NaN 崩溃 | 主任务崩坏 |
+| FedPer + CCS 官方超参数 | 2 epoch、batch 64、lr 0.1 常数 | 不加防御时良性端只有 0.39 → 复现闸判「攻击没植入」 | FedPer 下后门传不到大多数良性端 |
+| FedPer + 我们的训练量 | 5 epoch、batch 32 | 良性端仍只有 0.41 | 不是训练量的问题，是 FedPer 的私有层挡住了 |
+| FedRep + CCS，投影网络两段都训 | 照用户 CCS 复现仓库的 FedRep 写法 | 主任务仍垮（0.29） | 不是「梯度到不了投影网络」 |
+| FedRep + CCS，统计量共享 | 30 轮诊断 | 主任务 0.70，不再垮 | **主因：客户端私有统计量与新主干失配** |
+| FedRep + 统计量共享，不加防御 | 300 轮（CCSBOFF） | 良性端 0.796，主任务 0.894 | 条件 1 通过 → 放行 CCSB |
 
-- 本地 L1：Python 3.11 venv（F-089）；本地 TF 测试用 tensorflow-cpu 2.15（Keras 2）+ scikit-learn 的 venv，`TFDPFL_PY=<venv>/bin/python bash run_l1.sh`。
-  2026-10-28 基线（`1b22d10`）：无 TF 1719 passed / 53 skipped / 3 xfailed；有 TF 只有陷阱 #4 的 2 条红。
-  D-112 之后（2026-10-29 实测，`edge_server_base` 注入 CCS 统计量索引）：无 TF **1796 passed / 52 skipped / 3 xfailed**；有 TF（tensorflow-cpu 2.15 + wandb）**2058 passed / 26 skipped / 3 xfailed / 2 failed**（陷阱 #4）。
-  SA-C 之后（2026-10-28 实测）：无 TF **1781 passed / 52 skipped / 3 xfailed**；有 TF（tensorflow-cpu 2.15）**2043 passed / 26 skipped / 3 xfailed / 2 failed**（陷阱 #4；改动前同环境 1972 / 26 / 3 / 2）。
-- 集群：先 `git pull`，看 `git log --oneline -1` 再交；作业脚本只传参数（陷阱 #19）；排队靠 fairshare（10-27 实测 `sprio` 全部来自 FAIRSHARE），短作业用 `sbatch -t …` 改短时限便于回填。
-- 机时：上限约 100 GPU-h / 周（D-047）。
+其他确认过的事实：
+- CCS 官方代码里没有可用的 Bad-PFL：训练时不投毒，评估用的生成器从没训练过。原文「FedPer 下 94%」找不到来源。
+- 官方 Bad-PFL 只实现了 FedBN；它自己的剂量反应是每轮 15 / 45 / 75 步 → 攻击成功率 0.22 / 0.80 / 0.88。
+- 用户补全的 CCS 复现仓库（`Huangru-114/CCS-reproduce`）与官方 Bad-PFL 有三处不同，都会让攻击显得更强：扰动加在标准化后的图上并截断到 [0,1]；评估时在被测模型上求扰动；良性端评估用未训练的生成器。
+
+**代码层面新增的东西**（都有测试守着，缺省行为与以前逐字节相同）：
+- FedPer 方法（`training.drift_correction: hier_fedper`）；
+- FedRep 的投影网络训练阶段开关（`training.fedrep_proj_phase`）；
+- CCS 剔除含 NaN 的上传并报告有效端数，有效端过少就停止训练；
+- 登记表的组可以声明自己的口径（`protocol: P2-ablation`，用于刻意偏离对齐模板的实验）。
+
+## 四、上传前加固（SAU）那条线：已结案
+
+| 格子 | 判定 | 要点 |
+|---|---|---|
+| 集中布点（3 个种子） | 保护受害客户端 | 受害 edge 攻击成功率平均降 0.41，精度只降 0.012；攻击者所在 edge 的良性端没被保护 |
+| 分散布点（1 个种子） | 边缘，只记录 | 攻击成功率降 0.29，但精度降 0.030 超门槛 |
+
+## 五、还等用户定的旧事项
+- 用本区域数据产生的合成数据代替区域服务器手里的真实干净集（2026-10-28 提出，未讨论完）。
+- 「每个 edge 轮都加固」（唯一能碰到攻击者所在 edge 良性端的 edge 侧做法）未实现。
+- CCS 在 FedPer 下的长期精度代价（300 轮精度降 0.21）原因未查。
+- 在线功能评分只在飞机 / 汽车两类上测、存盘清理、与 Python 版本有关的测试（旧事项，见 PLAN §8）。
+
+## 六、环境 / 基线
+- 本地 L1：Python 3.11 venv（3.12 / 3.13 下有与代码无关的红）；本地 TF 测试用 tensorflow-cpu 2.15 + scikit-learn + wandb 的 venv，`TFDPFL_PY=<venv>/bin/python bash run_l1.sh`。
+- 最新基线（2026-10-31）：无 TF **1823 passed / 55 skipped / 3 xfailed**；有 TF（2026-10-30）**2093 passed / 26 skipped / 3 xfailed / 2 failed**（2 条是一直存在的 Neurotoxin 已知失败）。
+- 本地拿不到 CIFAR-10（多伦多原站被代理拒绝），需要真实数据的检验只能在集群上做。
+- 集群：先 `git pull` 再交；作业脚本只传参数；CCS 格子主机内存峰值约 31 GiB → `PACK_MEM_PER_RUN_GB=48`；命令前加 `PYTHONUNBUFFERED=1`。
+- 机时：上限约 100 GPU-h / 周。
