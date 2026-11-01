@@ -316,7 +316,7 @@ def test_ccsr30_is_fedrep_with_projection_trained_in_both_phases(reg):
 def test_group_protocol_override_only_touches_its_own_meta(reg):
     """D-117：组可以声明 protocol（如 P2-ablation）；不写的组照旧是整张表的 P2（逐字节同以前）。"""
     by = {r["run_id"]: r for r in reg.runs()}
-    ablation = {"CCSB30", "CCSBOFF", "CCSB", "BNS"}                            # 统计量共享 = 刻意偏离对齐模板的组（D-117 / D-118 / D-120）
+    ablation = {"CCSB30", "CCSBOFF", "CCSB", "BNS", "CCSD"}                    # 统计量共享 = 刻意偏离对齐模板的组（D-117 / D-118 / D-120 / D-121）
     assert {g for g, d in reg.groups.items() if d.get("protocol")} == ablation
     assert reg.declared_config(by["CCSB30__fedrep-bnshared-ccs__s42"])["meta"]["protocol"] == "P2-ablation"
     others = [r for r in reg.runs() if r["group"] not in ablation]
@@ -363,3 +363,19 @@ def test_bns_arms_differ_only_in_the_bn_switch_and_shared_arm_equals_ccsboff(reg
         assert _diff(sh, pr) == {"training.fedrep_bn_stats", "meta.run_id"}, _diff(sh, pr)
         assert sh["training"]["fedrep_bn_stats"] == "shared" and pr["training"]["fedrep_bn_stats"] == "private"
         assert sh["seed"] == pr["seed"] == s
+
+
+def test_ccsd_arms_each_differ_from_ccsb_in_exactly_one_ccs_switch(reg):
+    """D-121 / N-010：CCS 拆分 —— 只开对抗训练 / 只开聚类剔除，与 CCSB（两个都开）各只差一个开关；
+    N-010 是草案，用户确认前挂 ccsd-prereg（不能交）。"""
+    by = {r["run_id"]: r for r in reg.runs()}
+    assert sorted(r["run_id"] for r in reg.runs() if r["group"] == "CCSD") == [
+        "CCSD__fedrep-bnshared-at-only__s42", "CCSD__fedrep-bnshared-cluster-only__s42"]
+    both = reg.declared_config(by["CCSB__fedrep-bnshared-ccs__s42"])
+    at = reg.declared_config(by["CCSD__fedrep-bnshared-at-only__s42"])
+    cl = reg.declared_config(by["CCSD__fedrep-bnshared-cluster-only__s42"])
+    assert _diff(both, at) == {"defense.ccs.cluster", "meta.group", "meta.run_id"}
+    assert _diff(both, cl) == {"defense.ccs.at", "meta.group", "meta.run_id"}
+    assert (at["defense"]["ccs"]["at"], at["defense"]["ccs"]["cluster"]) == (True, False)
+    assert (cl["defense"]["ccs"]["at"], cl["defense"]["ccs"]["cluster"]) == (False, True)
+    assert "ccsd-prereg" in reg.groups["CCSD"]["requires"]                  # 判读规则确认之前不能交（确认后把 token 加进 available）
