@@ -1,6 +1,6 @@
 """
 harness/ccsd_verdict.py  —  阶段三 CCSD（CCS 拆分：只开对抗训练 / 只开聚类剔除）的判定（FINDINGS N-010，D-121）
-**N-010 经用户确认、先 commit，再交 CCSD 的作业**（同 D-088）。
+N-010 已经用户确认（D-122）；本脚本先 commit，再交 CCSD 的作业（同 D-088）。
 
     python3 harness/ccsd_verdict.py \\
         --off          experiments/defense/edge-native/results/P2/CCSBOFF/CCSBOFF__fedrep-bnshared-off__s42.metrics.json \\
@@ -18,7 +18,7 @@ harness/ccsd_verdict.py  —  阶段三 CCSD（CCS 拆分：只开对抗训练 /
   四个 run 的 n_rounds / edge_rounds / n_edges / seed / partition / malicious_per_edge / method 相同，且统计量都是 shared；
   开聚类的两臂（both、cluster-only）每个云轮恰好一行 [CCS]；
   off 臂必须植入：P(off) ≥ 0.5，否则 invalid_no_attack。
-标签（两条归因各自独立；FRAC = 2/3 是草案值，没有证据，用户确认 N-010 时定）：
+标签（两条归因各自独立；FRAC = 2/3 由用户 2026-11-01 确认（D-122），没有数据依据）：
   精度代价归因 cost：ΔMTA_both ≤ 0.02 → no_cost（没有要归因的代价）；否则
     a = ΔMTA_at ≥ FRAC·ΔMTA_both，c = ΔMTA_cluster ≥ FRAC·ΔMTA_both →
     a 且 c：both_components；只有 a：adversarial_training；只有 c：clustering；都不是：only_together

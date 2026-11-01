@@ -367,7 +367,7 @@ def test_bns_arms_differ_only_in_the_bn_switch_and_shared_arm_equals_ccsboff(reg
 
 def test_ccsd_arms_each_differ_from_ccsb_in_exactly_one_ccs_switch(reg):
     """D-121 / N-010：CCS 拆分 —— 只开对抗训练 / 只开聚类剔除，与 CCSB（两个都开）各只差一个开关；
-    N-010 是草案，用户确认前挂 ccsd-prereg（不能交）。"""
+    N-010 用户确认前挂 ccsd-prereg（D-122 已确认、已放行）。"""
     by = {r["run_id"]: r for r in reg.runs()}
     assert sorted(r["run_id"] for r in reg.runs() if r["group"] == "CCSD") == [
         "CCSD__fedrep-bnshared-at-only__s42", "CCSD__fedrep-bnshared-cluster-only__s42"]

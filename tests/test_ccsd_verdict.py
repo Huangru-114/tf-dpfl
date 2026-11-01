@@ -1,5 +1,5 @@
 """
-阶段三 CCSD 判定（`harness/ccsd_verdict.py`，规则 = FINDINGS N-010 草案；D-121）。合成数据覆盖每个分支；
+阶段三 CCSD 判定（`harness/ccsd_verdict.py`，规则 = FINDINGS N-010；D-121 / D-122）。合成数据覆盖每个分支；
 真实数据钉「把已有 run 放错位置会被闸拦下」。纯 python。
 """
 

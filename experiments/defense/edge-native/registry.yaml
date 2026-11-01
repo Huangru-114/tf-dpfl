@@ -29,7 +29,7 @@ base: ../../attack/hfl-mechanism/base.yaml
 overlays:
   - ../../../fedavg/config/alignment_p2.yaml        # 「P2 对齐」模板（同 hfl-mechanism）
 audit: ../../attack/hfl-mechanism/AUDIT.md
-available: [d0-prereg, sa1-pre, SA-C, ccs-space, ccsb-attack-ok, bns-prereg]   # bns-prereg：N-009 经用户确认（2026-11-01，D-120）； ccsb-attack-ok：CCSBOFF 良性端 0.796 ≥ 0.5，用户放行（2026-10-31，D-119）； sa1-pre：D-108（2026-10-28）； d0-prereg：N-008 用户确认（2026-10-10，D-101）。阶段三的代码会话（SA0 / SA1 / SA-C / …）完成时把 token 加进来
+available: [d0-prereg, sa1-pre, SA-C, ccs-space, ccsb-attack-ok, bns-prereg, ccsd-prereg]   # ccsd-prereg：N-010 用户确认（2026-11-01，D-122）； bns-prereg：N-009 经用户确认（2026-11-01，D-120）； ccsb-attack-ok：CCSBOFF 良性端 0.796 ≥ 0.5，用户放行（2026-10-31，D-119）； sa1-pre：D-108（2026-10-28）； d0-prereg：N-008 用户确认（2026-10-10，D-101）。阶段三的代码会话（SA0 / SA1 / SA-C / …）完成时把 token 加进来
 
 # ── D-base（PLAN §3.1）= G1R5 的 set 去掉 update_geometry / update_ck*，加 post_agg_eval + frozen_trigger ──
 # YAML 锚点只为少抄一遍；展开后每组的 set 是完整的（registry.py 读的是展开结果）。
@@ -190,7 +190,7 @@ groups:
   CCSD:
     purpose: "D-121（用户方向 1：CCS 拆分）：CCSB 主任务精度降 0.112（F-115），是聚类剔除还是对抗训练造成的？与 CCSB 同设置（FedRep + 统计量共享、300 轮、种子 42），只开其中一个组件；对照 = CCSBOFF（都不开）与 CCSB（都开）。判定 harness/ccsd_verdict.py（FINDINGS N-010，草案待用户确认）"
     protocol: P2-ablation
-    requires: [audit, SA-C, ccs-space, ccsd-prereg]   # ccsd-prereg：N-010 经用户确认后加进 available
+    requires: [audit, SA-C, ccs-space, ccsd-prereg]   # ccsd-prereg：N-010 已经用户确认（2026-11-01，D-122）
     seeds: [42]
     # 两格设置不同，不能按「同格子不同种子」打包 → 各占一张卡；内存按 CCS 格子的 48G 申请（cluster-only 不做对抗训练、可能更低，但没有实测）
     set: {federation.n_edges: 1, federation.edge_rounds: 1, federation.n_rounds: 300, stopping: null,

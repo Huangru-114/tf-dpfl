@@ -1,6 +1,6 @@
-# 交接 —— 阶段三（edge 原生防御）· CCS 这条线：拆分实验已登记（判读规则待用户确认）；另两个方向待出方案
+# 交接 —— 阶段三（edge 原生防御）· CCS 这条线：拆分实验已放行、可交；另两个方向待出方案
 
-> **写于 2026-11-01**（同日第二次重写；第三节起照旧）。过程与数字在本目录 `FINDINGS.md`（到 F-116、预注册 N-009 生效 / N-010 草案）与 `DECISIONS.md`（到 D-121）。
+> **写于 2026-11-01**（同日第二次重写；第三节起照旧）。过程与数字在本目录 `FINDINGS.md`（到 F-116、预注册 N-009 / N-010 均已生效）与 `DECISIONS.md`（到 D-122）。
 > ⚠️ 阶段三的实验全部做完之前，不要把分支合并到 main（用户 2026-10-10）。分支 `claude/eloquent-faraday-b9kmop`。
 > 用户要求（2026-11-01）：**文档和回复里不要用不加解释的缩写**；组名、标签第一次出现时说清楚是什么。
 
@@ -19,17 +19,17 @@
 
 ## 二、用户定的三个方向
 
-### 方向 1：CCS 拆分实验（用户：必须做）—— 已登记，**判读规则待确认**
+### 方向 1：CCS 拆分实验（用户：必须做）—— **已放行，可交**（N-010 用户确认，阈值 2/3，D-122）
 - 组 CCSD，2 个 run：与 CCSB 同设置，只开对抗训练（`at-only`）/ 只开聚类剔除（`cluster-only`）；对照用已有的 CCSBOFF 与 CCSB。
 - 判读规则草案：FINDINGS **N-010**（判定脚本 `harness/ccsd_verdict.py`，测试 `tests/test_ccsd_verdict.py`）。
-  核心：某一臂单独造成的精度降幅（或攻击成功率降幅）达到两个都开时的 **2/3**，就算主要来自它 —— **2/3 没有证据，请用户定**。
-- **用户确认后**：把 `ccsd-prereg` 加进 `registry.yaml` 的 `available`，全量生成配置（`python3 harness/registry.py experiments/defense/edge-native/registry.yaml --materialize`，**不带 `--group`**），提交、推送。集群上：
+  核心：某一臂单独造成的精度降幅（或攻击成功率降幅）达到两个都开时的 **2/3**，就算主要来自它（2/3 由用户选定，没有数据依据）。
+- 配置已生成（`configs/CCSD__*.yaml`）。集群上（先 `git pull`，看 `git log --oneline -1`）：
 
 ```bash
-PACK_MEM_PER_RUN_GB=48 RUN_GROUPS=CCSD bash experiments/defense/edge-native/submit.sh --dry-run
+PACK=2 PACK_MEM_PER_RUN_GB=48 RUN_GROUPS=CCSD bash experiments/defense/edge-native/submit.sh --dry-run
 ```
 
-  应列出 2 个作业（两格设置不同，各占一张卡，`--mem=48G`），按 CCSB 的墙钟估计每个约 6.8 h，合计约 14 GPU 小时。确认后去掉 `--dry-run`、命令前加 `PYTHONUNBUFFERED=1`。
+  应列出 2 个作业（`CCSD__…__pack-k1-s42`，两格设置不同、各占一张卡，`--mem=48G`）。⚠️ **`PACK=2` 不能省**：不写就走单跑脚本、只申请 24G，CCS 格子主机内存峰值约 31 GiB 会被杀。按 CCSB 的墙钟估计每个约 6.8 h，合计约 14 GPU 小时。确认后去掉 `--dry-run`、命令前加 `PYTHONUNBUFFERED=1`。
 - **回传后**：
 
 ```bash
