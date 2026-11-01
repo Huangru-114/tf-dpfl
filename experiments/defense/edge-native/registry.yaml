@@ -29,7 +29,7 @@ base: ../../attack/hfl-mechanism/base.yaml
 overlays:
   - ../../../fedavg/config/alignment_p2.yaml        # 「P2 对齐」模板（同 hfl-mechanism）
 audit: ../../attack/hfl-mechanism/AUDIT.md
-available: [d0-prereg, sa1-pre, SA-C, ccs-space, ccsb-attack-ok]   # ccsb-attack-ok：CCSBOFF 良性端 0.796 ≥ 0.5，用户放行（2026-10-31，D-119）； sa1-pre：D-108（2026-10-28）； d0-prereg：N-008 用户确认（2026-10-10，D-101）。阶段三的代码会话（SA0 / SA1 / SA-C / …）完成时把 token 加进来
+available: [d0-prereg, sa1-pre, SA-C, ccs-space, ccsb-attack-ok, bns-prereg]   # bns-prereg：N-009 经用户确认（2026-11-01，D-120）； ccsb-attack-ok：CCSBOFF 良性端 0.796 ≥ 0.5，用户放行（2026-10-31，D-119）； sa1-pre：D-108（2026-10-28）； d0-prereg：N-008 用户确认（2026-10-10，D-101）。阶段三的代码会话（SA0 / SA1 / SA-C / …）完成时把 token 加进来
 
 # ── D-base（PLAN §3.1）= G1R5 的 set 去掉 update_geometry / update_ck*，加 post_agg_eval + frozen_trigger ──
 # YAML 锚点只为少抄一遍；展开后每组的 set 是完整的（registry.py 读的是展开结果）。
@@ -172,6 +172,20 @@ groups:
     cells:
       - {cell: fedrep-bnshared-ccs, set: {defense.name: ccs, defense.layers: [client, edge], defense.ccs.at: true,
                                           defense.ccs.cluster: true, defense.ccs.space: input, defense.ccs.pool: round}}
+
+  BNS:
+    purpose: "D-120（D-119 ②(a)）：BatchNorm 统计量共享本身是不是削弱了后门（种子 42：私有 0.926、共享 0.796，F-114）。不加防御、300 轮，统计量 {私有, 共享} × 种子 {43, 44}；种子 42 用已有结果（私有 = legacy/CCSF-fedrep/CCSF__off__s42，共享 = CCSBOFF）。判定 harness/bns_verdict.py（FINDINGS N-009，写于 43 / 44 的数据之前）"
+    protocol: P2-ablation          # 共享那格偏离对齐模板；私有那格与模板一致，同组只为一起交、一起判（meta.protocol 只是标签）
+    requires: [audit, SA-C, ccs-space, bns-prereg]   # bns-prereg：N-009 随计划经用户确认（2026-11-01，D-120）
+    seeds: [43, 44]
+    # 两格与 CCSBOFF 同 set；私有格不写 fedrep_bn_stats（= 模板的 private），与 legacy 的 CCSF__off__s42 只差 seed 与 meta
+    #   （两个 s42 的 run 块逐项核对过：只差 alignment.fedrep_bn_stats）。不开 CCS → 主机内存按 PACK_MEM_PER_RUN_GB=24。
+    set: {federation.n_edges: 1, federation.edge_rounds: 1, federation.n_rounds: 300, stopping: null,
+          evaluation.eval_grid: 5, evaluation.eval_interval: 5, backdoor.eval_interval: 5,
+          backdoor.malicious_per_edge: [10], model.arch: resnet10_torch_proj}
+    cells:
+      - {cell: fedrep-bnprivate-off}
+      - {cell: fedrep-bnshared-off, set: {training.fedrep_bn_stats: shared}}
 
   CCSB30:
     purpose: "D-117：FedRep + CCS 的主任务崩坏是不是因为客户端保存的私有 BatchNorm 统计量与新主干失配（F-112：陈旧个性化 0.54、新鲜个性化 0.32；FedPer 统计量共享则不垮）。与旧 FedRep 版 CCS（legacy/CCSF-fedrep/）只差 training.fedrep_bn_stats: shared 与 n_rounds 30"

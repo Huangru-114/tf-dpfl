@@ -1,0 +1,35 @@
+{
+ "preregistered": "FINDINGS N-008 CCSF（D-101）；实现 D-109",
+ "off": {
+  "P": 0.7958,
+  "P_unfiltered": 0.7966,
+  "MTA": 0.8944,
+  "margin_p50": 2.1943
+ },
+ "ccs": {
+  "P": 0.1121,
+  "P_unfiltered": 0.1278,
+  "MTA": 0.7829,
+  "margin_p50": -2.0333
+ },
+ "rejection": {
+  "tpr": 0.6125,
+  "fpr": 0.2287,
+  "n_malicious_uploads": 289,
+  "n_benign_uploads": 2711,
+  "status": {
+   "ok": 300
+  }
+ },
+ "malicious_data_share": {
+  "off": 0.0921,
+  "ccs": 0.0921
+ },
+ "delta": {
+  "dP": 0.6837,
+  "dMTA": 0.1115,
+  "dP_unfiltered": 0.6688
+ },
+ "mta_ok": false,
+ "verdict": "partial_repro"
+}

@@ -316,7 +316,7 @@ def test_ccsr30_is_fedrep_with_projection_trained_in_both_phases(reg):
 def test_group_protocol_override_only_touches_its_own_meta(reg):
     """D-117：组可以声明 protocol（如 P2-ablation）；不写的组照旧是整张表的 P2（逐字节同以前）。"""
     by = {r["run_id"]: r for r in reg.runs()}
-    ablation = {"CCSB30", "CCSBOFF", "CCSB"}                                   # 统计量共享 = 刻意偏离对齐模板的两组（D-117 / D-118）
+    ablation = {"CCSB30", "CCSBOFF", "CCSB", "BNS"}                            # 统计量共享 = 刻意偏离对齐模板的组（D-117 / D-118 / D-120）
     assert {g for g, d in reg.groups.items() if d.get("protocol")} == ablation
     assert reg.declared_config(by["CCSB30__fedrep-bnshared-ccs__s42"])["meta"]["protocol"] == "P2-ablation"
     others = [r for r in reg.runs() if r["group"] not in ablation]
@@ -345,3 +345,21 @@ def test_ccsb_off_first_then_ccs_after_the_attack_is_confirmed(reg):
     assert {k for k in _diff(off, ccs) if not k.startswith("defense.")} == {"meta.group", "meta.run_id"}
     assert off["meta"]["protocol"] == ccs["meta"]["protocol"] == "P2-ablation"
     assert off["training"]["fedrep_bn_stats"] == "shared" and off["federation"]["n_rounds"] == 300
+
+
+def test_bns_arms_differ_only_in_the_bn_switch_and_shared_arm_equals_ccsboff(reg):
+    """D-120 / N-009：BNS 共享格 = CCSBOFF 换种子；私有格与共享格只差 fedrep_bn_stats（私有 = 模板值）；
+    种子 42 不重跑（用已有的两份结果）；四个 run 都已放行。"""
+    by = {r["run_id"]: r for r in reg.runs()}
+    assert sorted(r["run_id"] for r in reg.runs() if r["group"] == "BNS") == [
+        "BNS__fedrep-bnprivate-off__s43", "BNS__fedrep-bnprivate-off__s44",
+        "BNS__fedrep-bnshared-off__s43", "BNS__fedrep-bnshared-off__s44"]
+    assert reg.unmet_requires("BNS") == []
+    off42 = reg.declared_config(by["CCSBOFF__fedrep-bnshared-off__s42"])
+    for s in (43, 44):
+        sh = reg.declared_config(by[f"BNS__fedrep-bnshared-off__s{s}"])
+        pr = reg.declared_config(by[f"BNS__fedrep-bnprivate-off__s{s}"])
+        assert _diff(off42, sh) == {"seed", "meta.group", "meta.run_id"}, _diff(off42, sh)
+        assert _diff(sh, pr) == {"training.fedrep_bn_stats", "meta.run_id"}, _diff(sh, pr)
+        assert sh["training"]["fedrep_bn_stats"] == "shared" and pr["training"]["fedrep_bn_stats"] == "private"
+        assert sh["seed"] == pr["seed"] == s
