@@ -1,6 +1,6 @@
-# 交接 —— 阶段三（edge 原生防御）· CCS 这条线：拆分实验已放行、可交；另两个方向待出方案
+# 交接 —— 阶段三（edge 原生防御）· CCS 这条线：拆分实验种子 42 已回传，分层补种子待用户确认判读规则
 
-> **写于 2026-11-01**（同日第二次重写；第三节起照旧）。过程与数字在本目录 `FINDINGS.md`（到 F-116、预注册 N-009 / N-010 均已生效）与 `DECISIONS.md`（到 D-122）。
+> **写于 2026-11-02**（第二节方向 1 重写；其余同 11-01 版）。过程与数字在本目录 `FINDINGS.md`（到 F-117；预注册 N-009 / N-010 已生效，N-011 草案）与 `DECISIONS.md`（到 D-123）。
 > ⚠️ 阶段三的实验全部做完之前，不要把分支合并到 main（用户 2026-10-10）。分支 `claude/eloquent-faraday-b9kmop`。
 > 用户要求（2026-11-01）：**文档和回复里不要用不加解释的缩写**；组名、标签第一次出现时说清楚是什么。
 
@@ -19,22 +19,44 @@
 
 ## 二、用户定的三个方向
 
-### 方向 1：CCS 拆分实验（用户：必须做）—— **已放行，可交**（N-010 用户确认，阈值 2/3，D-122）
-- 组 CCSD，2 个 run：与 CCSB 同设置，只开对抗训练（`at-only`）/ 只开聚类剔除（`cluster-only`）；对照用已有的 CCSBOFF 与 CCSB。
-- 判读规则草案：FINDINGS **N-010**（判定脚本 `harness/ccsd_verdict.py`，测试 `tests/test_ccsd_verdict.py`）。
-  核心：某一臂单独造成的精度降幅（或攻击成功率降幅）达到两个都开时的 **2/3**，就算主要来自它（2/3 由用户选定，没有数据依据）。
-- 配置已生成（`configs/CCSD__*.yaml`）。集群上（先 `git pull`，看 `git log --oneline -1`）：
+### 方向 1：CCS 拆分实验 —— 种子 42 已回传（F-117）；**分层补种子已登记，判读规则 N-011 待用户确认**
+
+种子 42 的结果（N-010 判定 `analysis/ccsd_verdict.json`）：
+
+| | 都不开 | 两个都开 | 只开对抗训练 | 只开聚类剔除 |
+|---|---|---|---|---|
+| 良性端攻击成功率 | 0.796 | 0.112 | 0.133 | 0.182 |
+| 主任务精度 | 0.894 | 0.783 | 0.419 | 0.884 |
+| 共享边缘模型精度 | 0.868 | 0.703 | 0.145 | 0.858 |
+
+- 只开聚类就满足复现三条件；精度代价来自对抗训练，只开对抗训练会把共享模型训坏（它的攻击成功率低不能算防御有效）。
+- **只有种子 42**，用户：这是到现在最有价值的实验，补种子之后再判断、再谈路线。
+- 前提都还没检验：统计量要随主干上传（主线是私有的）；攻击者不针对统计量做适应（下一步，见下）。
+
+**分层补种子**（10 个 run，约 22 GPU 小时，D-123）：不加防御 + 只开聚类补到 5 个种子（42–46）；两个都开 + 只开对抗训练补到 3 个种子（42–44）。
+新种子放在 4 个新组（已有组不动）：`CCSOFF5`（不加防御 45、46）、`CCSDC5`（只开聚类 43–46）、`CCSB3`（两个都开 43、44）、`CCSDA3`（只开对抗训练 43、44）。
+判读规则草案 FINDINGS **N-011**（`harness/ccsd5_verdict.py`）。
+
+- **用户确认 N-011 后**：`available` 加 `ccsd5-prereg`，全量生成配置（`python3 harness/registry.py experiments/defense/edge-native/registry.yaml --materialize`，**不带 `--group`**），提交、推送。集群上：
 
 ```bash
-PACK=2 PACK_MEM_PER_RUN_GB=48 RUN_GROUPS=CCSD bash experiments/defense/edge-native/submit.sh --dry-run
+PACK=2 PACK_MEM_PER_RUN_GB=48 RUN_GROUPS="CCSOFF5 CCSDC5 CCSB3 CCSDA3" bash experiments/defense/edge-native/submit.sh --dry-run
 ```
 
-  应列出 2 个作业（`CCSD__…__pack-k1-s42`，两格设置不同、各占一张卡，`--mem=48G`）。⚠️ **`PACK=2` 不能省**：不写就走单跑脚本、只申请 24G，CCS 格子主机内存峰值约 31 GiB 会被杀。按 CCSB 的墙钟估计每个约 6.8 h，合计约 14 GPU 小时。确认后去掉 `--dry-run`、命令前加 `PYTHONUNBUFFERED=1`。
+  应列出 5 个作业（同格子两个种子一张卡，各 `--mem=96G`）。组名之间用**空格**、加引号（用逗号会一个组都匹配不上）。⚠️ `PACK=2` 不能省（不写只申请 24G，开 CCS 的格子约 31 GiB 会被杀）。
+
 - **回传后**：
 
 ```bash
-python3 harness/ccsd_verdict.py --off experiments/defense/edge-native/results/P2/CCSBOFF/CCSBOFF__fedrep-bnshared-off__s42.metrics.json --both experiments/defense/edge-native/results/P2/CCSB/CCSB__fedrep-bnshared-ccs__s42.metrics.json --at-only experiments/defense/edge-native/results/P2/CCSD/CCSD__fedrep-bnshared-at-only__s42.metrics.json --cluster-only experiments/defense/edge-native/results/P2/CCSD/CCSD__fedrep-bnshared-cluster-only__s42.metrics.json --out experiments/defense/edge-native/analysis/ccsd_verdict.json
+R=experiments/defense/edge-native/results/P2
 ```
+
+```bash
+python3 harness/ccsd5_verdict.py --off $R/CCSBOFF/CCSBOFF__fedrep-bnshared-off__s42.metrics.json $R/BNS/BNS__fedrep-bnshared-off__s43.metrics.json $R/BNS/BNS__fedrep-bnshared-off__s44.metrics.json $R/CCSOFF5/CCSOFF5__fedrep-bnshared-off__s45.metrics.json $R/CCSOFF5/CCSOFF5__fedrep-bnshared-off__s46.metrics.json --both $R/CCSB/CCSB__fedrep-bnshared-ccs__s42.metrics.json $R/CCSB3/CCSB3__fedrep-bnshared-ccs__s43.metrics.json $R/CCSB3/CCSB3__fedrep-bnshared-ccs__s44.metrics.json --at-only $R/CCSD/CCSD__fedrep-bnshared-at-only__s42.metrics.json $R/CCSDA3/CCSDA3__fedrep-bnshared-at-only__s43.metrics.json $R/CCSDA3/CCSDA3__fedrep-bnshared-at-only__s44.metrics.json --cluster-only $R/CCSD/CCSD__fedrep-bnshared-cluster-only__s42.metrics.json $R/CCSDC5/CCSDC5__fedrep-bnshared-cluster-only__s43.metrics.json $R/CCSDC5/CCSDC5__fedrep-bnshared-cluster-only__s44.metrics.json $R/CCSDC5/CCSDC5__fedrep-bnshared-cluster-only__s45.metrics.json $R/CCSDC5/CCSDC5__fedrep-bnshared-cluster-only__s46.metrics.json --out experiments/defense/edge-native/analysis/ccsd5_verdict.json
+```
+
+- **下一步（用户：补种子回来再做）**：会适应的攻击者 —— 恶意端上传前用干净数据重算 BatchNorm 统计量，看只开聚类还能不能分出攻击者。需要新代码，先出语义对照表。
+- **开放问题**：为什么加上聚类能把对抗训练的损失拉回来？要逐上传的更新幅度 + 剔除记录。
 
 ### 方向 2：FedPer 排查 —— 下个会话先出方案
 - 要回答：后门进了共享模型，为什么到不了良性端的个性化模型？这个机制能不能用作防御？

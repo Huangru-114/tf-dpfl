@@ -1,0 +1,64 @@
+{
+ "preregistered": "FINDINGS N-010（D-121）",
+ "frac": 0.6667,
+ "runs": {
+  "off": {
+   "P": 0.7958,
+   "MTA": 0.8944,
+   "MTA_sd_last10": 0.002
+  },
+  "both": {
+   "P": 0.1121,
+   "MTA": 0.7829,
+   "MTA_sd_last10": 0.0406
+  },
+  "at": {
+   "P": 0.1326,
+   "MTA": 0.4189,
+   "MTA_sd_last10": 0.0521
+  },
+  "cluster": {
+   "P": 0.1815,
+   "MTA": 0.8838,
+   "MTA_sd_last10": 0.0021
+  }
+ },
+ "rejection": {
+  "both": {
+   "tpr": 0.6125,
+   "fpr": 0.2287,
+   "n_malicious_uploads": 289,
+   "n_benign_uploads": 2711,
+   "status": {
+    "ok": 300
+   }
+  },
+  "cluster": {
+   "tpr": 0.7682,
+   "fpr": 0.2272,
+   "n_malicious_uploads": 289,
+   "n_benign_uploads": 2711,
+   "status": {
+    "ok": 300
+   }
+  }
+ },
+ "delta_P": {
+  "both": 0.6837,
+  "at": 0.6632,
+  "cluster": 0.6143
+ },
+ "delta_MTA": {
+  "both": 0.1115,
+  "at": 0.4755,
+  "cluster": 0.0106
+ },
+ "standalone": {
+  "both": "partial",
+  "at": "partial",
+  "cluster": "meets_all"
+ },
+ "cost": "adversarial_training",
+ "defense": "both_components",
+ "verdict": "cost=adversarial_training;defense=both_components"
+}

@@ -316,7 +316,8 @@ def test_ccsr30_is_fedrep_with_projection_trained_in_both_phases(reg):
 def test_group_protocol_override_only_touches_its_own_meta(reg):
     """D-117：组可以声明 protocol（如 P2-ablation）；不写的组照旧是整张表的 P2（逐字节同以前）。"""
     by = {r["run_id"]: r for r in reg.runs()}
-    ablation = {"CCSB30", "CCSBOFF", "CCSB", "BNS", "CCSD"}                    # 统计量共享 = 刻意偏离对齐模板的组（D-117 / D-118 / D-120 / D-121）
+    ablation = {"CCSB30", "CCSBOFF", "CCSB", "BNS", "CCSD",                    # 统计量共享 = 刻意偏离对齐模板的组（D-117 / D-118 / D-120 / D-121）
+                "CCSOFF5", "CCSB3", "CCSDA3", "CCSDC5"}                    # D-123：拆分实验补种子
     assert {g for g, d in reg.groups.items() if d.get("protocol")} == ablation
     assert reg.declared_config(by["CCSB30__fedrep-bnshared-ccs__s42"])["meta"]["protocol"] == "P2-ablation"
     others = [r for r in reg.runs() if r["group"] not in ablation]
@@ -379,3 +380,20 @@ def test_ccsd_arms_each_differ_from_ccsb_in_exactly_one_ccs_switch(reg):
     assert (at["defense"]["ccs"]["at"], at["defense"]["ccs"]["cluster"]) == (True, False)
     assert (cl["defense"]["ccs"]["at"], cl["defense"]["ccs"]["cluster"]) == (False, True)
     assert "ccsd-prereg" in reg.groups["CCSD"]["requires"]                  # 判读规则确认之前不能交（确认后把 token 加进 available）
+
+
+def test_ccs_seed_extension_matches_the_seed42_configs(reg):
+    """D-123 / N-011：分层补种子 —— 每个新 run 与同臂的种子 42 配置只差 seed 与 meta；种子分配照计划
+    （不加防御补 45 / 46、只开聚类补 43–46、两个都开与只开对抗训练补 43 / 44）；判读规则确认前挂 ccsd5-prereg。"""
+    by = {r["run_id"]: r for r in reg.runs()}
+    ref = {"CCSOFF5": ("CCSBOFF__fedrep-bnshared-off__s42", [45, 46]),
+           "CCSB3": ("CCSB__fedrep-bnshared-ccs__s42", [43, 44]),
+           "CCSDA3": ("CCSD__fedrep-bnshared-at-only__s42", [43, 44]),
+           "CCSDC5": ("CCSD__fedrep-bnshared-cluster-only__s42", [43, 44, 45, 46])}
+    for g, (rid, seeds) in ref.items():
+        runs = [r for r in reg.runs() if r["group"] == g]
+        assert sorted(reg.declared_config(r)["seed"] for r in runs) == seeds, g
+        base = reg.declared_config(by[rid])
+        for r in runs:
+            assert _diff(base, reg.declared_config(r)) == {"seed", "meta.group", "meta.run_id"}, r["run_id"]
+        assert "ccsd5-prereg" in reg.groups[g]["requires"]

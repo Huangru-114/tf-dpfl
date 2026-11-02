@@ -203,6 +203,58 @@ groups:
       - {cell: fedrep-bnshared-cluster-only, set: {defense.name: ccs, defense.layers: [client, edge], defense.ccs.at: false,
                                                    defense.ccs.cluster: true, defense.ccs.space: input, defense.ccs.pool: round}}
 
+  # ── D-123：CCS 拆分实验分层补种子（N-011）。已有的种子 42 结果在 CCSBOFF / CCSB / CCSD 里，组与配置一字不动；
+  #    这里只放新种子（registry 的种子按组写，四个臂要的种子不同 → 四个组）。每组的配置与对应的种子 42 配置只差 seed 与 meta
+  #    （守卫 tests/test_edge_native_registry.py::test_ccs_seed_extension_matches_the_seed42_configs）。
+  #    不加防御的种子 43 / 44 = BNS 的统计量共享格（配置与 CCSBOFF 只差 seed，已核对）。
+  CCSOFF5:
+    purpose: "D-123：不加防御（= CCSBOFF）补种子 45、46，给只开聚类的 5 个种子做同种子对照"
+    protocol: P2-ablation
+    requires: [audit, SA-C, ccs-space, ccsd5-prereg]   # ccsd5-prereg：N-011 经用户确认后加进 available
+    set: {federation.n_edges: 1, federation.edge_rounds: 1, federation.n_rounds: 300, stopping: null,
+          evaluation.eval_grid: 5, evaluation.eval_interval: 5, backdoor.eval_interval: 5,
+          backdoor.malicious_per_edge: [10], model.arch: resnet10_torch_proj,
+          training.fedrep_bn_stats: shared}
+    seeds: [45, 46]
+    cells:
+      - {cell: fedrep-bnshared-off}
+
+  CCSB3:
+    purpose: "D-123：两个组件都开（= CCSB）补种子 43、44（归因用，3 个种子）"
+    protocol: P2-ablation
+    requires: [audit, SA-C, ccs-space, ccsd5-prereg]   # ccsd5-prereg：N-011 经用户确认后加进 available
+    set: {federation.n_edges: 1, federation.edge_rounds: 1, federation.n_rounds: 300, stopping: null,
+          evaluation.eval_grid: 5, evaluation.eval_interval: 5, backdoor.eval_interval: 5,
+          backdoor.malicious_per_edge: [10], model.arch: resnet10_torch_proj,
+          training.fedrep_bn_stats: shared}
+    seeds: [43, 44]
+    cells:
+      - {cell: fedrep-bnshared-ccs, set: {defense.name: ccs, defense.layers: [client, edge], defense.ccs.at: true, defense.ccs.cluster: true, defense.ccs.space: input, defense.ccs.pool: round}}
+
+  CCSDA3:
+    purpose: "D-123：只开对抗训练（= CCSD at-only）补种子 43、44（归因用，3 个种子）"
+    protocol: P2-ablation
+    requires: [audit, SA-C, ccs-space, ccsd5-prereg]   # ccsd5-prereg：N-011 经用户确认后加进 available
+    set: {federation.n_edges: 1, federation.edge_rounds: 1, federation.n_rounds: 300, stopping: null,
+          evaluation.eval_grid: 5, evaluation.eval_interval: 5, backdoor.eval_interval: 5,
+          backdoor.malicious_per_edge: [10], model.arch: resnet10_torch_proj,
+          training.fedrep_bn_stats: shared}
+    seeds: [43, 44]
+    cells:
+      - {cell: fedrep-bnshared-at-only, set: {defense.name: ccs, defense.layers: [client, edge], defense.ccs.at: true, defense.ccs.cluster: false, defense.ccs.space: input, defense.ccs.pool: round}}
+
+  CCSDC5:
+    purpose: "D-123：只开聚类剔除（= CCSD cluster-only）补种子 43–46（头条：只开聚类是否单独就够，5 个种子）"
+    protocol: P2-ablation
+    requires: [audit, SA-C, ccs-space, ccsd5-prereg]   # ccsd5-prereg：N-011 经用户确认后加进 available
+    set: {federation.n_edges: 1, federation.edge_rounds: 1, federation.n_rounds: 300, stopping: null,
+          evaluation.eval_grid: 5, evaluation.eval_interval: 5, backdoor.eval_interval: 5,
+          backdoor.malicious_per_edge: [10], model.arch: resnet10_torch_proj,
+          training.fedrep_bn_stats: shared}
+    seeds: [43, 44, 45, 46]
+    cells:
+      - {cell: fedrep-bnshared-cluster-only, set: {defense.name: ccs, defense.layers: [client, edge], defense.ccs.at: false, defense.ccs.cluster: true, defense.ccs.space: input, defense.ccs.pool: round}}
+
   CCSB30:
     purpose: "D-117：FedRep + CCS 的主任务崩坏是不是因为客户端保存的私有 BatchNorm 统计量与新主干失配（F-112：陈旧个性化 0.54、新鲜个性化 0.32；FedPer 统计量共享则不垮）。与旧 FedRep 版 CCS（legacy/CCSF-fedrep/）只差 training.fedrep_bn_stats: shared 与 n_rounds 30"
     protocol: P2-ablation          # 刻意偏离对齐模板（模板要求统计量私有）→ 如实标成消融口径；config_validate 不逐键核对模板
