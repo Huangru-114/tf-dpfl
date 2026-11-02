@@ -1,6 +1,6 @@
-# 交接 —— 阶段三（edge 原生防御）· CCS 这条线：拆分实验种子 42 已回传，分层补种子待用户确认判读规则
+# 交接 —— 阶段三（edge 原生防御）· CCS 这条线：拆分实验种子 42 已回传，分层补种子已放行、可交
 
-> **写于 2026-11-02**（第二节方向 1 重写；其余同 11-01 版）。过程与数字在本目录 `FINDINGS.md`（到 F-117；预注册 N-009 / N-010 已生效，N-011 草案）与 `DECISIONS.md`（到 D-123）。
+> **写于 2026-11-02**（第二节方向 1 重写；其余同 11-01 版）。过程与数字在本目录 `FINDINGS.md`（到 F-117；预注册 N-009 / N-010 / N-011 均已生效）与 `DECISIONS.md`（到 D-124）。
 > ⚠️ 阶段三的实验全部做完之前，不要把分支合并到 main（用户 2026-10-10）。分支 `claude/eloquent-faraday-b9kmop`。
 > 用户要求（2026-11-01）：**文档和回复里不要用不加解释的缩写**；组名、标签第一次出现时说清楚是什么。
 
@@ -19,7 +19,7 @@
 
 ## 二、用户定的三个方向
 
-### 方向 1：CCS 拆分实验 —— 种子 42 已回传（F-117）；**分层补种子已登记，判读规则 N-011 待用户确认**
+### 方向 1：CCS 拆分实验 —— 种子 42 已回传（F-117）；**分层补种子已放行、可交**（N-011 用户确认：头条只看均值，崩坏线 0.2，D-124）
 
 种子 42 的结果（N-010 判定 `analysis/ccsd_verdict.json`）：
 
@@ -35,15 +35,18 @@
 
 **分层补种子**（10 个 run，约 22 GPU 小时，D-123）：不加防御 + 只开聚类补到 5 个种子（42–46）；两个都开 + 只开对抗训练补到 3 个种子（42–44）。
 新种子放在 4 个新组（已有组不动）：`CCSOFF5`（不加防御 45、46）、`CCSDC5`（只开聚类 43–46）、`CCSB3`（两个都开 43、44）、`CCSDA3`（只开对抗训练 43、44）。
-判读规则草案 FINDINGS **N-011**（`harness/ccsd5_verdict.py`）。
+判读规则 FINDINGS **N-011**（`harness/ccsd5_verdict.py`）。
 
-- **用户确认 N-011 后**：`available` 加 `ccsd5-prereg`，全量生成配置（`python3 harness/registry.py experiments/defense/edge-native/registry.yaml --materialize`，**不带 `--group`**），提交、推送。集群上：
+- 配置已生成。集群上（先 `git pull`，看 `git log --oneline -1`）：
 
 ```bash
 PACK=2 PACK_MEM_PER_RUN_GB=48 RUN_GROUPS="CCSOFF5 CCSDC5 CCSB3 CCSDA3" bash experiments/defense/edge-native/submit.sh --dry-run
 ```
 
-  应列出 5 个作业（同格子两个种子一张卡，各 `--mem=96G`）。组名之间用**空格**、加引号（用逗号会一个组都匹配不上）。⚠️ `PACK=2` 不能省（不写只申请 24G，开 CCS 的格子约 31 GiB 会被杀）。
+  应列出 4 个作业 + 2 个 held（同格子两个种子一张卡，各 `--mem=96G`）。组名之间用**空格**、加引号（用逗号会一个组都匹配不上）。
+  ⚠️ 第一次真交只会交 **4 个**作业：只开聚类那组有 4 个 run，提交工具对没测过显存的格子先交一个探路包、其余 2 个 held。
+  这个配置的显存已知（种子 42：每 run 17.0 GiB，两 run 一卡约 34 GiB / 96 GiB），所以**交完立刻把同一条命令再跑一次**：
+  已在队列里的 run 会被跳过（按作业注释查队列），剩下那 2 个就交出去了，不必等探路包回传。⚠️ `PACK=2` 不能省（不写只申请 24G，开 CCS 的格子约 31 GiB 会被杀）。
 
 - **回传后**：
 
@@ -107,7 +110,7 @@ python3 harness/ccsd5_verdict.py --off $R/CCSBOFF/CCSBOFF__fedrep-bnshared-off__
 
 ## 六、环境 / 基线
 - 本地 L1：Python 3.11 venv（3.12 / 3.13 下有与代码无关的红）；本地 TF 测试用 tensorflow-cpu 2.15 + scikit-learn + wandb 的 venv，`TFDPFL_PY=<venv>/bin/python bash run_l1.sh`。
-- 最新基线（2026-11-01，Python 3.11）：无 TF **1874 passed / 55 skipped / 3 xfailed**（= 1847 + 本次新增 27 条）；有 TF（2026-10-30）**2093 passed / 26 skipped / 3 xfailed / 2 failed**（2 条是一直存在的 Neurotoxin 已知失败）。
+- 最新基线（2026-11-02，Python 3.11）：无 TF **1892 passed / 55 skipped / 3 xfailed**；有 TF（2026-10-30）**2093 passed / 26 skipped / 3 xfailed / 2 failed**（2 条是一直存在的 Neurotoxin 已知失败）。
 - 本地拿不到 CIFAR-10（多伦多原站被代理拒绝），需要真实数据的检验只能在集群上做。
 - 集群：先 `git pull` 再交；作业脚本只传参数；CCS 格子主机内存峰值约 31 GiB → `PACK_MEM_PER_RUN_GB=48`；命令前加 `PYTHONUNBUFFERED=1`。
 - 机时：上限约 100 GPU-h / 周。

@@ -60,14 +60,15 @@ def test_cluster_alone_sufficient_and_attribution():
     assert res["verdict"] == "headline=cluster_alone_sufficient;attribution=cost=adversarial_training;defense=both_components;consistent"
 
 
-def test_headline_mixed_when_fewer_than_four_seeds_meet():
-    # 两个种子精度降 0.03125 > 0.02（不各自满足），其余 0 → 均值 0.0125 ≤ 0.02 但只有 3 个种子各自满足
+def test_headline_looks_only_at_the_mean():
+    # D-124：只看均值。三个种子精度降 0.03125 > 0.02（各自不满足），其余 0 → 均值 0.01875 ≤ 0.02 → 仍判单独就够；各自满足只报告
     c = {s: (0.125, 0.875) for s in H5}
-    c[45] = c[46] = (0.125, 0.84375)
-    assert V5.judge(*_set(cluster=c))["headline"]["label"] == "mixed"
-    c[44] = (0.125, 0.875)
-    c[46] = (0.125, 0.875)                                   # 只有 45 一个不满足 → 4 个满足
-    assert V5.judge(*_set(cluster=c))["headline"]["label"] == "cluster_alone_sufficient"
+    c[44] = c[45] = c[46] = (0.125, 0.84375)
+    res = V5.judge(*_set(cluster=c))
+    assert res["headline"]["label"] == "cluster_alone_sufficient"
+    assert res["headline"]["each_meets"] == {"42": True, "43": True, "44": False, "45": False, "46": False}
+    c[43] = (0.125, 0.84375)                                 # 四个种子降 0.03125 → 均值 0.025 > 0.02
+    assert V5.judge(*_set(cluster=c))["headline"]["label"] == "not_sufficient"
 
 
 def test_headline_not_sufficient_when_mean_fails():

@@ -1,6 +1,6 @@
 """
 harness/ccsd5_verdict.py  —  阶段三 CCS 拆分实验的多种子判定（FINDINGS N-011，D-123）
-**N-011 经用户确认、先 commit，再交补种子的作业**（同 D-088）。单种子判定（N-010）见 `ccsd_verdict.py`，本脚本逐种子复用它。
+N-011 已经用户确认（D-124）；本脚本先 commit，再交补种子的作业（同 D-088）。单种子判定（N-010）见 `ccsd_verdict.py`，本脚本逐种子复用它。
 
     python3 harness/ccsd5_verdict.py \\
         --off      <不加防御，种子 42–46 的 metrics.json …> \\
@@ -15,9 +15,8 @@ harness/ccsd5_verdict.py  —  阶段三 CCS 拆分实验的多种子判定（FI
     设置不一致 / 开聚类的臂每轮一行聚类记录）；任何一个种子不过 → invalid。不加防御的 P < 0.5 的种子 → invalid_no_attack。
 
 一、头条：只开聚类是否单独就够（要 5 个种子都有 off 与 cluster-only，否则 insufficient）
-    均值 ΔP ≥ 0.5 且 均值 ΔMTA ≤ 0.02，且 ≥ 4 个种子各自满足这两条 → cluster_alone_sufficient；
-    均值不满足（任一条）→ not_sufficient；均值满足但各自满足的种子 < 4 → mixed。
-    另报 ΔP、ΔMTA 均值的 95% 区间（t 分布，自由度 = 种子数 − 1）。
+    **只看均值**（用户 D-124）：均值 ΔP ≥ 0.5 且 均值 ΔMTA ≤ 0.02 → cluster_alone_sufficient；否则 not_sufficient。
+    另报（不进判定）：每个种子各自是否满足、ΔP / ΔMTA 均值的 95% 区间（t 分布，自由度 = 种子数 − 1）。
 二、归因（要 3 个种子四个臂都有，否则 insufficient）
     三个种子的均值套 N-010 的同一规则（`ccsd_verdict.attribute`，阈值 2/3）。
     对抗训练臂：某种子它的共享模型精度（末 10 点 em_acc）< 0.2（接近 10 类随机猜）→ 这个种子上它的攻击成功率降幅记 confounded_by_collapse，
@@ -39,7 +38,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import ccsd_verdict as V                                # noqa: E402
 
-N_HEAD, N_ATTR, MIN_EACH, COLLAPSE_EM = 5, 3, 4, 0.2
+N_HEAD, N_ATTR, COLLAPSE_EM = 5, 3, 0.2
 # t 分布 0.975 分位数（自由度 1–10）
 T975 = {1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571, 6: 2.447, 7: 2.365, 8: 2.306, 9: 2.262, 10: 2.228}
 ARMS = ("off", "both", "at", "cluster")
@@ -117,12 +116,7 @@ def judge(off: list, both: list, at: list, cluster: list) -> dict:
         mP, mM = statistics.mean(dP.values()), statistics.mean(dM.values())
         head.update({"mean_delta_P": _r(mP), "mean_delta_MTA": _r(mM),
                      "ci95_delta_P": ci95(list(dP.values())), "ci95_delta_MTA": ci95(list(dM.values()))})
-        if not (mP >= V.REPRO_DP and mM <= V.MTA_MAX):
-            head["label"] = "not_sufficient"
-        elif sum(each.values()) >= MIN_EACH:
-            head["label"] = "cluster_alone_sufficient"
-        else:
-            head["label"] = "mixed"
+        head["label"] = "cluster_alone_sufficient" if (mP >= V.REPRO_DP and mM <= V.MTA_MAX) else "not_sufficient"
     out["headline"] = head
 
     # ── 二、归因 ──
