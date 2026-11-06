@@ -1,6 +1,6 @@
-# 交接 —— 阶段三（edge 原生防御）· CCS 这条线：拆分补种子回传 8 / 10，种子 42 的图景没有复现；只开聚类的种子 45、46 待补交
+# 交接 —— 阶段三（edge 原生防御）· CCS 这条线：拆分实验最终判定（只开聚类刚过线、2 / 5 失守）；缓存池探路待确认判读规则
 
-> **写于 2026-11-06**（第二节方向 1 重写；其余同 11-01 版）。过程与数字在本目录 `FINDINGS.md`（到 F-118；预注册 N-009 / N-010 / N-011 均已生效）与 `DECISIONS.md`（到 D-125）。
+> **写于 2026-11-06**（第二节方向 1 重写；其余同 11-01 版）。过程与数字在本目录 `FINDINGS.md`（到 F-119；预注册 N-009 / N-010 / N-011 已生效，N-012 草案）与 `DECISIONS.md`（到 D-126）。
 > **阶段性总结报告**：本目录 `REPORT.md`（2026-11-03 写、11-06 更新，集群维护到 11-05 期间写；结果、现状、下一步、术语表）。
 > ⚠️ 阶段三的实验全部做完之前，不要把分支合并到 main（用户 2026-10-10）。分支 `claude/eloquent-faraday-b9kmop`。
 > 用户要求（2026-11-01）：**文档和回复里不要用不加解释的缩写**；组名、标签第一次出现时说清楚是什么。
@@ -20,36 +20,38 @@
 
 ## 二、用户定的三个方向
 
-### 方向 1：CCS 拆分实验 —— 补种子回传 8 / 10（F-118）；**只开聚类的种子 45、46 待补交**
+### 方向 1：CCS 拆分实验 —— 5 个种子全部回传、最终判定（F-119）；**缓存池探路已登记，判读规则 N-012 待用户确认**
 
-种子 42 的图景**没有复现**（判定 `analysis/ccsd5_verdict.partial.json`）：
+最终判定 `analysis/ccsd5_verdict.json`：只开聚类 `cluster_alone_sufficient`，但**刚过线**、2 / 5 失守：
 
-| 种子 | 不加防御 | 只开聚类 | 两个都开 | 只开对抗训练 |
-|---|---|---|---|---|
-| 良性端攻击成功率 42 / 43 / 44 | 0.796 / 0.823 / 0.810 | 0.182 / 0.685 / 0.048 | 0.112 / 0.118 / 0.114 | 0.133 / 0.128 / 0.092 |
-| 主任务精度 42 / 43 / 44 | 0.894 / 0.895 / 0.892 | 0.884 / 0.885 / 0.884 | 0.783 / 0.461 / 0.390 | 0.419 / 0.623 / 0.836 |
+| 种子 | 42 | 43 | 44 | 45 | 46 | 均值（95% 区间） |
+|---|---|---|---|---|---|---|
+| 攻击成功率降幅 | 0.614 | 0.139 | 0.762 | 0.753 | 0.345 | 0.523（0.18–0.86） |
+| 主任务精度降幅 | 0.011 | 0.010 | 0.008 | 0.016 | 0.012 | 0.011（0.008–0.015） |
+| 放进聚合的攻击者上传 | 67 | 67 | 36 | 27 | 77 | |
 
-- 只开聚类：精度代价小且稳，**防御效果随种子变**（种子 43 第 130 轮穿透；漏网集中在第 101–150 轮）。
-- 对抗训练：6 个 run 都从第 65–110 轮起震荡、随机崩溃；不是聚类造成的。F-117 的两条读法已撤回。
-- 降低随机性的候选方法：F-118 四 / REPORT §7.1′（历史规则、缓存池、范数裁剪或阻尼；对抗训练的诊断记录与学习率 / 预热 / 扰动预算）。用户还没选。
-- 读数脚本：`python3 harness/ccs_leak_timeline.py <metrics.json …>`。
+- 只开聚类：精度代价小且稳、防御效果不可靠；放进来的越多越容易失守，集中会加速（描述性）。
+- 对抗训练：随机崩溃（F-118）；归因 `seed_dependent`。
+- 降低随机性的候选方法：F-118 四 / REPORT §7.1′；用户先选**方案 B 缓存池**（D-126）。
 
-**集群上补交种子 45、46**（先 `git pull`）：
+**缓存池探路**（组 `CCSDP`：只开聚类 + `defense.ccs.pool: edge_cache`，种子 43、46，1 个作业约 3 GPU 小时）：
+- 判读规则草案 FINDINGS **N-012**（`harness/ccsdp_verdict.py`）：两个种子都满足攻击成功率降 ≥ 0.5 且精度降 ≤ 0.02 → `fixes_failures`（再补 42 / 44 / 45）；一个 → `partial`；都不 → `no_fix`。
+- **用户确认 N-012 后**：`available` 加 `ccsdp-prereg`，全量生成配置（`python3 harness/registry.py experiments/defense/edge-native/registry.yaml --materialize`，**不带 `--group`**），提交、推送。集群上：
 
 ```bash
-PACK=2 PACK_MEM_PER_RUN_GB=48 RUN_GROUPS="CCSDC5" bash experiments/defense/edge-native/submit.sh --dry-run
+PACK=2 PACK_MEM_PER_RUN_GB=48 RUN_GROUPS="CCSDP" bash experiments/defense/edge-native/submit.sh --dry-run
 ```
 
-应列出 1 个作业（`CCSDC5__fedrep-bnshared-cluster-only__pack-k2-s45`，`--mem=96G`）。确认后去掉 `--dry-run`、命令前加 `PYTHONUNBUFFERED=1`。
+  应列出 1 个作业（两个种子一包，`--mem=96G`；显存按只开聚类的实测 17 GiB / run，缓存池多出的只是 100 个统计量向量）。确认后去掉 `--dry-run`、命令前加 `PYTHONUNBUFFERED=1`。
 
-**回传后**（最终判定）：
+- **回传后**：
 
 ```bash
 R=experiments/defense/edge-native/results/P2
 ```
 
 ```bash
-python3 harness/ccsd5_verdict.py --off $R/CCSBOFF/CCSBOFF__fedrep-bnshared-off__s42.metrics.json $R/BNS/BNS__fedrep-bnshared-off__s43.metrics.json $R/BNS/BNS__fedrep-bnshared-off__s44.metrics.json $R/CCSOFF5/CCSOFF5__fedrep-bnshared-off__s45.metrics.json $R/CCSOFF5/CCSOFF5__fedrep-bnshared-off__s46.metrics.json --both $R/CCSB/CCSB__fedrep-bnshared-ccs__s42.metrics.json $R/CCSB3/CCSB3__fedrep-bnshared-ccs__s43.metrics.json $R/CCSB3/CCSB3__fedrep-bnshared-ccs__s44.metrics.json --at-only $R/CCSD/CCSD__fedrep-bnshared-at-only__s42.metrics.json $R/CCSDA3/CCSDA3__fedrep-bnshared-at-only__s43.metrics.json $R/CCSDA3/CCSDA3__fedrep-bnshared-at-only__s44.metrics.json --cluster-only $R/CCSD/CCSD__fedrep-bnshared-cluster-only__s42.metrics.json $R/CCSDC5/CCSDC5__fedrep-bnshared-cluster-only__s43.metrics.json $R/CCSDC5/CCSDC5__fedrep-bnshared-cluster-only__s44.metrics.json $R/CCSDC5/CCSDC5__fedrep-bnshared-cluster-only__s45.metrics.json $R/CCSDC5/CCSDC5__fedrep-bnshared-cluster-only__s46.metrics.json --out experiments/defense/edge-native/analysis/ccsd5_verdict.json
+python3 harness/ccsdp_verdict.py --off $R/BNS/BNS__fedrep-bnshared-off__s43.metrics.json $R/CCSOFF5/CCSOFF5__fedrep-bnshared-off__s46.metrics.json --cluster $R/CCSDC5/CCSDC5__fedrep-bnshared-cluster-only__s43.metrics.json $R/CCSDC5/CCSDC5__fedrep-bnshared-cluster-only__s46.metrics.json --cache $R/CCSDP/CCSDP__fedrep-bnshared-cluster-cache__s43.metrics.json $R/CCSDP/CCSDP__fedrep-bnshared-cluster-cache__s46.metrics.json --out experiments/defense/edge-native/analysis/ccsdp_verdict.json
 ```
 
 ### 方向 2：FedPer 排查 —— 下个会话先出方案
@@ -101,7 +103,7 @@ python3 harness/ccsd5_verdict.py --off $R/CCSBOFF/CCSBOFF__fedrep-bnshared-off__
 
 ## 六、环境 / 基线
 - 本地 L1：Python 3.11 venv（3.12 / 3.13 下有与代码无关的红）；本地 TF 测试用 tensorflow-cpu 2.15 + scikit-learn + wandb 的 venv，`TFDPFL_PY=<venv>/bin/python bash run_l1.sh`。
-- 最新基线（2026-11-02，Python 3.11）：无 TF **1897 passed / 55 skipped / 3 xfailed**（2026-11-06）；有 TF（2026-10-30）**2093 passed / 26 skipped / 3 xfailed / 2 failed**（2 条是一直存在的 Neurotoxin 已知失败）。
+- 最新基线（2026-11-02，Python 3.11）：无 TF **1918 passed / 55 skipped / 3 xfailed**（2026-11-06）；有 TF（2026-10-30）**2093 passed / 26 skipped / 3 xfailed / 2 failed**（2 条是一直存在的 Neurotoxin 已知失败）。
 - 本地拿不到 CIFAR-10（多伦多原站被代理拒绝），需要真实数据的检验只能在集群上做。
 - 集群：先 `git pull` 再交；作业脚本只传参数；CCS 格子主机内存峰值约 31 GiB → `PACK_MEM_PER_RUN_GB=48`；命令前加 `PYTHONUNBUFFERED=1`。
 - 机时：上限约 100 GPU-h / 周。

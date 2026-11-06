@@ -255,6 +255,19 @@ groups:
     cells:
       - {cell: fedrep-bnshared-cluster-only, set: {defense.name: ccs, defense.layers: [client, edge], defense.ccs.at: false, defense.ccs.cluster: true, defense.ccs.space: input, defense.ccs.pool: round}}
 
+  CCSDP:
+    purpose: "D-126（降低随机性，方案 B）：只开聚类 + 缓存池（defense.ccs.pool: edge_cache）—— 每轮把本轮上传与其余客户端最近一次上传的统计量一起聚类、只对本轮上传剔除。种子先选只开聚类失守的 43、46（F-119）；修好了再补 42 / 44 / 45。判定 harness/ccsdp_verdict.py（FINDINGS N-012）"
+    protocol: P2-ablation
+    requires: [audit, SA-C, ccs-space, ccsdp-prereg]   # ccsdp-prereg：N-012 经用户确认后加进 available
+    seeds: [43, 46]
+    # 与 CCSDC5 同种子配置只差 defense.ccs.pool 与 meta（守卫 tests/test_edge_native_registry.py::test_ccsdp_differs_from_cluster_only_only_in_the_pool）
+    set: {federation.n_edges: 1, federation.edge_rounds: 1, federation.n_rounds: 300, stopping: null,
+          evaluation.eval_grid: 5, evaluation.eval_interval: 5, backdoor.eval_interval: 5,
+          backdoor.malicious_per_edge: [10], model.arch: resnet10_torch_proj,
+          training.fedrep_bn_stats: shared}
+    cells:
+      - {cell: fedrep-bnshared-cluster-cache, set: {defense.name: ccs, defense.layers: [client, edge], defense.ccs.at: false, defense.ccs.cluster: true, defense.ccs.space: input, defense.ccs.pool: edge_cache}}
+
   CCSB30:
     purpose: "D-117：FedRep + CCS 的主任务崩坏是不是因为客户端保存的私有 BatchNorm 统计量与新主干失配（F-112：陈旧个性化 0.54、新鲜个性化 0.32；FedPer 统计量共享则不垮）。与旧 FedRep 版 CCS（legacy/CCSF-fedrep/）只差 training.fedrep_bn_stats: shared 与 n_rounds 30"
     protocol: P2-ablation          # 刻意偏离对齐模板（模板要求统计量私有）→ 如实标成消融口径；config_validate 不逐键核对模板

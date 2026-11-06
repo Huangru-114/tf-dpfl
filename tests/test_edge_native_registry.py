@@ -317,7 +317,8 @@ def test_group_protocol_override_only_touches_its_own_meta(reg):
     """D-117：组可以声明 protocol（如 P2-ablation）；不写的组照旧是整张表的 P2（逐字节同以前）。"""
     by = {r["run_id"]: r for r in reg.runs()}
     ablation = {"CCSB30", "CCSBOFF", "CCSB", "BNS", "CCSD",                    # 统计量共享 = 刻意偏离对齐模板的组（D-117 / D-118 / D-120 / D-121）
-                "CCSOFF5", "CCSB3", "CCSDA3", "CCSDC5"}                    # D-123：拆分实验补种子
+                "CCSOFF5", "CCSB3", "CCSDA3", "CCSDC5",                    # D-123：拆分实验补种子
+                "CCSDP"}                                                   # D-126：缓存池探路
     assert {g for g, d in reg.groups.items() if d.get("protocol")} == ablation
     assert reg.declared_config(by["CCSB30__fedrep-bnshared-ccs__s42"])["meta"]["protocol"] == "P2-ablation"
     others = [r for r in reg.runs() if r["group"] not in ablation]
@@ -397,3 +398,18 @@ def test_ccs_seed_extension_matches_the_seed42_configs(reg):
         for r in runs:
             assert _diff(base, reg.declared_config(r)) == {"seed", "meta.group", "meta.run_id"}, r["run_id"]
         assert "ccsd5-prereg" in reg.groups[g]["requires"]
+
+
+def test_ccsdp_differs_from_cluster_only_only_in_the_pool(reg):
+    """D-126 / N-012：缓存池探路 = 只开聚类（CCSDC5）同种子，只把 defense.ccs.pool 从 round 换成 edge_cache；
+    种子 = 只开聚类失守的 43、46；判读规则确认前挂 ccsdp-prereg。"""
+    by = {r["run_id"]: r for r in reg.runs()}
+    runs = sorted(r["run_id"] for r in reg.runs() if r["group"] == "CCSDP")
+    assert runs == ["CCSDP__fedrep-bnshared-cluster-cache__s43", "CCSDP__fedrep-bnshared-cluster-cache__s46"]
+    for s in (43, 46):
+        a = reg.declared_config(by[f"CCSDC5__fedrep-bnshared-cluster-only__s{s}"])
+        b = reg.declared_config(by[f"CCSDP__fedrep-bnshared-cluster-cache__s{s}"])
+        assert _diff(a, b) == {"defense.ccs.pool", "meta.group", "meta.run_id"}
+        assert a["defense"]["ccs"]["pool"] == "round" and b["defense"]["ccs"]["pool"] == "edge_cache"
+        assert (b["defense"]["ccs"]["at"], b["defense"]["ccs"]["cluster"]) == (False, True)
+    assert "ccsdp-prereg" in reg.groups["CCSDP"]["requires"]
