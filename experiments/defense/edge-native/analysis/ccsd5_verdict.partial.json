@@ -1,0 +1,146 @@
+{
+ "preregistered": "FINDINGS N-011（D-123）；单种子规则 N-010（ccsd_verdict.py）",
+ "runs": {
+  "off": {
+   "42": {
+    "P": 0.7958,
+    "MTA": 0.8944,
+    "EM": 0.8679
+   },
+   "43": {
+    "P": 0.8234,
+    "MTA": 0.895,
+    "EM": 0.8717
+   },
+   "44": {
+    "P": 0.8103,
+    "MTA": 0.8915,
+    "EM": 0.8698
+   },
+   "45": {
+    "P": 0.8296,
+    "MTA": 0.8909,
+    "EM": 0.8737
+   },
+   "46": {
+    "P": 0.951,
+    "MTA": 0.8879,
+    "EM": 0.8766
+   }
+  },
+  "both": {
+   "42": {
+    "P": 0.1121,
+    "MTA": 0.7829,
+    "EM": 0.7032
+   },
+   "43": {
+    "P": 0.1181,
+    "MTA": 0.4608,
+    "EM": 0.2561
+   },
+   "44": {
+    "P": 0.1137,
+    "MTA": 0.3897,
+    "EM": 0.0883
+   }
+  },
+  "at": {
+   "42": {
+    "P": 0.1326,
+    "MTA": 0.4189,
+    "EM": 0.1452
+   },
+   "43": {
+    "P": 0.1275,
+    "MTA": 0.6234,
+    "EM": 0.5162
+   },
+   "44": {
+    "P": 0.0924,
+    "MTA": 0.8359,
+    "EM": 0.7826
+   }
+  },
+  "cluster": {
+   "42": {
+    "P": 0.1815,
+    "MTA": 0.8838,
+    "EM": 0.8582
+   },
+   "43": {
+    "P": 0.6846,
+    "MTA": 0.8848,
+    "EM": 0.8563
+   },
+   "44": {
+    "P": 0.0479,
+    "MTA": 0.8835,
+    "EM": 0.8615
+   }
+  }
+ },
+ "headline": {
+  "seeds": [
+   "42",
+   "43",
+   "44"
+  ],
+  "delta_P": {
+   "42": 0.6143,
+   "43": 0.1388,
+   "44": 0.7624
+  },
+  "delta_MTA": {
+   "42": 0.0106,
+   "43": 0.0102,
+   "44": 0.0081
+  },
+  "each_meets": {
+   "42": true,
+   "43": false,
+   "44": true
+  },
+  "label": "insufficient"
+ },
+ "attribution": {
+  "seeds": [
+   "42",
+   "43",
+   "44"
+  ],
+  "per_seed": {
+   "42": {
+    "cost": "adversarial_training",
+    "defense": "both_components"
+   },
+   "43": {
+    "cost": "only_together",
+    "defense": "adversarial_training"
+   },
+   "44": {
+    "cost": "only_together",
+    "defense": "both_components"
+   }
+  },
+  "at_collapsed_seeds": [
+   "42"
+  ],
+  "mean_delta_P": {
+   "both": 0.6952,
+   "at": 0.7069,
+   "cluster": 0.5052
+  },
+  "mean_delta_MTA": {
+   "both": 0.3492,
+   "at": 0.2676,
+   "cluster": 0.0096
+  },
+  "at_defense_confounded": false,
+  "cost": "adversarial_training",
+  "defense": "both_components",
+  "consistency": "seed_dependent",
+  "label": "cost=adversarial_training;defense=both_components"
+ },
+ "verdict": "headline=insufficient;attribution=cost=adversarial_training;defense=both_components;seed_dependent"
+}
