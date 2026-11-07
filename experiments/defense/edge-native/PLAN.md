@@ -2,6 +2,7 @@
 
 > **状态**：定稿（本目录 `DECISIONS.md` D-089 … D-095）。**D0 已完成（2026-10-09）**：登记表 `registry.yaml`（SNAP 可交；CAL / CCSF 占位）、
 > 提交脚本 `submit.sh`、功效分析 F-091、SNAP 核对 F-092、文献核对 F-093、预注册 N-008（2026-10-10 用户确认生效，D-101）；SNAP 已回传且有效（F-094）。**SA0 已完成（2026-10-13，F-096，D-103 … D-105）**；**P0 已判 `accuracy_bound`（2026-10-28，F-100，D-108）**；SA1 最小版（只有 A-pre × 集中布点 × s42）已接好，P1 一个 run 待交。交接见 `current-focus.md`。
+> **2026-11-07 起的最新状态以 `current-focus.md` 与 `REPORT.md` 为准**（本文件 §4 总表只补了 CCSD 系列一行；CCS 线的统计量共享、组件拆分、缓存池见 FINDINGS F-113 … F-121）。
 > 台账：本目录 `DECISIONS.md` / `FINDINGS.md`（编号接续 `experiments/attack/hfl-mechanism/`）；文献：`LITERATURE.md`。
 > `PLAN-draft.md`（2026-10-03）已被本文件取代。
 
@@ -270,7 +271,8 @@ PGD 步长按官方比例随 ε、K 缩放（不是官方的绝对步长，D-105
 | SNAP5 | 5 seed 的对照 | {col, dist} × s45–46 | 4 | 挂 `h-main` | — |
 | CAL | 不饱和工作点 | 6 格 × s42 | 6 | 挂 `SA1`（D-111 暂不放行） | 选择规则 |
 | CCSF | CCS flat 复现闸 | {off, ccs-full} × s42 | 2 | 已就绪，先探路 | `ccsf_verdict.py` |
-| CCSP | CCS 三臂 HFL 筛选 | 3 臂 × {col, dist} × s42 | 6 | 等 CCSF | P1 规则 |
+| CCSD 系列（flat） | CCS 组件拆分：只开对抗训练 / 只开聚类（+ 补种子、缓存池），统计量共享、1 edge × 100 端 | CCSD / CCSDA3 / CCSDC5 / CCSB3 / CCSOFF5 / CCSDP | 14 | ✅ F-117 … F-120（2026-11-02 … 11-07） | N-010 / N-011 / N-012 |
+| CCSP | CCS 三臂 **HFL** 筛选 | 3 臂 × {col, dist} × s42 | 6 | **未做**（flat 版已由 CCSD 系列完成；分层版要先补统计量共享的分层对照） | P1 规则 |
 | H3 | 分散主检验 | go 的臂 × s43–46 | ≤ 8 | 等 P1 dist / CCSP | H3 |
 | H1 / H3 floor、CLD、FLAT、DATA、W2 | 见下 | 见下 | — | 条件；A-every / A-cloud 未实现 | — |
 | AA、H2、ATK2、H5 | 见下 | 见下 | — | 要 SA2–SA6 | — |

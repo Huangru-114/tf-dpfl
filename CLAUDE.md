@@ -525,7 +525,7 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
 
 - **阶段三 SA-C：CCS**（2026-10-28；`experiments/defense/edge-native/` FINDINGS F-101、DECISIONS D-109）。⚠ **CCS 官方代码本身跑不起来**（F-101 ①），照的是意图。
   - `defense.name: ccs` + `layers: [client, edge]` + 自成一块的 `defense.ccs.*`（`fedavg/defense/ccs_spec.py`，不 import TF；**不放 `defense.params`** —— base 的 params 里堆着别的防御的键）。
-    `at` / `cluster` 两个布尔 = CCSP 三臂；`space ∈ {input, pixel}`（官方在标准化空间里做、带 clamp，F-101 ②）；`pool ∈ {round, edge_cache}`（分层用缓存池）。
+    `at` / `cluster` 两个布尔 = CCS 的两个组件，可单独开（**拆分实验已在不分层设置下做完 = CCSD 系列，见下面「CCS 线」条目**；计划里叫 CCSP 的是**分层**下的三臂，还没做）；`space ∈ {input, pixel}`（官方在标准化空间里做、带 clamp，F-101 ②）；`pool ∈ {round, edge_cache}`（分层用缓存池）。
   - 客户端：`client/ccs_mixin.py`（`CCSAttack` 与离线探针 `analysis/ccs_space_probe.py` 共用）；新钩子 `FLClientBase.on_body_step`（缺省 None；目前只有 HierFedRep 的 body 阶段调）。
     服务端：`defense/ccs.py`（复用 `analysis/bn_cluster.detect`，与官方 `hdbscan` 包逐例相同；彼此很近的良性端也会被剔掉一部分，F-101 ⑧）。
     工厂：防御类有 `from_config` 就用它建（参数自成一块的防御）；`client_mixin_ref` 让 config_validate 不为核对而 import TF。
@@ -537,9 +537,20 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
   `training.drift_correction: hier_fedper`（`client/hier_fedper.py` / `server/hier_fedper.py`，继承 FedRep 的类）：照 CCS 官方代码的 FedPer ——
   每个批一步对**全部可训练变量**求梯度（无 head 阶段，`plocal_epochs` 不用）；私有 = head + `proj_*`；**BN 统计量固定共享**（不读 `fedrep_bn_stats`）。
   CCS mixin 的训练步经 `step_vars()` / `step_optimizer()`（FedRep = body，FedPer = 全部）。自描述 `[设定13]`，collect_metrics **schema 14**。
-  CCSF 用它 + 官方超参数（2 epoch、batch 64、lr 0.1 常数）；CCSA = 我们的超参数的消融。守卫 `tests/test_hier_fedper_tf.py`（TF）+ `test_ccs_config` / `test_edge_native_registry`（本地）。
+  CCSF 用它 + 官方超参数（2 epoch、batch 64、lr 0.1 常数）；CCSA = 我们的超参数的消融（**训练框架 / 训练量的消融，不是 CCS 组件拆分**）。守卫 `tests/test_hier_fedper_tf.py`（TF）+ `test_ccs_config` / `test_edge_native_registry`（本地）。
   **FedRep 投影网络开关**（D-116）：`training.fedrep_proj_phase: both` = 训练主干那一段也训私有投影网络（缺省 head 逐字节不变；只对 hier_fedrep + proj 模型）。
   **CCS 剔除非有限上传物**：`[CCS]` 报 `n_valid` / `nonfinite`，有效占比 < `defense.ccs.min_valid_frac`（0.5）→ `[CCSStop]` 并停止；collect_metrics **schema 15**。守卫 `tests/test_fedrep_proj_phase_tf.py`、`test_ccs_spec`。
+
+- **阶段三 CCS 线：统计量共享 + 组件拆分 + 缓存池**（2026-10-31 … 11-07；`experiments/defense/edge-native/` FINDINGS F-113 … F-121、DECISIONS D-117 … D-128）。
+  ⚠ **新会话先读 `experiments/defense/edge-native/current-focus.md` 与 `REPORT.md` §0 / §7.4**；本条只是摘要，可能落后。全部在**不分层**设置（1 edge × 100 端、FedRep、300 轮、旧 `noniid` 划分 → **没有 edge 干净集**）。
+  - 统计量共享（`training.fedrep_bn_stats: shared`，组口径 `P2-ablation`）：FedRep + CCS 的主任务崩坏来自客户端私有统计量与新主干失配（F-113）；
+    CCSB（两个组件都开）`partial_repro`：攻击成功率降 0.684、精度降 0.112（F-115）；BNS（统计量私有 vs 共享 × 3 种子）`not_established`（F-116）。
+  - **CCS 组件拆分已做完**：**CCSD**（种子 42，只开对抗训练 / 只开聚类）+ **CCSDA3**（只开对抗训练 43–44）+ **CCSDC5**（只开聚类 43–46），对照 CCSOFF5 / CCSB3 / BNS 共享格。
+    只开聚类：精度代价小且稳（约 0.01），防御**刚过线、2 / 5 种子失守**（均值 ΔP 0.523，N-011 判 `cluster_alone_sufficient`，F-119）；对抗训练让训练随机崩溃（F-118）。
+  - 缓存池 **CCSDP**（`defense.ccs.pool: edge_cache`，种子 43、46）：防御修好、精度降 0.026 / 0.028 > 0.02 → N-012 `no_fix`；用户事后接受该代价（F-120、D-128）。
+  - 先例：BNGuard（MobiHoc 2025）与 CCS 已用 BN 统计量检测、都不分层 → 统计量聚类本身不是贡献（F-121）。下一步（分层 / edge 干净集参照 / 会适应的攻击者 / 其他攻击）待用户定。
+  - 判定 `harness/`：`ccsf_verdict.py`（CCSB 也用它）、`bns_verdict.py`、`ccsd_verdict.py`、`ccsd5_verdict.py`、`ccsdp_verdict.py`；读数 `ccs_leak_timeline.py`（漏网时间表、稳定性）。
+  - 提交坑：CCS 格子必须 `PACK=2 PACK_MEM_PER_RUN_GB=48`（单跑脚本只申请 24G，CCS 约 31 GiB 会被杀）；`RUN_GROUPS="A B"` 用**空格**；提交后显示 held 而显存已知 → 立刻再跑一次同一命令。
 
 **留了接口但没有实现的**（不要以为它们能用）：
 - 主动防御（需要客户端配合的防御）：接口齐了（`BaseDefense.layers` /
