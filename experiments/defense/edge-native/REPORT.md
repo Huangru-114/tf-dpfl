@@ -12,9 +12,9 @@
 **上传前加固那条线已结案**：集中布点下 3 个种子都「保护受害客户端」，攻击者所在边缘服务器的良性客户端没被保护，分散布点精度代价超门槛。
 **CCS 那条线正在进行**：拆分实验 5 个种子已全部回传（F-119）。**只开聚类剔除**按预注册规则判「单独就够」，但**刚过线**（攻击成功率平均降 0.523，门槛 0.5），
 5 个种子里 **2 个失守**；精度代价非常稳（降 0.008–0.016）。带对抗训练的 run 都在第 65–110 轮后**剧烈震荡、随机崩溃**。
-降低随机性先试**缓存池**（聚类时把其余客户端最近一次的统计量也放进来）：已登记 2 个 run（种子 43、46，约 3 GPU 小时），**判读规则 N-012 待用户确认**。
+降低随机性先试**缓存池**（聚类时把其余客户端最近一次的统计量也放进来）：已登记 2 个 run（种子 43、46，约 3 GPU 小时），**判读规则 N-012 已确认、已放行**（D-127）。
 
-确认后的提交命令（详见 `current-focus.md`）：
+提交命令（详见 `current-focus.md`）：
 
 ```bash
 PACK=2 PACK_MEM_PER_RUN_GB=48 RUN_GROUPS="CCSDP" bash experiments/defense/edge-native/submit.sh --dry-run
@@ -191,10 +191,10 @@ CCS 的聚类看的是**上传的 BatchNorm 统计量**（攻击者在带触发�
 
 ## 7. 没做的与下一步
 
-### 7.1 已登记、待确认：缓存池探路（方案 B，D-126）
+### 7.1 已放行、待提交：缓存池探路（方案 B，D-126 / D-127）
 
 组 `CCSDP` = 只开聚类 + `defense.ccs.pool: edge_cache`，种子 43、46（只开聚类失守的两个），1 个作业约 3 GPU 小时。
-判读规则 N-012（草案）：两个种子都满足攻击成功率降 ≥ 0.5 且精度降 ≤ 0.02 → `fixes_failures`（再补 42 / 44 / 45 查是否弄坏原来挡住的种子）；一个 → `partial`；都不 → `no_fix`。
+判读规则 N-012（已生效）：两个种子都满足攻击成功率降 ≥ 0.5 且精度降 ≤ 0.02 → `fixes_failures`（再补 42 / 44 / 45 查是否弄坏原来挡住的种子）；一个 → `partial`；都不 → `no_fix`。
 风险：缓存里的统计量是旧主干上算的，可能让本轮上传整体显得离群、误剔大增。
 
 ### 7.1′ 降低随机性的候选方法（用户 2026-11-06 要的分析，F-118 四；只列方案）
@@ -259,7 +259,7 @@ CCS 在分层设置下的三臂筛选（CCSP）、分散布点主检验（H3）�
 | CCS 拆分（种子 42） | `analysis/ccsd_verdict.json` | N-010 | `cost=adversarial_training; defense=both_components` |
 | CCS 拆分（补种子，8 / 10，留作记录） | `analysis/ccsd5_verdict.partial.json` | N-011 | 头条 `insufficient` |
 | CCS 拆分（最终） | `analysis/ccsd5_verdict.json` | N-011 | 头条 `cluster_alone_sufficient`（刚过线，2 / 5 失守）；归因 `cost=adversarial_training; defense=both_components; seed_dependent` |
-| 缓存池探路 | `analysis/ccsdp_verdict.json`（待交） | N-012（草案） | — |
+| 缓存池探路 | `analysis/ccsdp_verdict.json`（待交） | N-012 | — |
 
 判定脚本都在 `harness/`（`p0_verdict.py`、`p1_verdict.py`、`h1_verdict.py`、`ccsf_verdict.py`、`bns_verdict.py`、`ccsd_verdict.py`、`ccsd5_verdict.py`、`ccsdp_verdict.py`），每个都先于数据提交、有测试。
 描述性读数脚本 `harness/ccs_leak_timeline.py`（漏网时间表、历史规则回放、稳定性；不是判定）。

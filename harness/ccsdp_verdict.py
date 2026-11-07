@@ -1,6 +1,6 @@
 """
 harness/ccsdp_verdict.py  —  阶段三：缓存池能不能修好「只开聚类」失守的种子（FINDINGS N-012，D-126）
-**N-012 经用户确认、先 commit，再交 CCSDP 的作业**（同 D-088）。
+N-012 已经用户确认（D-127）；本脚本先 commit，再交 CCSDP 的作业（同 D-088）。
 
     python3 harness/ccsdp_verdict.py \\
         --off     <不加防御，种子 43 / 46 的 metrics.json …> \\

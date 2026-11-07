@@ -1,6 +1,6 @@
-# 交接 —— 阶段三（edge 原生防御）· CCS 这条线：拆分实验最终判定（只开聚类刚过线、2 / 5 失守）；缓存池探路待确认判读规则
+# 交接 —— 阶段三（edge 原生防御）· CCS 这条线：拆分实验最终判定（只开聚类刚过线、2 / 5 失守）；缓存池探路已放行、可交
 
-> **写于 2026-11-06**（第二节方向 1 重写；其余同 11-01 版）。过程与数字在本目录 `FINDINGS.md`（到 F-119；预注册 N-009 / N-010 / N-011 已生效，N-012 草案）与 `DECISIONS.md`（到 D-126）。
+> **写于 2026-11-06**（第二节方向 1 重写；其余同 11-01 版）。过程与数字在本目录 `FINDINGS.md`（到 F-119；预注册 N-009 … N-012 均已生效）与 `DECISIONS.md`（到 D-127）。
 > **阶段性总结报告**：本目录 `REPORT.md`（2026-11-03 写、11-06 更新，集群维护到 11-05 期间写；结果、现状、下一步、术语表）。
 > ⚠️ 阶段三的实验全部做完之前，不要把分支合并到 main（用户 2026-10-10）。分支 `claude/eloquent-faraday-b9kmop`。
 > 用户要求（2026-11-01）：**文档和回复里不要用不加解释的缩写**；组名、标签第一次出现时说清楚是什么。
@@ -20,7 +20,7 @@
 
 ## 二、用户定的三个方向
 
-### 方向 1：CCS 拆分实验 —— 5 个种子全部回传、最终判定（F-119）；**缓存池探路已登记，判读规则 N-012 待用户确认**
+### 方向 1：CCS 拆分实验 —— 5 个种子全部回传、最终判定（F-119）；**缓存池探路已放行、可交**（N-012 用户确认，D-127）
 
 最终判定 `analysis/ccsd5_verdict.json`：只开聚类 `cluster_alone_sufficient`，但**刚过线**、2 / 5 失守：
 
@@ -35,8 +35,8 @@
 - 降低随机性的候选方法：F-118 四 / REPORT §7.1′；用户先选**方案 B 缓存池**（D-126）。
 
 **缓存池探路**（组 `CCSDP`：只开聚类 + `defense.ccs.pool: edge_cache`，种子 43、46，1 个作业约 3 GPU 小时）：
-- 判读规则草案 FINDINGS **N-012**（`harness/ccsdp_verdict.py`）：两个种子都满足攻击成功率降 ≥ 0.5 且精度降 ≤ 0.02 → `fixes_failures`（再补 42 / 44 / 45）；一个 → `partial`；都不 → `no_fix`。
-- **用户确认 N-012 后**：`available` 加 `ccsdp-prereg`，全量生成配置（`python3 harness/registry.py experiments/defense/edge-native/registry.yaml --materialize`，**不带 `--group`**），提交、推送。集群上：
+- 判读规则 FINDINGS **N-012**（`harness/ccsdp_verdict.py`）：两个种子都满足攻击成功率降 ≥ 0.5 且精度降 ≤ 0.02 → `fixes_failures`（再补 42 / 44 / 45）；一个 → `partial`；都不 → `no_fix`。
+- 配置已生成。集群上（先 `git pull`，看 `git log --oneline -1`）：
 
 ```bash
 PACK=2 PACK_MEM_PER_RUN_GB=48 RUN_GROUPS="CCSDP" bash experiments/defense/edge-native/submit.sh --dry-run

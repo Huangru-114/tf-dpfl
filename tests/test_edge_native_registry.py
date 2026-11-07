@@ -402,7 +402,7 @@ def test_ccs_seed_extension_matches_the_seed42_configs(reg):
 
 def test_ccsdp_differs_from_cluster_only_only_in_the_pool(reg):
     """D-126 / N-012：缓存池探路 = 只开聚类（CCSDC5）同种子，只把 defense.ccs.pool 从 round 换成 edge_cache；
-    种子 = 只开聚类失守的 43、46；判读规则确认前挂 ccsdp-prereg。"""
+    种子 = 只开聚类失守的 43、46；判读规则确认前挂 ccsdp-prereg（D-127 已确认、已放行）。"""
     by = {r["run_id"]: r for r in reg.runs()}
     runs = sorted(r["run_id"] for r in reg.runs() if r["group"] == "CCSDP")
     assert runs == ["CCSDP__fedrep-bnshared-cluster-cache__s43", "CCSDP__fedrep-bnshared-cluster-cache__s46"]
