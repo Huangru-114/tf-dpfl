@@ -1,0 +1,134 @@
+{
+ "preregistered": "FINDINGS N-012（D-126）",
+ "runs": {
+  "off": {
+   "43": {
+    "P": 0.8234,
+    "MTA": 0.895,
+    "stability": {
+     "first_below": null,
+     "n_below": 0,
+     "n_points": 60,
+     "last10_mean": 0.8717
+    }
+   },
+   "46": {
+    "P": 0.951,
+    "MTA": 0.8879,
+    "stability": {
+     "first_below": null,
+     "n_below": 0,
+     "n_points": 60,
+     "last10_mean": 0.8766
+    }
+   }
+  },
+  "cluster": {
+   "43": {
+    "P": 0.6846,
+    "MTA": 0.8848,
+    "stability": {
+     "first_below": null,
+     "n_below": 0,
+     "n_points": 60,
+     "last10_mean": 0.8563
+    },
+    "rejection": {
+     "tpr": 0.7818,
+     "fpr": 0.2124,
+     "status": {
+      "ok": 300
+     }
+    },
+    "attacker_admitted": 67,
+    "attacker_selected": 307
+   },
+   "46": {
+    "P": 0.606,
+    "MTA": 0.8764,
+    "stability": {
+     "first_below": null,
+     "n_below": 0,
+     "n_points": 60,
+     "last10_mean": 0.8592
+    },
+    "rejection": {
+     "tpr": 0.7467,
+     "fpr": 0.2244,
+     "status": {
+      "ok": 300
+     }
+    },
+    "attacker_admitted": 77,
+    "attacker_selected": 304
+   }
+  },
+  "cache": {
+   "43": {
+    "P": 0.0449,
+    "MTA": 0.8685,
+    "stability": {
+     "first_below": null,
+     "n_below": 0,
+     "n_points": 60,
+     "last10_mean": 0.8297
+    },
+    "rejection": {
+     "tpr": 0.9186,
+     "fpr": 0.3193,
+     "status": {
+      "ok": 300
+     }
+    },
+    "attacker_admitted": 25,
+    "attacker_selected": 307
+   },
+   "46": {
+    "P": 0.1573,
+    "MTA": 0.8601,
+    "stability": {
+     "first_below": null,
+     "n_below": 0,
+     "n_points": 60,
+     "last10_mean": 0.8338
+    },
+    "rejection": {
+     "tpr": 0.8355,
+     "fpr": 0.3208,
+     "status": {
+      "ok": 300
+     }
+    },
+    "attacker_admitted": 50,
+    "attacker_selected": 304
+   }
+  }
+ },
+ "delta": {
+  "cluster": {
+   "43": {
+    "dP": 0.1388,
+    "dMTA": 0.0102
+   },
+   "46": {
+    "dP": 0.345,
+    "dMTA": 0.0115
+   }
+  },
+  "cache": {
+   "43": {
+    "dP": 0.7785,
+    "dMTA": 0.0264
+   },
+   "46": {
+    "dP": 0.7937,
+    "dMTA": 0.0278
+   }
+  }
+ },
+ "cache_meets": {
+  "43": false,
+  "46": false
+ },
+ "verdict": "no_fix"
+}

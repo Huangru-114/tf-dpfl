@@ -56,6 +56,12 @@ FedBAP是离模块A最近的现有工作，必须正面区分；其余多数防�
 | BackdoorIndicator | USENIX Security 2024 | 待核实 | 用OOD数据注入指示任务主动检测；edge天然适合托管指示任务 |
 | FDCR | NeurIPS 2024（Huang et al.） | 固定patch触发器 | Fisher信息差异聚类+重要参数重缩放，无需代理数据；作者自认无法清除已持续存在的触发参数。攻击基线偏弱，适合在related work中代表"异质感知"一类 |
 | CCS | 项目文件 | 待核实 | PFL专用：客户端对抗训练+BN统计聚类；已在基线列表 |
+| BNGuard (arXiv:2509.13219) | MobiHoc 2025（Xu, Zhang, Hu） | 自己提出的分布外数据后门 SoDa（其余待核实） | **BN 统计量检测的直接先例**：第一个 BN 层 running_mean/var 的 4 个汇总量 + K-means(2)、取大簇；flat。2026-11-07 检索，只读了代码，未读全文（F-121） |
+| CCS 正式题目 | ICASSP 2026（Cui et al.） | — | "Turning Data Heterogeneity into a Backdoor Shield for Personalized Federated Learning"，DOI 10.1109/ICASSP55912.2026.11462193（F-121） |
+| BNP（Pre-activation Distributions Expose Backdoor Neurons） | NeurIPS 2022 | 集中式后门 | BN 记录的统计量与干净样本统计量比对找后门神经元；集中式先例（F-121） |
+| Overcoming the Challenges of BatchNorm in FL (arXiv:2405.14670) | arXiv 2024 | 篡改 BN 统计量 | BN 统计量本身是攻击面，提出统计量的鲁棒聚合 → 会适应攻击者的依据（F-121） |
+| FLARE / CrowdGuard / FL-CLEANER | AsiaCCS 2022 / NDSS 2024 / arXiv 2501.12123 | 多种 | 用数据导出的内部量（表示、隐藏层输出、激活图）而不是权重检测（F-121） |
+| Edge-Cloud Collaborative Defense | Sensors 2023（Yang et al.） | 后门 | 分层：边缘节点做反后门学习 + 自蒸馏，不用统计量（F-121） |
 
 综述段落可一笔带过：Lockdown、FedGame（NeurIPS 2023），FLShield（S&P 2024），Snowball（AAAI 2024），RoseAgg（TIFS 2024），LeadFL（ICML 2023），FLIP，FreqFed、CrowdGuard（NDSS 2024），MESAS（CCS 2023），Scope（TIFS 2025）。基准与理论：BackFed（arXiv:2507.04903）把A3FL和IBA归为动态触发器攻击，可作代码组织参照；Hammer and Anvil（arXiv:2509.08089）尝试给出FL后门理论。
 

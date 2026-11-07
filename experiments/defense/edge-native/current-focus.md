@@ -1,7 +1,7 @@
-# 交接 —— 阶段三（edge 原生防御）· CCS 这条线：拆分实验最终判定（只开聚类刚过线、2 / 5 失守）；缓存池探路已放行、可交
+# 交接 —— 阶段三（edge 原生防御）· CCS 这条线：拆分实验与缓存池探路都已记录；下一步待用户决定
 
-> **写于 2026-11-06**（第二节方向 1 重写；其余同 11-01 版）。过程与数字在本目录 `FINDINGS.md`（到 F-119；预注册 N-009 … N-012 均已生效）与 `DECISIONS.md`（到 D-127）。
-> **阶段性总结报告**：本目录 `REPORT.md`（2026-11-03 写、11-06 更新，集群维护到 11-05 期间写；结果、现状、下一步、术语表）。
+> **写于 2026-11-07**（第二节方向 1 重写；其余同 11-01 版）。过程与数字在本目录 `FINDINGS.md`（到 F-121；预注册 N-009 … N-012 均已生效）与 `DECISIONS.md`（到 D-128）。
+> **阶段性总结报告**：本目录 `REPORT.md`（2026-11-03 写、11-07 更新，集群维护到 11-05 期间写；结果、现状、下一步、术语表）。
 > ⚠️ 阶段三的实验全部做完之前，不要把分支合并到 main（用户 2026-10-10）。分支 `claude/eloquent-faraday-b9kmop`。
 > 用户要求（2026-11-01）：**文档和回复里不要用不加解释的缩写**；组名、标签第一次出现时说清楚是什么。
 
@@ -20,39 +20,19 @@
 
 ## 二、用户定的三个方向
 
-### 方向 1：CCS 拆分实验 —— 5 个种子全部回传、最终判定（F-119）；**缓存池探路已放行、可交**（N-012 用户确认，D-127）
+### 方向 1：CCS 拆分实验 + 缓存池 —— 已回传、已记录；**下一步待用户想好**（D-128）
 
-最终判定 `analysis/ccsd5_verdict.json`：只开聚类 `cluster_alone_sufficient`，但**刚过线**、2 / 5 失守：
-
-| 种子 | 42 | 43 | 44 | 45 | 46 | 均值（95% 区间） |
-|---|---|---|---|---|---|---|
-| 攻击成功率降幅 | 0.614 | 0.139 | 0.762 | 0.753 | 0.345 | 0.523（0.18–0.86） |
-| 主任务精度降幅 | 0.011 | 0.010 | 0.008 | 0.016 | 0.012 | 0.011（0.008–0.015） |
-| 放进聚合的攻击者上传 | 67 | 67 | 36 | 27 | 77 | |
-
-- 只开聚类：精度代价小且稳、防御效果不可靠；放进来的越多越容易失守，集中会加速（描述性）。
-- 对抗训练：随机崩溃（F-118）；归因 `seed_dependent`。
-- 降低随机性的候选方法：F-118 四 / REPORT §7.1′；用户先选**方案 B 缓存池**（D-126）。
-
-**缓存池探路**（组 `CCSDP`：只开聚类 + `defense.ccs.pool: edge_cache`，种子 43、46，1 个作业约 3 GPU 小时）：
-- 判读规则 FINDINGS **N-012**（`harness/ccsdp_verdict.py`）：两个种子都满足攻击成功率降 ≥ 0.5 且精度降 ≤ 0.02 → `fixes_failures`（再补 42 / 44 / 45）；一个 → `partial`；都不 → `no_fix`。
-- 配置已生成。集群上（先 `git pull`，看 `git log --oneline -1`）：
-
-```bash
-PACK=2 PACK_MEM_PER_RUN_GB=48 RUN_GROUPS="CCSDP" bash experiments/defense/edge-native/submit.sh --dry-run
-```
-
-  应列出 1 个作业（两个种子一包，`--mem=96G`；显存按只开聚类的实测 17 GiB / run，缓存池多出的只是 100 个统计量向量）。确认后去掉 `--dry-run`、命令前加 `PYTHONUNBUFFERED=1`。
-
-- **回传后**：
-
-```bash
-R=experiments/defense/edge-native/results/P2
-```
-
-```bash
-python3 harness/ccsdp_verdict.py --off $R/BNS/BNS__fedrep-bnshared-off__s43.metrics.json $R/CCSOFF5/CCSOFF5__fedrep-bnshared-off__s46.metrics.json --cluster $R/CCSDC5/CCSDC5__fedrep-bnshared-cluster-only__s43.metrics.json $R/CCSDC5/CCSDC5__fedrep-bnshared-cluster-only__s46.metrics.json --cache $R/CCSDP/CCSDP__fedrep-bnshared-cluster-cache__s43.metrics.json $R/CCSDP/CCSDP__fedrep-bnshared-cluster-cache__s46.metrics.json --out experiments/defense/edge-native/analysis/ccsdp_verdict.json
-```
+- 拆分实验最终判定（F-119，`analysis/ccsd5_verdict.json`）：只开聚类 `cluster_alone_sufficient`，但刚过线（均值 ΔP 0.523）、2 / 5 个种子失守；精度代价稳（约 0.01）。对抗训练随机崩溃（F-118）。
+- 缓存池探路（F-120，`analysis/ccsdp_verdict.json`）：种子 43、46 上防御修好（攻击成功率降 0.779 / 0.794），精度降 0.026 / 0.028 > 0.02 → **`no_fix`**；
+  代价来自误剔增加（良性误剔率 0.21 → 0.32、约三分之一良性端经常被排除）。**用户看过数据后认为可以接受**，标签不改。
+- 先例文献（F-121）：BNGuard（MobiHoc 2025）与 CCS（ICASSP 2026）都已用 BN 统计量检测、都不分层 → 统计量聚类本身不是贡献。BNGuard 全文未读（arxiv 不可达）。
+- 用户的两个要求：**防御要能覆盖其他攻击**；**方法要体现层级结构**。下一步候选（REPORT §7.4）：
+  1. 搬到分层设置（4 个边缘服务器 × 集中 / 分散，边缘服务器上聚类；先补统计量共享的分层不加防御对照）；
+  2. edge 原生变体：边缘服务器 500 张干净图的参照统计量代替「少数服从多数」，可加云端第二级；
+  3. 会适应的攻击者（上传前用干净数据重算统计量）；
+  4. 其他攻击（CerP / IBA / 语义后门；要先写代码）；
+  5. 缓存池补跑 42 / 44 / 45（用户提过门槛 0.03，未登记）或范数裁剪 / 阻尼。
+- 集群上**没有待交的作业**。读数脚本：`harness/ccs_leak_timeline.py`。
 
 ### 方向 2：FedPer 排查 —— 下个会话先出方案
 - 要回答：后门进了共享模型，为什么到不了良性端的个性化模型？这个机制能不能用作防御？
