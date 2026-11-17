@@ -44,7 +44,7 @@
 
 **本地测试**：本会话在 scratchpad 里装了 tensorflow-cpu 2.15（Python 3.11），新写的 TF 测试在 CPU 上真跑过：
 observe 开 / 关 `[Checksum]` 逐轮相同、去掉随机数围栏就不同（反向锚点）、TF 取出的矩 = 手写的整批训练模式前向、统计量挪开 3σ 时 KL = 4.5（解析值）、与三层个性化同开能跑。
-全量 L1 的数见本会话最后一个 commit 的说明。
+全量 L1（Python 3.11 + tensorflow-cpu 2.15，CPU，含全部 TF 测试）：**2285 passed / 26 skipped / 3 xfailed / 2 failed**，2 条红 = 一直存在的 Neurotoxin（陷阱 #4）→ 无回归。不含 TF 的本地基线（划分 commit 时）1939 passed / 55 skipped / 3 xfailed。
 
 **集群上的下一步（按顺序）**
 1. `git pull`，跑有 TF 的 L1（预期只有一直存在的 Neurotoxin 2 条红；GPU 节点上另 3 条，F-067）。
