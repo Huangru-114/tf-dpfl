@@ -270,3 +270,33 @@ STRIP 熵 Bad-PFL 0.77（干净样本 0.92；其余攻击 0.12–0.25）。
 
 **消融**：上传的这一版**没有**（全文约 4 400 词，`pdftotext` 检索不到 ablation / w/o / 85%；实验部分只有表 1 与图 2）。
 用户记得原文做过消融、对抗训练约占 85% 的效果 —— 出处待确认（`PLAN.md` §8 第 0 条）。
+
+---
+
+## 第 3 部分：新颖性核查（2026-11-17，网页检索；**每条都未读全文**）
+
+> 起因：用户担心近两个月已有相近方向的工作发表。本会话的网络打不开 arxiv.org 与 link.springer.com（域名解析失败），只能读检索引擎返回的摘要片段 → 下表每一条都是「据摘要」，**未读全文**。结论见 FINDINGS F-122。
+
+**「撞车」的标准**：同时占到下面四样才算（单点重合是正常的）：
+1. 三层结构（云端 – 边缘服务器 – 客户端）；
+2. 个性化联邦学习；
+3. 优化型 / 生成器触发器（Bad-PFL 一类）；
+4. 由边缘服务器（中间层）做防御或结构隔离。
+
+**检索词**（7 组扩展 + 4 组普通）：hierarchical federated learning backdoor defense edge server personalized 2026；Bad-PFL backdoor defense personalized FL 2026；BatchNorm statistics backdoor detection FL clean reference edge 2026；openreview ICLR 2027 hierarchical FL backdoor；edge server clean data trust anchor hierarchical FL poisoning defense；"personalized" "hierarchical federated learning" backdoor FedRep edge；papers citing Bad-PFL defense；client-edge-cloud HFL backdoor optimized trigger defense；edge-level personalization HFL backdoor isolation；以及三个候选的题名检索。
+
+**结果：没有找到同时占四样的工作。** 各自压到一个卖点的：
+
+| 工作 | 占了哪几样 | 与本项目的关系 | 要做什么 |
+|---|---|---|---|
+| **FoggyTrust: Robust FL with Hierarchical Trust Networks**（arXiv 2606.27622，2026-06） | 1、4 | 把 FLTrust 式根数据集放到许多雾节点上，在更同质的客户端组内算信任分 → **直接压到方向 2「边缘干净数据作信任锚」**。据摘要：针对 Krum / Trim 式模型投毒，不是后门；作者自承对数据投毒弱、标签翻转下略逊 FedAvg；不个性化；用更新余弦，不用统计量 | 读全文；方向 2 的定位收窄为「后门 + 个性化 + 统计量 + 逐客户端参照」，把它列为最近的先例 |
+| **SURA: Data-Efficient Unlearning-Based Backdoor Detection in FL**（arXiv 2611.13491，2026-11） | 4 的一部分 | 服务器用约 10 张干净图做损失上升探测标出可疑客户端，强调在统一的 BatchNorm 参照下比较 → 与「干净数据作参照、注意 BN 状态」同族。据摘要单层、不个性化 | 读全文：触发器类型、是否测自适应攻击者 |
+| **AdvPurge: A Robust PFL Framework Against Backdoor Attack**（Springer 2026 会议，DOI 10.1007/978-981-95-2961-2_10） | 2，可能 3 | 客户端对抗样本净化 +「层级模型」交替训练（产出个性化分类头）+ 服务器截尾聚合；报告对 8 种防御最多压 89%。「层级模型」若指三层网络就压到 1，更可能指主干 / 分类头 | **最优先读全文** |
+| 边缘级个性化：ESPerHFL、HPFL、IEEE 10253826「Adaptive Edge-Level Personalization on HFL」、J. Cloud Computing 2024「Personalized client-edge-cloud HFL」 | 1、2 | 个性化模型放在边缘层、同边缘客户端共享 → **三层个性化的结构本身不新**；这些工作只为精度 | 相关工作；本项目三层个性化的卖点写成「用边缘级个性化做后门隔离」+ 面对知道边缘段的攻击者 |
+| SHFL（arXiv 2409.15067，2024） | 1、4 | 边缘选客户端过滤投毒 + 云端凸优化聚合；无干净数据参照、非优化触发器后门 | 相关工作 |
+| PFL-ALP（IEEE TIFS 2025） | 2 | 服务器动态聚类 + 客户端注意力蒸馏净化 | 相关工作（PFL 后门防御基线候选） |
+| HBIpFL（CCF TPCI 2026） | 2 | 超网络个性化 + 局部梯度上升追踪损失趋势识别后门 | 相关工作 |
+| BAPFL（ICLR 2026 投稿，攻击） | 2、3 | 针对 PFL 的新攻击，以 Bad-PFL 为对照 | 第二攻击候选的参照 |
+| Edge FL 安全综述（Sensors 2026, 26(4):1275） | — | 覆盖端–边–云聚合与防御分类 | 相关工作 |
+
+**没查到 / 查不了**：ICLR 2027 的 OpenReview 投稿在检索结果里没有出现（可能未公开或未被收录）；Bad-PFL、CCS 的 Scholar「被引用」页本会话打不开。→ 由用户在本机补查（current-focus）。
