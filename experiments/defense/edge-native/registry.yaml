@@ -325,7 +325,8 @@ groups:
   # observe 只记录、全部接纳 → 每格本身就是该划分的不设防对照；main-t0 两格的 [Checksum] 必须与 SNAP__x__s42 逐轮相同
   #   （「记录不改训练」的闸：harness/instrumentation_check.py SNAP__x__s42 ERP__main-t0-x__s42）。
   # 与 SNAP 只差 defense 块（+ 不存快照）；t1 = 三层个性化（edge_shared_blocks: 1）。守卫 tests/test_edge_native_registry.py。
-  # 新划分 / 新防御的显存没测过 → 提交时 PROBE_K=2。
+  # 提交：每格只有 1 个种子 → submit.sh 不会合包（12 个单跑、约 47 GPU 小时）；改用 pack.sbatch 手工把不同格子装包
+  #   （5 个作业、约 22 GPU 小时），指令见 current-focus.md 〇·四。
   ERP:
     purpose: "方向 2 第一段（N-013）：攻击者 vs 良性端的候选分数可分性；划分 {main, homo} × 三层个性化 {t0, t1} × 布点 {集中, 分散} × s42"
     requires: [audit, edge-ref-code, n013-prereg]

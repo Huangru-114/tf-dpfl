@@ -1,4 +1,4 @@
-# 交接 —— 阶段三（edge 原生防御）· 2026-11-17 晚：方向 2 第一段（边缘干净集作参照、给每个上传打分，只记录）**代码完成、12 个 run 已登记可交**；另新增「固定客户端画像」划分体现「组内更同质」。**下一步在集群：pull → 有 TF 的测试 → 短探路 → 全交 ERP / ERPB**
+# 交接 —— 阶段三（edge 原生防御）· 2026-11-17 晚：方向 2 第一段（边缘干净集作参照、给每个上传打分，只记录）**代码完成、12 个 run 已登记可交**；另新增「固定客户端画像」划分体现「组内更同质」。**下一步在集群：pull → 有 TF 的测试 → 用 pack.sbatch 手工装包交 ERP / ERPB（5 个作业，见〇·四）**
 
 > 过程与数字：本目录 `FINDINGS.md`（到 F-125；预注册 N-008 … N-013 都已生效）与 `DECISIONS.md`（到 D-131）。
 > 阶段性总结报告：本目录 `REPORT.md`（11-07；结果、CCS 线、术语表）；文献：`LITERATURE.md` 第 3 部分（11-17 新颖性核查 + 三篇全文读数）。
@@ -48,9 +48,31 @@ observe 开 / 关 `[Checksum]` 逐轮相同、去掉随机数围栏就不同（�
 
 **集群上的下一步（按顺序）**
 1. `git pull`，跑有 TF 的 L1（预期只有一直存在的 Neurotoxin 2 条红；GPU 节点上另 3 条，F-067）。
-2. 先交一个短探路作业确认 GPU 确定性下不抛、看显存（训练模式 BN 前向是客户端训练每一步都走的路径，理论上没问题，但**没有 GPU 证据**）：
-   ERP 的 `homo-t1-collocated`，`PROBE_K=2`。
-3. 全交 12 个 run（约 20 GPU 小时；`RUN_GROUPS="ERP ERPB"`，空格分隔加引号；显存已知后再跑一次同一命令放出 held 的包）。
+2. **不要直接用 `submit.sh` 交**（11-17 晚更正）：提交工具只把**同一格子的不同种子**装进一个包，而 ERP / ERPB 每格只有 1 个种子，
+   跨格子合包又要求每格先有自己的显存实测 → `submit.sh`（含 `PACK=3`）会交出 **12 个单跑作业**（本地 `--dry-run` 已确认），
+   单跑约 3.9 小时（SNAP 实测）→ 约 47 GPU 小时。`PROBE_K` 对单种子格子不起作用；也**不需要先交探路**：
+   GPU 上若训练模式前向会报错，第 1 个边缘轮的聚合（主线程）就会让 run 非 0 退出，几分钟内暴露。
+   改为用 `pack.sbatch` 手工把不同格子装包（同模型同拓扑的 SNAP 已实测三个一包：每 run 约 17 GiB、checksum 不受影响）：
+   12 个 run → 5 个作业（ERP 3 + 3 + 2、ERPB 2 + 2），约 22 GPU 小时（D-131 ③ 里的「约 20」按此更正）。在集群仓库根目录：
+
+   ```bash
+   sub() {  # sub <tag> <run_id …>：参数拼法同 submit_lib 的 _submit_pack（4 核 / run、24G 主机内存 / run、comment 防重交）
+     local tag=$1; shift; local a=() r g E=experiments/defense/edge-native
+     for r in "$@"; do g=${r%%__*}; a+=("$E/configs/$r.yaml" "$r" "$E/results/P2/$g/$r.metrics.json"); done
+     sbatch -c $((4*$#)) --mem=$((24*$#))G --job-name=exp3v2-pack$# --comment="exp3v2:$(IFS=,; echo "$*")" \
+       experiments/attack/hfl-mechanism/pack.sbatch "$tag" "${a[@]}"
+   }
+   ```
+
+   ```bash
+   sub ERP__mix-main-t0-collocated+main-t0-distributed+main-t1-collocated__pack-k3-s42 ERP__main-t0-collocated__s42 ERP__main-t0-distributed__s42 ERP__main-t1-collocated__s42
+   sub ERP__mix-main-t1-distributed+homo-t0-collocated+homo-t0-distributed__pack-k3-s42 ERP__main-t1-distributed__s42 ERP__homo-t0-collocated__s42 ERP__homo-t0-distributed__s42
+   sub ERP__mix-homo-t1-collocated+homo-t1-distributed__pack-k2-s42 ERP__homo-t1-collocated__s42 ERP__homo-t1-distributed__s42
+   sub ERPB__mix-main-t0+main-t1__pack-k2-s41 ERPB__main-t0__s41 ERPB__main-t1__s41
+   sub ERPB__mix-homo-t0+homo-t1__pack-k2-s41 ERPB__homo-t0__s41 ERPB__homo-t1__s41
+   ```
+3. 开跑约 15 分钟后看一个日志：`grep -m3 -E "EdgeRefScore|Traceback|Error" ../tfdpfl-logs/exp3v2_ERP__homo-t1-collocated__s42.*.log`
+   —— 有 `[EdgeRefScore]` 行、没有 Traceback 即正常（`ERROR:absl:` 那条是已知噪音）。回传后 gpu.json 的 `run_peak_mib` 应约 17–20 GiB、`n_oom` = 0。
 4. 回传后：`python3 harness/instrumentation_check.py <SNAP__collocated__s42> <ERP__main-t0-collocated__s42>`（分散同理）必须逐位相同；
    然后 `python3 harness/edge_ref_probe.py --attack <ERP 的 8 个> --dev <ERPB 的 4 个> --out experiments/defense/edge-native/analysis/edge_ref_probe.json`。
 5. 某个划分判 `feasible` → 写第二段（过滤）的规则（在过滤数据之前写，用户确认）；判 `infeasible` → 那个划分上不做第二段，回来讨论。
