@@ -77,6 +77,9 @@ EXPECT_KEYS = (
     ("partition_condition",  "federation.design.condition"),
     ("partition_alpha_edge", "federation.design.alpha_edge"),
     ("partition_n",          "federation.design.n_per_client"),
+    # 阶段三 D-130：固定客户端画像静默没生效（[Partition] 缺这两列）→ mismatch。没声明的组 → None → 不核对。
+    ("partition_profile",    "federation.design.client_profile"),
+    ("partition_lambda",     "federation.design.profile_lambda"),
     # S9（G8）：停止轮静默没生效时（陷阱 #7 同类），run 块的 attack_stop_round 是 None → mismatch。
     # 没声明的组 → None → 不核对。
     ("attack_stop_round",    "backdoor.attack_stop_round"),

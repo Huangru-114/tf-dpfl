@@ -26,7 +26,11 @@ from data import designed_partition as D   # noqa: E402
 
 CASES = ([("designed", c, {"condition": c, "strength": 0.25}) for c in sorted(D.CONDITIONS)]
          + [("hdir", f"hdir-a{a:g}", {"alpha_edge": a}) for a in (10.0, 1.0, 0.3, 0.1)]
-         + [("equal_random", "random", {})])
+         + [("equal_random", "random", {})]
+         # D-130：固定客户端画像（C1 边缘表不变，λ 控制组内异质；λ = 0.4 是阶段三的「同质」档）
+         + [("designed", f"C1-fixed{lam:g}", {"condition": "C1", "strength": 0.25,
+                                               "client_profile": "fixed", "profile_lambda": lam})
+            for lam in (0.2, 0.4, 0.6)])
 
 
 def config(kind, design, n_edges=4, n_clients=100):
@@ -44,8 +48,11 @@ def preview(seeds=(42, 43, 44)) -> list:
         for seed in seeds:
             sp = D.designed_partition(labels, config(kind, design), seed=seed)
             info = sp["info"]
+            same, cross = D.h_pairs(sp["client_counts"], sp["assignments"])
             rows.append({"case": name, "partition": kind, "seed": seed,
                          "h_inter": round(info["h_inter"], 4), "h_intra": round(info["h_intra"], 4),
+                         # 两端对两端：同 edge / 跨 edge 的平均 TV（「组内更同质」的直接度量，F-125）
+                         "h_pair_same": round(same, 4), "h_pair_cross": round(cross, 4),
                          "h_inter_nominal": (None if info["h_inter_nominal"] is None
                                              else round(info["h_inter_nominal"], 4)),
                          "max_class_use": info["max_class_use"],
@@ -63,6 +70,8 @@ def summary(rows) -> list:
         out.append({"case": name, "n": len(rs),
                     "h_inter": round(float(np.mean(hi)), 3), "h_inter_min": min(hi), "h_inter_max": max(hi),
                     "h_intra": round(float(np.mean([r["h_intra"] for r in rs])), 3),
+                    "h_pair_same": round(float(np.mean([r["h_pair_same"] for r in rs])), 3),
+                    "h_pair_cross": round(float(np.mean([r["h_pair_cross"] for r in rs])), 3),
                     "h_inter_nominal": round(float(np.mean(nom)), 3) if nom else None,
                     "max_class_use": max(r["max_class_use"] for r in rs),
                     "yt_share_first_seed": rs[0]["yt_share"]})
@@ -92,11 +101,13 @@ def main(argv=None):
     ap.add_argument("--plot")
     a = ap.parse_args(argv)
     rows = preview(tuple(a.seeds))
-    print(f"{'case':<12} {'H_inter':>8} {'(min–max)':>15} {'nominal':>8} {'H_intra':>8} {'max use':>8}  airplane / edge（首个 seed）")
+    print(f"{'case':<14} {'H_inter':>8} {'(min–max)':>15} {'nominal':>8} {'H_intra':>8} "
+          f"{'pair同':>7} {'pair跨':>7} {'max use':>8}  airplane / edge（首个 seed）")
     for s in summary(rows):
         nom = "—" if s["h_inter_nominal"] is None else f"{s['h_inter_nominal']:.3f}"
-        print(f"{s['case']:<12} {s['h_inter']:>8.3f} {s['h_inter_min']:>7.3f}–{s['h_inter_max']:<7.3f} "
-              f"{nom:>8} {s['h_intra']:>8.3f} {s['max_class_use']:>8}  {s['yt_share_first_seed']}")
+        print(f"{s['case']:<14} {s['h_inter']:>8.3f} {s['h_inter_min']:>7.3f}–{s['h_inter_max']:<7.3f} "
+              f"{nom:>8} {s['h_intra']:>8.3f} {s['h_pair_same']:>7.3f} {s['h_pair_cross']:>7.3f} "
+              f"{s['max_class_use']:>8}  {s['yt_share_first_seed']}")
     if a.csv:
         with open(a.csv, "w", newline="", encoding="utf-8") as f:
             w = csv.DictWriter(f, fieldnames=list(rows[0]))

@@ -502,6 +502,9 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
         "partition_condition":  data.get("condition") if data else None,
         "partition_alpha_edge": data.get("alpha_edge") if data else None,
         "partition_n":          data.get("n_per_client") if data else None,
+        # 阶段三 D-130：固定客户端画像（schema 16）。不写（Dirichlet）时 [Partition] 没有这两列 → None
+        "partition_profile":    data.get("client_profile") if data else None,
+        "partition_lambda":     data.get("profile_lambda") if data else None,
         "data":                 data,
     }
 

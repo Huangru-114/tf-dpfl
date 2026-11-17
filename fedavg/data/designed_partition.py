@@ -40,7 +40,13 @@ CONDITIONS = {                            # 各 edge 的 airplane 占比（D-062
 }
 DESIGN_KEY = "design"                     # federation.design.*
 DEFAULTS = {"condition": None, "strength": 0.25, "alpha_edge": None,
-            "alpha_client": 0.5, "n_per_client": 500, "clean_per_edge": 500}
+            "alpha_client": 0.5, "n_per_client": 500, "clean_per_edge": 500,
+            # 阶段三 D-130：客户端层的生成规则。None（缺省）= Dir(α_c·K·p_e)（D-063，旧行为逐字节不变）；
+            # "fixed" = 固定客户端画像（profile_matrix），一个 λ 控制组内异质，客户端层不消耗随机数。
+            "client_profile": None, "profile_lambda": None}
+CLIENT_PROFILES = ("fixed",)
+# 固定画像偏重的「一对类」：边缘内第 c 个端用第 c mod 5 对（D-130）。各对互不相交、覆盖全部 10 类。
+PROFILE_PAIRS = ((0, 1), (2, 3), (4, 5), (6, 7), (8, 9))
 RNG_TAG = 0x533                           # "S3"
 
 
@@ -100,6 +106,18 @@ def config_errors(config: dict) -> list:
         if int(bd.get("target_label", TARGET)) != TARGET:
             errs.append(f"partition=designed 的特殊列是 class {TARGET}（airplane，D-028），"
                         f"收到 backdoor.target_label={bd.get('target_label')!r}")
+    prof, lam = p["client_profile"], p["profile_lambda"]
+    if prof is not None and prof not in CLIENT_PROFILES:
+        errs.append(f"federation.design.client_profile={prof!r}，合法取值 {list(CLIENT_PROFILES)}（不写 = Dirichlet）")
+    if prof == "fixed":
+        if kind == "equal_random":
+            errs.append("federation.design.client_profile=fixed 只对 designed / hdir（客户端围绕本 edge 分布）；"
+                        "equal_random 没有 edge 分布可围绕")
+        if not isinstance(lam, (int, float)) or isinstance(lam, bool) or not (0.0 <= lam <= 1.0):
+            errs.append(f"federation.design.client_profile=fixed 需要 profile_lambda ∈ [0, 1]，收到 {lam!r}")
+    elif lam is not None:
+        errs.append(f"federation.design.profile_lambda={lam!r} 只在 client_profile=fixed 时有意义"
+                    f"（现在是 {prof!r} → 静默不生效）")
     if kind == "hdir":
         a = p["alpha_edge"]
         if not isinstance(a, (int, float)) or isinstance(a, bool) or a <= 0:
@@ -246,6 +264,21 @@ def h_inter_intra(client_counts, assignments):
     return hi, ha, [pe[e] for e in edges]
 
 
+def h_pairs(client_counts, assignments):
+    """(同 edge 两端的平均 TV, 跨 edge 两端的平均 TV) —— 「组内更同质」的直接度量（D-130 / F-125）。
+
+    H_intra（端 − 本 edge 均值）与 H_inter（edge − edge）口径不同、不能直接比；两端对两端才是同一把尺子。"""
+    C = np.asarray(client_counts, dtype=float)
+    Q = C / C.sum(1, keepdims=True)
+    a = np.asarray(assignments)
+    D = 0.5 * np.abs(Q[:, None, :] - Q[None, :, :]).sum(-1)
+    iu = np.triu_indices(len(a), k=1)
+    same = (a[:, None] == a[None, :])[iu]
+    d = D[iu]
+    return (float(d[same].mean()) if same.any() else None,
+            float(d[~same].mean()) if (~same).any() else None)
+
+
 def malicious_data_share(sizes, malicious_ids) -> float:
     sizes = np.asarray(sizes, dtype=float)
     ids = [int(i) for i in malicious_ids]
@@ -275,6 +308,30 @@ def _clients_in_edge(pool_counts, n_clients, n, alpha_c, rng):
     """edge 内：q_c ~ Dir(α_c · K · p_e) → 等式 IPF（行和 n、列和 = 池）→ 取整。"""
     pp = pool_counts / pool_counts.sum()
     Q = rng.dirichlet(np.maximum(alpha_c * K * pp, 1e-3), size=n_clients) * n
+    M = ipf(Q, np.full(n_clients, n), pool_counts)
+    return int_matrix(M, np.full(n_clients, n), pool_counts)
+
+
+def profile_matrix(pool_counts, n_clients, n, lam) -> np.ndarray:
+    """固定客户端画像的名义计数（n_clients × K，每行和 n；D-130）。
+
+    第 c 个端 = n · [(1 − λ)·p_pool + λ·u_c]，u_c 在 PROFILE_PAIRS[c mod 5] 的两类上各 0.5。
+    λ = 0 → 每端 = 本 edge 分布（组内同分布）；λ 越大组内越异质。没有随机性。"""
+    pool = np.asarray(pool_counts, dtype=float)
+    pp = pool / pool.sum()
+    rows = []
+    for c in range(int(n_clients)):
+        u = np.zeros(K)
+        u[list(PROFILE_PAIRS[c % len(PROFILE_PAIRS)])] = 0.5
+        rows.append(((1.0 - lam) * pp + lam * u) * n)
+    return np.asarray(rows)
+
+
+def _fixed_profiles_in_edge(pool_counts, n_clients, n, lam):
+    """edge 内：名义画像 → 等式 IPF（行和 n、列和 = 池）→ 取整。不消耗随机数。
+
+    画像偏重的类在受害 edge 里可能稀缺（池里约 312 张）→ IPF 把它压低：实际画像 ≠ 名义画像，报实测。"""
+    Q = profile_matrix(pool_counts, n_clients, n, lam)
     M = ipf(Q, np.full(n_clients, n), pool_counts)
     return int_matrix(M, np.full(n_clients, n), pool_counts)
 
@@ -339,7 +396,10 @@ def designed_partition(labels, config: dict, seed: int | None = None) -> dict:
             if pool.sum() != per * n:
                 raise ValueError(f"edge {e} 的客户端池 {pool.sum()} ≠ {per} × {n}")
             clean_idx.append(take(clean_counts[e]))
-            block = _clients_in_edge(pool, per, n, float(p["alpha_client"]), rng)
+            if p["client_profile"] == "fixed":
+                block = _fixed_profiles_in_edge(pool, per, n, float(p["profile_lambda"]))
+            else:
+                block = _clients_in_edge(pool, per, n, float(p["alpha_client"]), rng)
             client_blocks.append(block)
             client_idx.extend(take(row) for row in block)
         cc = np.concatenate(client_blocks)
@@ -367,6 +427,12 @@ def designed_partition(labels, config: dict, seed: int | None = None) -> dict:
         "index_sha": index_sha(train, test, clean_idx),
         "rng_tag": RNG_TAG,
     }
+    if p["client_profile"] == "fixed":
+        # D-130：只在固定画像下加字段（不写时 [Partition] 行逐字不变）；α_c 在这里不起作用 → None，不打误导的 0.5
+        same, cross = h_pairs(cc, assignments)
+        info.update({"alpha_client": None, "client_profile": "fixed",
+                     "profile_lambda": float(p["profile_lambda"]),
+                     "h_pair_same": same, "h_pair_cross": cross})
     per_edge = []
     for e in range(n_edges):
         blk = client_blocks[e]

@@ -302,7 +302,8 @@ def test_partition_preview_reuses_the_training_function():
     import partition_preview as PV
     rows = PV.preview(seeds=(42,))
     assert [r["case"] for r in rows] == ["C1", "C2", "C3", "C4", "hdir-a10", "hdir-a1",
-                                         "hdir-a0.3", "hdir-a0.1", "random"]
+                                         "hdir-a0.3", "hdir-a0.1", "random",
+                                         "C1-fixed0.2", "C1-fixed0.4", "C1-fixed0.6"]
     c1 = rows[0]
     assert c1["h_inter"] == pytest.approx(0.375) and c1["yt_share"] == [0.1] * 4
     same = D.designed_partition(LABELS, PV.config("designed", {"condition": "C1", "strength": 0.25}), seed=42)
@@ -322,3 +323,118 @@ def test_repeated_partition_block_is_not_double_counted():
     lines = D.data_lines(sp)
     run = collect("\n".join(["[Config] loading x.yaml", *lines, *lines, "[Round 1]"]) + "\n")["run"]
     assert len(run["data"]["per_edge"]) == 4
+
+
+# ── H. 固定客户端画像（阶段三 D-130：体现「组内更同质」；F-125）──────────────────
+FIXED = {"condition": "C1", "strength": 0.25, "client_profile": "fixed", "profile_lambda": 0.4}
+
+# 反向锚点：改动前（`7c1096f`）在合成标签上记录的 index_sha —— 加固定画像之后旧路径逐字节不变
+OLD_INDEX_SHA = {("designed", "C1", 42): "ed0e36c40db5", ("designed", "C1", 43): "1647f6c2ead3",
+                 ("designed", "C3", 42): "4076ce940b76", ("designed", "C3", 43): "a0c64e28a750",
+                 ("hdir", 0.3, 42): "063cdafd4ec0", ("hdir", 0.3, 43): "135d6befc9c0",
+                 ("equal_random", None, 42): "691542207cc7", ("equal_random", None, 43): "a007ad63f569"}
+
+
+@pytest.mark.parametrize("key", sorted(OLD_INDEX_SHA, key=str))
+def test_old_client_layer_is_byte_identical(key):
+    import partition_preview as PV
+    kind, arg, seed = key
+    design = ({"condition": arg, "strength": 0.25} if kind == "designed"
+              else {"alpha_edge": arg} if kind == "hdir" else {})
+    sp = D.designed_partition(LABELS, PV.config(kind, design), seed=seed)
+    assert sp["info"]["index_sha"] == OLD_INDEX_SHA[key]
+    assert "client_profile" not in sp["info"]          # 旧 [Partition] 行逐字不变：不多出字段
+
+
+def test_profile_matrix_by_hand():
+    pool = np.array([100, 100, 200, 0, 100, 100, 100, 100, 100, 100], dtype=float)
+    Q = D.profile_matrix(pool, 6, 500, 0.4)
+    assert Q.shape == (6, 10) and np.allclose(Q.sum(1), 500)
+    # 第 0 端：0.6·p + 0.4·(类 0、1 各 0.5)；p_0 = 0.1
+    assert Q[0, 0] == pytest.approx(500 * (0.6 * 0.1 + 0.2))
+    assert Q[0, 2] == pytest.approx(500 * 0.6 * 0.2)
+    assert Q[1, 3] == pytest.approx(500 * 0.2)          # 第 1 端偏重 (2, 3)；池里没有类 3 → 名义上仍是 0.2
+    assert np.allclose(Q[5], Q[0])                       # c mod 5 轮换
+    assert np.allclose(D.profile_matrix(pool, 3, 500, 0.0), np.tile(pool / pool.sum() * 500, (3, 1)))
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_fixed_profiles_keep_the_hard_constraints(seed):
+    sp = D.designed_partition(LABELS, _cfg("designed", FIXED), seed=seed)
+    cc = sp["client_counts"]
+    assert cc.sum(1).tolist() == [500] * 100
+    allidx = np.concatenate(sp["train_indices"] + sp["test_indices"] + sp["clean_indices"])
+    assert len(np.unique(allidx)) == len(allidx)
+    assert (np.bincount(LABELS[allidx], minlength=10) <= D.SUPPLY_PER_CLASS).all()
+    # edge 层不动：H_inter 与 C1 的机构表相同、各 edge 的类计数与 Dirichlet 版相同
+    mainline = D.designed_partition(LABELS, _cfg("designed", {"condition": "C1"}), seed=seed)
+    assert sp["info"]["h_inter"] == pytest.approx(0.375)
+    for e in range(4):
+        assert (cc[25 * e:25 * (e + 1)].sum(0) == mainline["client_counts"][25 * e:25 * (e + 1)].sum(0)).all()
+
+
+def test_clean_sets_are_identical_to_the_mainline_and_the_client_layer_uses_no_randomness():
+    """同 seed：干净集逐个索引相同（在客户端层之前切）；客户端计数与 seed 无关（固定画像不抽随机数）。"""
+    a = D.designed_partition(LABELS, _cfg("designed", FIXED), seed=42)
+    b = D.designed_partition(LABELS, _cfg("designed", {"condition": "C1"}), seed=42)
+    c = D.designed_partition(LABELS, _cfg("designed", FIXED), seed=43)
+    assert all(np.array_equal(x, y) for x, y in zip(a["clean_indices"], b["clean_indices"]))
+    assert (a["client_counts"] == c["client_counts"]).all()
+    assert a["info"]["index_sha"] != c["info"]["index_sha"]          # 图片的选取仍随 seed 变
+
+
+def test_lambda_controls_within_edge_heterogeneity():
+    vals = []
+    for lam in (0.0, 0.2, 0.4, 0.6):
+        sp = D.designed_partition(LABELS, _cfg("designed", {**FIXED, "profile_lambda": lam}), seed=42)
+        vals.append((sp["info"]["h_pair_same"], sp["info"]["h_pair_cross"]))
+    assert vals[0][0] < 0.01                                          # λ = 0：组内同分布（只剩取整误差）
+    assert all(a[0] < b[0] for a, b in zip(vals, vals[1:]))            # λ 单调抬高组内异质
+    assert all(s < c for s, c in vals)                                 # 每一档都是组内 < 跨组
+    # 本会话的两个水平（F-125）：λ = 0.4 的组内 / 跨组 ≈ 0.54，现主线 ≈ 0.79
+    lam04 = vals[2][0] / vals[2][1]
+    m = D.designed_partition(LABELS, _cfg("designed", {"condition": "C1"}), seed=42)
+    same, cross = D.h_pairs(m["client_counts"], m["assignments"])
+    assert lam04 == pytest.approx(0.54, abs=0.02) and same / cross == pytest.approx(0.79, abs=0.02)
+
+
+def test_h_pairs_by_hand():
+    C = np.array([[2, 0], [2, 0], [0, 2], [1, 1]])
+    same, cross = D.h_pairs(C, [0, 0, 1, 1])
+    assert same == pytest.approx((0.0 + 0.5) / 2)
+    assert cross == pytest.approx((1.0 + 0.5 + 1.0 + 0.5) / 4)
+
+
+@pytest.mark.parametrize("mutate,needle", [
+    (lambda d: d.update(client_profile="profiles"), "client_profile"),
+    (lambda d: d.update(profile_lambda=1.5), "profile_lambda"),
+    (lambda d: d.update(profile_lambda=True), "profile_lambda"),
+    (lambda d: d.pop("profile_lambda"), "profile_lambda"),
+    (lambda d: d.pop("client_profile"), "只在 client_profile=fixed"),
+])
+def test_fixed_profile_config_errors(mutate, needle):
+    d = dict(FIXED)
+    assert D.config_errors(_cfg("designed", d)) == []
+    mutate(d)
+    errs = D.config_errors(_cfg("designed", d))
+    assert errs and any(needle in e for e in errs), errs
+
+
+def test_fixed_profile_is_rejected_for_equal_random_and_allowed_for_hdir():
+    fx = {"client_profile": "fixed", "profile_lambda": 0.4}
+    assert any("equal_random" in e for e in D.config_errors(_cfg("equal_random", fx)))
+    assert D.config_errors(_cfg("hdir", {"alpha_edge": 1.0, **fx})) == []
+
+
+def test_fixed_profile_partition_lines_round_trip():
+    sp = D.designed_partition(LABELS, _cfg("designed", FIXED))
+    m = collect("\n".join(["[Config] loading x.yaml", *D.data_lines(sp, malicious_ids=range(10)),
+                           "[Round 1]"]) + "\n")
+    run = m["run"]
+    assert run["partition_profile"] == "fixed" and run["partition_lambda"] == 0.4
+    assert run["data"]["alpha_client"] is None                        # α_c 在固定画像下不起作用，不打 0.5
+    assert run["data"]["h_pair_same"] == pytest.approx(sp["info"]["h_pair_same"], abs=1e-4)
+    old = collect("\n".join(["[Config] loading x.yaml",
+                             *D.data_lines(D.designed_partition(LABELS, _cfg("designed", {"condition": "C1"}))),
+                             "[Round 1]"]) + "\n")["run"]
+    assert old["partition_profile"] is None and old["partition_lambda"] is None
