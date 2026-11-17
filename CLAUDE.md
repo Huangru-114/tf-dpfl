@@ -548,7 +548,7 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
   - **CCS 组件拆分已做完**：**CCSD**（种子 42，只开对抗训练 / 只开聚类）+ **CCSDA3**（只开对抗训练 43–44）+ **CCSDC5**（只开聚类 43–46），对照 CCSOFF5 / CCSB3 / BNS 共享格。
     只开聚类：精度代价小且稳（约 0.01），防御**刚过线、2 / 5 种子失守**（均值 ΔP 0.523，N-011 判 `cluster_alone_sufficient`，F-119）；对抗训练让训练随机崩溃（F-118）。
   - 缓存池 **CCSDP**（`defense.ccs.pool: edge_cache`，种子 43、46）：防御修好、精度降 0.026 / 0.028 > 0.02 → N-012 `no_fix`；用户事后接受该代价（F-120、D-128）。
-  - 先例：BNGuard（MobiHoc 2025）与 CCS 已用 BN 统计量检测、都不分层 → 统计量聚类本身不是贡献（F-121）。下一步（分层 / edge 干净集参照 / 会适应的攻击者 / 其他攻击）待用户定。
+  - 先例：BNGuard（MobiHoc 2025）与 CCS 已用 BN 统计量检测、都不分层 → 统计量聚类本身不是贡献（F-121）。**下一步已定（2026-11-17，D-129）**：方向 2 = edge 用自己的干净集作参照、逐个过滤上传的统计量，叠加三层个性化；先做只记录阶段（计划见 current-focus 〇·五，代码等「开始改」）；之后接 CerP。⚠ 主线（统计量私有）下上传里**也带**统计量（F-123），旧交接说「不上传」是错的。
   - 判定 `harness/`：`ccsf_verdict.py`（CCSB 也用它）、`bns_verdict.py`、`ccsd_verdict.py`、`ccsd5_verdict.py`、`ccsdp_verdict.py`；读数 `ccs_leak_timeline.py`（漏网时间表、稳定性）。
   - 提交坑：CCS 格子必须 `PACK=2 PACK_MEM_PER_RUN_GB=48`（单跑脚本只申请 24G，CCS 约 31 GiB 会被杀）；`RUN_GROUPS="A B"` 用**空格**；提交后显示 held 而显存已知 → 立刻再跑一次同一命令。
 
