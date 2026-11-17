@@ -285,13 +285,13 @@ STRIP 熵 Bad-PFL 0.77（干净样本 0.92；其余攻击 0.12–0.25）。
 
 **检索词**（7 组扩展 + 4 组普通）：hierarchical federated learning backdoor defense edge server personalized 2026；Bad-PFL backdoor defense personalized FL 2026；BatchNorm statistics backdoor detection FL clean reference edge 2026；openreview ICLR 2027 hierarchical FL backdoor；edge server clean data trust anchor hierarchical FL poisoning defense；"personalized" "hierarchical federated learning" backdoor FedRep edge；papers citing Bad-PFL defense；client-edge-cloud HFL backdoor optimized trigger defense；edge-level personalization HFL backdoor isolation；以及三个候选的题名检索。
 
-**结果：没有找到同时占四样的工作。** 各自压到一个卖点的：
+**结果：没有找到同时占四样的工作。** 各自压到一个卖点的（前三条 2026-11-17 已读用户上传的全文，见 3.1）：
 
 | 工作 | 占了哪几样 | 与本项目的关系 | 要做什么 |
 |---|---|---|---|
-| **FoggyTrust: Robust FL with Hierarchical Trust Networks**（arXiv 2606.27622，2026-06） | 1、4 | 把 FLTrust 式根数据集放到许多雾节点上，在更同质的客户端组内算信任分 → **直接压到方向 2「边缘干净数据作信任锚」**。据摘要：针对 Krum / Trim 式模型投毒，不是后门；作者自承对数据投毒弱、标签翻转下略逊 FedAvg；不个性化；用更新余弦，不用统计量 | 读全文；方向 2 的定位收窄为「后门 + 个性化 + 统计量 + 逐客户端参照」，把它列为最近的先例 |
-| **SURA: Data-Efficient Unlearning-Based Backdoor Detection in FL**（arXiv 2611.13491，2026-11） | 4 的一部分 | 服务器用约 10 张干净图做损失上升探测标出可疑客户端，强调在统一的 BatchNorm 参照下比较 → 与「干净数据作参照、注意 BN 状态」同族。据摘要单层、不个性化 | 读全文：触发器类型、是否测自适应攻击者 |
-| **AdvPurge: A Robust PFL Framework Against Backdoor Attack**（Springer 2026 会议，DOI 10.1007/978-981-95-2961-2_10） | 2，可能 3 | 客户端对抗样本净化 +「层级模型」交替训练（产出个性化分类头）+ 服务器截尾聚合；报告对 8 种防御最多压 89%。「层级模型」若指三层网络就压到 1，更可能指主干 / 分类头 | **最优先读全文** |
+| **FoggyTrust: Robust FL with Hierarchical Trust Networks**（Rassou & Gonzalez，Harvard；arXiv 2606.27622v1，2026-06-26，未见会议；**已读全文**） | 1、4 | 见下方 3.1 | 进相关工作与方向 2 的语义对照表 |
+| **SURA: Data-Efficient Unlearning-Based Backdoor Detection in FL**（Kim 等，Korea Univ.；arXiv 2611.13491v1，2026-11-10，投 IEEE；**已读全文**） | 4 的一部分 | 见下方 3.1 | 阈值标定与自适应结果对方向 2 有用 |
+| **AdvPurge: A Robust PFL Framework Against Backdoor Attack**（Huang & Ruan，SJTU；ProvSec 2025，LNCS 16172 pp. 185–201，2026；**已读全文**） | 2 | 见下方 3.1；「层级模型」= 主干 / 分类头切分，**不是三层网络** | 个性化后门防御的基线候选 |
 | 边缘级个性化：ESPerHFL、HPFL、IEEE 10253826「Adaptive Edge-Level Personalization on HFL」、J. Cloud Computing 2024「Personalized client-edge-cloud HFL」 | 1、2 | 个性化模型放在边缘层、同边缘客户端共享 → **三层个性化的结构本身不新**；这些工作只为精度 | 相关工作；本项目三层个性化的卖点写成「用边缘级个性化做后门隔离」+ 面对知道边缘段的攻击者 |
 | SHFL（arXiv 2409.15067，2024） | 1、4 | 边缘选客户端过滤投毒 + 云端凸优化聚合；无干净数据参照、非优化触发器后门 | 相关工作 |
 | PFL-ALP（IEEE TIFS 2025） | 2 | 服务器动态聚类 + 客户端注意力蒸馏净化 | 相关工作（PFL 后门防御基线候选） |
@@ -300,3 +300,27 @@ STRIP 熵 Bad-PFL 0.77（干净样本 0.92；其余攻击 0.12–0.25）。
 | Edge FL 安全综述（Sensors 2026, 26(4):1275） | — | 覆盖端–边–云聚合与防御分类 | 相关工作 |
 
 **没查到 / 查不了**：ICLR 2027 的 OpenReview 投稿在检索结果里没有出现（可能未公开或未被收录）；Bad-PFL、CCS 的 Scholar「被引用」页本会话打不开。→ 由用户在本机补查（current-focus）。
+
+### 3.1 三篇全文读数（2026-11-17，用户上传的 PDF）
+
+| | FoggyTrust | SURA | AdvPurge |
+|---|---|---|---|
+| 结构 | **分层**：客户端 – 雾节点 – 全局服务器（10 个雾节点 × 10 端；Snapshot Safari 3 × 10） | 单服务器，20 端全部参与 | 单服务器，40 端、每轮 25% |
+| 个性化 | 否 | 否 | 是（主干共享、分类头私有，与 FedRep 同类） |
+| 威胁 | 模型投毒为主：Krum / Trim 攻击、标签翻转、Scaling（定向，报 ASR）；20% 恶意 | BadNets、DBA、Neurotoxin、Scaling、PGD、LIE（固定触发器类），恶意端投毒 50% | BadNet（3×3）、Blend（水印）、SIG（正弦），恶意端投毒 20% |
+| 优化型触发器（Bad-PFL 一类） | 无 | 无 | 无 |
+| 防御 | 每个雾节点各持一份 100 张的根数据（按本组的偏斜分布抽），在组内跑 FLTrust：雾节点在根数据上算参考更新，客户端更新与它的余弦经 ReLU 当信任分、模长归一后加权；上层用 FedAvg / FedAdam / SCAFFOLD | 服务器 10 张干净图做 12 步损失上升探测；读数时把 BN 统计量恢复成统一参照（统计量当干扰排除）；中位数 / MAD 标准化后按阈值剔除 | ① 客户端用 PGD 对抗样本重训分类头；② 主干 / 分类头交替训练；③ 服务器逐坐标截尾平均 |
+| 干净数据 | 每个雾节点 100 张（「划分版」每节点 10 张时收敛明显变慢） | 10 张（对照 500 张） | 防御目标写「服务器无辅助数据」，§4.2 又说服务器用辅助数据训分类头（前后矛盾） |
+| 用 BN 统计量 | 否（更新余弦） | 当干扰排除，不当信号 | 否 |
+| 自适应攻击者 | 未测（只测了针对 Krum / Trim 的攻击） | 测：拿不到确切代理集时 ASR 0.33–0.37%；**拿到确切代理集 + 同时调方向与幅度 → 94.91%** | 未测 |
+| 关键数字 | CIFAR-10 / ResNet-20 测试精度只有约 0.50–0.55；Krum / Trim 下比 FLTrust 高 50% 以上；标签翻转下不如 FLTrust / FedAvg；Snapshot Safari 上 FedAvg 三种设置都最好 | CIFAR-100 / VGG16-BN 平均 ASR 0.53%（FPR 1.65%）；CIFAR-10 / ResNet18 平均 26.13% | CIFAR-10 / ResNet18：FedRep ASR 56.33% → 11.14%，精度 88.25% → 86.27% |
+
+**对本项目的含义**
+1. **FoggyTrust 是方向 2「中间层持干净数据作信任锚」的直接先例**，而且它的理由与我们相同：中间层的组内数据比全局更同质，参照更有代表性。区分点：
+   - 它针对模型投毒，没有后门的优化型触发器，没有个性化，用更新余弦而不是 BN 统计量；
+   - **它的前提是组内同质**（实验里每个雾节点的客户端都偏向同一个标签），作者自己在 Snapshot Safari 上承认组内差异一大、信任分就不可靠、FedAvg 反而最好。
+     而本项目的 C1 划分里同一 edge 内客户端各自 Dir(0.5)（h_intra ≈ 0.41，F-122 前的调研）→ **组内异质正是方向 2 要先解决的问题**（逐客户端参照 / 类混合残差就是为此设计的）；这一点可以写成相对 FoggyTrust 的贡献，但要有记录阶段的数据支撑。
+   - 质量提醒：本科生项目式预印本，CIFAR-10 精度约 0.55，结论分量有限；引用时如实描述。
+2. **SURA**：阈值只在「良性开发 run」上标定一次、之后固定 → 方向 2 的阈值改用这种做法（不用身份标签）；它把 BN 统计量当干扰排除，提醒我们要先量清「良性端统计量的正常漂移」有多大；**干净参照一旦泄露就被绕过（94.91%）** → 方向 2 的威胁模型写明边缘干净集保密，并列为自适应攻击者的检验项。
+3. **AdvPurge**：只占「个性化」；客户端对抗净化与 CCS 同族；可作基线候选；其 FedRep 在 ResNet18 + 固定触发器下 ASR 56% 与本项目观察同向。
+4. 三篇读完后，「三层结构 + 个性化 + 优化型触发器 + 边缘主导防御」**仍然没有先例**。
