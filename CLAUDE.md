@@ -380,6 +380,10 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
   - 自描述 `[Partition]` + 每 edge `[PartitionEdge]` → `run.data`（H_inter / H_intra、逐 edge airplane 占比、索引 sha），collect_metrics **schema 6**。
   - 离线预览（F0 数据，不需要 TF / GPU）：`python3 harness/partition_preview.py`（F-058）。
   - floor 验证 pilot **FLR**（G6(a) × ρ=0，预注册判定 `harness/flr_verdict.py`，D-061）决定 G0 要不要逐划分测 floor。
+  - **固定客户端画像**（阶段三 D-130，体现「组内更同质」，F-125）：`federation.design.client_profile: fixed` + `profile_lambda`（只对 designed / hdir）——
+    边缘层与干净集不变（同种子干净集逐索引相同），边缘内第 c 端 = (1 − λ)·本边缘分布 + λ·（第 c mod 5 对类各 0.5），IPF 后取整、不耗随机数；不写 = Dirichlet 逐字节不变
+    （合成标签 index_sha 反向锚点）。`[Partition]` 只在 fixed 下多 `client_profile / profile_lambda / h_pair_same / h_pair_cross`；
+    「同 edge 两端 vs 跨 edge 两端」的 TV 才是组内同质的直接度量（H_intra 与 H_inter 口径不同）：现主线 0.55 / 0.70，λ = 0.4 时 0.30 / 0.55。
   - 守卫：`tests/test_designed_partition.py`（含集群上跑的 `build_clients` 集成测试）、`tests/test_flr_verdict.py`。
     > 那条集成测试直到 S9 才第一次在有 TF 的环境里跑，红在**夹具**少 `training.lr_decay`（F-063，已修；真实配置不受影响）。
 
@@ -551,6 +555,15 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
   - 先例：BNGuard（MobiHoc 2025）与 CCS 已用 BN 统计量检测、都不分层 → 统计量聚类本身不是贡献（F-121）。**下一步已定（2026-11-17，D-129）**：方向 2 = edge 用自己的干净集作参照、逐个过滤上传的统计量，叠加三层个性化；先做只记录阶段（计划见 current-focus 〇·五，代码等「开始改」）；之后接 CerP。⚠ 主线（统计量私有）下上传里**也带**统计量（F-123），旧交接说「不上传」是错的。
   - 判定 `harness/`：`ccsf_verdict.py`（CCSB 也用它）、`bns_verdict.py`、`ccsd_verdict.py`、`ccsd5_verdict.py`、`ccsdp_verdict.py`；读数 `ccs_leak_timeline.py`（漏网时间表、稳定性）。
   - 提交坑：CCS 格子必须 `PACK=2 PACK_MEM_PER_RUN_GB=48`（单跑脚本只申请 24G，CCS 约 31 GiB 会被杀）；`RUN_GROUPS="A B"` 用**空格**；提交后显示 held 而显存已知 → 立刻再跑一次同一命令。
+
+- **阶段三方向 2 第一段：边缘干净集作参照、给每个上传打分**（2026-11-17；`experiments/defense/edge-native/` DECISIONS D-129 … D-131、FINDINGS F-125 / N-013）。
+  - `defense.name: edge_ref` + `defense.edge_ref.mode: observe`（只记录、全部接纳；聚合与不设防同一函数 → 开 / 关逐位相同）。算术在 `fedavg/defense/edge_ref_spec.py`（**不 import TF**），
+    TF 只在 `defense/edge_ref.py`：上传权重装进草稿模型 → 边缘 500 张干净图一整批**训练模式**前向 → 每个 BN 层输入的逐样本矩；分数 = 逐客户端参照高斯 KL（全部 / 各阶段）、类混合残差、BNGuard 四数、缓存池多数原则；每轮 8 个假客户端作零分布。
+  - 接线：`EdgeServerBase.__init__` 有 `set_edge` 就注入 edge（同 `set_stat_indices`，F-107）；`select_clients` 记 `current_round`；`main.py` 在 edge_ref 时挂干净集；
+    `config_validate` §4l（`REFERENCE_DEFENSES`，**不进** `AGGREGATION_DEFENSES`）：hier_fedrep、交错调度、S3 划分、干净集 ≥ 1、`defense.layers == [edge]`。
+  - 自描述 `[设定14]`；`[EdgeRefScore]` / `[EdgeRefNull]` / `[TimingEdgeRef]` → collect_metrics **schema 16**（`edge_ref_scores` / `edge_ref_null`，每 run 约 +1.9 MB）；判定 `harness/edge_ref_probe.py`（N-013）。
+  - 草稿模型第一次创建推进 Python random → 整段包 `random.getstate()/setstate()`（F-078）；守卫 `tests/test_edge_ref_tf.py` 含「去掉围栏就改变训练」的反向锚点。
+  - 守卫：`test_edge_ref_spec` / `test_edge_ref_config` / `test_edge_ref_probe` / `test_edge_native_registry`（ERP / ERPB 差异）（本地）+ `test_edge_ref_tf`（TF）。
 
 **留了接口但没有实现的**（不要以为它们能用）：
 - 主动防御（需要客户端配合的防御）：接口齐了（`BaseDefense.layers` /

@@ -1,6 +1,6 @@
-# 交接 —— 阶段三（edge 原生防御）· 2026-11-17 收尾：方向已定（边缘干净数据作参照的统计量过滤 + 三层个性化），**下个会话：等用户说「开始改」后写记录阶段的代码**
+# 交接 —— 阶段三（edge 原生防御）· 2026-11-17 晚：方向 2 第一段（边缘干净集作参照、给每个上传打分，只记录）**代码完成、12 个 run 已登记可交**；另新增「固定客户端画像」划分体现「组内更同质」。**下一步在集群：pull → 有 TF 的测试 → 短探路 → 全交 ERP / ERPB**
 
-> 过程与数字：本目录 `FINDINGS.md`（到 F-124；预注册 N-008 … N-012 都已生效）与 `DECISIONS.md`（到 D-129）。
+> 过程与数字：本目录 `FINDINGS.md`（到 F-125；预注册 N-008 … N-013 都已生效）与 `DECISIONS.md`（到 D-131）。
 > 阶段性总结报告：本目录 `REPORT.md`（11-07；结果、CCS 线、术语表）；文献：`LITERATURE.md` 第 3 部分（11-17 新颖性核查 + 三篇全文读数）。
 > ⚠️ 阶段三的实验全部做完之前，不要把分支合并到 main（用户 2026-10-10）。分支 `claude/eloquent-faraday-b9kmop`。
 > ⚠️ 用户要求（2026-11-01、11-17 重申）：**文档和回复里不要用不加解释的缩写、编号、专有名词**；第一次出现时说清楚是什么。用户隔了一段时间回来，偏好「把前因后果讲清楚」的说明。
@@ -24,9 +24,41 @@
    ```
 
    基线（2026-11-07）：**1918 passed / 55 skipped / 3 xfailed**。多出来的红才是回归。
-3. **方向已定（D-129）**：先读下面「〇·五」。用户说「开始改」之前只出方案、不动代码；开工前先把〇·五的语义对照表给用户确认一遍。
+3. 先读下面「〇·四」（11-17 晚做完的事 + 集群上的下一步），再读「〇·五」（方向 2 的来龙去脉）。
 
 ---
+
+## 〇·四、11-17 晚做完的事 + 集群上的下一步
+
+**做完的（4 个 commit，分支 `claude/eloquent-faraday-b9kmop`）**
+1. **固定客户端画像划分**（D-130，F-125）。起因：用户指出「组内更同质」是核心假设，而现主线划分里同边缘两个客户端的差异是跨边缘的 0.79 倍、
+   客户端偏离本边缘（总变差 0.41）比边缘之间（0.375）还大。新开关 `federation.design.client_profile: fixed` + `profile_lambda`：
+   边缘层（C1 比例表）与干净集不变，边缘内第 c 个客户端 = (1 − λ)·本边缘分布 + λ·（第 c mod 5 对类各 0.5）；λ = 0.4 时比值降到 0.54。不写 = 原来的 Dirichlet，逐字节不变。
+2. **参照打分**（D-131）：`defense.name: edge_ref` + `defense.edge_ref.mode: observe`（只记录、全部接纳 → 开 / 关训练逐位相同）。
+   代码 `fedavg/defense/edge_ref_spec.py`（纯 numpy 算术）+ `fedavg/defense/edge_ref.py`（TF 前向）；每个边缘轮对每个上传记：
+   逐客户端参照的高斯 KL（全部层 / stem / stage1…4；stage4 = 三层个性化里只在边缘内共享的那一块）、类混合残差、BNGuard 四数、缓存池多数原则；
+   每轮另记 8 个「假客户端」的分数作零分布。日志 `[设定14]` / `[EdgeRefScore]` / `[EdgeRefNull]` / `[TimingEdgeRef]` → collect_metrics schema 16（`edge_ref_scores` / `edge_ref_null`）。
+3. **判定脚本** `harness/edge_ref_probe.py` = N-013（已生效）：按划分分别执行；每个划分四格（布点 × 三层个性化）取 AUROC 最小值最大的分数；
+   阈值 = 开发 run 的 90% 分位点；最佳四格最小 AUROC ≥ 0.75 → `feasible`，否则 `infeasible`。
+4. **登记**：ERP（有攻击，s42）{main, homo} × {t0, t1} × {collocated, distributed} = 8；ERPB（投毒比例 0、攻击者在，s41）{main, homo} × {t0, t1} = 4。已放行、配置已生成。
+
+**本地测试**：本会话在 scratchpad 里装了 tensorflow-cpu 2.15（Python 3.11），新写的 TF 测试在 CPU 上真跑过：
+observe 开 / 关 `[Checksum]` 逐轮相同、去掉随机数围栏就不同（反向锚点）、TF 取出的矩 = 手写的整批训练模式前向、统计量挪开 3σ 时 KL = 4.5（解析值）、与三层个性化同开能跑。
+全量 L1 的数见本会话最后一个 commit 的说明。
+
+**集群上的下一步（按顺序）**
+1. `git pull`，跑有 TF 的 L1（预期只有一直存在的 Neurotoxin 2 条红；GPU 节点上另 3 条，F-067）。
+2. 先交一个短探路作业确认 GPU 确定性下不抛、看显存（训练模式 BN 前向是客户端训练每一步都走的路径，理论上没问题，但**没有 GPU 证据**）：
+   ERP 的 `homo-t1-collocated`，`PROBE_K=2`。
+3. 全交 12 个 run（约 20 GPU 小时；`RUN_GROUPS="ERP ERPB"`，空格分隔加引号；显存已知后再跑一次同一命令放出 held 的包）。
+4. 回传后：`python3 harness/instrumentation_check.py <SNAP__collocated__s42> <ERP__main-t0-collocated__s42>`（分散同理）必须逐位相同；
+   然后 `python3 harness/edge_ref_probe.py --attack <ERP 的 8 个> --dev <ERPB 的 4 个> --out experiments/defense/edge-native/analysis/edge_ref_probe.json`。
+5. 某个划分判 `feasible` → 写第二段（过滤）的规则（在过滤数据之前写，用户确认）；判 `infeasible` → 那个划分上不做第二段，回来讨论。
+
+**已知风险 / 没有证据的**
+- 固定画像下攻击成功率、个性化增益、三层个性化的隔离作用会不会变：没测过（ERP / ERPB 的 homo 格子同时就是第一份数据）。
+- 类混合残差可能把 Bad-PFL 的触发器（目标类的自然特征）解释成「多一点目标类」；受害边缘有 4 类在干净集里只有 12–13 张。
+- metrics.json 每 run 约 +1.9 MB（12 run 约 23 MB），是选择「每个边缘轮都打分」的代价。
 
 ## 〇·五、11-17 会话定下的事 + 下个会话要做的事
 
@@ -65,7 +97,7 @@
 **第二段：过滤阶段（约 16 个 run、25 GPU 小时；规则在第一段数据之后、过滤数据之前写）**
 - {三层个性化关, 开} × {集中, 分散} × 种子 42–44 开过滤，加三层个性化单独开的 43、44。门槛：降 ≥ 0.15、最小种子 ≥ 0.10、精度降 ≤ 0.02；叠加 = 比两者较好者再低 0.10，冗余 = 差 < 0.05。
 
-**代码（第一段，等「开始改」）**
+**代码（第一段）—— ✅ 已完成（11-17 晚，见〇·四；实际做法以 D-131 为准，与下面的草案有细节差别）**
 - `fedavg/defense/edge_ref_spec.py`（新，不 import TF）：参数与校验、设定行字段；纯 numpy 的逐通道高斯 KL、单纯形 NNLS 混合残差、BNGuard 四数、余弦、阈值。
 - `fedavg/defense/edge_ref.py`（新）：`EdgeRefDefense(BaseDefense)`，`layers={"edge"}`、`from_config`、`set_edge(edge)`；草稿模型第一次用到才建并包 `random.getstate()/setstate()`（F-078）；每个上传一次 500 张整批训练模式前向，取各批归一化层输入的整体 / 逐类矩；独立 `default_rng([seed, 标签, 轮, edge])`；observe 全部接纳。
 - `server/edge_server_base.py`：防御有 `set_edge` 就注入（同 `set_stat_indices`；吸取 F-107：测试走生产路径）。`main.py:787`：开 `edge_ref` 也挂干净图。
@@ -79,7 +111,7 @@
 方向 2 第一段 → 第二段 → 下一个会话接 CerP → 会适应的攻击者（拿到干净集的；只往上云层写后门、专门绕过三层个性化的，LP 的思路）→ 修已知防御的缺陷、跑对比基线（中位数、剔除离群者类、FLAME、AdvPurge 等）。
 
 ### 还等用户的
-- 说「开始改」；确认 N-013 的三个数（AUROC 0.75、90% 分位点、开发种子 41）。
+- ~~说「开始改」；确认 N-013 的三个数~~ ✅（11-17 晚：三个数照草案、四格取最小、按划分分别执行，D-131）。
 - 本机补查：Bad-PFL / CCS 在 Scholar 上 2026-09 以后的被引用、OpenReview 上 ICLR 2027 投稿（本环境打不开 arxiv / Scholar）。
 
 ---
