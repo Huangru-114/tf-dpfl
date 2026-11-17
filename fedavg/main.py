@@ -784,10 +784,12 @@ def run_experiment(config_path="config/config.yaml"):
     # S6b（D-087）：在线 c_k 要在 edge 干净集上跑 NCM + PGD → 开关开时把干净集图像 / 标签挂到 edge 上
     # （x_all 已是模型输入空间；顺序 = clean_indices 的顺序，取前 n 张是确定性的）。
     # 阶段三 SA1（D-108）：上传前加固同样要 edge 干净集。
-    if get_switch(config, "evaluation.update_ck") or get_switch(config, "defense.edge_harden"):
+    # 方向 2（defense.name = edge_ref，D-131）：边缘干净集是参照打分的信任锚。
+    _edge_ref = str((config.get("defense") or {}).get("name", "none")).lower() == "edge_ref"
+    if get_switch(config, "evaluation.update_ck") or get_switch(config, "defense.edge_harden") or _edge_ref:
         for edge in edge_servers:
             if edge.clean_indices is None or len(edge.clean_indices) == 0:
-                raise ValueError(f"evaluation.update_ck / defense.edge_harden：edge {edge.edge_id} 没有干净集"
+                raise ValueError(f"evaluation.update_ck / defense.edge_harden / edge_ref：edge {edge.edge_id} 没有干净集"
                                  f"（federation.partition 须是 S3 划分且 clean_per_edge ≥ 1）")
             _ci = np.asarray(edge.clean_indices)
             edge.clean_x = np.asarray(x_all[_ci], dtype=np.float32)

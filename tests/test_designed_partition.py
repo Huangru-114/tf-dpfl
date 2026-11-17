@@ -209,7 +209,7 @@ def test_partition_lines_are_parsed_by_collect_metrics():
     sp = D.designed_partition(LABELS, _cfg("designed", {"condition": "C3"}))
     lines = D.data_lines(sp, malicious_ids=range(10))
     m = collect("\n".join(["[Config] loading x.yaml", *lines, "[Round 1]"]) + "\n")
-    assert m["schema_version"] == 15
+    assert m["schema_version"] == 16
     run = m["run"]
     assert run["partition"] == "designed" and run["partition_condition"] == "C3"
     assert run["partition_n"] == 500 and run["partition_alpha_edge"] is None
@@ -438,3 +438,24 @@ def test_fixed_profile_partition_lines_round_trip():
                              *D.data_lines(D.designed_partition(LABELS, _cfg("designed", {"condition": "C1"}))),
                              "[Round 1]"]) + "\n")["run"]
     assert old["partition_profile"] is None and old["partition_lambda"] is None
+
+
+def test_build_clients_with_fixed_profiles_bakes_the_profile_counts():
+    """集群（需要 TF）：固定画像经 main.build_clients 落地 —— 每端 375 / 125、客户端类计数 = 划分函数给的画像。"""
+    tf = pytest.importorskip("tensorflow")
+    import main as M
+    images = np.zeros((len(LABELS), 4, 4, 3), dtype=np.float32)
+    cfg = _cfg("designed", FIXED)
+    cfg["data"].update(batch_size=32, img_size=4, num_classes=10)
+    cfg["federation"].update(edge_assignment="block", client_fraction=0.1)
+    cfg["training"] = {"drift_correction": "hierfedavg", "learning_rate": 0.1, "lr_decay": 1.0,
+                       "local_epochs": 1}
+    cfg["backdoor"] = {"enabled": False, "target_label": 0}
+    model = tf.keras.Sequential([tf.keras.Input((4, 4, 3)), tf.keras.layers.Flatten(),
+                                 tf.keras.layers.Dense(10, activation="softmax")])
+    out = {}
+    clients, assignments, _ = M.build_clients(images, LABELS, model, copy.deepcopy(cfg), s3_out=out)
+    assert assignments == [e for e in range(4) for _ in range(25)]
+    assert [c.n_samples for c in clients] == [375] * 100
+    sp = D.designed_partition(LABELS, cfg)
+    assert all(np.array_equal(a, b) for a, b in zip(out["clean_indices"], sp["clean_indices"]))

@@ -44,6 +44,11 @@ class EdgeServerBase(RobustAggregationMixin, ABC):
         # 不留给 main.py（F-107：SA-C 只在测试里手工注入，CCSF ccs-full 在集群上第 1 个 edge 轮就崩）。
         if hasattr(self.defense, "set_stat_indices"):
             self.defense.set_stat_indices(get_bn_stat_indices(model), label=edge_id)
+        # 方向 2（edge_ref，D-131）要读本 edge 的干净集、模型结构与当前轮号 → 注入 edge 本身（同上，生产路径）
+        if hasattr(self.defense, "set_edge"):
+            self.defense.set_edge(self)
+        # 当前 (云轮, edge 轮)：select_clients 每个 edge 轮都会调，记下来给要知道轮号的防御（edge_ref）读。只读状态。
+        self.current_round = (None, None)
 
         # ── 独立播种的 RNG：客户端选取必须可复现，否则矩阵里同一格重跑对不上。
         # 每个 edge 一条独立流（seed, edge_id），互不干扰全局 np.random。
@@ -110,6 +115,7 @@ class EdgeServerBase(RobustAggregationMixin, ABC):
         名额按哪个轮号轮转由 federation.quota_round_axis 决定（D02 / D-036）：
         cloud（旧）= 云轮号；effective = 有效轮（需要 edge_round_idx）。
         """
+        self.current_round = (int(round_idx), None if edge_round_idx is None else int(edge_round_idx))
         n_select = self._n_select(
             round_index(round_idx, edge_round_idx, self._edge_rounds, self._quota_axis))
         idx      = self.rng.choice(len(self.clients), n_select, replace=False)

@@ -133,7 +133,7 @@ def test_settings12_and_ccs_lines_roundtrip():
              "    " + format_kv("[CCS]", {"cur": fmt_list([5]), "n_pool": 10, "status": "ok",
                                          "rejected": fmt_list([5])}, edge_id=2)]
     m = CM.collect("\n".join(lines))
-    assert m["schema_version"] == 15
+    assert m["schema_version"] == 16
     assert m["run"]["ccs"] is True and m["run"]["ccs_pool"] == "edge_cache" and m["run"]["ccs_kl"] == 0.01
     assert all(f"ccs_{k}" in m["run"] for k in SETTINGS_KEYS)
     assert CM.CCS_SETTINGS_KEYS == SETTINGS_KEYS                     # 回程解析器里抄的那一份没走样

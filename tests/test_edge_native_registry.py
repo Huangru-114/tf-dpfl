@@ -413,3 +413,51 @@ def test_ccsdp_differs_from_cluster_only_only_in_the_pool(reg):
         assert a["defense"]["ccs"]["pool"] == "round" and b["defense"]["ccs"]["pool"] == "edge_cache"
         assert (b["defense"]["ccs"]["at"], b["defense"]["ccs"]["cluster"]) == (False, True)
     assert "ccsdp-prereg" in reg.groups["CCSDP"]["requires"]
+
+
+# ── 方向 2 第一段（D-130 / D-131）：ERP / ERPB ─────────────────────────────────
+HOMO = {"federation.design.client_profile", "federation.design.profile_lambda"}
+META = {"meta.group", "meta.run_id"}
+
+
+@pytest.mark.parametrize("snap", ["collocated", "distributed"])
+def test_erp_main_t0_differs_from_snap_only_in_the_defense_block(reg, snap):
+    """「记录不改训练」的闸（ERP main-t0 的 [Checksum] = SNAP 同种子）要求：只差 defense 块与快照开关（快照只是记录）。"""
+    by = {r["run_id"]: r for r in reg.runs()}
+    a = reg.declared_config(by[f"ERP__main-t0-{snap}__s42"])
+    b = reg.declared_config(by[f"SNAP__{snap}__s42"])
+    assert _diff(a, b) == {"defense.name", "defense.edge_ref.mode", "evaluation.snapshot_rounds"} | META
+
+
+@pytest.mark.parametrize("part", ["main", "homo"])
+@pytest.mark.parametrize("snap", ["collocated", "distributed"])
+def test_erp_t1_differs_from_t0_only_in_the_tier_switch(reg, part, snap):
+    by = {r["run_id"]: r for r in reg.runs()}
+    a = reg.declared_config(by[f"ERP__{part}-t0-{snap}__s42"])
+    b = reg.declared_config(by[f"ERP__{part}-t1-{snap}__s42"])
+    assert _diff(a, b) == {"federation.edge_shared_blocks", "meta.run_id"}
+
+
+@pytest.mark.parametrize("tier", ["t0", "t1"])
+@pytest.mark.parametrize("snap", ["collocated", "distributed"])
+def test_erp_homo_differs_from_main_only_in_the_client_profile(reg, tier, snap):
+    by = {r["run_id"]: r for r in reg.runs()}
+    a = reg.declared_config(by[f"ERP__main-{tier}-{snap}__s42"])
+    b = reg.declared_config(by[f"ERP__homo-{tier}-{snap}__s42"])
+    assert _diff(a, b) == HOMO | {"meta.run_id"}
+    assert b["federation"]["design"]["profile_lambda"] == 0.4
+
+
+@pytest.mark.parametrize("cell", ["main-t0", "main-t1", "homo-t0", "homo-t1"])
+def test_erpb_differs_from_the_collocated_erp_cell_only_in_poison_ratio_and_seed(reg, cell):
+    by = {r["run_id"]: r for r in reg.runs()}
+    a = reg.declared_config(by[f"ERP__{cell}-collocated__s42"])
+    b = reg.declared_config(by[f"ERPB__{cell}__s41"])
+    assert _diff(a, b) == {"backdoor.poison_ratio", "seed"} | META
+    assert b["backdoor"]["poison_ratio"] == 0.0 and b["seed"] == 41
+
+
+def test_erp_groups_are_released_after_the_n013_confirmation(reg):
+    assert reg.unmet_requires("ERP") == [] and reg.unmet_requires("ERPB") == []
+    assert sum(r["group"] == "ERP" for r in reg.runs()) == 8
+    assert sum(r["group"] == "ERPB" for r in reg.runs()) == 4

@@ -113,7 +113,23 @@ CCS_SETTINGS_KEYS = ("at", "cluster", "kl", "mmd", "steps", "step", "eps", "radi
 #     [设定4] 的 fedrep_bn_stats 对它无效）。老日志 → None。
 # 15 = 阶段三 D-116：ccs_decisions[] 加 n_valid / nonfinite（上传物含 NaN / inf 的端在聚类前剔除）；新表 ccs_stop
 #     （[CCSStop]：有效端占比低于 defense.ccs.min_valid_frac、停止训练的那一次）。老日志 → None / []。
-SCHEMA_VERSION = 15
+# 16 = 阶段三 D-130 / D-131：run.partition_profile / partition_lambda（[Partition]，固定客户端画像）；
+#     run.edge_ref / edge_ref_mode / edge_ref_n_fake / edge_ref_fake_n（[设定14]；edge_ref=false = 没开）；新表
+#     edge_ref_scores（[EdgeRefScore]：每个上传一行 —— 逐客户端参照 KL、类混合残差、BNGuard 四数、缓存池余弦 / 会不会被剔）/
+#     edge_ref_null（[EdgeRefNull]：每个边缘轮一行，假客户端的分数列表 = 零分布）；timing_summary.edge_ref_total_s。
+#     老日志 → None / 空表。
+SCHEMA_VERSION = 16
+# [设定14] / [EdgeRefScore] / [EdgeRefNull] 的字段（= fedavg/defense/edge_ref_spec 的同名常量；抄一份是为了不 import
+# defense 包 —— 守卫 tests/test_collect_edge_ref.py 断言两份相同）
+EDGE_REF_SETTINGS_KEYS = ("mode", "n_fake", "fake_n")
+EDGE_REF_SCORE_COLUMNS = ("round", "edge_id", "effective_round", "edge_round", "cid", "n",
+                          "kl_all", "kl_stem", "kl_stage1", "kl_stage2", "kl_stage3", "kl_stage4",
+                          "mix_res", "mix_res_base", "mix_pmax", "mix_argmax",
+                          "bng_mm_mean", "bng_mm_var", "bng_mv_mean", "bng_mv_var",
+                          "ccs_cos_med", "ccs_rej")
+EDGE_REF_NULL_COLUMNS = ("round", "edge_id", "effective_round", "edge_round", "n_clean", "ccs_pool",
+                         "ccs_status", "kl_all", "kl_stage4", "mix_res", "mix_res_base")
+EDGE_REF_NULL_LISTS = ("kl_all", "kl_stage4", "mix_res", "mix_res_base")
 
 # A4 的副列：key=value 行（utils/kvline.py）→ rounds[] / acc_rounds[] 的字段。
 # 缺行（旧口径、或该列本 run 没开）→ null，**不是 0**。
@@ -355,6 +371,7 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
     setg11 = None
     setg12 = None
     setg13 = None
+    setg14 = None
     malshare = None
     data = None
     data_edges = []
@@ -389,6 +406,9 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
         d = parse_kv(ln, "[设定13]")
         if d is not None:
             setg13 = d
+        d = parse_kv(ln, "[设定14]")
+        if d is not None:
+            setg14 = d
         d = parse_kv(ln, "[MalShare]")
         if d is not None:
             malshare = d
@@ -469,6 +489,9 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
         # 阶段三 Hier-FedPer（[设定13]，schema 14）。None = 老日志（不知道）；false = 不是 FedPer。
         "fedper":            setg13.get("fedper") if setg13 else None,
         "fedper_bn_stats":   setg13.get("bn_stats") if setg13 else None,
+        # 阶段三方向 2 参照打分（[设定14]，schema 16）。None = 老日志（不知道）；false = 没开。参数平铺成 edge_ref_*（status 核对）。
+        "edge_ref":          setg14.get("edge_ref") if setg14 else None,
+        **{f"edge_ref_{k}": (setg14.get(k) if setg14 else None) for k in EDGE_REF_SETTINGS_KEYS},
         # 恶意端训练数据占比（[MalShare]，schema 13）；旧 noniid 下不等于名义比例（D-098）。None = 老日志。
         "malicious_data_share": malshare.get("share") if malshare else None,
         # ── 自适应轮数：这一格跑到第几轮、为什么停 ──────────────────────
@@ -771,7 +794,27 @@ def _s6_timing(lines) -> dict:
                 if d.get("eval_s") is not None and (phases is None or d.get("phase") in phases)]
         return round(sum(vals), 1) if vals else None
     return {"post_agg_eval_total_s": _tot("[PostAgg]"), "frozen_eval_total_s": _tot("[FrozenASR]"),
-            "ck_eval_total_s": _tot_ck(lines)}
+            "ck_eval_total_s": _tot_ck(lines), "edge_ref_total_s": _tot_edge_ref(lines)}
+
+
+def _tot_edge_ref(lines):
+    """方向 2：[TimingEdgeRef] 的 edge_ref_s 合计（参照打分的耗时，在 round_time_total_s 之内）；没开 → None。"""
+    vals = [d.get("edge_ref_s") for d in collect_kv(lines, "[TimingEdgeRef]") if d.get("edge_ref_s") is not None]
+    return round(sum(vals), 1) if vals else None
+
+
+def _collect_edge_ref_scores(lines) -> dict:
+    """[EdgeRefScore] → {columns, rows}：每个上传一行（方向 2，D-131）。"""
+    return {"columns": list(EDGE_REF_SCORE_COLUMNS),
+            "rows": [[d.get(c) for c in EDGE_REF_SCORE_COLUMNS] for d in collect_kv(lines, "[EdgeRefScore]")]}
+
+
+def _collect_edge_ref_null(lines) -> dict:
+    """[EdgeRefNull] → {columns, rows}：每个边缘轮一行，假客户端的分数解析成列表（零分布）。"""
+    rows = []
+    for d in collect_kv(lines, "[EdgeRefNull]"):
+        rows.append([parse_list(d.get(c)) if c in EDGE_REF_NULL_LISTS else d.get(c) for c in EDGE_REF_NULL_COLUMNS])
+    return {"columns": list(EDGE_REF_NULL_COLUMNS), "rows": rows}
 
 
 def _tot_ck(lines):
@@ -1037,6 +1080,8 @@ def collect(log_text: str) -> dict:
         "harden": _collect_harden(lines),
         "harden_agg": _collect_harden_agg(lines),
         # 阶段三 SA-C（schema 13）：CCS 每次 edge 聚合的聚类判决（本轮有谁 + 剔了谁）
+        "edge_ref_scores": _collect_edge_ref_scores(lines),
+        "edge_ref_null": _collect_edge_ref_null(lines),
         "ccs_decisions": _collect_ccs(lines),
         "ccs_stop": _collect_ccs_stop(lines),
         "per_edge_post_agg_rounds": _collect_post_agg_edge(lines),

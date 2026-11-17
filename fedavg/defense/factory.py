@@ -20,6 +20,7 @@ from .multi_krum import MultiKrumDefense
 from .flame import FlameDefense
 from .dnc import DnCDefense
 from .ccs import CCSDefense
+from .edge_ref import EdgeRefDefense
 
 _REGISTRY = {
     "trimmed_mean": TrimmedMeanDefense,
@@ -28,6 +29,7 @@ _REGISTRY = {
     "flame":        FlameDefense,
     "dnc":          DnCDefense,
     "ccs":          CCSDefense,        # 阶段三 SA-C（D-109）：客户端对抗训练 + 上传 BN 统计量聚类
+    "edge_ref":     EdgeRefDefense,    # 阶段三方向 2（D-131）：边缘干净集作参照给上传打分（第一段只记录）
 }
 
 # 训练后、客户端侧的后处理防御（不在聚合层；见 simple_tuning.py）。

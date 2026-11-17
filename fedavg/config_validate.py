@@ -84,7 +84,10 @@ AGGREGATION_DEFENSES = {"trimmed_mean", "median", "multi_krum", "flame", "dnc"}
 POST_HOC_DEFENSES    = {"simple_tuning"}
 # 客户端 + edge 两侧配合的防御：不是「任何方法都能挂」的纯聚合防御，方法限制由各自的段落核对（ccs：§4j）
 CLIENT_DEFENSES      = {"ccs"}
-VALID_DEFENSES       = {"none"} | AGGREGATION_DEFENSES | POST_HOC_DEFENSES | CLIENT_DEFENSES
+# edge 用自己的干净集作参照的防御（方向 2，D-131）：只在 hier_fedrep + S3 划分下实现（§4l），也不是「任何方法都能挂」的纯聚合防御
+REFERENCE_DEFENSES   = {"edge_ref"}
+VALID_DEFENSES       = ({"none"} | AGGREGATION_DEFENSES | POST_HOC_DEFENSES | CLIENT_DEFENSES
+                        | REFERENCE_DEFENSES)
 
 # ── 攻击轴 ───────────────────────────────────────────────────────────────
 VALID_STRATEGIES = {"vanilla", "neurotoxin", "cerp", "badpfl"}
@@ -188,7 +191,7 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
     if bad_layers:
         _fail(f"未知的 defense.layers 取值：{sorted(bad_layers)}\n"
               f"  合法取值：{sorted(VALID_DEFENSE_LAYERS)}")
-    if defense in AGGREGATION_DEFENSES | CLIENT_DEFENSES:
+    if defense in AGGREGATION_DEFENSES | CLIENT_DEFENSES | REFERENCE_DEFENSES:
         declared = _declared_layers(defense)
         unsupported = set(cfg_layers) - declared
         if unsupported:
@@ -729,6 +732,32 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
         if "cloud" in cfg_layers:
             _fail("defense.name = ccs 不支持 cloud 层：cloud 看不到单个客户端的统计量（PLAN §3.3）。")
 
+    # ── 4l. 方向 2：边缘干净集作参照打分（defense/edge_ref_spec.py，D-131）────────────
+    #   写错的后果都是「静默没打分 / 打错」：参数拼错（edge_ref_params 拒绝未知键）、方法不是 FedRep（只有它的上传带
+    #   body 段末尾的统计量且走交错调度的 edge 轮）、没有 edge 干净集（旧划分不切）、开在 client / cloud 层（cloud 看不到
+    #   单个客户端；client 层没有 mixin）。
+    if defense in REFERENCE_DEFENSES:
+        from defense.edge_ref_spec import edge_ref_params
+        try:
+            edge_ref_params(config)
+        except ValueError as e:
+            _fail(str(e))
+        if method != "hier_fedrep":
+            _fail(f"defense.name = edge_ref 只对 hier_fedrep 实现（打分挂在 HierFedRep 的 edge 聚合上，D-131）；"
+                  f"drift_correction = {method!r}。")
+        if get_switch(config, "federation.edge_schedule") != "interleaved":
+            _fail("defense.name = edge_ref 要求 federation.edge_schedule = interleaved（轮号取自 edge 轮）。")
+        if list(cfg_layers) != ["edge"]:
+            _fail(f"defense.name = edge_ref：defense.layers 必须恰为 [edge]（收到 {list(cfg_layers)}）——"
+                  f"cloud 看不到单个客户端的统计量，client 层没有客户端侧行为。")
+        if str(fed.get("partition", "")) not in ("designed", "hdir", "equal_random"):
+            _fail("defense.name = edge_ref 要求 S3 划分（federation.partition ∈ designed / hdir / equal_random）："
+                  "只有它们会切出每个 edge 的干净集（D-064）。")
+        if int((fed.get("design") or {}).get("clean_per_edge", 0) or 0) < 1:
+            _fail("defense.name = edge_ref 要求 federation.design.clean_per_edge ≥ 1（edge 干净集 = 参照）。")
+    elif ((config.get("defense") or {}).get("edge_ref")):
+        warnings.append("defense.edge_ref 块写了，但 defense.name 不是 edge_ref —— 这个块不起作用。")
+
     # ── 4f. S3 新划分（data/designed_partition.py；D-062 … D-068）──────────────
     #   写错的后果都是「划分静默不是声明的那个」：比例表是 4 edge 的、特殊列是 class 0、
     #   等大小要求 n_per_client × test_ratio 为整数、需求不能超过每类 6000 张的供给（F-057）。
@@ -862,4 +891,9 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
     #   独立 kv 行。FedPer 的 BN 统计量固定共享（不读 training.fedrep_bn_stats；[设定4] 里那一项对它无效）。
     _fp = str((config.get("training") or {}).get("drift_correction", "")).lower() == "hier_fedper"
     print(format_kv("[设定13]", {"fedper": _fp, "bn_stats": "shared" if _fp else None}))
+
+    # ── 6l. 方向 2 参照打分（[设定14]，D-131）────────────────────────────────────────
+    #   独立 kv 行。edge_ref=false = 没开（与方向 2 之前的 run 是同一种 run）。
+    from defense.edge_ref_spec import settings_row as _er_row
+    print(format_kv("[设定14]", _er_row(config)))
     return warnings
