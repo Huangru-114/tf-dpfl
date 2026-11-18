@@ -34,6 +34,7 @@
 `[EdgeRefScore]` 加 `admitted` 列，`[设定14]` 加 `score` / `threshold`（全精度打印）；判定脚本 `harness/edge_ref_filter_verdict.py`（N-014）；
 登记 ERF（过滤臂 {main, homo} × {t0, t1} × {集中, 分散} × s42–44 = 24）与 ERC（不设防对照补 s43 / s44 = 12）。D-133 记实现取舍。
 本地测试：新 TF 测试（τ 极大时与 observe 逐位相同；τ = 0 时边缘模型冻结；只聚合被接纳的上传、逐位等于 fedavg_aggregate）都过。
+全量 L1（本地 CPU，Python 3.11 + tensorflow-cpu 2.15）：**2332 passed / 26 skipped / 3 xfailed / 2 failed**（2 条 = 陷阱 #4 的 Neurotoxin）→ 无回归。GPU 节点上跑会是 11 条红（F-127），`CUDA_VISIBLE_DEVICES= bash run_l1.sh` 应为 3 条。
 
 **集群上（仓库根目录）**：
 
