@@ -311,7 +311,8 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
     静态投毒 + per_epoch 被 `config_validate` 拒绝（会绕过投毒数据集）。
   - L1 基线（A4 结束时）：本地无 TF 全绿；有 TF 时只有陷阱 #4 的 2 条红
     （另外 6 条自攻击时间窗起的假红已修，FINDINGS F-041）。
-    **在 GPU 节点上跑是 5 条红**：另 3 条是测试默认「没有 GPU」，用户决定不改（FINDINGS F-067）。
+    **在 GPU 节点上跑是 11 条红**（2026-11-18，edge-native FINDINGS F-127）：F-067 的 3 条 + 6 条「开 / 关 checksum 逐位相同」测试（夹具不开确定性，GPU 上本来就不逐位）；
+    `CUDA_VISIBLE_DEVICES= bash run_l1.sh` 藏起 GPU 后是 3 条（陷阱 #4 ×2 + `test_pack_submit`）。用户决定测试不改（F-067）。
   - **A4 收口（2026-09-27）**：pilot 第二轮 D-029 pass、A15 pass、D-031 different → head_first（D-045）；
     **AUDIT 全部关闭，`PROTOCOL_VERSION = "P2"`**（`fedavg/utils/provenance.py`）。pilot 判定带有效性闸（D-044）。
     ⚠️ `run.provenance.protocol` 是**代码**版本：此后任何 run（包括重跑冻结的 P1 配置）都记 P2。
@@ -564,6 +565,8 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
   - 自描述 `[设定14]`；`[EdgeRefScore]` / `[EdgeRefNull]` / `[TimingEdgeRef]` → collect_metrics **schema 16**（`edge_ref_scores` / `edge_ref_null`，每 run 约 +1.9 MB）；判定 `harness/edge_ref_probe.py`（N-013）。
   - 草稿模型第一次创建推进 Python random → 整段包 `random.getstate()/setstate()`（F-078）；守卫 `tests/test_edge_ref_tf.py` 含「去掉围栏就改变训练」的反向锚点。
   - 守卫：`test_edge_ref_spec` / `test_edge_ref_config` / `test_edge_ref_probe` / `test_edge_native_registry`（ERP / ERPB 差异）（本地）+ `test_edge_ref_tf`（TF）。
+  - **ERP / ERPB 已回传（2026-11-18，F-126）**：闸通过；N-013 两个划分都 `feasible`（main → mix_res 0.847、homo → kl_all 0.895）。下一步 = 第二段规则（先预注册）。
+    ⚠ 单种子格子 `submit.sh` 不合包 → 用 `pack.sbatch` 手工装包（current-focus 〇·四）。
 
 **留了接口但没有实现的**（不要以为它们能用）：
 - 主动防御（需要客户端配合的防御）：接口齐了（`BaseDefense.layers` /
