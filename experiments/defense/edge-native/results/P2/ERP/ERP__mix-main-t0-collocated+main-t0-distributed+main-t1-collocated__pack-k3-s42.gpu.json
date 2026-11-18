@@ -1,0 +1,25 @@
+{
+  "k": 3,
+  "runs": [
+    "ERP__main-t0-collocated__s42",
+    "ERP__main-t0-distributed__s42",
+    "ERP__main-t1-collocated__s42"
+  ],
+  "wall_s": 14813,
+  "n_samples": 988,
+  "util_mean": 84.4,
+  "util_max": 98.0,
+  "mem_max_mib": 96023.0,
+  "mem_total_mib": 97871.0,
+  "run_peak_max_mib": 17021.3,
+  "n_oom": 0,
+  "n_host_oom": 0,
+  "mem_req_mb": 73728,
+  "n_mem_warnings": 0,
+  "run_peak_mib": [
+    17019.3,
+    17021.3,
+    16960.0
+  ],
+  "oom_runs": []
+}
