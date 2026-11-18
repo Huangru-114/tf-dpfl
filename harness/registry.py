@@ -107,6 +107,9 @@ EXPECT_KEYS = (
     ("ccs_pool",             "defense.ccs.pool"),
     # 阶段三方向 2（ERP / ERPB）：参照打分静默没开（[设定14] 缺行 / false）→ run 块的 edge_ref_mode 是 None → mismatch。
     ("edge_ref_mode",        "defense.edge_ref.mode"),
+    # 第二段（ERF）：过滤用的分数与阈值静默没按声明生效 → mismatch。
+    ("edge_ref_score",       "defense.edge_ref.score"),
+    ("edge_ref_threshold",   "defense.edge_ref.threshold"),
 )
 
 AUDIT_STATUSES = ("open", "align", "deviate", "done")

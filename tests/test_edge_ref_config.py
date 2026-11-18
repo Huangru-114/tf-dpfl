@@ -62,8 +62,11 @@ def _base(erp):
     (lambda c: c["defense"].update(layers=["client", "edge"]), "layers"),
     (lambda c: c["federation"].update(partition="noniid"), "S3 划分"),
     (lambda c: c["federation"]["design"].update(clean_per_edge=0), "clean_per_edge"),
-    (lambda c: c["defense"]["edge_ref"].update(threshold=0.5), "不认识"),
-    (lambda c: c["defense"]["edge_ref"].update(mode="filter"), "mode"),
+    (lambda c: c["defense"]["edge_ref"].update(cutoff=0.5), "不认识"),
+    (lambda c: c["defense"]["edge_ref"].update(mode="filter"), "score"),
+    (lambda c: c["defense"]["edge_ref"].update(mode="filter", score="kl_all"), "threshold"),
+    (lambda c: c["defense"]["edge_ref"].update(threshold=0.1), "只在 mode = filter"),
+    (lambda c: c["defense"]["edge_ref"].update(mode="quarantine"), "mode"),
 ])
 def test_config_validate_rejects(erp, mutate, needle):
     c = _base(erp)
@@ -148,3 +151,19 @@ def test_metrics_growth_for_a_full_run_stays_bounded():
     grow = len(json.dumps(CM.collect("\n".join(lines)), indent=2, ensure_ascii=False)) - \
         len(json.dumps(CM.collect("[Round 1]\n"), indent=2, ensure_ascii=False))
     assert grow < 2_500_000, grow
+
+
+
+def test_second_stage_configs_validate_and_print_the_exact_threshold(capsys):
+    """ERF / ERC 36 个配置都过校验；[设定14] 的 threshold 回读与配置逐位相等（缺省 4 位小数会打成 0.0041）。"""
+    reg = R.Registry(REG)
+    runs = [r for r in reg.runs() if r["group"] in ("ERF", "ERC")]
+    assert len(runs) == 36
+    for r in runs:
+        cfg = reg.intended_config(r)
+        validate_config(copy.deepcopy(cfg))
+        line = [ln for ln in capsys.readouterr().out.splitlines() if ln.startswith("[设定14]")][0]
+        run = CM.collect(line)["run"]
+        er = cfg["defense"]["edge_ref"]
+        assert run["edge_ref_mode"] == er["mode"]
+        assert run["edge_ref_threshold"] == er.get("threshold") and run["edge_ref_score"] == er.get("score")

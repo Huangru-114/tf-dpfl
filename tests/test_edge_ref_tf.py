@@ -42,10 +42,12 @@ def _prepare(edges):
 def _run(capsys, monkeypatch, on):
     orig = TEI._cfg
 
+    defense = on if isinstance(on, dict) else (EDGE_REF if on else None)   # on：False / True（observe）/ 一个 defense 块
+
     def cfg_with_defense(aligned):
         c = orig(aligned)
-        if on:
-            c["defense"] = dict(EDGE_REF)
+        if defense:
+            c["defense"] = {"name": "edge_ref", "edge_ref": dict(defense["edge_ref"])}
         return c
     monkeypatch.setattr(TEI, "_cfg", cfg_with_defense)
     ev = {"eval_interval": EG.full_interval(G, R), "eval_grid": G}
@@ -218,3 +220,62 @@ def test_runs_together_with_three_tier_personalization(capsys):
     assert scores and all(d["kl_stage4"] is not None and d["kl_stage3"] is not None and d["kl_stage1"] is None
                           for d in scores)
     assert all(np.isfinite(d["mix_res"]) for d in scores)
+
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 第二段：过滤（N-014 / D-132）
+# ══════════════════════════════════════════════════════════════════════════
+def _filt(threshold, score="kl_all"):
+    return {"name": "edge_ref", "edge_ref": {"mode": "filter", "n_fake": 3, "fake_n": 12,
+                                             "score": score, "threshold": threshold}}
+
+
+def test_filter_that_rejects_nobody_trains_exactly_like_observe(capsys, monkeypatch):
+    """τ 远大于任何分数 → 没有人被剔 → 与 observe（= 不设防）逐轮 checksum 相同；admitted 列全是 1。"""
+    obs, *_ = _run(capsys, monkeypatch, True)
+    flt, *_ = _run(capsys, monkeypatch, _filt(1e9))
+    assert _checksums(obs) and _checksums(obs) == _checksums(flt)
+    rows = collect_kv(flt.splitlines(), "[EdgeRefScore]")
+    assert rows and all(d["admitted"] == 1 for d in rows)
+
+
+def test_filter_that_rejects_everybody_freezes_the_edge_models(capsys, monkeypatch):
+    """τ = 0 → 每个上传都被剔（KL > 0）→ 每个边缘轮聚合都返回下发权重 → 训练与 observe 不同；[Decision] 每轮全剔。"""
+    obs, *_ = _run(capsys, monkeypatch, True)
+    flt, cloud, clients, edges = _run(capsys, monkeypatch, _filt(0.0))
+    rows = collect_kv(flt.splitlines(), "[EdgeRefScore]")
+    assert rows and all(d["admitted"] == 0 for d in rows)
+    dec = [ln for ln in flt.splitlines() if "[Decision]" in ln and "edge_ref" in ln]
+    assert dec and all(" admitted 0/" in ln for ln in dec)
+    assert _checksums(obs) != _checksums(flt)
+
+
+def test_filter_aggregates_exactly_the_admitted_uploads(monkeypatch, capsys):
+    """两个上传：统计量 = 参照（KL ≈ 0）与挪开 3σ（KL ≈ 4.5）。τ = 1 → 只聚合前者，逐位等于 fedavg_aggregate([前者])；
+    τ = 0 → 两个都剔 → 返回下发权重的副本（不是同一个对象）。"""
+    from aggregation.fedavg import aggregate as fedavg_aggregate
+    cfg, cloud, clients, edges = _setup_edge(monkeypatch)
+    e = edges[0]
+    d = e.defense
+    w0 = e.model.get_weights()
+    d._build()
+    mom = d._moments(w0, e.clean_x)
+    mu = mom[0][0].mean(0)
+    var = np.maximum(mom[0][1].mean(0) - mu ** 2, 0.0)
+    L = d._layers[0]
+    same = [np.array(w, copy=True) for w in w0]
+    same[L["mean_idx"]], same[L["var_idx"]] = mu.astype(np.float32), var.astype(np.float32)
+    moved = [np.array(w, copy=True) for w in same]
+    moved[L["mean_idx"]] = moved[L["mean_idx"]] + 3.0 * np.sqrt(var).astype(np.float32)
+    ups = [ClientUpdate(same, 24, 0.0, 0.0, client_id=1), ClientUpdate(moved, 30, 0.0, 0.0, client_id=2)]
+    d.p.update(mode="filter", score="kl_all", threshold=1.0)
+    agg = d.aggregate(ups, w0)
+    want = fedavg_aggregate([ups[0]])
+    assert d.last_admitted == [0] and all(np.array_equal(a, b) for a, b in zip(agg, want))
+    d.record_decision(ups)
+    assert d.last_rejected_ids == [2]
+    d.p.update(threshold=0.0)
+    agg0 = d.aggregate(ups, w0)
+    assert d.last_admitted == [] and all(np.array_equal(a, b) for a, b in zip(agg0, w0))
+    assert all(a is not b for a, b in zip(agg0, w0))

@@ -2,6 +2,8 @@
 defense/edge_ref.py  —  方向 2（D-129 / D-131）：边缘服务器用自己的干净图作参照，给每个客户端上传打分
 
 第一段 `mode: observe`：**只记录、全部接纳** —— 聚合与不设防同一个函数、同一个顺序（`aggregation.fedavg.aggregate`），
+第二段 `mode: filter`（N-014 / D-132）：分数 > τ 的上传不进本次边缘平均（权重与 BN 统计量都不进），本轮全被剔则边缘模型不变；
+打分本身与 observe 完全相同（缓存池对照仍收入全部上传 —— 它只是多数原则的读数，不参与剔除）。
 所以开 / 关这个防御训练逐位相同（守卫 tests/test_edge_ref_tf.py；GPU 上由 ERP main-t0 两格 vs SNAP 同种子的 [Checksum] 验证）。
 算术全部在 `defense/edge_ref_spec.py`（不 import TF）；这里只做：
   · 每个上传的**全部权重**装进草稿模型（BN 统计量在训练模式前向里不起作用，head 不在 BN 层输入的路径上），
@@ -101,9 +103,16 @@ class EdgeRefDefense(BaseDefense):
 
     # ── 聚合（observe：全部接纳）────────────────────────────────────────
     def aggregate(self, client_updates: list, ref_weights: list) -> list:
+        """observe：全部接纳，聚合 = 不设防的同一个函数。filter（N-014）：分数 > τ 的上传丢弃，
+        其余照样 fedavg_aggregate；本轮全被剔 → 返回下发权重的副本（本台边缘模型这一轮不变）。"""
         self.score(client_updates, ref_weights)
-        self.last_admitted = list(range(len(client_updates)))
-        return fedavg_aggregate(client_updates)
+        keep = S.admit(self.last_rows, self.p["score"], self.p["threshold"] if self.p["mode"] == "filter" else None)
+        self.last_admitted = [j for j, k in enumerate(keep) if k]
+        if len(self.last_admitted) == len(client_updates):
+            return fedavg_aggregate(client_updates)
+        if not self.last_admitted:
+            return [np.array(w, copy=True) for w in ref_weights]
+        return fedavg_aggregate([client_updates[j] for j in self.last_admitted])
 
     def score(self, client_updates, ref_weights):
         """打分并打印；不改任何传入的东西。"""
@@ -162,6 +171,9 @@ class EdgeRefDefense(BaseDefense):
         elapsed = time.perf_counter() - t0
 
         base = {"effective_round": eff, "edge_round": er}
+        keep = S.admit(rows, self.p["score"], self.p["threshold"] if self.p["mode"] == "filter" else None)
+        for r, k in zip(rows, keep):
+            r["admitted"] = int(k)
         for r in rows:
             print("    " + format_kv("[EdgeRefScore]", {**base, **{k: r[k] for k in S.SCORE_FIELDS[2:]}},
                                      round_idx=g, edge_id=edge.edge_id, digits=6))

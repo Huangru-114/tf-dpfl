@@ -33,21 +33,26 @@ import re
 import numpy as np
 
 DEFAULTS = {
-    "mode": "observe",      # 第一段只记录、全部接纳（D-129）；过滤模式等第一段数据之后再加
+    "mode": "observe",      # observe = 只记录、全部接纳（第一段，D-131）；filter = 分数 > threshold 的上传丢弃（第二段，N-014 / D-132）
     "n_fake": 8,            # 每个边缘轮的假客户端数（零分布）
     "fake_n": 375,          # 每个假客户端的样本数 = 一个真实客户端的训练分片（S3：500 = 375 训练 + 125 留出）
+    "score": None,          # filter：按哪个分数剔除（N-014：main → mix_res、homo → kl_all）
+    "threshold": None,      # filter：τ（N-014：开发 run 的 0.90 分位点 = analysis/edge_ref_probe.json 的 threshold_dev_q90）
 }
-MODES = ("observe",)
+MODES = ("observe", "filter")
+# 可以拿来过滤的分数：都是「越大越可疑」（= N-013 的候选表）
+FILTER_SCORES = ("kl_all", "kl_stem", "kl_stage1", "kl_stage2", "kl_stage3", "kl_stage4",
+                 "mix_res", "mix_res_base", "ccs_cos_med")
 EDGE_REF_RNG_TAG = 0xED6E    # 假客户端的随机流：default_rng([seed, 0xED6E, 有效轮, edge_id])
 STAGES = ("stem", "stage1", "stage2", "stage3", "stage4")
-SETTINGS_KEYS = ("mode", "n_fake", "fake_n")
+SETTINGS_KEYS = ("mode", "n_fake", "fake_n", "score", "threshold")
 
 # 每个上传一行 [EdgeRefScore] 的字段（collect_metrics 抄一份，守卫断言两份相同）
 SCORE_FIELDS = ("effective_round", "edge_round", "cid", "n",
                 "kl_all", "kl_stem", "kl_stage1", "kl_stage2", "kl_stage3", "kl_stage4",
                 "mix_res", "mix_res_base", "mix_pmax", "mix_argmax",
                 "bng_mm_mean", "bng_mm_var", "bng_mv_mean", "bng_mv_var",
-                "ccs_cos_med", "ccs_rej")
+                "ccs_cos_med", "ccs_rej", "admitted")
 # 每个边缘轮一行 [EdgeRefNull]：假客户端的分数（"/" 连接的 n_fake 个值）
 NULL_FIELDS = ("effective_round", "edge_round", "n_clean", "ccs_pool", "ccs_status",
                "kl_all", "kl_stage4", "mix_res", "mix_res_base")
@@ -64,12 +69,29 @@ def edge_ref_params(config: dict) -> dict:
     p.update(raw)
     p["mode"] = str(p["mode"]).lower()
     if p["mode"] not in MODES:
-        raise ValueError(f"defense.edge_ref.mode ∈ {MODES}：{p['mode']!r}（过滤模式在第一段数据之后才实现）")
+        raise ValueError(f"defense.edge_ref.mode ∈ {MODES}：{p['mode']!r}")
     for k in ("n_fake", "fake_n"):
         v = p[k]
         if isinstance(v, bool) or not isinstance(v, int) or v < 1:
             raise ValueError(f"defense.edge_ref.{k} 必须是 ≥ 1 的整数：{v!r}")
+    if p["mode"] == "filter":
+        if p["score"] not in FILTER_SCORES:
+            raise ValueError(f"defense.edge_ref.mode = filter 需要 score ∈ {FILTER_SCORES}：{p['score']!r}")
+        t = p["threshold"]
+        if isinstance(t, bool) or not isinstance(t, (int, float)) or not math.isfinite(t) or t < 0:
+            raise ValueError(f"defense.edge_ref.mode = filter 需要有限的非负 threshold：{t!r}")
+        p["threshold"] = float(t)
+    elif p["score"] is not None or p["threshold"] is not None:
+        raise ValueError("defense.edge_ref.score / threshold 只在 mode = filter 时有意义（observe 下写了会被静默忽略）")
     return p
+
+
+def admit(rows, score: str | None, threshold: float | None) -> list:
+    """每个上传接纳与否（True = 进本次边缘平均）。threshold = None（observe）→ 全部接纳。
+    分数 None（无定义，如缓存池里只有它自己的 ccs_cos_med）→ 接纳：没有证据就不剔。严格大于 τ 才剔（与 N-013 回放同一口径）。"""
+    if threshold is None:
+        return [True] * len(rows)
+    return [r.get(score) is None or float(r[score]) <= threshold for r in rows]
 
 
 def settings_row(config: dict) -> dict:

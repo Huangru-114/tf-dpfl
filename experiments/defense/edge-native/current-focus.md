@@ -1,6 +1,6 @@
-# 交接 —— 阶段三（edge 原生防御）· 2026-11-18：方向 2 第一段 **ERP / ERPB 已回传、两个划分都判 `feasible`**（F-126）；「记录不改训练」的闸已过。**下一步：写第二段（过滤）的规则，在任何过滤数据之前交用户确认**
+# 交接 —— 阶段三（edge 原生防御）· 2026-11-18：方向 2 第二段（按参照分数丢弃上传，N-014）**代码完成、36 个 run 已登记可交**（ERF 24 + ERC 12）。**下一步在集群：pull → 交作业（指令见〇·二）→ 回传后跑 edge_ref_filter_verdict.py**
 
-> 过程与数字：本目录 `FINDINGS.md`（到 F-127；预注册 N-008 … N-014 都已生效）与 `DECISIONS.md`（到 D-132）。
+> 过程与数字：本目录 `FINDINGS.md`（到 F-127；预注册 N-008 … N-014 都已生效）与 `DECISIONS.md`（到 D-133）。
 > 阶段性总结报告：本目录 `REPORT.md`（11-07；结果、CCS 线、术语表）；文献：`LITERATURE.md` 第 3 部分（11-17 新颖性核查 + 三篇全文读数）。
 > ⚠️ 阶段三的实验全部做完之前，不要把分支合并到 main（用户 2026-10-10）。分支 `claude/eloquent-faraday-b9kmop`。
 > ⚠️ 用户要求（2026-11-01、11-17 重申）：**文档和回复里不要用不加解释的缩写、编号、专有名词**；第一次出现时说清楚是什么。用户隔了一段时间回来，偏好「把前因后果讲清楚」的说明。
@@ -27,6 +27,40 @@
 3. 先读下面「〇·四」（11-17 晚做完的事 + 集群上的下一步），再读「〇·五」（方向 2 的来龙去脉）。
 
 ---
+
+## 〇·二、11-18 晚：第二段代码完成 + 集群上的提交指令
+
+**做完的**：`defense.edge_ref.mode: filter`（+ `score` / `threshold`；分数 > τ 的上传不进本次边缘平均，全被剔则边缘模型不变；其余与 observe 完全相同）；
+`[EdgeRefScore]` 加 `admitted` 列，`[设定14]` 加 `score` / `threshold`（全精度打印）；判定脚本 `harness/edge_ref_filter_verdict.py`（N-014）；
+登记 ERF（过滤臂 {main, homo} × {t0, t1} × {集中, 分散} × s42–44 = 24）与 ERC（不设防对照补 s43 / s44 = 12）。D-133 记实现取舍。
+本地测试：新 TF 测试（τ 极大时与 observe 逐位相同；τ = 0 时边缘模型冻结；只聚合被接纳的上传、逐位等于 fedavg_aggregate）都过。
+
+**集群上（仓库根目录）**：
+
+```bash
+git pull
+```
+
+ERF 每格 3 个种子，用提交工具正常合包（8 个三跑作业）：
+
+```bash
+PACK=3 RUN_GROUPS=ERF bash experiments/defense/edge-native/submit.sh
+```
+
+ERC 每格只有 2 个种子，手工装成 4 个三跑作业（`sub` 函数见〇·四，没定义过就先贴一次）：
+
+```bash
+sub ERC__mix-main-t1-collocated+main-t1-distributed__pack-k3-s43 ERC__main-t1-collocated__s43 ERC__main-t1-collocated__s44 ERC__main-t1-distributed__s43
+sub ERC__mix-main-t1-distributed+homo-t0-collocated__pack-k3-s44 ERC__main-t1-distributed__s44 ERC__homo-t0-collocated__s43 ERC__homo-t0-collocated__s44
+sub ERC__mix-homo-t0-distributed+homo-t1-collocated__pack-k3-s43 ERC__homo-t0-distributed__s43 ERC__homo-t0-distributed__s44 ERC__homo-t1-collocated__s43
+sub ERC__mix-homo-t1-collocated+homo-t1-distributed__pack-k3-s44 ERC__homo-t1-collocated__s44 ERC__homo-t1-distributed__s43 ERC__homo-t1-distributed__s44
+```
+
+约 12 个作业 × 4.3 小时 ≈ 52 GPU 小时。回传后：
+
+```bash
+R=experiments/defense/edge-native/results/P2; python3 harness/edge_ref_filter_verdict.py --filter $R/ERF/*.metrics.json --control $R/SNAP/SNAP__*__s4[234].metrics.json $R/ERP/ERP__main-t1-*__s42.metrics.json $R/ERP/ERP__homo-*__s42.metrics.json $R/ERC/*.metrics.json --out experiments/defense/edge-native/analysis/edge_ref_filter_verdict.json
+```
 
 ## 〇·三、11-18：ERP / ERPB 回传与判定（F-126）
 

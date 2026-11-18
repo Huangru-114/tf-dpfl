@@ -461,3 +461,60 @@ def test_erp_groups_are_released_after_the_n013_confirmation(reg):
     assert reg.unmet_requires("ERP") == [] and reg.unmet_requires("ERPB") == []
     assert sum(r["group"] == "ERP" for r in reg.runs()) == 8
     assert sum(r["group"] == "ERPB" for r in reg.runs()) == 4
+
+
+
+# ── 方向 2 第二段（N-014 / D-132）：ERF / ERC ─────────────────────────────────
+PROBE = HERE / "analysis/edge_ref_probe.json"
+
+
+def test_erf_scores_and_thresholds_are_exactly_the_n013_selection(reg):
+    """手抄错一位就是另一个实验：ERF 每格的 score / threshold 必须等于 edge_ref_probe.json 的选择。"""
+    probe = json.loads(PROBE.read_text(encoding="utf-8"))
+    runs = [r for r in reg.runs() if r["group"] == "ERF"]
+    assert len(runs) == 24
+    for r in runs:
+        part, tier, _ = r["cell"].split("-")
+        er = reg.declared_config(r)["defense"]["edge_ref"]
+        assert er["mode"] == "filter"
+        assert er["score"] == probe[part]["selected_score"], r["run_id"]
+        assert er["threshold"] == probe[part]["threshold_dev_q90"][tier], r["run_id"]
+
+
+@pytest.mark.parametrize("part", ["main", "homo"])
+@pytest.mark.parametrize("tier", ["t0", "t1"])
+@pytest.mark.parametrize("snap", ["collocated", "distributed"])
+def test_erf_differs_from_the_erp_cell_only_in_the_filter_switches(reg, part, tier, snap):
+    by = {r["run_id"]: r for r in reg.runs()}
+    a = reg.declared_config(by[f"ERP__{part}-{tier}-{snap}__s42"])
+    b = reg.declared_config(by[f"ERF__{part}-{tier}-{snap}__s42"])
+    assert _diff(a, b) == {"defense.edge_ref.mode", "defense.edge_ref.score", "defense.edge_ref.threshold"} | META
+
+
+def test_erc_is_erp_with_seeds_43_44(reg):
+    by = {r["run_id"]: r for r in reg.runs()}
+    erc = sorted(r for r in by if r.startswith("ERC__"))
+    assert len(erc) == 12 and not any("main-t0" in r for r in erc)        # main-t0 的对照是 SNAP
+    for rid in erc:
+        cell, seed = rid.split("__")[1], rid.split("__")[2]
+        a = reg.declared_config(by[f"ERP__{cell}__s42"])
+        b = reg.declared_config(by[rid])
+        assert _diff(a, b) == {"seed"} | META and seed in ("s43", "s44")
+
+
+def test_every_erf_cell_has_a_three_seed_control(reg):
+    """N-014 的配对：main-t0 → SNAP s42–44；其余 → ERP s42 + ERC s43 / s44。"""
+    ids = {r["run_id"] for r in reg.runs()}
+    for r in reg.runs():
+        if r["group"] != "ERF":
+            continue
+        cell, seed = r["cell"], r["seed"]
+        part, tier, place = cell.split("-")
+        if (part, tier) == ("main", "t0"):
+            assert f"SNAP__{place}__s{seed}" in ids
+        else:
+            assert (f"ERP__{cell}__s42" if seed == 42 else f"ERC__{cell}__s{seed}") in ids
+
+
+def test_erf_erc_are_released(reg):
+    assert reg.unmet_requires("ERF") == [] and reg.unmet_requires("ERC") == []

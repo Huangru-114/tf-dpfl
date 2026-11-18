@@ -173,7 +173,7 @@ def test_client_rule_reads_the_partition():
 # ── 参数 / 自描述 ─────────────────────────────────────────────────────────────
 @pytest.mark.parametrize("block,needle", [
     ({"mode": "filter"}, "mode"), ({"n_fake": 0}, "n_fake"), ({"fake_n": True}, "fake_n"),
-    ({"threshold": 1.0}, "不认识"),
+    ({"cutoff": 1.0}, "不认识"),
 ])
 def test_params_reject(block, needle):
     with pytest.raises(ValueError, match=needle):
@@ -183,7 +183,39 @@ def test_params_reject(block, needle):
 def test_settings_row():
     assert S.settings_row({"defense": {"name": "none"}}) == {"edge_ref": False}
     assert S.settings_row({"defense": {"name": "edge_ref", "edge_ref": {"mode": "observe"}}}) == \
-        {"edge_ref": True, "mode": "observe", "n_fake": 8, "fake_n": 375}
+        {"edge_ref": True, "mode": "observe", "n_fake": 8, "fake_n": 375, "score": None, "threshold": None}
+    assert S.settings_row({"defense": {"name": "edge_ref", "edge_ref": {"mode": "filter", "score": "kl_all",
+                                                                          "threshold": 0.004079}}}) == \
+        {"edge_ref": True, "mode": "filter", "n_fake": 8, "fake_n": 375, "score": "kl_all", "threshold": 0.004079}
+
+
+# ── 第二段：过滤（N-014 / D-132）─────────────────────────────────────────────
+def test_admit_is_strictly_greater_than_threshold_and_none_is_admitted():
+    rows = [{"kl_all": 0.003}, {"kl_all": 0.004079}, {"kl_all": 0.0041}, {"kl_all": None}]
+    assert S.admit(rows, "kl_all", 0.004079) == [True, True, False, True]     # 等于 τ 接纳（与 N-013 回放同口径）
+    assert S.admit(rows, "kl_all", None) == [True] * 4                          # observe：全部接纳
+    assert S.admit([], "kl_all", 0.1) == []
+
+
+@pytest.mark.parametrize("block,needle", [
+    ({"mode": "filter"}, "score"),
+    ({"mode": "filter", "score": "kl_all"}, "threshold"),
+    ({"mode": "filter", "score": "bng_mm_mean", "threshold": 0.1}, "score"),     # BNGuard 四数不是一维可疑分
+    ({"mode": "filter", "score": "kl_all", "threshold": -1.0}, "threshold"),
+    ({"mode": "filter", "score": "kl_all", "threshold": float("nan")}, "threshold"),
+    ({"mode": "filter", "score": "kl_all", "threshold": True}, "threshold"),
+    ({"mode": "observe", "threshold": 0.1}, "只在 mode = filter"),
+    ({"mode": "observe", "score": "kl_all"}, "只在 mode = filter"),
+])
+def test_filter_params_reject(block, needle):
+    with pytest.raises(ValueError, match=needle):
+        S.edge_ref_params({"defense": {"edge_ref": block}})
+
+
+def test_filter_params_accept_and_cast():
+    p = S.edge_ref_params({"defense": {"edge_ref": {"mode": "filter", "score": "mix_res", "threshold": 1}}})
+    assert p["threshold"] == 1.0 and isinstance(p["threshold"], float) and p["score"] == "mix_res"
+    assert "admitted" in S.SCORE_FIELDS and set(S.FILTER_SCORES) <= set(S.SCORE_FIELDS)
 
 
 def test_spec_does_not_import_tensorflow():

@@ -895,5 +895,5 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
     # ── 6l. 方向 2 参照打分（[设定14]，D-131）────────────────────────────────────────
     #   独立 kv 行。edge_ref=false = 没开（与方向 2 之前的 run 是同一种 run）。
     from defense.edge_ref_spec import settings_row as _er_row
-    print(format_kv("[设定14]", _er_row(config)))
+    print(format_kv("[设定14]", _er_row(config), digits=10))      # threshold 要全精度回读（缺省 4 位会把 0.004079 打成 0.0041 → status 判 mismatch）
     return warnings

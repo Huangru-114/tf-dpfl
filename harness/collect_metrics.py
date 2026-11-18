@@ -118,15 +118,17 @@ CCS_SETTINGS_KEYS = ("at", "cluster", "kl", "mmd", "steps", "step", "eps", "radi
 #     edge_ref_scores（[EdgeRefScore]：每个上传一行 —— 逐客户端参照 KL、类混合残差、BNGuard 四数、缓存池余弦 / 会不会被剔）/
 #     edge_ref_null（[EdgeRefNull]：每个边缘轮一行，假客户端的分数列表 = 零分布）；timing_summary.edge_ref_total_s。
 #     老日志 → None / 空表。
+#     （同 schema 16，N-014 / D-132：run.edge_ref_score / edge_ref_threshold，edge_ref_scores 加 admitted 列；
+#      第一段的 ERP / ERPB 文件没有这三项 → None。只加字段、不改已有字段的含义，所以不升版本。）
 SCHEMA_VERSION = 16
 # [设定14] / [EdgeRefScore] / [EdgeRefNull] 的字段（= fedavg/defense/edge_ref_spec 的同名常量；抄一份是为了不 import
 # defense 包 —— 守卫 tests/test_collect_edge_ref.py 断言两份相同）
-EDGE_REF_SETTINGS_KEYS = ("mode", "n_fake", "fake_n")
+EDGE_REF_SETTINGS_KEYS = ("mode", "n_fake", "fake_n", "score", "threshold")
 EDGE_REF_SCORE_COLUMNS = ("round", "edge_id", "effective_round", "edge_round", "cid", "n",
                           "kl_all", "kl_stem", "kl_stage1", "kl_stage2", "kl_stage3", "kl_stage4",
                           "mix_res", "mix_res_base", "mix_pmax", "mix_argmax",
                           "bng_mm_mean", "bng_mm_var", "bng_mv_mean", "bng_mv_var",
-                          "ccs_cos_med", "ccs_rej")
+                          "ccs_cos_med", "ccs_rej", "admitted")
 EDGE_REF_NULL_COLUMNS = ("round", "edge_id", "effective_round", "edge_round", "n_clean", "ccs_pool",
                          "ccs_status", "kl_all", "kl_stage4", "mix_res", "mix_res_base")
 EDGE_REF_NULL_LISTS = ("kl_all", "kl_stage4", "mix_res", "mix_res_base")

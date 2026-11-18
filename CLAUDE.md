@@ -565,7 +565,8 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
   - 自描述 `[设定14]`；`[EdgeRefScore]` / `[EdgeRefNull]` / `[TimingEdgeRef]` → collect_metrics **schema 16**（`edge_ref_scores` / `edge_ref_null`，每 run 约 +1.9 MB）；判定 `harness/edge_ref_probe.py`（N-013）。
   - 草稿模型第一次创建推进 Python random → 整段包 `random.getstate()/setstate()`（F-078）；守卫 `tests/test_edge_ref_tf.py` 含「去掉围栏就改变训练」的反向锚点。
   - 守卫：`test_edge_ref_spec` / `test_edge_ref_config` / `test_edge_ref_probe` / `test_edge_native_registry`（ERP / ERPB 差异）（本地）+ `test_edge_ref_tf`（TF）。
-  - **ERP / ERPB 已回传（2026-11-18，F-126）**：闸通过；N-013 两个划分都 `feasible`（main → mix_res 0.847、homo → kl_all 0.895）。下一步 = 第二段规则（先预注册）。
+  - **ERP / ERPB 已回传（2026-11-18，F-126）**：闸通过；N-013 两个划分都 `feasible`（main → mix_res 0.847、homo → kl_all 0.895）。
+  - **第二段（2026-11-18，N-014 / D-132 / D-133）**：`defense.edge_ref.mode: filter` + `score` / `threshold`（分数 > τ 的上传丢弃、全被剔则边缘模型不变）；`[EdgeRefScore]` 加 `admitted`；判定 `harness/edge_ref_filter_verdict.py`；登记 ERF（24）/ ERC（12），τ 由守卫钉在 `analysis/edge_ref_probe.json` 上。
     ⚠ 单种子格子 `submit.sh` 不合包 → 用 `pack.sbatch` 手工装包（current-focus 〇·四）。
 
 **留了接口但没有实现的**（不要以为它们能用）：
