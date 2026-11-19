@@ -1,0 +1,25 @@
+{
+  "k": 3,
+  "runs": [
+    "ERC__homo-t0-distributed__s43",
+    "ERC__homo-t0-distributed__s44",
+    "ERC__homo-t1-collocated__s43"
+  ],
+  "wall_s": 15199,
+  "n_samples": 1014,
+  "util_mean": 85.4,
+  "util_max": 98.0,
+  "mem_max_mib": 95957.0,
+  "mem_total_mib": 97871.0,
+  "run_peak_max_mib": 17021.7,
+  "n_oom": 0,
+  "n_host_oom": 0,
+  "mem_req_mb": 73728,
+  "n_mem_warnings": 0,
+  "run_peak_mib": [
+    17013.6,
+    16960.6,
+    17021.7
+  ],
+  "oom_runs": []
+}
