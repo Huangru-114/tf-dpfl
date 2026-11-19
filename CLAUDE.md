@@ -570,6 +570,12 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
     ⚠ 单种子格子 `submit.sh` 不合包 → 用 `pack.sbatch` 手工装包（current-focus 〇·四）。
   - **ERF / ERC 已回传（2026-11-19，F-128 / F-129 / D-134）**：现主线过滤把攻击成功率从约 1.0 压到约 0.6，只有「三层个性化开 + 分散」`protects`；组内同质划分**冷启动死锁**（kl_all 训练初期是后期 2.5 倍 + 全程固定阈值 + 全扔不更新，与干净集无关）；分数可能滞后于后门（反馈循环，provisional）。**方向 2 不再交作业**；下个会话讨论三层个性化（current-focus 〇·一）。
 
+- **论文整合**（2026-11-19 晚，用户：不再开新方向）：方案 `experiments/thesis/INTEGRATION-PLAN.md`，提纲 + 论点—证据对照表 + 术语对照 `experiments/thesis/OUTLINE.md`。
+  叙事 = 后门在云聚合时跨边缘扩散 → 边缘看不出谁在投毒 → 防御的杠杆在机构边界；全部防御按「每个云周期的灌入 − 洗掉」组织。
+  `harness/defense_balance.py`（纯标准库，描述性、不是判定）把阶段三全部臂放进同一张表（分边缘终值、相对不设防的下降、灌入 / 洗掉 / 净增量，攻击成功率与 margin 两个口径）
+  → `experiments/thesis/analysis/defense_balance.{json,md}`；守卫 `tests/test_defense_balance.py`（手算值、与 `g1_verdict.sawtooth` 逐位一致、F-124 的 0.220 / 0.194）。
+  攻击侧一定要补（先 Bad-PFL、再一组更弱的基线攻击；正式口径下只有 Bad-PFL 接了取数路径，其余要先写接线代码）。
+
 **留了接口但没有实现的**（不要以为它们能用）：
 - 主动防御（需要客户端配合的防御）：接口齐了（`BaseDefense.layers` /
   `client_mixin` / `make_control` + 客户端侧 `set_control` / `get_aux`）。**第一个实现是 CCS**（SA-C，只用了
