@@ -1,0 +1,579 @@
+{
+  "rule": "N-014",
+  "thresholds": {
+    "dASR_mean": 0.15,
+    "dASR_min": 0.1,
+    "dACC_max": 0.02,
+    "additive": 0.1,
+    "redundant": 0.05,
+    "plant_min": 0.5
+  },
+  "cells": {
+    "main-t0-collocated": {
+      "per_seed": {
+        "42": {
+          "P_control": 0.9955,
+          "P_filter": 0.4849,
+          "MTA_control": 0.8619,
+          "MTA_filter": 0.8411,
+          "V_control": 0.995,
+          "V_filter": 0.44,
+          "B0_control": 0.9978,
+          "B0_filter": 0.7089,
+          "dASR": 0.5106,
+          "dACC": 0.0207,
+          "online": {
+            "attacker_pass": 0.8635,
+            "benign_reject": 0.0329,
+            "n_attacker": 293,
+            "n_benign": 2707,
+            "edge_rounds_all_rejected": 0
+          }
+        },
+        "43": {
+          "P_control": 0.9971,
+          "P_filter": 0.5855,
+          "MTA_control": 0.8756,
+          "MTA_filter": 0.85,
+          "V_control": 0.9965,
+          "V_filter": 0.5532,
+          "B0_control": 1.0,
+          "B0_filter": 0.7468,
+          "dASR": 0.4116,
+          "dACC": 0.0256,
+          "online": {
+            "attacker_pass": 0.3583,
+            "benign_reject": 0.1041,
+            "n_attacker": 321,
+            "n_benign": 2679,
+            "edge_rounds_all_rejected": 31
+          }
+        },
+        "44": {
+          "P_control": 0.9969,
+          "P_filter": 0.6602,
+          "MTA_control": 0.8673,
+          "MTA_filter": 0.8511,
+          "V_control": 0.9963,
+          "V_filter": 0.6147,
+          "B0_control": 1.0,
+          "B0_filter": 0.8872,
+          "dASR": 0.3367,
+          "dACC": 0.0162,
+          "online": {
+            "attacker_pass": 0.6677,
+            "benign_reject": 0.0435,
+            "n_attacker": 310,
+            "n_benign": 2690,
+            "edge_rounds_all_rejected": 13
+          }
+        }
+      },
+      "verdict": "accuracy_bound",
+      "dASR_mean": 0.4196,
+      "dASR_min": 0.3367,
+      "dACC_mean": 0.0208,
+      "P_filter_mean": 0.5768666666666666,
+      "P_control_mean": 0.9965
+    },
+    "main-t0-distributed": {
+      "per_seed": {
+        "42": {
+          "P_control": 0.9982,
+          "P_filter": 0.7002,
+          "MTA_control": 0.8674,
+          "MTA_filter": 0.8492,
+          "V_control": null,
+          "V_filter": null,
+          "B0_control": null,
+          "B0_filter": null,
+          "dASR": 0.298,
+          "dACC": 0.0182,
+          "online": {
+            "attacker_pass": 0.5179,
+            "benign_reject": 0.0897,
+            "n_attacker": 280,
+            "n_benign": 2720,
+            "edge_rounds_all_rejected": 12
+          }
+        },
+        "43": {
+          "P_control": 0.9977,
+          "P_filter": 0.4959,
+          "MTA_control": 0.8675,
+          "MTA_filter": 0.8472,
+          "V_control": null,
+          "V_filter": null,
+          "B0_control": null,
+          "B0_filter": null,
+          "dASR": 0.5018,
+          "dACC": 0.0203,
+          "online": {
+            "attacker_pass": 0.4319,
+            "benign_reject": 0.1115,
+            "n_attacker": 301,
+            "n_benign": 2699,
+            "edge_rounds_all_rejected": 22
+          }
+        },
+        "44": {
+          "P_control": 0.9614,
+          "P_filter": 0.6253,
+          "MTA_control": 0.872,
+          "MTA_filter": 0.8396,
+          "V_control": null,
+          "V_filter": null,
+          "B0_control": null,
+          "B0_filter": null,
+          "dASR": 0.3361,
+          "dACC": 0.0325,
+          "online": {
+            "attacker_pass": 0.4325,
+            "benign_reject": 0.1372,
+            "n_attacker": 289,
+            "n_benign": 2711,
+            "edge_rounds_all_rejected": 44
+          }
+        }
+      },
+      "verdict": "accuracy_bound",
+      "dASR_mean": 0.3786,
+      "dASR_min": 0.298,
+      "dACC_mean": 0.0236,
+      "P_filter_mean": 0.6071333333333333,
+      "P_control_mean": 0.9857666666666667
+    },
+    "main-t1-collocated": {
+      "per_seed": {
+        "42": {
+          "P_control": 0.4364,
+          "P_filter": 0.1782,
+          "MTA_control": 0.8642,
+          "MTA_filter": 0.8486,
+          "V_control": 0.3308,
+          "V_filter": 0.0769,
+          "B0_control": 0.9642,
+          "B0_filter": 0.6845,
+          "dASR": 0.2582,
+          "dACC": 0.0157,
+          "online": {
+            "attacker_pass": 0.8464,
+            "benign_reject": 0.0754,
+            "n_attacker": 293,
+            "n_benign": 2707,
+            "edge_rounds_all_rejected": 10
+          }
+        },
+        "43": {
+          "P_control": 0.3307,
+          "P_filter": 0.3826,
+          "MTA_control": 0.8745,
+          "MTA_filter": 0.8602,
+          "V_control": 0.1966,
+          "V_filter": 0.2844,
+          "B0_control": 1.0,
+          "B0_filter": 0.8732,
+          "dASR": -0.0519,
+          "dACC": 0.0142,
+          "online": {
+            "attacker_pass": 0.3645,
+            "benign_reject": 0.0508,
+            "n_attacker": 321,
+            "n_benign": 2679,
+            "edge_rounds_all_rejected": 18
+          }
+        },
+        "44": {
+          "P_control": 0.4291,
+          "P_filter": 0.2985,
+          "MTA_control": 0.8612,
+          "MTA_filter": 0.8505,
+          "V_control": 0.3151,
+          "V_filter": 0.1897,
+          "B0_control": 0.9998,
+          "B0_filter": 0.8438,
+          "dASR": 0.1306,
+          "dACC": 0.0107,
+          "online": {
+            "attacker_pass": 0.7194,
+            "benign_reject": 0.023,
+            "n_attacker": 310,
+            "n_benign": 2690,
+            "edge_rounds_all_rejected": 6
+          }
+        }
+      },
+      "verdict": "no_effect",
+      "dASR_mean": 0.1123,
+      "dASR_min": -0.0519,
+      "dACC_mean": 0.0135,
+      "P_filter_mean": 0.2864333333333333,
+      "P_control_mean": 0.3987333333333334
+    },
+    "main-t1-distributed": {
+      "per_seed": {
+        "42": {
+          "P_control": 0.9388,
+          "P_filter": 0.7259,
+          "MTA_control": 0.8677,
+          "MTA_filter": 0.8495,
+          "V_control": null,
+          "V_filter": null,
+          "B0_control": null,
+          "B0_filter": null,
+          "dASR": 0.2129,
+          "dACC": 0.0182,
+          "online": {
+            "attacker_pass": 0.4929,
+            "benign_reject": 0.0776,
+            "n_attacker": 280,
+            "n_benign": 2720,
+            "edge_rounds_all_rejected": 13
+          }
+        },
+        "43": {
+          "P_control": 0.9948,
+          "P_filter": 0.5196,
+          "MTA_control": 0.8673,
+          "MTA_filter": 0.8584,
+          "V_control": null,
+          "V_filter": null,
+          "B0_control": null,
+          "B0_filter": null,
+          "dASR": 0.4752,
+          "dACC": 0.0089,
+          "online": {
+            "attacker_pass": 0.2757,
+            "benign_reject": 0.0956,
+            "n_attacker": 301,
+            "n_benign": 2699,
+            "edge_rounds_all_rejected": 24
+          }
+        },
+        "44": {
+          "P_control": 0.9353,
+          "P_filter": 0.6218,
+          "MTA_control": 0.8649,
+          "MTA_filter": 0.855,
+          "V_control": null,
+          "V_filter": null,
+          "B0_control": null,
+          "B0_filter": null,
+          "dASR": 0.3135,
+          "dACC": 0.0099,
+          "online": {
+            "attacker_pass": 0.5675,
+            "benign_reject": 0.0321,
+            "n_attacker": 289,
+            "n_benign": 2711,
+            "edge_rounds_all_rejected": 9
+          }
+        }
+      },
+      "verdict": "protects",
+      "dASR_mean": 0.3339,
+      "dASR_min": 0.2129,
+      "dACC_mean": 0.0123,
+      "P_filter_mean": 0.6224333333333333,
+      "P_control_mean": 0.9563
+    },
+    "homo-t0-collocated": {
+      "per_seed": {
+        "42": {
+          "P_control": 0.8662,
+          "P_filter": 0.1203,
+          "MTA_control": 0.8424,
+          "MTA_filter": 0.3994,
+          "V_control": 0.8396,
+          "V_filter": 0.1173,
+          "B0_control": 0.9996,
+          "B0_filter": 0.1359,
+          "dASR": 0.7459,
+          "dACC": 0.4429,
+          "online": {
+            "attacker_pass": 0.0,
+            "benign_reject": 1.0,
+            "n_attacker": 293,
+            "n_benign": 2707,
+            "edge_rounds_all_rejected": 1200
+          }
+        },
+        "43": {
+          "P_control": 0.9129,
+          "P_filter": 0.1325,
+          "MTA_control": 0.8393,
+          "MTA_filter": 0.3873,
+          "V_control": 0.8956,
+          "V_filter": 0.1296,
+          "B0_control": 0.9989,
+          "B0_filter": 0.1463,
+          "dASR": 0.7804,
+          "dACC": 0.4521,
+          "online": {
+            "attacker_pass": 0.0,
+            "benign_reject": 1.0,
+            "n_attacker": 321,
+            "n_benign": 2679,
+            "edge_rounds_all_rejected": 1200
+          }
+        },
+        "44": {
+          "P_control": 0.9983,
+          "P_filter": 0.1154,
+          "MTA_control": 0.8494,
+          "MTA_filter": 0.3963,
+          "V_control": 0.9979,
+          "V_filter": 0.1146,
+          "B0_control": 1.0,
+          "B0_filter": 0.1197,
+          "dASR": 0.8829,
+          "dACC": 0.4531,
+          "online": {
+            "attacker_pass": 0.0,
+            "benign_reject": 1.0,
+            "n_attacker": 310,
+            "n_benign": 2690,
+            "edge_rounds_all_rejected": 1200
+          }
+        }
+      },
+      "verdict": "accuracy_bound",
+      "dASR_mean": 0.8031,
+      "dASR_min": 0.7459,
+      "dACC_mean": 0.4494,
+      "P_filter_mean": 0.12273333333333332,
+      "P_control_mean": 0.9258000000000001
+    },
+    "homo-t0-distributed": {
+      "per_seed": {
+        "42": {
+          "P_control": 0.9426,
+          "P_filter": 0.148,
+          "MTA_control": 0.8385,
+          "MTA_filter": 0.3992,
+          "V_control": null,
+          "V_filter": null,
+          "B0_control": null,
+          "B0_filter": null,
+          "dASR": 0.7946,
+          "dACC": 0.4393,
+          "online": {
+            "attacker_pass": 0.0,
+            "benign_reject": 1.0,
+            "n_attacker": 280,
+            "n_benign": 2720,
+            "edge_rounds_all_rejected": 1200
+          }
+        },
+        "43": {
+          "P_control": 0.9996,
+          "P_filter": 0.1248,
+          "MTA_control": 0.8479,
+          "MTA_filter": 0.3876,
+          "V_control": null,
+          "V_filter": null,
+          "B0_control": null,
+          "B0_filter": null,
+          "dASR": 0.8748,
+          "dACC": 0.4603,
+          "online": {
+            "attacker_pass": 0.0,
+            "benign_reject": 1.0,
+            "n_attacker": 301,
+            "n_benign": 2699,
+            "edge_rounds_all_rejected": 1200
+          }
+        },
+        "44": {
+          "P_control": 0.9878,
+          "P_filter": 0.1104,
+          "MTA_control": 0.8454,
+          "MTA_filter": 0.3961,
+          "V_control": null,
+          "V_filter": null,
+          "B0_control": null,
+          "B0_filter": null,
+          "dASR": 0.8774,
+          "dACC": 0.4494,
+          "online": {
+            "attacker_pass": 0.0,
+            "benign_reject": 1.0,
+            "n_attacker": 289,
+            "n_benign": 2711,
+            "edge_rounds_all_rejected": 1200
+          }
+        }
+      },
+      "verdict": "accuracy_bound",
+      "dASR_mean": 0.8489,
+      "dASR_min": 0.7946,
+      "dACC_mean": 0.4497,
+      "P_filter_mean": 0.12773333333333334,
+      "P_control_mean": 0.9766666666666667
+    },
+    "homo-t1-collocated": {
+      "per_seed": {
+        "42": {
+          "P_control": 0.5818,
+          "P_filter": 0.1203,
+          "MTA_control": 0.8445,
+          "MTA_filter": 0.3994,
+          "V_control": 0.4983,
+          "V_filter": 0.1173,
+          "B0_control": 1.0,
+          "B0_filter": 0.1359,
+          "dASR": 0.4615,
+          "dACC": 0.445,
+          "online": {
+            "attacker_pass": 0.0,
+            "benign_reject": 1.0,
+            "n_attacker": 293,
+            "n_benign": 2707,
+            "edge_rounds_all_rejected": 1200
+          }
+        },
+        "43": {
+          "P_control": 0.2103,
+          "P_filter": 0.1325,
+          "MTA_control": 0.8438,
+          "MTA_filter": 0.3873,
+          "V_control": 0.0526,
+          "V_filter": 0.1296,
+          "B0_control": 0.9987,
+          "B0_filter": 0.1463,
+          "dASR": 0.0778,
+          "dACC": 0.4565,
+          "online": {
+            "attacker_pass": 0.0,
+            "benign_reject": 1.0,
+            "n_attacker": 321,
+            "n_benign": 2679,
+            "edge_rounds_all_rejected": 1200
+          }
+        },
+        "44": {
+          "P_control": 0.4633,
+          "P_filter": 0.1154,
+          "MTA_control": 0.8471,
+          "MTA_filter": 0.3963,
+          "V_control": 0.356,
+          "V_filter": 0.1146,
+          "B0_control": 1.0,
+          "B0_filter": 0.1197,
+          "dASR": 0.3479,
+          "dACC": 0.4508,
+          "online": {
+            "attacker_pass": 0.0,
+            "benign_reject": 1.0,
+            "n_attacker": 310,
+            "n_benign": 2690,
+            "edge_rounds_all_rejected": 1200
+          }
+        }
+      },
+      "verdict": "no_effect",
+      "dASR_mean": 0.2957,
+      "dASR_min": 0.0778,
+      "dACC_mean": 0.4508,
+      "P_filter_mean": 0.12273333333333332,
+      "P_control_mean": 0.4184666666666667
+    },
+    "homo-t1-distributed": {
+      "per_seed": {
+        "42": {
+          "P_control": 0.9907,
+          "P_filter": 0.148,
+          "MTA_control": 0.8413,
+          "MTA_filter": 0.3992,
+          "V_control": null,
+          "V_filter": null,
+          "B0_control": null,
+          "B0_filter": null,
+          "dASR": 0.8427,
+          "dACC": 0.4421,
+          "online": {
+            "attacker_pass": 0.0,
+            "benign_reject": 1.0,
+            "n_attacker": 280,
+            "n_benign": 2720,
+            "edge_rounds_all_rejected": 1200
+          }
+        },
+        "43": {
+          "P_control": 0.9916,
+          "P_filter": 0.1248,
+          "MTA_control": 0.8435,
+          "MTA_filter": 0.3876,
+          "V_control": null,
+          "V_filter": null,
+          "B0_control": null,
+          "B0_filter": null,
+          "dASR": 0.8668,
+          "dACC": 0.4559,
+          "online": {
+            "attacker_pass": 0.0,
+            "benign_reject": 1.0,
+            "n_attacker": 301,
+            "n_benign": 2699,
+            "edge_rounds_all_rejected": 1200
+          }
+        },
+        "44": {
+          "P_control": 0.9879,
+          "P_filter": 0.1104,
+          "MTA_control": 0.8461,
+          "MTA_filter": 0.3961,
+          "V_control": null,
+          "V_filter": null,
+          "B0_control": null,
+          "B0_filter": null,
+          "dASR": 0.8775,
+          "dACC": 0.4501,
+          "online": {
+            "attacker_pass": 0.0,
+            "benign_reject": 1.0,
+            "n_attacker": 289,
+            "n_benign": 2711,
+            "edge_rounds_all_rejected": 1200
+          }
+        }
+      },
+      "verdict": "accuracy_bound",
+      "dASR_mean": 0.8623,
+      "dASR_min": 0.8427,
+      "dACC_mean": 0.4494,
+      "P_filter_mean": 0.12773333333333334,
+      "P_control_mean": 0.9900666666666668
+    }
+  },
+  "combination": {
+    "main-collocated": {
+      "verdict": "additive",
+      "A_both": 0.2864,
+      "A_tier": 0.3987,
+      "A_filt": 0.5769,
+      "best_single": 0.3987
+    },
+    "main-distributed": {
+      "verdict": "redundant",
+      "A_both": 0.6224,
+      "A_tier": 0.9563,
+      "A_filt": 0.6071,
+      "best_single": 0.6071
+    },
+    "homo-collocated": {
+      "verdict": "redundant",
+      "A_both": 0.1227,
+      "A_tier": 0.4185,
+      "A_filt": 0.1227,
+      "best_single": 0.1227
+    },
+    "homo-distributed": {
+      "verdict": "redundant",
+      "A_both": 0.1277,
+      "A_tier": 0.9901,
+      "A_filt": 0.1277,
+      "best_single": 0.1277
+    }
+  }
+}

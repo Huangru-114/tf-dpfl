@@ -568,6 +568,7 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
   - **ERP / ERPB 已回传（2026-11-18，F-126）**：闸通过；N-013 两个划分都 `feasible`（main → mix_res 0.847、homo → kl_all 0.895）。
   - **第二段（2026-11-18，N-014 / D-132 / D-133）**：`defense.edge_ref.mode: filter` + `score` / `threshold`（分数 > τ 的上传丢弃、全被剔则边缘模型不变）；`[EdgeRefScore]` 加 `admitted`；判定 `harness/edge_ref_filter_verdict.py`；登记 ERF（24）/ ERC（12），τ 由守卫钉在 `analysis/edge_ref_probe.json` 上。
     ⚠ 单种子格子 `submit.sh` 不合包 → 用 `pack.sbatch` 手工装包（current-focus 〇·四）。
+  - **ERF / ERC 已回传（2026-11-19，F-128 / F-129 / D-134）**：现主线过滤把攻击成功率从约 1.0 压到约 0.6，只有「三层个性化开 + 分散」`protects`；组内同质划分**冷启动死锁**（kl_all 训练初期是后期 2.5 倍 + 全程固定阈值 + 全扔不更新，与干净集无关）；分数可能滞后于后门（反馈循环，provisional）。**方向 2 不再交作业**；下个会话讨论三层个性化（current-focus 〇·一）。
 
 **留了接口但没有实现的**（不要以为它们能用）：
 - 主动防御（需要客户端配合的防御）：接口齐了（`BaseDefense.layers` /
