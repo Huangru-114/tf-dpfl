@@ -158,7 +158,7 @@ def save(fig, name: str, out_dir: Path = OUT) -> list:
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     paths = [out_dir / f"{name}.pdf", out_dir / f"{name}.png"]
-    fig.savefig(paths[0])
+    fig.savefig(paths[0], metadata={"CreationDate": None})   # 不写生成时间 → 重画不改数据时 PDF 逐字节相同（git 里不冒假改动）
     fig.savefig(paths[1], dpi=300)
     plt.close(fig)
     return paths

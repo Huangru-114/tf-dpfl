@@ -229,3 +229,18 @@ def test_balance_values_are_defense_balance_per_seed():
     d = _need(T.data_balance())
     assert round(d["vals"][("victim_asr", "jump")]["tier"][42], 3) == 0.035
     assert round(d["vals"][("victim_asr", "jump")]["none"][42], 3) == 0.220
+
+
+def test_pdf_output_is_byte_reproducible(tmp_path):
+    """重画同一张图，PDF 必须逐字节相同（否则每次重画都在 git 里冒出假改动）。"""
+    pytest.importorskip("matplotlib")
+    import time
+    out = []
+    for i in range(2):
+        if i:
+            time.sleep(1.1)                     # 时间戳精度是秒：隔开一秒，否则不修也会碰巧相同（反向锚点）
+        fig, axes = TS.figure(1, 1)
+        axes[0][0].plot([0, 1], [0, 1])
+        pdf, _ = TS.save(fig, f"probe{i}", tmp_path)
+        out.append(pdf.read_bytes())
+    assert out[0] == out[1]
