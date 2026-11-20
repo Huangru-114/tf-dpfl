@@ -575,6 +575,10 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
   `harness/defense_balance.py`（纯标准库，描述性、不是判定）把阶段三全部臂放进同一张表（分边缘终值、相对不设防的下降、灌入 / 洗掉 / 净增量，攻击成功率与 margin 两个口径）
   → `experiments/thesis/analysis/defense_balance.{json,md}`；守卫 `tests/test_defense_balance.py`（手算值、与 `g1_verdict.sawtooth` 逐位一致、F-124 的 0.220 / 0.194）。
   攻击侧一定要补（先 Bad-PFL、再一组更弱的基线攻击；正式口径下只有 Bad-PFL 接了取数路径，其余要先写接线代码）。
+  - 11-20：提纲 v2（用户合并 KTH 论文稿）= `experiments/thesis/OUTLINE.md`；两个口径都报（标题默认攻击成功率、对照饱和或贴底线改 margin）；
+    六种基线攻击 BadNets / Blended / DBA / Neurotoxin / CerP / IBA。图表方案 `experiments/thesis/FIGURES.md`：
+    论文图走 `harness/thesis_style.py`（宽度、字号、实体颜色全书固定 —— **画图代码不许直接写颜色值**）+ `harness/thesis_figures.py`
+    （数据函数复用 report_figures / defense_balance）→ `experiments/thesis/figures/`；守卫 `tests/test_thesis_figures.py`（渲染文字不许有内部名词）。
 
 **留了接口但没有实现的**（不要以为它们能用）：
 - 主动防御（需要客户端配合的防御）：接口齐了（`BaseDefense.layers` /

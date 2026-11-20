@@ -32,6 +32,15 @@
 
 本会话 L1 基线（Python 3.11、不装 TF）：改动前 **2049 passed / 57 skipped / 3 xfailed**。
 
+**11-20 更新**：用户上传提纲 v2，已存为 `experiments/thesis/OUTLINE.md`（取代 11-19 初稿）。两个决定：
+- **两个口径都报**；正文标题数字默认攻击成功率，对照饱和（≥ 0.95）或贴着底线时改用 margin（规则一律照用，不逐图挑；OUTLINE 第七节第 1 条）；
+- **六种基线攻击**：BadNets、Blended、DBA、Neurotoxin、CerP、IBA（IBA 要新写；先各跑 1 个探路实验；第七节第 2 条）。
+
+**图表方案** `experiments/thesis/FIGURES.md`（批准）。**会话 A 已完成**：`harness/thesis_style.py`（正文宽 5.9 英寸 —— 等用户给模板的 `\the\textwidth`；8 / 7 磅；
+实体颜色 / 线型 / 标记全书固定，配色已用 dataviz 校验）+ `harness/thesis_figures.py`（第 4、5 章 7 张：4.1 划分、4.2 灌入—洗掉示意、5.1 底线、5.2 收敛门控、5.3 锯齿、5.4 衰减、5.5 可观测性）
+→ `experiments/thesis/figures/*.{pdf,png}`；守卫 `tests/test_thesis_figures.py`（数与判定同源、渲染文字不含内部名词且有反向锚点、无硬写颜色、宽度、PDF 字体嵌入）。
+L1：**2081 passed / 57 skipped / 3 xfailed**（+12）。**下一步 = 会话 B**：第 6 章能用已有数据画的图（6.1、6.4–6.10）+ 误判分布补分析。
+
 ---
 
 ## 〇、新会话开场
