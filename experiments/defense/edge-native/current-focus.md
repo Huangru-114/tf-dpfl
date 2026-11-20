@@ -39,7 +39,9 @@
 **图表方案** `experiments/thesis/FIGURES.md`（批准）。**会话 A 已完成**：`harness/thesis_style.py`（正文宽 5.9 英寸 —— 等用户给模板的 `\the\textwidth`；8 / 7 磅；
 实体颜色 / 线型 / 标记全书固定，配色已用 dataviz 校验）+ `harness/thesis_figures.py`（第 4、5 章 7 张：4.1 划分、4.2 灌入—洗掉示意、5.1 底线、5.2 收敛门控、5.3 锯齿、5.4 衰减、5.5 可观测性）
 → `experiments/thesis/figures/*.{pdf,png}`；守卫 `tests/test_thesis_figures.py`（数与判定同源、渲染文字不含内部名词且有反向锚点、无硬写颜色、宽度、PDF 字体嵌入）。
-L1：**2081 passed / 57 skipped / 3 xfailed**（+12）。**下一步 = 会话 B**：第 6 章能用已有数据画的图（6.1、6.4–6.10）+ 误判分布补分析。
+L1：**2081 passed / 57 skipped / 3 xfailed**（+12）。
+
+**会话 B 已完成（11-20）**：第 6 章 8 张图（6.1 共享块轨迹、6.4 上传前加固、6.5 不分层聚类、6.6 参照打分可分性、6.7 在线过滤与反馈循环、6.8 良性端误判分布、6.9 综合比较、6.10 灌入—洗掉分解），数据由 `thesis_figures.digests()` 一次读完阶段三全部结果；测试钉住 REPORT §4.2 的筛选数、F-126 的 0.847、F-129 的 0.07 / 0.57、defense_balance 的逐种子值。L1：**2088 passed / 57 skipped / 3 xfailed**（+7）。**下一步 = 会话 C**：示意图 1.1 + 触发器图库第一版（集群短作业）；防御侧补实验（代价对照、[9,1,0,0]）回来后画 6.2 / 6.3。
 
 ---
 

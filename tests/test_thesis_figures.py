@@ -157,3 +157,75 @@ def test_ramp():
     assert TS.ramp("gray", 5) == list(TS.GRAY_RAMP)
     with pytest.raises(ValueError):
         TS.ramp("gray", 6)
+
+
+# ── 第 6 章：数据与判定 / 分析同源 ─────────────────────────────────────────
+
+def _need_ch6():
+    if not (T.P2_EDGE / "SNAP/SNAP__collocated__s42.metrics.json").exists():
+        pytest.skip("阶段三结果不在盘上")
+
+
+def test_digests_cover_every_arm_with_three_seeds():
+    _need_ch6()
+    D = T.digests()
+    for arm in T.ARM_ORDER:
+        assert sorted(k[3] for k in D if k[:3] == ("main", "collocated", arm)) == [42, 43, 44], arm
+    assert sorted(k[3] for k in D if k[:3] == ("main", "distributed", "harden")) == [42]   # 分散布点的加固只有单种子
+    assert D[("main", "collocated", "none", 42)]["source"].startswith("SNAP/")             # 去重：对照取 SNAP
+
+
+def test_tier_and_comparison_match_defense_balance():
+    _need_ch6()
+    c = T.data_comparison()
+    cells = {(x["partition"], x["placement"], x["arm"]): x for x in T._analyse()["cells"]}
+    tier = cells[("main", "collocated", "三层个性化")]
+    assert c["cols"]["victim"]["tier"] == {s: q["V"] for s, q in tier["per_seed"].items()}
+    assert round(sum(c["cols"]["victim"]["tier"].values()) / 3, 3) == 0.281             # current-focus 〇·一
+    assert c["cols"]["compute"]["tier"] == {42: 0.0, 43: 0.0, 44: 0.0}                  # 共享块不加计算
+    assert 3.5 < sum(c["cols"]["compute"]["harden"].values()) / 3 < 4.0                 # 每次加固约 56 s × 240 次
+
+
+def test_hardening_screen_matches_the_stage3_report():
+    _need_ch6()
+    d = _need(T.data_hardening())
+    ch = sorted((p["snapshot"], round(p["r_h"], 2), round(p["d_pool"], 3)) for p in d["points"] if p["cfg"] == T.HARDEN_CHOSEN)
+    assert ch == [(6, 0.58, 0.032), (15, 0.44, 0.023)]                                  # REPORT §4.2 的表
+
+
+def test_flat_clustering_matches_the_verdicts():
+    d = _need(T.data_flat_clustering())
+    a, b = T._load(T.CCSD5), T._load(T.CCSDP)
+    cl = {p["seed"]: round(p["dP"], 4) for p in d["points"] if p["variant"] == "cluster"}
+    assert cl == {int(s): v for s, v in a["headline"]["delta_P"].items()}
+    ca = {p["seed"]: p["dP"] for p in d["points"] if p["variant"] == "cache"}
+    assert ca == {int(s): q["dP"] for s, q in b["delta"]["cache"].items()}
+
+
+def test_scoring_and_filtering_anchors():
+    _need_ch6()
+    s = _need(T.data_scoring())
+    assert s["main"]["selected"] == "mix_res" and s["homo"]["selected"] == "kl_all"
+    assert round(min(s["main"]["auroc"]["mix_res"].values()), 3) == 0.847                # F-126
+    f = _need(T.data_filtering())
+    assert {k: round(v["r"], 2) for k, v in f["scatter"].items()} == {"observe": 0.07, "filter": 0.57}   # F-129
+    assert f["threshold"] == pytest.approx(0.119039)
+
+
+def test_misjudgement_uses_the_same_records_as_the_filter_verdict():
+    _need_ch6()
+    import edge_ref_filter_verdict as V
+    rows = T.digests()[("main", "collocated", "filter", 42)]["benign_reject"]
+    m = T._load(T.P2_EDGE / "ERF/ERF__main-t0-collocated__s42.metrics.json")
+    pooled = sum(r["rate"] * r["n"] for r in rows) / sum(r["n"] for r in rows)
+    assert pooled == pytest.approx(V.online_rates(m)["benign_reject"], abs=1e-12)
+    d = _need(T.data_misjudgement())
+    assert set(d["rates"]) == {("collocated", a, r) for a in ("filter", "filter+tier") for r in ("victim", "compromised")} \
+        | {("distributed", a, "all") for a in ("filter", "filter+tier")}
+
+
+def test_balance_values_are_defense_balance_per_seed():
+    _need_ch6()
+    d = _need(T.data_balance())
+    assert round(d["vals"][("victim_asr", "jump")]["tier"][42], 3) == 0.035
+    assert round(d["vals"][("victim_asr", "jump")]["none"][42], 3) == 0.220
