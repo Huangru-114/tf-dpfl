@@ -317,3 +317,54 @@ def test_d0a_structure_after_one_cloud_round(k):
     assert _pairwise_differ(as_lists, [pos[common.index(i)] for i in head_idx])
     stat_pos = [pos[j] for j, i in enumerate(common) if i not in head_idx]
     assert stat_pos and _pairwise_differ(as_lists, stat_pos)
+
+
+# ── D0b 的 TF 一半：真跑出来的「快照」过 analysis/tier_structure 的核对；索引与登记表配置一致 ──
+def _snapshot_like(cloud, edges, clients):
+    """与 BackdoorCloudServer._snapshot 存的同一组东西：全局、各边缘（= 上传物）、各客户端 private_state。"""
+    priv = {}
+    for c in clients:
+        idx, vals = c.private_state()
+        priv[int(c.client_id)] = (list(idx), [np.array(v, copy=True) for v in vals])
+    return {"meta": {}, "global": [w.copy() for w in cloud.global_model.get_weights()],
+            "edges": {int(e.edge_id): [w.copy() for w in e.model.get_weights()] for e in edges},
+            "private": priv}
+
+
+def _sets(model, k):
+    s = get_base_head_indices(model, NCLS, k)
+    return {"edge": s["edge_weight_indices"], "cloud": s["cloud_weight_indices"],
+            "head": s["head_weight_indices"], "stat": get_bn_stat_indices(model)}
+
+
+def test_d0b_check_passes_on_real_k1_rounds_and_fails_when_the_segment_is_aggregated():
+    from analysis.tier_structure import check_run
+    cloud, clients, edges = _setup(1)
+    snaps = {}
+    for r in (1, 2):
+        cloud.run_round(r)                    # 云聚合之后、下一次广播之前 = 快照的时刻
+        snaps[r] = _snapshot_like(cloud, edges, clients)
+    res = check_run(snaps, _sets(cloud.global_model, 1))
+    assert res["pass"], res
+    assert [round(w, 6) for w in res["rounds"]["1"]["cloud_is_mixture"]["weights"]] == [0.5, 0.5]
+    # 反向锚点：k=0 的 run（stage4 照常上云聚合）拿 k=1 的索引去核对 → 「全局边缘段不变」必须不过
+    cloud0, clients0, edges0 = _setup(0)
+    snaps0 = {}
+    for r in (1, 2):
+        cloud0.run_round(r)
+        snaps0[r] = _snapshot_like(cloud0, edges0, clients0)
+    bad = check_run(snaps0, _sets(cloud0.global_model, 1))
+    assert not bad["pass"] and not bad["global_edge_seg_frozen"]["pass"]
+
+
+@pytest.mark.parametrize("run_id,k,n_edge,n_cloud", [("TBS__k1-snap__s42", 1, 15, 45), ("TBS__k4__s42", 4, 55, 5)])
+def test_d0b_index_sets_follow_the_registered_config(run_id, k, n_edge, n_cloud):
+    """D0b 建模型取索引用的是登记表配置（resnet10_torch）：k=1 边缘段 15 个张量；k=4 上云段只剩 stem 的 5 个。"""
+    import yaml
+    from pathlib import Path
+    from analysis.tier_structure import index_sets
+    cfg = yaml.safe_load((Path(__file__).resolve().parent.parent
+                          / f"experiments/defense/edge-native/configs/{run_id}.yaml").read_text(encoding="utf-8"))
+    s = index_sets(cfg)
+    assert (s["k"], len(s["edge"]), len(s["cloud"])) == (k, n_edge, n_cloud)
+    assert not set(s["head"]) & (set(s["edge"]) | set(s["cloud"]))
