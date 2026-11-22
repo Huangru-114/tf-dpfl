@@ -29,7 +29,7 @@ base: ../../attack/hfl-mechanism/base.yaml
 overlays:
   - ../../../fedavg/config/alignment_p2.yaml        # 「P2 对齐」模板（同 hfl-mechanism）
 audit: ../../attack/hfl-mechanism/AUDIT.md
-available: [d0-prereg, sa1-pre, SA-C, ccs-space, ccsb-attack-ok, bns-prereg, ccsd-prereg, ccsd5-prereg, ccsdp-prereg, edge-ref-code, n013-prereg, n014-prereg, edge-ref-filter-code]   # edge-ref-filter-code：第二段过滤代码完成（2026-11-18）； n014-prereg：N-014 用户确认（2026-11-18，D-132）； n013-prereg：N-013 用户确认（2026-11-17，D-131）； edge-ref-code：方向 2 第一段代码完成（2026-11-17）； ccsdp-prereg：N-012 用户确认（2026-11-07，D-127）； ccsd5-prereg：N-011 用户确认（2026-11-02，D-124）； ccsd-prereg：N-010 用户确认（2026-11-01，D-122）； bns-prereg：N-009 经用户确认（2026-11-01，D-120）； ccsb-attack-ok：CCSBOFF 良性端 0.796 ≥ 0.5，用户放行（2026-10-31，D-119）； sa1-pre：D-108（2026-10-28）； d0-prereg：N-008 用户确认（2026-10-10，D-101）。阶段三的代码会话（SA0 / SA1 / SA-C / …）完成时把 token 加进来
+available: [supp-prereg, tier-0to4, d0-prereg, sa1-pre, SA-C, ccs-space, ccsb-attack-ok, bns-prereg, ccsd-prereg, ccsd5-prereg, ccsdp-prereg, edge-ref-code, n013-prereg, n014-prereg, edge-ref-filter-code]   # supp-prereg：补充实验预注册 N-015 用户拍板（2026-11-22，D-135）； tier-0to4：三层个性化块数放宽到 0–4（2026-11-22，8607812）； edge-ref-filter-code：第二段过滤代码完成（2026-11-18）； n014-prereg：N-014 用户确认（2026-11-18，D-132）； n013-prereg：N-013 用户确认（2026-11-17，D-131）； edge-ref-code：方向 2 第一段代码完成（2026-11-17）； ccsdp-prereg：N-012 用户确认（2026-11-07，D-127）； ccsd5-prereg：N-011 用户确认（2026-11-02，D-124）； ccsd-prereg：N-010 用户确认（2026-11-01，D-122）； bns-prereg：N-009 经用户确认（2026-11-01，D-120）； ccsb-attack-ok：CCSBOFF 良性端 0.796 ≥ 0.5，用户放行（2026-10-31，D-119）； sa1-pre：D-108（2026-10-28）； d0-prereg：N-008 用户确认（2026-10-10，D-101）。阶段三的代码会话（SA0 / SA1 / SA-C / …）完成时把 token 加进来
 
 # ── D-base（PLAN §3.1）= G1R5 的 set 去掉 update_geometry / update_ck*，加 post_agg_eval + frozen_trigger ──
 # YAML 锚点只为少抄一遍；展开后每组的 set 是完整的（registry.py 读的是展开结果）。
@@ -406,3 +406,49 @@ groups:
       - {cell: homo-t0-distributed, set: {backdoor.malicious_per_edge: [3, 3, 2, 2], federation.design.client_profile: fixed, federation.design.profile_lambda: 0.4}}
       - {cell: homo-t1-collocated, set: {backdoor.malicious_per_edge: [10, 0, 0, 0], federation.edge_shared_blocks: 1, federation.design.client_profile: fixed, federation.design.profile_lambda: 0.4}}
       - {cell: homo-t1-distributed, set: {backdoor.malicious_per_edge: [3, 3, 2, 2], federation.edge_shared_blocks: 1, federation.design.client_profile: fixed, federation.design.profile_lambda: 0.4}}
+
+# ── 论文收尾：补充实验第一批（预注册 N-015 = experiments/thesis/PREREG-v2.md；D-135）──────────────────────
+# 全部是不设防的 Bad-PFL（D-base），只改各组写明的因素。判定 harness/supp_verdict.py（规则 commit 25163a5 之后写）。
+# 提交：每格 3 个种子 → submit.sh 正常合包：PACK=3 RUN_GROUPS="TBS TBH MED"（9 个三跑包，约 39 GPU 小时）。
+# 守卫 tests/test_edge_native_registry.py（每组与哪一格只差哪几个键）。
+
+  # D1 块数扫描：B=0 = SNAP__collocated（已有）；k1-snap = B=1 存快照重跑（不设防，D0b / P-b 的原料），
+  #   有效性闸 ②：[Checksum] 与 ERP / ERC main-t1-collocated 同种子逐位相同（那几格是 observe，k = 1 下与不设防相同还没有直接证据）。
+  TBS:
+    purpose: "N-015 D1：三层个性化的代价对照 —— 集中布点 × 块数 B ∈ {1（存快照）, 2, 4} × s42–44；B=0 = SNAP__collocated"
+    requires: [audit, supp-prereg, tier-0to4]
+    seeds: [42, 43, 44]
+    set:
+      <<: *d_base
+      backdoor.malicious_per_edge: [10, 0, 0, 0]
+    cells:
+      - {cell: k1-snap, set: {federation.edge_shared_blocks: 1, evaluation.snapshot_rounds: "6/15/60"}}
+      - {cell: k2,      set: {federation.edge_shared_blocks: 2}}
+      - {cell: k4,      set: {federation.edge_shared_blocks: 4}}
+
+  # D2 威胁边界：E0 = 9 个攻击者、E1 = 1 个、E2 / E3 干净；B ∈ {0, 1}。零代码。
+  TBH:
+    purpose: "N-015 D2：三层个性化的威胁边界 —— 布点 [9,1,0,0] × B ∈ {0, 1} × s42–44"
+    requires: [audit, supp-prereg]
+    seeds: [42, 43, 44]
+    set:
+      <<: *d_base
+      backdoor.malicious_per_edge: [9, 1, 0, 0]
+    cells:
+      - {cell: k0}
+      - {cell: k1, set: {federation.edge_shared_blocks: 1}}
+
+  # D4 逐坐标中位数：边缘层臂（每台边缘每轮 2 / 3 个上传）与云层臂（4 个边缘模型，D-135 ①），B=0。
+  #   对照 = SNAP 同布点同种子；与 B=1 比 = ERP / ERC main-t1 同布点同种子。两臂只差 defense.layers → run.defense_layers 区分。
+  MED:
+    purpose: "N-015 D4：逐坐标中位数基线 —— {边缘层, 云层} × {集中, 分散} × s42–44（B=0）"
+    requires: [audit, supp-prereg]
+    seeds: [42, 43, 44]
+    set:
+      <<: *d_base
+      defense.name: median
+    cells:
+      - {cell: edge-collocated,  set: {defense.layers: [edge],  backdoor.malicious_per_edge: [10, 0, 0, 0]}}
+      - {cell: edge-distributed, set: {defense.layers: [edge],  backdoor.malicious_per_edge: [3, 3, 2, 2]}}
+      - {cell: cloud-collocated,  set: {defense.layers: [cloud], backdoor.malicious_per_edge: [10, 0, 0, 0]}}
+      - {cell: cloud-distributed, set: {defense.layers: [cloud], backdoor.malicious_per_edge: [3, 3, 2, 2]}}

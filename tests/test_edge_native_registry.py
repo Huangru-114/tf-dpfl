@@ -518,3 +518,95 @@ def test_every_erf_cell_has_a_three_seed_control(reg):
 
 def test_erf_erc_are_released(reg):
     assert reg.unmet_requires("ERF") == [] and reg.unmet_requires("ERC") == []
+
+
+# ── 论文收尾：补充实验第一批（N-015 / D-135）：TBS / TBH / MED ──────────────────────────────
+def _cfg(reg, rid):
+    return reg.declared_config(next(r for r in reg.runs() if r["run_id"] == rid))
+
+
+def _b1_ref(cell_place, seed):
+    """B=1 的已有对照：s42 = ERP（observe），s43 / s44 = ERC（observe）。"""
+    return f"ERP__main-t1-{cell_place}__s42" if seed == 42 else f"ERC__main-t1-{cell_place}__s{seed}"
+
+
+def test_supplement_groups_are_released_with_the_planned_sizes(reg):
+    for g, n in (("TBS", 9), ("TBH", 6), ("MED", 12)):
+        assert reg.unmet_requires(g) == [], g
+        assert sum(r["group"] == g for r in reg.runs()) == n, g
+    assert "supp-prereg" in reg.groups["MED"]["requires"] and "tier-0to4" in reg.groups["TBS"]["requires"]
+
+
+@pytest.mark.parametrize("seed", [42, 43, 44])
+def test_tbs_k1_snap_differs_from_the_existing_b1_run_only_in_defense_and_snapshots(reg, seed):
+    """闸 ②（N-015）：TBS k1-snap 的 [Checksum] 要与 ERP / ERC main-t1-collocated 同种子逐位相同 →
+    配置上只许差「observe 的 defense 块」与快照开关（两者都只记录、不改训练）。"""
+    a = _cfg(reg, f"TBS__k1-snap__s{seed}")
+    b = _cfg(reg, _b1_ref("collocated", seed))
+    assert _diff(a, b) == {"defense.name", "defense.edge_ref.mode", "evaluation.snapshot_rounds"} | META
+    assert a["defense"]["name"] == "none" and a["evaluation"]["snapshot_rounds"] == "6/15/60"
+
+
+@pytest.mark.parametrize("cell,k", [("k1-snap", 1), ("k2", 2), ("k4", 4)])
+def test_tbs_differs_from_snap_collocated_only_in_the_block_count(reg, cell, k):
+    a = _cfg(reg, f"TBS__{cell}__s42")
+    b = _cfg(reg, "SNAP__collocated__s42")
+    extra = set() if cell == "k1-snap" else {"evaluation.snapshot_rounds"}      # SNAP 也存 6/15/60
+    assert _diff(a, b) == {"federation.edge_shared_blocks"} | extra | META
+    assert a["federation"]["edge_shared_blocks"] == k
+
+
+def test_tbh_is_the_threat_boundary_placement(reg):
+    a, b = _cfg(reg, "TBH__k0__s42"), _cfg(reg, "TBH__k1__s42")
+    snap = _cfg(reg, "SNAP__collocated__s42")
+    assert a["backdoor"]["malicious_per_edge"] == [9, 1, 0, 0]
+    assert _diff(a, snap) == {"backdoor.malicious_per_edge", "evaluation.snapshot_rounds"} | META
+    assert _diff(a, b) == {"federation.edge_shared_blocks", "meta.run_id"}
+
+
+@pytest.mark.parametrize("layer", ["edge", "cloud"])
+@pytest.mark.parametrize("place", ["collocated", "distributed"])
+def test_med_differs_from_snap_only_in_the_median_switch(reg, layer, place):
+    a = _cfg(reg, f"MED__{layer}-{place}__s42")
+    b = _cfg(reg, f"SNAP__{place}__s42")
+    assert _diff(a, b) == {"defense.name", "defense.layers", "evaluation.snapshot_rounds"} | META
+    assert a["defense"]["name"] == "median" and a["defense"]["layers"] == [layer]
+    assert a["federation"].get("edge_shared_blocks") in (None, 0)        # 两臂都在 B=0 上（云层防御与 k > 0 互斥）
+
+
+@pytest.mark.parametrize("place", ["collocated", "distributed"])
+def test_med_edge_and_cloud_arms_differ_only_in_the_layer(reg, place):
+    a, b = _cfg(reg, f"MED__edge-{place}__s42"), _cfg(reg, f"MED__cloud-{place}__s42")
+    assert _diff(a, b) == {"defense.layers", "meta.run_id"}
+
+
+@pytest.mark.parametrize("group", ["TBS", "TBH", "MED"])
+def test_supplement_seeds_differ_only_in_seed(reg, group):
+    by = {r["run_id"]: r for r in reg.runs()}
+    for cell in {r["cell"] for r in reg.runs() if r["group"] == group}:
+        a = reg.declared_config(by[f"{group}__{cell}__s42"])
+        for s in (43, 44):
+            assert _diff(a, reg.declared_config(by[f"{group}__{cell}__s{s}"])) == {"seed", "meta.run_id"}
+
+
+def test_every_supplement_cell_has_its_paired_controls(reg):
+    """N-015 的配对都在登记表里：TBS → SNAP 集中（B=0）+ ERP / ERC main-t1 集中（闸 ②）；
+    MED → SNAP 同布点（B=0）+ ERP / ERC main-t1 同布点（与 B=1 比）；TBH 自带 B=0 / B=1。"""
+    ids = {r["run_id"] for r in reg.runs()}
+    for r in reg.runs():
+        s = r["seed"]
+        if r["group"] == "TBS":
+            assert f"SNAP__collocated__s{s}" in ids and _b1_ref("collocated", s) in ids
+        elif r["group"] == "MED":
+            place = r["cell"].split("-", 1)[1]
+            assert f"SNAP__{place}__s{s}" in ids and _b1_ref(place, s) in ids
+        elif r["group"] == "TBH":
+            assert {f"TBH__k0__s{s}", f"TBH__k1__s{s}"} <= ids
+
+
+def test_supplement_configs_pass_startup_validation():
+    """27 个新配置都过 config_validate（k = 4、中位数 × 网格 / 云聚合后评估 / 冻结触发器都不被拒绝）。"""
+    from config_validate import validate_config
+    for p in sorted((HERE / "configs").glob("*.yaml")):
+        if p.name.split("__")[0] in ("TBS", "TBH", "MED"):
+            validate_config(yaml.safe_load(p.read_text(encoding="utf-8")))
