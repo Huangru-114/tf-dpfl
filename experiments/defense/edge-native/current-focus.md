@@ -30,7 +30,7 @@
 4. `816feae` 登记 **TBS**（D1 块数扫描：集中 × {k1-snap, k2, k4} × 3 种子 = 9）、**TBH**（D2 威胁边界：[9,1,0,0] × {k0, k1} × 3 = 6）、**MED**（D4 中位数：{边缘层, 云层} × {集中, 分散} × 3 = 12）；27 个配置都过启动校验。
 5. `1ca1b5a` 判定脚本 `harness/supp_verdict.py`（D1 / D2 / D4；现有数据上三个都是 insufficient，已有对照全部过闸）+ D0b 脚本。
 
-**本地测试**：不装 TF 的基线（改动前）2089 passed / 57 skipped / 3 xfailed；改动后数字见 commit ⑥ 的说明。
+**本地测试**（Python 3.11）：不装 TF 改动前 2089 passed / 57 skipped / 3 xfailed → 改动后 **2177 / 57 / 3**（多出的 88 条全是新测试）；装 tensorflow-cpu 2.15.1 的全量（CPU，约 11 分钟）**2472 passed / 27 skipped / 3 xfailed / 2 failed**，2 条红 = 一直存在的 Neurotoxin（陷阱 #4）→ 无回归。（第一次全量跑出 `test_edge_ref_tf` 两条红：它复用了三层个性化测试的小模型，被本批改了；`fa79282` 恢复原夹具、D0a / D0b 改用单独的五段模型。）GPU 节点上照旧会多出 F-127 的那几条。
 
 **集群上（仓库根目录）**：
 
