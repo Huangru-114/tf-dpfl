@@ -31,10 +31,11 @@ DETAIL_COLS = ["edge_id", "margin_p50", "benign_asr_p90", "yt_clean_benign"]
 
 
 def _m(*, seed=42, mpe=(10, 0, 0, 0), harden=None, mode=None, tier=0, profile=None, P=0.9, MTA=0.86,
-       detail_cols=DETAIL_COLS, light_cols=tuple(LIGHT_EDGE_COLUMNS), admitted=None, poison=0.2):
+       detail_cols=DETAIL_COLS, light_cols=tuple(LIGHT_EDGE_COLUMNS), admitted=None, poison=0.2,
+       defense=None, layers=None):
     run = {"seed": seed, "malicious_per_edge": list(mpe), "edge_harden": harden, "edge_ref_mode": mode,
            "edge_shared_blocks": tier, "partition_profile": profile, "n_rounds": 6, "edge_rounds": 5,
-           "poison_ratio": poison, "malicious_ids": [7]}
+           "poison_ratio": poison, "malicious_ids": [7], "defense": defense, "defense_layers": layers}
     per_edge_rounds, detail, post = {}, {}, {}
     for g, v in FULL.items():
         rows = [{"edge_id": 0, "client_benign": E0_FULL}] + [{"edge_id": e, "client_benign": v + OFFS[e]} for e in (1, 2, 3)]
@@ -125,7 +126,15 @@ def test_distributed_has_no_balance():
     ({"harden": "none", "mode": "filter"}, ("main", "filter", 0, "collocated", "参照过滤")),
     ({"mode": "filter", "tier": 1, "profile": "fixed"}, ("homo", "filter", 1, "collocated", "参照过滤 + 三层个性化")),
     ({"mpe": (3, 3, 2, 2)}, ("main", "none", 0, "distributed", "不设防")),
-    ({"mpe": (0, 10, 0, 0)}, ("main", "none", 0, "distributed", "不设防")),
+    ({"mpe": (0, 10, 0, 0)}, ("main", "none", 0, "other", "不设防")),
+    # 补充实验（N-015）：威胁边界布点、块数扫描、两个中位数臂
+    ({"mpe": (9, 1, 0, 0)}, ("main", "none", 0, "other", "不设防")),
+    ({"tier": 2}, ("main", "none", 2, "collocated", "三层个性化（末 2 块）")),
+    ({"tier": 4}, ("main", "none", 4, "collocated", "三层个性化（末 4 块）")),
+    ({"defense": "median", "layers": ["edge"]}, ("main", "median_edge", 0, "collocated", "边缘层中位数")),
+    ({"defense": "median", "layers": ["cloud"], "mpe": (3, 3, 2, 2)},
+     ("main", "median_cloud", 0, "distributed", "云层中位数")),
+    ({"defense": "median", "layers": None}, ("main", "median_unknown", 0, "collocated", "median_unknown+k0")),
 ])
 def test_arm_of(kw, expect):
     a = B.arm_of(_m(**kw)["run"])
@@ -224,3 +233,14 @@ def test_real_full_table():
     assert homo_filter and all(c["deadlock"] for c in homo_filter)
     main_filter = [c for c in res["cells"] if c["partition"] == "main" and "参照过滤" in c["arm"]]
     assert main_filter and not any(c["deadlock"] for c in main_filter)
+
+
+
+def test_other_placement_is_not_loaded(tmp_path):
+    """[9,1,0,0]（威胁边界）既不是集中也不是分散 → 本表没有它的对照，load 直接不收（不会被当成「分散」）。"""
+    d = tmp_path / "SNAP"
+    d.mkdir()
+    (d / "a.metrics.json").write_text(json.dumps(_m(mpe=(9, 1, 0, 0))), encoding="utf-8")
+    (d / "b.metrics.json").write_text(json.dumps(_m(seed=43)), encoding="utf-8")
+    rows, dups = B.load(tmp_path, groups=("SNAP",))
+    assert [r["seed"] for r in rows] == [43] and dups == []

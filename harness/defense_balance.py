@@ -62,6 +62,11 @@ ARM_LABELS = {
     ("harden", 0): "上传前加固",
     ("filter", 0): "参照过滤",
     ("filter", 1): "参照过滤 + 三层个性化",
+    # 补充实验（N-015）：块数扫描的 k = 2 / 4、两个中位数臂（作用层由 run.defense_layers 区分）
+    ("none", 2): "三层个性化（末 2 块）",
+    ("none", 4): "三层个性化（末 4 块）",
+    ("median_edge", 0): "边缘层中位数",
+    ("median_cloud", 0): "云层中位数",
 }
 ARM_ORDER = list(ARM_LABELS.values())
 
@@ -86,12 +91,23 @@ def arm_of(run: dict) -> dict:
         defense = "harden"
     elif run.get("edge_ref_mode") == "filter":
         defense = "filter"
+    elif run.get("defense") == "median":
+        # 边缘层臂与云层臂只差 defense.layers（collect_metrics → run.defense_layers）；读不到就不猜
+        layers = run.get("defense_layers") or []
+        defense = {("edge",): "median_edge", ("cloud",): "median_cloud"}.get(tuple(layers),
+                                                                           "median_" + ("+".join(layers) or "unknown"))
     else:
         defense = "none"
     tier = int(run.get("edge_shared_blocks") or 0)
     mpe = list(run.get("malicious_per_edge") or [])
     nz = [i for i, x in enumerate(mpe) if x]
-    placement = "collocated" if nz == [E0] else "distributed"
+    # 集中 = 攻击者全在 E0；分散 = 每台边缘都有攻击者；其余（如 [9,1,0,0]、[0,10,0,0]）= other，本表不收
+    if nz == [E0]:
+        placement = "collocated"
+    elif len(mpe) > 1 and len(nz) == len(mpe):
+        placement = "distributed"
+    else:
+        placement = "other"
     return {"partition": "homo" if run.get("partition_profile") == "fixed" else "main",
             "defense": defense, "tier": tier, "placement": placement,
             "arm": ARM_LABELS.get((defense, tier), f"{defense}+k{tier}")}
@@ -221,6 +237,8 @@ def load(results_dir: Path = RESULTS, groups=GROUPS):
             if not (run.get("poison_ratio") or 0) > 0:
                 continue
             row = run_row(m)
+            if row["placement"] == "other":          # 既非集中也非分散（威胁边界 [9,1,0,0] 等）：本表没有对照，不收
+                continue
             row["source"] = f"{g}/{p.name[:-len('.metrics.json')]}"
             key = (row["partition"], row["placement"], row["arm"], row["seed"])
             if key in seen:

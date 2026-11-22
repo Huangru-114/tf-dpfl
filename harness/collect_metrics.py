@@ -120,7 +120,10 @@ CCS_SETTINGS_KEYS = ("at", "cluster", "kl", "mmd", "steps", "step", "eps", "radi
 #     老日志 → None / 空表。
 #     （同 schema 16，N-014 / D-132：run.edge_ref_score / edge_ref_threshold，edge_ref_scores 加 admitted 列；
 #      第一段的 ERP / ERPB 文件没有这三项 → None。只加字段、不改已有字段的含义，所以不升版本。）
+#     （同 schema 16，N-015 / D-135：run.defense_layers —— 从已有的 `[Defense] enabled: … @ <layer>` 行收集，排序去重；
+#      没有这一行 → None。只加字段，不升版本。）
 SCHEMA_VERSION = 16
+RE_DEFENSE_LAYER = re.compile(r"\[Defense\] enabled: \S+ @ (\w+)")
 # [设定14] / [EdgeRefScore] / [EdgeRefNull] 的字段（= fedavg/defense/edge_ref_spec 的同名常量；抄一份是为了不 import
 # defense 包 —— 守卫 tests/test_collect_edge_ref.py 断言两份相同）
 EDGE_REF_SETTINGS_KEYS = ("mode", "n_fake", "fake_n", "score", "threshold")
@@ -432,6 +435,9 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
         "run_name":      name.group(1) if name else None,
         "method":        val.group(1) if val else None,
         "defense":       val.group(2) if val else None,
+        # 防御作用在哪几层（`[Defense] enabled: <name> @ <layer>`，defense/factory.py 每建一个就打一行）：
+        # 中位数的边缘层臂 / 云层臂只差这一项（N-015 D4）；没有防御 / 老日志没有这一行 → None
+        "defense_layers": sorted(set(RE_DEFENSE_LAYER.findall(log_text))) or None,
         "attack":        val.group(3) if val else None,
         "n_rounds":      max(round_hdrs) if round_hdrs else None,
         "malicious_ids": mal_ids,
