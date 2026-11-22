@@ -112,12 +112,16 @@ def test_arch_without_stage_names_raises():
 IMG = 8
 
 
-def _model():
+STAGES3 = ("stem", "stage3", "stage4")                      # 原夹具（test_edge_ref_tf 也引用它，不要改）
+STAGES5 = ("stem", "stage1", "stage2", "stage3", "stage4")  # D0a / D0b：k = 1 / 2 / 4 各切出不同的段
+
+
+def _model(stages=STAGES3):
     """层名沿用 ResNet-10 的 stage 前缀（按名字切分），但只有几百个参数，CPU 上秒级。"""
     L = tf.keras.layers
     inp = tf.keras.Input((IMG, IMG, 3))
     x = inp
-    for name in ("stem", "stage1", "stage2", "stage3", "stage4"):
+    for name in stages:
         conv = f"{name}_conv" if name == "stem" else f"{name}_conv1"
         bn = f"{name}_bn" if name == "stem" else f"{name}_bn1"
         x = L.Conv2D(4, 3, padding="same", use_bias=False, name=conv)(x)
@@ -127,7 +131,7 @@ def _model():
     return tf.keras.Model(inp, L.Dense(NCLS, activation="softmax", name="head")(x))
 
 
-def _setup(k):
+def _setup(k, stages=STAGES3):
     """k=None → 配置里不写这个键（改动前的配置长这样）。"""
     tf.keras.utils.set_random_seed(0)
     cfg = {
@@ -144,7 +148,7 @@ def _setup(k):
     }
     if k is not None:
         cfg["federation"]["edge_shared_blocks"] = k
-    g = _model()
+    g = _model(stages)
     clients = []
     for cid in range(4):
         r = np.random.default_rng(cid)
@@ -277,7 +281,7 @@ def _pairwise_differ(arrs_by_owner, idx):
 
 @pytest.mark.parametrize("k", [1, 2, 4])
 def test_d0a_structure_after_one_cloud_round(k):
-    cloud, clients, edges = _setup(k)
+    cloud, clients, edges = _setup(k, STAGES5)
     s = get_base_head_indices(cloud.global_model, NCLS, k)
     edge_idx, cloud_idx, head_idx = (s["edge_weight_indices"], s["cloud_weight_indices"],
                                      s["head_weight_indices"])
@@ -339,7 +343,7 @@ def _sets(model, k):
 
 def test_d0b_check_passes_on_real_k1_rounds_and_fails_when_the_segment_is_aggregated():
     from analysis.tier_structure import check_run
-    cloud, clients, edges = _setup(1)
+    cloud, clients, edges = _setup(1, STAGES5)
     snaps = {}
     for r in (1, 2):
         cloud.run_round(r)                    # 云聚合之后、下一次广播之前 = 快照的时刻
@@ -348,7 +352,7 @@ def test_d0b_check_passes_on_real_k1_rounds_and_fails_when_the_segment_is_aggreg
     assert res["pass"], res
     assert [round(w, 6) for w in res["rounds"]["1"]["cloud_is_mixture"]["weights"]] == [0.5, 0.5]
     # 反向锚点：k=0 的 run（stage4 照常上云聚合）拿 k=1 的索引去核对 → 「全局边缘段不变」必须不过
-    cloud0, clients0, edges0 = _setup(0)
+    cloud0, clients0, edges0 = _setup(0, STAGES5)
     snaps0 = {}
     for r in (1, 2):
         cloud0.run_round(r)
