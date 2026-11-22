@@ -355,7 +355,7 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
       各格评估网格（有效轮）一致 —— G2 当初三件都漏了（F-046）。
 
 - **3-E 三层个性化**（2026-09-27，Exp3 改版 S8；DECISIONS D-057 … D-059）。
-  `federation.edge_shared_blocks ∈ {0,1,2}`（缺省 0 = FedRep 基线，逐字节不变；`[Checksum]` 反向锚点）：
+  `federation.edge_shared_blocks ∈ {0,1,2,3,4}`（缺省 0 = FedRep 基线，逐字节不变；`[Checksum]` 反向锚点；2026-11-22 D-135 从 0–2 放宽到 0–4，k = 4 上云只剩 stem —— 补充实验 D1 的「几乎不上云」端点；stage1 没有 shortcut）：
   ResNet-10 最后 k 个残差块（层名 `stage{i}_`，含 shortcut 与 BN 统计量）是 **edge 段** —— edge 内照常聚合，
   **不上云**：`CloudServer.aggregate_edges` 把它换回聚合前的值（全局模型里那一段永远是初值），
   `HierFedRepEdgeServer.set_weights` 不让 cloud 广播覆盖它（首次接收除外）。client 与 fresh-PM 都不用改
@@ -579,6 +579,9 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
     六种基线攻击 BadNets / Blended / DBA / Neurotoxin / CerP / IBA。图表方案 `experiments/thesis/FIGURES.md`：
     论文图走 `harness/thesis_style.py`（宽度、字号、实体颜色全书固定 —— **画图代码不许直接写颜色值**）+ `harness/thesis_figures.py`
     （数据函数复用 report_figures / defense_balance）→ `experiments/thesis/figures/`；守卫 `tests/test_thesis_figures.py`（渲染文字不许有内部名词）。
+  - **11-22 补充实验第一批**（预注册 N-015 = `experiments/thesis/PREREG-v2.md`，D-135）：登记 TBS（块数扫描）/ TBH（威胁边界 [9,1,0,0]）/ MED（边缘层 / 云层中位数，
+    `defense.layers` 区分 → `run.defense_layers`）共 27 run；判定 `harness/supp_verdict.py`，D0b 快照结构核查 `fedavg/analysis/tier_structure.py`。
+    交接与集群命令：`experiments/defense/edge-native/current-focus.md` 〇·〇。后续：D3 探针 → 攻击基线（时间盒 2026-12-06）。
 
 **留了接口但没有实现的**（不要以为它们能用）：
 - 主动防御（需要客户端配合的防御）：接口齐了（`BaseDefense.layers` /

@@ -1,6 +1,6 @@
-# 交接 —— 阶段三（edge 原生防御）· 2026-11-19 晚：**不再开新方向，转入论文整合**（`experiments/thesis/`，见〇·〇）。方向 2 两段都做完（F-126 / F-128 / F-129），不再交作业
+# 交接 —— 阶段三（edge 原生防御）· 2026-11-22：**论文收尾的补充实验第一批已登记、可交**（规则 N-015 = `experiments/thesis/PREREG-v2.md`，见〇·〇）。11-19 起不再开新方向、转入论文整合（〇·〇′）
 
-> 过程与数字：本目录 `FINDINGS.md`（到 F-129；预注册 N-008 … N-014 都已生效）与 `DECISIONS.md`（到 D-134）。
+> 过程与数字：本目录 `FINDINGS.md`（到 F-129；预注册 N-008 … N-015 都已生效）与 `DECISIONS.md`（到 D-135）。
 > 阶段性总结报告：本目录 `REPORT.md`（11-07；结果、CCS 线、术语表）；文献：`LITERATURE.md` 第 3 部分（11-17 新颖性核查 + 三篇全文读数）。
 > ⚠️ 阶段三的实验全部做完之前，不要把分支合并到 main（用户 2026-10-10）。分支 `claude/eloquent-faraday-b9kmop`。
 > ⚠️ 用户要求（2026-11-01、11-17 重申）：**文档和回复里不要用不加解释的缩写、编号、专有名词**；第一次出现时说清楚是什么。用户隔了一段时间回来，偏好「把前因后果讲清楚」的说明。
@@ -10,7 +10,57 @@
 
 ---
 
-## 〇·〇、11-19 晚：转入论文整合（**新会话先读这一节**）
+## 〇·〇、11-22：补充实验第一批 —— 规则定稿、代码、登记、判定脚本都已提交（**新会话先读这一节**）
+
+**来历**：用户上传《补充实验预注册规则 v2》，要求完成收尾实验。本会话把原文的「待填」从仓库查实、「待拍板」问用户，
+定稿为 `experiments/thesis/PREREG-v2.md`（预注册 **N-015**，commit `25163a5`，**先于任何判定脚本与新数据**），拍板记 **D-135**。
+用户拍板：D4 加云层中位数臂；精度口径同 D-071（全部 100 个客户端的 fresh 个性化精度）；阈值全部照草案；攻击基线时间盒 **2026-12-06**；
+知道最后一块不上云的自适应攻击者**做最小版**；A2 不做分散布点；**本会话只做第一批**。
+
+**查实后改写原文的三处**（规则文件里标 ✎）：
+- 现有 B=1 run 都没有快照 → D0 拆成 **D0a**（CPU 小联邦真跑，已做：`tests/test_three_tier_personalization.py::test_d0a_structure_after_one_cloud_round`，k = 1 / 2 / 4 都过）
+  与 **D0b**（TBS k1-snap 回传后在快照上核对，脚本 `fedavg/analysis/tier_structure.py` + `tier_structure.sbatch`）；
+- D4 分散布点没有受害边缘 → 判定量用全部良性端池化攻击成功率；
+- B=1 的复用对照（ERP / ERC main-t1）是 observe 模式 → TBS k1-snap（不设防）与它们逐位相同就是闸 ②，同时补上「k = 1 下 observe 不改训练」的直接证据。
+
+**做完的（commit）**：
+1. `25163a5` 规则定稿（PREREG-v2 + N-015 + D-135）。
+2. `8607812` `federation.edge_shared_blocks` 放宽到 0–4（`fedavg/utils/tier_split.py`；k = 4 上云只剩 stem）+ 测试（含 D0a、元素数钉住 [设定6] 实测值）。
+3. `2f8c7c0` `collect_metrics` 记 `run.defense_layers`（中位数两臂只差作用层）；`defense_balance.arm_of` 认中位数 / k = 2、4 / 非标准布点（以前中位数会被当成「不设防」、[9,1,0,0] 会被当成「分散」）；现有统一对比表重算逐字节不变。
+4. `816feae` 登记 **TBS**（D1 块数扫描：集中 × {k1-snap, k2, k4} × 3 种子 = 9）、**TBH**（D2 威胁边界：[9,1,0,0] × {k0, k1} × 3 = 6）、**MED**（D4 中位数：{边缘层, 云层} × {集中, 分散} × 3 = 12）；27 个配置都过启动校验。
+5. `1ca1b5a` 判定脚本 `harness/supp_verdict.py`（D1 / D2 / D4；现有数据上三个都是 insufficient，已有对照全部过闸）+ D0b 脚本。
+
+**本地测试**：不装 TF 的基线（改动前）2089 passed / 57 skipped / 3 xfailed；改动后数字见 commit ⑥ 的说明。
+
+**集群上（仓库根目录）**：
+
+```bash
+git pull
+```
+
+```bash
+PACK=3 RUN_GROUPS="TBS TBH MED" bash experiments/defense/edge-native/submit.sh
+```
+
+9 个三跑包（每格 3 个种子一包），约 9 × 4.3 ≈ 39 GPU 小时；TBS k1-snap 存快照约 3 × 0.32 GB。新配置类型（k = 4、中位数）没有显存数据，提交工具会先按 K = 3 探路，OOM 会自动降档。
+
+**回传后（按顺序）**：
+1. 对账：`python3 harness/status.py experiments/defense/edge-native/registry.yaml`（27 个应为 done、无 mismatch）。
+2. D0b（集群，约几分钟）：`sbatch experiments/defense/edge-native/tier_structure.sbatch` → 回传 `analysis/d0_structure.json`；**任何一条不过 → 停下，6.1 需要重新审视**。
+3. 三个判定（本地或集群，纯标准库）：`python3 harness/supp_verdict.py` → `analysis/supp_verdict.json`；结果写成 FINDINGS 新条目（F-130 起）。
+4. 把新臂加进统一对比表：`harness/defense_balance.py` 的 `GROUPS` 加 `TBS` / `MED`（TBH 是非标准布点，本表不收），出图前按 PREREG-v2 §八 写定口径。
+
+**已知的小问题（没改，不影响训练）**：`fedavg/config_validate.py` 里「backdoor.enabled=false 但 defense.name=…」那条警告的 `elif` 挂在了 `if stop_cfg:` 上 →
+只要 `stopping` 关、又开了任何防御，就会打出这条**不实**的警告（攻击其实开着）。MED 的 12 个配置、以前的 ERP / ERF / CCS 格子都会打。只是一条警告，不改任何行为。
+
+**后续会话顺序**（一个会话一件事；攻击基线时间盒 2026-12-06，到期没接通的写进局限）：
+D3 离线探针脚本（P-a / P-c 可先用 SNAP 快照做，P-b 等 TBS k1-snap 的快照；读法已在 PREREG-v2 §五写定）→
+静态三种攻击（BadNets / Blended / DBA）的「每批投毒」接线 + 探路 → IBA（主线没有实现；`origin/claude/iba-attack-integration-vt3jjm` 有 9 月草稿，早于 P2，只能作起点）→
+自适应攻击者最小版（攻击 mixin 里屏蔽 stage4 梯度；读法 PREREG-v2 §七末）→ Neurotoxin / CerP。每个攻击先出语义对照表再写代码。
+
+---
+
+## 〇·〇′、11-19 晚：转入论文整合
 
 用户决定：**不再开新方向**，把三个阶段的已有实验整合进一篇学位论文。整合方案已确认：`experiments/thesis/INTEGRATION-PLAN.md`；
 提纲 + 论点—证据对照表 + 术语对照：`experiments/thesis/OUTLINE.md`。
