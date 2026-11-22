@@ -5,11 +5,14 @@ get_weights() 的索引分三组（互不相交，并起来 = 全部）：
 
   head   客户端私有（FedRep 原有，models.cnn.get_base_head_indices）
   edge   edge 内共享、**不上云**：ResNet-10 的最后 k 个残差块
-         （块内全部带权重的层：两个 3×3 conv、shortcut conv、三个 BN 的 γ/β 与 moving 统计量）
+         （块内全部带权重的层：两个 3×3 conv、BN 的 γ/β 与 moving 统计量；stage2–4 另有
+          stride-2 的 shortcut conv + BN，stage1 是 64→64、stride 1，**没有 shortcut**）
   cloud  其余 body：edge 内聚合后再上云聚合
 
-k = `federation.edge_shared_blocks` ∈ {0, 1, 2}（原文 §8 的 (a)/(b)/(c)）：
-  0 = FedRep 基线，edge 段为空 → 与改动前逐字节相同；1 = stage4；2 = stage3 + stage4。
+k = `federation.edge_shared_blocks` ∈ {0, 1, 2, 3, 4}：
+  0 = FedRep 基线，edge 段为空 → 与改动前逐字节相同；1 = stage4（原文 §8 (b)）；2 = stage3 + stage4（(c)）；
+  3 = stage2–4；4 = stage1–4（上云只剩 stem 的 conv 与 BN —— 补充实验 D1 的「几乎不上云」端点，N-015 / D-135）。
+  元素占比（含 BN 统计量，n_params = 4 909 002）：stem 0.04% / stage1 1.5% / stage2 4.7% / stage3 18.8% / stage4 74.9%。
 
 k > 0 时的数据流（只有打 ★ 的两处改了代码）：
   client  训 body（cloud 段 + edge 段）→ 上传给 edge          不改（body = 非 head 全部）
@@ -24,7 +27,7 @@ k > 0 时的数据流（只有打 ★ 的两处改了代码）：
 from __future__ import annotations
 
 EDGE_SHARED_KEY = "federation.edge_shared_blocks"
-EDGE_SHARED_CHOICES = (0, 1, 2)
+EDGE_SHARED_CHOICES = (0, 1, 2, 3, 4)   # D-135：补充实验 D1 放宽到 0–4（原为 0 / 1 / 2）
 N_STAGES = 4                      # ResNet-10：stage1..stage4，每个 stage 恰好 1 个 BasicBlock
 # 块按层名前缀认（`stage{i}_…`，models/cnn.py 的两个 ResNet-10 同名）；别的 arch 没有这套名字
 TIER_ARCHS = frozenset({"resnet10", "resnet10_torch"})
@@ -40,7 +43,7 @@ def edge_shared_blocks(config: dict) -> int:
         return 0
     if isinstance(v, bool) or not isinstance(v, int) or v not in EDGE_SHARED_CHOICES:
         raise ValueError(f"{EDGE_SHARED_KEY}={v!r} 不是合法取值 {list(EDGE_SHARED_CHOICES)}"
-                         f"（0 = FedRep 基线 / 1 = 末 1 块 edge 内共享 / 2 = 末 2 块）")
+                         f"（0 = FedRep 基线 / k = 末 k 个残差块只在 edge 内共享，k ≤ {N_STAGES}）")
     return v
 
 
