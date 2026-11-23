@@ -65,6 +65,17 @@ GRAY_RAMP = ("#acaba6", "#8f8e89", "#73726d", "#575652", "#3a3936")
 # 校验（dataviz validate_palette.js --ordinal，2026-11-20）：两条色阶都 PASS（单色相、明度单调、相邻 ΔL ≥ 0.06、最浅一档对背景 ≥ 2:1）。
 # 防御色（绿 / 琥珀 / 紫）--pairs all 全部 PASS；加上粉后粉—绿红绿色盲 ΔE 6.1 → 必须配线型与标记（ARM 表已配）。
 
+# 已知防御的对照基线（逐坐标中位数，补充实验 D4 / F-132）用中性灰阶，不占类别色：颜色只留给本文的边缘侧防御，
+# 基线与「不设防」同属灰色一族、靠明度 + 标记 + 行标签区分（6.9 的每一行都有直接标签，身份不只靠颜色）。
+# 对背景对比度（2026-11-23 实测）：不设防 #52514e 7.7:1、云层 #73726d 4.7:1、边缘层 #8f8e89 3.2:1，都 ≥ 3:1（图形元素门槛）。
+ARM["median_edge"] = {"color": GRAY_RAMP[1], "ls": (0, (1, 1)), "marker": "P", "label": "coordinate-wise median at edges"}
+ARM["median_cloud"] = {"color": GRAY_RAMP[2], "ls": (0, (3, 1)), "marker": "X", "label": "coordinate-wise median at the cloud"}
+# 6.2 共享深度权衡的两个划分：本文的机构式划分用边缘级共享块的绿（同一个实体：隔离多少块）；旧的逐类 Dirichlet 划分作复现序列、灰色虚线。
+PARTITION = {
+    "main": {"color": SERIES[2], "ls": "-", "marker": "s", "label": "institution-style partition"},
+    "old": {"color": GRAY_RAMP[2], "ls": "--", "marker": "o", "label": "Dirichlet partition (earlier protocol)"},
+}
+
 
 def ramp(kind: str, n: int) -> list:
     """n 个有序类别的颜色（浅 → 深）；n ≤ 5。"""

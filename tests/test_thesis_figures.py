@@ -244,3 +244,48 @@ def test_pdf_output_is_byte_reproducible(tmp_path):
         pdf, _ = TS.save(fig, f"probe{i}", tmp_path)
         out.append(pdf.read_bytes())
     assert out[0] == out[1]
+
+
+# ── 补充实验（N-015，F-130 … F-132）：6.2 / 6.3 与判定同源，6.9 加中位数基线 ─────────────────
+
+def _need_supp():
+    if not (T.P2_EDGE / "MED/MED__cloud-collocated__s44.metrics.json").exists():
+        pytest.skip("补充实验结果不在盘上")
+
+
+def test_sharing_depth_is_the_d1_report_and_reproduces_g6():
+    _need_supp()
+    import supp_verdict as SV
+    d = _need(T.data_sharing_depth())
+    rep = SV.run_all(only="d1")["d1"]["report"]
+    for b in T.DEPTH_LEVELS:
+        k = int(b[2:])
+        assert {s: (q["V"], q["MTA"], q["frac"]) for s, q in d["main"][k].items()} == \
+            {int(s[1:]): (q["V"], q["MTA"], q["cloud_fraction"]) for s, q in rep[b].items()}, b
+    mv = {k: sum(q["V"] for q in per.values()) / 3 for k, per in d["old"].items()}
+    assert mv[0] - mv[1] == pytest.approx(0.524, abs=1e-3) and mv[0] - mv[2] == pytest.approx(0.730, abs=1e-3)   # G6（F-077）
+    assert all(q["acc_cost"] == 0 for q in d["main"][0].values())
+    assert round(sum(q["acc_cost"] for q in d["main"][4].values()) / 3, 3) == 0.022                          # F-130
+
+
+def test_threat_boundary_is_the_d2_report():
+    _need_supp()
+    import supp_verdict as SV
+    d = _need(T.data_threat_boundary())
+    rep = SV.run_all(only="d2")["d2"]["report"]
+    for key, lab in T.BOUNDARY_ROWS:
+        assert d["rows"][lab]["none"] == {int(s[1:]): q[key] for s, q in rep["B=0"].items()}
+        assert d["rows"][lab]["tier"] == {int(s[1:]): q[key] for s, q in rep["B=1"].items()}
+    assert min(d["rows"]["edge with 1 attacker"]["tier"].values()) > 0.9                                      # F-131：一个攻击者就失守
+
+
+def test_comparison_adds_the_median_baselines_from_defense_balance():
+    _need_supp()
+    c = T.data_comparison()
+    assert c["arms"] == list(T.COMPARE_ARMS) and {"median_edge", "median_cloud"} <= set(c["arms"])
+    cells = {(x["partition"], x["placement"], x["arm"]): x for x in T._analyse()["cells"]}
+    for key, lab in (("median_edge", "边缘层中位数"), ("median_cloud", "云层中位数")):
+        assert c["cols"]["victim"][key] == {s: q["V"] for s, q in cells[("main", "collocated", lab)]["per_seed"].items()}
+        assert c["cols"]["dispersed"][key] == {s: q["P"] for s, q in cells[("main", "distributed", lab)]["per_seed"].items()}
+        assert c["cols"]["compute"][key] == {42: 0.0, 43: 0.0, 44: 0.0}                                       # 中位数不加计算
+    assert T.ARM_ORDER == ("none", "tier", "harden", "filter", "filter+tier")                                # 别的图的行序不变

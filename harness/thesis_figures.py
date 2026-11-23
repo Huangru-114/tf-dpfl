@@ -438,8 +438,10 @@ def plot_views(d: dict):
 # ══════════════════════════════════════════════════════════════════════════
 
 ARM_KEY = {("none", 0): "none", ("none", 1): "tier", ("harden", 0): "harden",
-           ("filter", 0): "filter", ("filter", 1): "filter+tier"}
+           ("filter", 0): "filter", ("filter", 1): "filter+tier",
+           ("median_edge", 0): "median_edge", ("median_cloud", 0): "median_cloud"}   # 中位数基线（补充实验 D4，F-132）
 ARM_ORDER = ("none", "tier", "harden", "filter", "filter+tier")
+COMPARE_ARMS = ("none", "median_edge", "median_cloud") + ARM_ORDER[1:]             # 6.9：对照与已知防御在前，本文的防御在后
 EDGE_REF_PROBE = ROOT / "experiments/defense/edge-native/analysis/edge_ref_probe.json"
 P0_SCREEN = ROOT / "experiments/defense/edge-native/analysis/p0/SNAP__collocated__s42.screen.json"
 CCSD5 = ROOT / "experiments/defense/edge-native/analysis/ccsd5_verdict.json"
@@ -577,6 +579,125 @@ def plot_tier(d: dict):
 
 
 # ── 6.4 上传前加固 ─────────────────────────────────────────────────────────
+
+# ── 6.2 共享深度权衡（补充实验 D1 = F-130；旧划分 G6 作复现序列）──────────────────
+
+G6_DIR = P2_MECH / "G6"
+DEPTH_LEVELS = ("B=0", "B=1", "B=2", "B=4")
+
+
+def _r4(v):
+    return None if v is None else round(float(v), 4)
+
+
+def data_sharing_depth() -> dict | None:
+    """{划分: {块数 k: {种子: {frac, V, MTA, acc_cost}}}}。现主线的数 = supp_verdict 的 D1 报告（同一份）；
+    旧划分（G6 a / b / c = k 0 / 1 / 2）用同一组函数算；精度代价 = 同划分同种子 k=0 的精度 − 本档。"""
+    import supp_verdict as SV
+    rep = SV.run_all(only="d1")["d1"]["report"]
+    if any(len(rep.get(b) or {}) < len(SEEDS) for b in DEPTH_LEVELS):
+        return None
+    main = {int(b[2:]): {int(s[1:]): {"frac": q["cloud_fraction"], "V": q["V"], "MTA": q["MTA"]}
+                         for s, q in rep[b].items()} for b in DEPTH_LEVELS}
+    old = {}
+    for arm, k in (("a", 0), ("b", 1), ("c", 2)):
+        per = {}
+        for s in SEEDS:
+            m = _load(G6_DIR / f"G6__{arm}__s{s}.metrics.json")
+            if m is None:
+                return None
+            per[s] = {"frac": SV.cloud_fraction(m), "V": _r4(SV.edges_v(m, VICTIMS)), "MTA": _r4(SV.mta(m))}
+        old[k] = per
+    for series in (main, old):
+        for k, per in series.items():
+            for s, q in per.items():
+                q["acc_cost"] = round(series[0][s]["MTA"] - q["MTA"], 4)
+    return {"main": main, "old": old}
+
+
+def plot_sharing_depth(d: dict):
+    import matplotlib.ticker as mticker
+    fig, axes = TS.figure(1, 2, height=2.5)
+    panels = (("V", "attack success rate,\nbenign clients of victim edges", (-0.03, 1.05)),
+              ("acc_cost", "accuracy cost vs. full sharing\n(paired by seed)", (-0.008, 0.032)))
+    for ax, (key, ylab, ylim) in zip(axes[0], panels):
+        for series in ("old", "main"):
+            st = TS.PARTITION[series]
+            per = d[series]
+            ks = sorted(per)
+            xs = [_mean([q["frac"] for q in per[k].values()]) for k in ks]
+            mus = [_mean([q[key] for q in per[k].values()]) for k in ks]
+            for k in ks:
+                for s, q in sorted(per[k].items()):
+                    ax.plot([q["frac"]], [q[key]], linewidth=0, marker=TS.SEED_MARKER.get(int(s), "o"), markersize=3,
+                            color=st["color"], markerfacecolor="none", markeredgewidth=0.7)
+            ax.plot(xs, mus, color=st["color"], linestyle=st["ls"], linewidth=TS.LW, marker=st["marker"],
+                    markersize=4, label=st["label"])
+            if series == "main" and key == "V":                     # 每一档标出「留在边缘的块数」
+                for k, x, y in zip(ks, xs, mus):
+                    ax.annotate(f"{k}", (x, y), xytext=(-4, 5), textcoords="offset points", ha="right",
+                                fontsize=TS.FS_SMALL, color=TS.NEUTRAL["ink2"])
+        ax.set_xscale("log")
+        ax.set_xlim(7e-4, 1.6)
+        ax.xaxis.set_major_locator(mticker.FixedLocator([1e-3, 1e-2, 1e-1, 1.0]))
+        ax.xaxis.set_major_formatter(mticker.FixedFormatter(["0.1%", "1%", "10%", "100%"]))
+        ax.xaxis.set_minor_locator(mticker.NullLocator())
+        ax.set_ylabel(ylab)
+        ax.set_ylim(*ylim)
+    TS.threshold(axes[0][1], 0.02, text="accuracy-cost threshold")
+    axes[0][0].annotate("numbers: residual blocks\nkept within each edge", (0.04, 0.80), xycoords="axes fraction",
+                        fontsize=TS.FS_SMALL, color=TS.NEUTRAL["ink2"])
+    fig.supxlabel("share of parameters aggregated across edges (log scale)", fontsize=TS.FS)
+    handles, labels = axes[0][0].get_legend_handles_labels()
+    fig.legend(handles[::-1], labels[::-1], loc="outside upper center", ncol=2, fontsize=TS.FS_SMALL)
+    for i, ax in enumerate(axes[0]):
+        TS.panel(ax, "ab"[i])
+    return fig
+
+
+# ── 6.3 威胁边界 [9,1,0,0]（补充实验 D2 = F-131）───────────────────────────
+
+BOUNDARY_ROWS = (("E0", "edge with 9 attackers"), ("E1", "edge with 1 attacker"),
+                 ("E2", "clean edge A"), ("E3", "clean edge B"))
+
+
+def data_threat_boundary() -> dict | None:
+    """{行标签: {"none" / "tier": {种子: 良性端攻击成功率}}}；数 = supp_verdict 的 D2 报告（同一份）。"""
+    import supp_verdict as SV
+    rep = SV.run_all(only="d2")["d2"]["report"]
+    if len(rep.get("B=0") or {}) < len(SEEDS) or len(rep.get("B=1") or {}) < len(SEEDS):
+        return None
+    rows = {}
+    for key, label in BOUNDARY_ROWS:
+        rows[label] = {arm: {int(s[1:]): q[key] for s, q in rep[b].items()}
+                       for arm, b in (("none", "B=0"), ("tier", "B=1"))}
+    return {"rows": rows, "order": [lab for _, lab in BOUNDARY_ROWS]}
+
+
+def plot_threat_boundary(d: dict):
+    fig, axes = TS.figure(1, 1, height=2.2)
+    ax = axes[0][0]
+    order = d["order"]
+    n = len(order)
+    for i, lab in enumerate(order):
+        for arm, dy in (("none", 0.17), ("tier", -0.17)):
+            st = TS.ARM[arm]
+            y = n - 1 - i + dy
+            vals = d["rows"][lab][arm]
+            for s, v in sorted(vals.items()):
+                ax.plot([v], [y], linewidth=0, marker=TS.SEED_MARKER.get(int(s), "o"), markersize=3.5,
+                        color=st["color"], markerfacecolor="none", markeredgewidth=0.8)
+            mu = _mean(list(vals.values()))
+            ax.plot([mu, mu], [y - 0.13, y + 0.13], color=st["color"], linewidth=1.6)
+    ax.set_yticks(range(n))
+    ax.set_yticklabels(list(reversed(order)))
+    ax.set_ylim(-0.6, n - 0.4)
+    ax.set_xlim(0, 1.03)
+    ax.grid(axis="y", visible=False)
+    ax.set_xlabel("attack success rate, benign clients (last 10 evaluations)")
+    _fig_legend(fig, ("none", "tier"))
+    return fig
+
 
 HARDEN_FAMILY = (("pgd", "adversarial training (PGD)", "o"), ("trades", "TRADES", "s"), ("sau", "SAU", "D"),
                  ("tgt", "targeted adversarial training", "^"), ("cft", "clean fine-tuning", "v"))
@@ -877,7 +998,7 @@ def data_comparison() -> dict | None:
     D = digests()
     cells = {(c["partition"], c["placement"], c["arm"]): c for c in res["cells"]}
     lab2key = {DB.ARM_LABELS[k]: v for k, v in ARM_KEY.items()}
-    out = {"cols": {}, "arms": list(ARM_ORDER)}
+    out = {"cols": {}, "arms": list(COMPARE_ARMS)}
     for arm_label, key in lab2key.items():
         c = cells.get(("main", "collocated", arm_label))
         dd = cells.get(("main", "distributed", arm_label))
@@ -921,7 +1042,7 @@ def _dot_rows(ax, values: dict, arms, xlim, threshold=None):
 
 
 def plot_comparison(d: dict):
-    fig, axes = TS.figure(1, 5, height=2.2, sharey=True)
+    fig, axes = TS.figure(1, 5, height=2.7, sharey=True)
     arms = d["arms"]
     for ax, (key, lab, xlim) in zip(axes[0], COMPARE_COLS):
         _dot_rows(ax, d["cols"][key], arms, xlim, threshold=0.02 if key == "acc_drop" else None)
@@ -980,6 +1101,8 @@ FIGURES = {
     "fig5_4": ("fig5_4_decay", data_decay_thesis, plot_decay_thesis),
     "fig5_5": ("fig5_5_observability", data_views, plot_views),
     "fig6_1": ("fig6_1_edge_shared_block", data_tier, plot_tier),
+    "fig6_2": ("fig6_2_sharing_depth", data_sharing_depth, plot_sharing_depth),
+    "fig6_3": ("fig6_3_threat_boundary", data_threat_boundary, plot_threat_boundary),
     "fig6_4": ("fig6_4_hardening", data_hardening, plot_hardening),
     "fig6_5": ("fig6_5_flat_clustering", data_flat_clustering, plot_flat_clustering),
     "fig6_6": ("fig6_6_reference_scoring", data_scoring, plot_scoring),
