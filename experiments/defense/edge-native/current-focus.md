@@ -1,6 +1,6 @@
-# 交接 —— 阶段三（edge 原生防御）· 2026-11-23 收工：**下个会话 = D3 离线探针**（见〇·〇·下一步）；补充实验第一批已判定（F-130 … F-133），集群上没有待交作业
+# 交接 —— 阶段三（edge 原生防御）· 2026-11-23 晚：**D3 离线探针的代码已就绪、待交作业**（见〇·〇·〇）；补充实验第一批已判定（F-130 … F-133）
 
-> 过程与数字：本目录 `FINDINGS.md`（到 F-133；预注册 N-008 … N-015 都已生效）与 `DECISIONS.md`（到 D-137）。
+> 过程与数字：本目录 `FINDINGS.md`（到 F-133；预注册 N-008 … N-015 都已生效）与 `DECISIONS.md`（到 D-138）。
 > 阶段性总结报告：本目录 `REPORT.md`（11-07；结果、CCS 线、术语表）；文献：`LITERATURE.md` 第 3 部分（11-17 新颖性核查 + 三篇全文读数）。
 > ⚠️ 阶段三的实验全部做完之前，不要把分支合并到 main（用户 2026-10-10）。分支 `claude/eloquent-faraday-b9kmop`。
 > ⚠️ 用户要求（2026-11-01、11-17 重申）：**文档和回复里不要用不加解释的缩写、编号、专有名词**；第一次出现时说清楚是什么。用户隔了一段时间回来，偏好「把前因后果讲清楚」的说明。
@@ -10,7 +10,41 @@
 
 ---
 
-## 〇·〇·下一步、下个会话：D3 离线探针（**新会话先读这一节**）
+## 〇·〇·〇、11-23 晚：D3 离线探针 —— 代码、判定脚本、作业脚本都已提交，等集群跑（**新会话先读这一节**）
+
+**是什么**（不熟悉的话先读下面〇·〇·下一步的表）：三个「零训练」探针，只读 SNAP / TBS 已有的快照，给论文 6.1 / 6.3 补直接证据；规则 PREREG-v2 §五（N-015），
+实现取舍 **D-138**（数据之前写定；其中 ④ ⑤ ⑨ 是 Claude 的读法、**待用户确认**，见 DECISIONS）。
+
+**新文件**：
+- `fedavg/analysis/d3_spec.py`（纯算术，不 import TF）、`fedavg/analysis/d3_probes.py`（TF：P-a / P-b / P-c + 重现闸）；
+- `experiments/defense/edge-native/d3_configs.yaml`（参数清单，内容 sha `89160c6203b99416` 由测试锁住）、`d3.sbatch`（一个 run 一个作业）、`d3_submit.sh`（9 个 run 一次交完）；
+- `harness/d3_verdict.py`（纯标准库；没有数据时三个探针都报 insufficient，底线复算 = 0.0974 / 0.0633 / 0.0731）；
+- 测试 `tests/test_d3_spec.py`、`tests/test_d3_verdict.py`（本地）、`tests/test_d3_probes_tf.py`（TF，CPU 小联邦真跑；「写回统计量 / 写回生成器」两个反向锚点实测会红）。
+
+**集群上（仓库根目录）**：
+
+```bash
+git pull
+```
+
+```bash
+bash experiments/defense/edge-native/d3_submit.sh
+```
+
+9 个作业（每个 1 张卡、限时 3 小时、32G）：SNAP 集中 ×3（P-a + P-b 参照 + P-c）、TBS k1-snap ×3（P-b + P-c）、SNAP 分散 ×3（P-c）。估计合计约 1.5 GPU 小时，**没有实测过**。
+想先探路：`sbatch experiments/defense/edge-native/d3.sbatch SNAP__collocated__s42 --rounds 15`（结果进 `analysis/d3_probe/`，不进判定）。
+exit 3 = 有快照轮没过重现闸（离线重算的第 t 轮主列与 run 记录对不上）→ 先排查，不要判定。
+
+**回传后（按顺序）**：
+1. 回传 `experiments/defense/edge-native/analysis/d3/*.json`（9 个）。
+2. 本地：`python3 harness/d3_verdict.py` → `analysis/d3_verdict.json`；结果写成 FINDINGS 新条目（F-134 起），并给 `tests/test_d3_verdict.py` 加「入库 JSON == 脚本输出」的锚点。
+3. P-a 的结果决定 `experiments/thesis/ISSUE-sharing-value.md` 里「块内切分」方案值不值得做。
+
+**本会话的本地测试**（Python 3.11）：不装 TF 改动前 **2189 passed / 57 skipped / 3 xfailed** → 改动后 **2254 / 60 / 3**（多出的全是新测试）；装 tensorflow-cpu 2.15.1 的全量（CPU，约 12 分钟）**2568 passed / 29 skipped / 3 xfailed / 2 failed**，2 条红 = 一直存在的 Neurotoxin（陷阱 #4）→ 无回归。
+
+---
+
+## 〇·〇·下一步、下个会话：D3 离线探针（11-23 下午写的任务说明；代码已按它做完）
 
 **开场**：`git fetch origin claude/eloquent-faraday-b9kmop` 并快进（这条分支上还有别的会话在写 `experiments/thesis/` 与 `experiments/overview/` 的文档，推送前先合并）；
 本地建 Python 3.11 环境跑 L1 基线（不装 TF 时 11-23 是 **2187 passed / 57 skipped / 3 xfailed**；做 P-a / P-b 要装 `tensorflow-cpu==2.15.1 wandb`）。

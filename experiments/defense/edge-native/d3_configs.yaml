@@ -1,0 +1,38 @@
+# D3 离线探针的参数清单（规则：PREREG-v2 §五 / 预注册 N-015 @ 25163a5；实现取舍：DECISIONS D-138）。
+# 读它的是 fedavg/analysis/d3_probes.py（集群，TF）与 harness/d3_verdict.py（本地，纯标准库）。
+# 内容 sha 由 tests/test_d3_spec.py 锁住 —— 改这里 = 改预注册之后、数据之前定下的实现取舍：先在 DECISIONS 留记录，再改 sha。
+# 不改 p0_configs.yaml（被 tests/test_hardening_spec.py 锁着）：P-a 只读它的 cft-train-high 一项。
+schema: 1
+prereg: "N-015 · experiments/thesis/PREREG-v2.md @ 25163a5 §五"
+decisions: "D-138"
+
+# 重现闸：每个用到的 (run, 轮) 先用 run 自己的评估代码重算第 t 轮全量点主列（p0_snapshot.eval_full_main），
+# 四台边缘（含 E0）的良性 ASR 与 margin_p50 都要与 metrics.json 记录相差 ≤ 这个数，否则这一格 invalid。
+reproduce_tol: 0.01
+
+pa:                                   # 重训最后一块：后门有多少在 stage4
+  runs: [SNAP__collocated__s42, SNAP__collocated__s43, SNAP__collocated__s44]
+  rounds: [15, 60]
+  grid: p0_configs.yaml               # 只读；取 base_config 那一项
+  base_config: cft-train-high         # 交叉熵 + 临时线性探针头（D-138 ②）、BN 训练模式、批 32 × 5 epoch × 15 批 = 75 步、SGD、lr × 0.1（D-107）、带增强
+  arms:                               # 训练哪些层（层名前缀）；null = 全部主干。不重训的基线 none 由工具自己加
+    stage4: [stage4_]
+    stem_stage3: [stem_, stage1_, stage2_, stage3_]
+    body: null
+  label_arm: stage4                   # 判定只看这一臂；另外两臂是同预算的对照
+  reestimate: {method: precise, batch: 32, augment: false}   # D-138 ①：每端全部训练图、不加增强、各批统计量按样本数加权平均
+  acc_gate: 0.05                      # E0 良性端干净精度降幅（none − stage4）> 0.05 → invalid
+
+pb:                                   # 受害模型上白盒求扰动
+  runs: [TBS__k1-snap__s42, TBS__k1-snap__s43, TBS__k1-snap__s44]
+  reference_runs: [SNAP__collocated__s42, SNAP__collocated__s43, SNAP__collocated__s44]
+  rounds: [60]
+
+pc:                                   # 统计量偏移 vs 后门强度
+  runs: [SNAP__collocated__s42, SNAP__collocated__s43, SNAP__collocated__s44,
+         SNAP__distributed__s42, SNAP__distributed__s43, SNAP__distributed__s44,
+         TBS__k1-snap__s42, TBS__k1-snap__s43, TBS__k1-snap__s44]
+  rounds: [6, 15, 60]
+  kl_direction: triggered_given_clean # KL(加触发器 ‖ 干净)，与线上「上传 ‖ 参照」同方向
+  images: all                         # 边缘干净集全部 500 张（预注册原文）；去掉目标类的版本只描述
+  permutation: {kind: free, n: 10000, seed: 20261123, sided: greater}   # D-138 ③：判定用 108 个单位自由置换；按轮分层只描述
