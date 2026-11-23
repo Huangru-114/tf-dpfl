@@ -3,6 +3,7 @@ tests/test_tier_split.py  —  S8：3-E 三层个性化（纯 python，不 impor
 
 原文 §8 的三种划分（ResNet-10）：(a) FedRep 基线 / (b) 最后 1 个残差块只在 edge 内共享 /
 (c) 最后 2 个。`federation.edge_shared_blocks` = 0 / 1 / 2；DECISIONS D-057 … D-059。
+补充实验 D1（N-015 / D-135）放宽到 0–4：3 = stage2–4，4 = stage1–4（上云只剩 stem）。
 
 这里守的是**不需要 TF 就能断言**的部分（TF 那一半 —— 真 ResNet 的索引、cloud 不聚合、
 广播保留、fresh-PM —— 在 tests/test_three_tier_personalization.py）：
@@ -46,12 +47,12 @@ def test_missing_key_is_the_fedrep_baseline():
     assert TS.edge_shared_blocks({"federation": {"edge_shared_blocks": None}}) == 0
 
 
-@pytest.mark.parametrize("k", [0, 1, 2])
+@pytest.mark.parametrize("k", [0, 1, 2, 3, 4])
 def test_valid_values(k):
     assert TS.edge_shared_blocks({"federation": {"edge_shared_blocks": k}}) == k
 
 
-@pytest.mark.parametrize("bad", [True, False, 3, -1, 1.0, "1"])
+@pytest.mark.parametrize("bad", [True, False, 5, -1, 1.0, "1"])
 def test_invalid_values_raise(bad):
     """True == 1 在 Python 里成立 —— 不显式挡 bool，`edge_shared_blocks: true` 会被当成 (b)。"""
     with pytest.raises(ValueError):
@@ -62,8 +63,15 @@ def test_prefixes_are_the_last_k_stages():
     assert TS.edge_shared_prefixes(0) == ()
     assert TS.edge_shared_prefixes(1) == ("stage4_",)
     assert TS.edge_shared_prefixes(2) == ("stage3_", "stage4_")
+    assert TS.edge_shared_prefixes(4) == ("stage1_", "stage2_", "stage3_", "stage4_")
     with pytest.raises(ValueError):
         TS.edge_shared_prefixes(5)
+
+
+def test_choices_are_exactly_zero_to_four():
+    """D-135：D1 要 B ∈ {1, 2, 4}；5 个 stage 不存在（ResNet-10 只有 4 个残差块）。"""
+    assert TS.EDGE_SHARED_CHOICES == (0, 1, 2, 3, 4)
+    assert max(TS.EDGE_SHARED_CHOICES) == TS.N_STAGES
 
 
 # ResNet-10 的 get_weights 所属层（顺序只是示意；按名字选，与顺序无关）
@@ -78,6 +86,17 @@ def test_indices_owned_by_selects_by_layer_name_prefix():
     assert TS.indices_owned_by(OWNERS, TS.edge_shared_prefixes(1)) == [8, 9, 10, 11]
     assert TS.indices_owned_by(OWNERS, TS.edge_shared_prefixes(2)) == [5, 6, 7, 8, 9, 10, 11]
     # 前缀带下划线：stage40_… 不会被当成 stage4；没有所属层的变量（None）跳过
+
+
+# stage1 没有 shortcut（64→64、stride 1）；k=4 时 edge 段 = 全部 stage*，stem 与 head 留在外面
+OWNERS4 = ["stem_conv", "stem_bn", "stage1_conv1", "stage1_bn1", "stage1_conv2", "stage1_bn2",
+           "stage2_conv1", "stage2_sc_conv", "stage3_conv1", "stage4_conv2", "stage4_sc_bn",
+           "stage40_imposter", "head", "head"]
+
+
+def test_k4_selects_every_stage_but_not_stem_or_head():
+    assert TS.indices_owned_by(OWNERS4, TS.edge_shared_prefixes(4)) == list(range(2, 11))
+    assert TS.indices_owned_by(OWNERS4, TS.edge_shared_prefixes(3)) == list(range(6, 11))
 
 
 def test_keep_segment_restores_exactly_those_indices_and_mutates_nothing():
@@ -153,7 +172,7 @@ def test_edge_layer_defense_is_fine():
     validate_config(cfg)
 
 
-@pytest.mark.parametrize("bad", [True, 3, "1"])
+@pytest.mark.parametrize("bad", [True, 5, "1"])
 def test_invalid_value_is_rejected_at_startup(bad):
     cfg = _g6()
     cfg["federation"]["edge_shared_blocks"] = bad
@@ -165,7 +184,15 @@ def test_single_edge_warns_that_the_arms_coincide():
     cfg = _g6()
     cfg["federation"]["n_edges"] = 1
     cfg["backdoor"]["malicious_per_edge"] = [10]
-    assert any("三臂没有区别" in w for w in validate_config(cfg))
+    assert any("没有区别" in w for w in validate_config(cfg))
+
+
+@pytest.mark.parametrize("k", [3, 4])
+def test_wider_k_validates_without_warnings(k):
+    """D-135：k = 3 / 4 与 1 / 2 走同一条校验，不多出警告。"""
+    cfg = _g6()
+    cfg["federation"]["edge_shared_blocks"] = k
+    assert validate_config(cfg) == []
 
 
 def test_other_groups_are_untouched_by_s8():

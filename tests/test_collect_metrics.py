@@ -370,3 +370,29 @@ def test_empty_log_does_not_crash():
     assert m["acc_rounds"] == []
     assert m["n_malicious_participations"] == 0
     assert m["errors"]
+
+
+
+# ── N-015 D4：中位数的边缘层臂 / 云层臂只差 defense.layers → run.defense_layers ─────────────
+def test_defense_layers_are_collected_from_the_factory_lines():
+    log = ("[Config] loading x.yaml\n"
+           "[Defense] enabled: median @ cloud | params={'num_malicious': 0}\n"
+           "[Round 1]\n")
+    assert collect(log)["run"]["defense_layers"] == ["cloud"]
+    log_edge = ("[Config] loading x.yaml\n"
+                + "".join(f"[Defense] enabled: median @ edge | params={{}}\n" for _ in range(4))
+                + "[Round 1]\n")
+    assert collect(log_edge)["run"]["defense_layers"] == ["edge"]          # 每台边缘一行 → 去重
+    both = log_edge.replace("[Round 1]", "[Defense] enabled: median @ cloud | params={}\n[Round 1]")
+    assert collect(both)["run"]["defense_layers"] == ["cloud", "edge"]
+
+
+def test_no_defense_line_means_none_not_empty():
+    """没开防御 / 老日志：None（与陷阱 #13 同一约定，不填一个看起来像「声明过」的空列表）。"""
+    assert collect("[Config] loading x.yaml\n[Round 1]\n")["run"]["defense_layers"] is None
+
+
+def test_defense_layers_matches_what_the_factory_prints():
+    """解析器认得的格式 = factory 真的会打印的格式（陷阱 #10 的教训：两头分开测）。"""
+    src = (Path(__file__).resolve().parent.parent / "fedavg/defense/factory.py").read_text(encoding="utf-8")
+    assert 'print(f"[Defense] enabled: {name} @ {layer} |' in src

@@ -697,7 +697,7 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
                   f"edge 段不上云，但 cloud 的鲁棒聚合会拿它的坐标算距离（陷阱 #9 同类）。")
         if n_edges <= 1:
             warnings.append(f"{EDGE_SHARED_KEY}={_k_edge} 而 n_edges={n_edges}：只有一个 edge 时"
-                            f"「edge 内共享」与「上云共享」等价，(a)/(b)/(c) 三臂没有区别。")
+                            f"「edge 内共享」与「上云共享」等价，各个块数（k = 0–4）没有区别。")
 
     # ── 4k. 私有投影网络在哪一段训练（D-116）────────────────────────────────
     #   both 只在 FedRep 的两段式训练里有意义，且要有 proj_* 层；别的组合下静默无效 → 直接拒绝。

@@ -1,12 +1,130 @@
-# 交接 —— 阶段三（edge 原生防御）· 2026-11-19 收尾：方向 2 两段都做完、已记录（F-126 / F-128 / F-129）；**方向 2 不再交作业**。**下个会话：讨论「三层个性化」**（材料见〇·一）
+# 交接 —— 阶段三（edge 原生防御）· 2026-11-23：**补充实验第一批已回传、已判定**（F-130 … F-132，见〇·〇）；D0b 快照结构核查还没交；下一步 D3 离线探针 → 攻击基线（时间盒 2026-12-06）
 
-> 过程与数字：本目录 `FINDINGS.md`（到 F-129；预注册 N-008 … N-014 都已生效）与 `DECISIONS.md`（到 D-134）。
+> 过程与数字：本目录 `FINDINGS.md`（到 F-132；预注册 N-008 … N-015 都已生效）与 `DECISIONS.md`（到 D-136）。
 > 阶段性总结报告：本目录 `REPORT.md`（11-07；结果、CCS 线、术语表）；文献：`LITERATURE.md` 第 3 部分（11-17 新颖性核查 + 三篇全文读数）。
 > ⚠️ 阶段三的实验全部做完之前，不要把分支合并到 main（用户 2026-10-10）。分支 `claude/eloquent-faraday-b9kmop`。
 > ⚠️ 用户要求（2026-11-01、11-17 重申）：**文档和回复里不要用不加解释的缩写、编号、专有名词**；第一次出现时说清楚是什么。用户隔了一段时间回来，偏好「把前因后果讲清楚」的说明。
 > ⚠️ **CCS 组件拆分（只开对抗训练 / 只开聚类剔除）已经做完**：组名 **CCSD**（种子 42）/ **CCSDA3**（只开对抗训练 43–44）/ **CCSDC5**（只开聚类 43–46）/ **CCSDP**（只开聚类 + 缓存池 43、46），结论见第一节与 F-117 … F-120。
 >    计划里叫 **CCSP** 的是「分层设置下的三臂」，还没做；名叫「消融」的 **CCSA** 比的是 FedPer / FedRep 与训练量，**不是**组件拆分。`CLAUDE.md` 与 `PLAN.md` 只是摘要、可能落后，以本文件与 FINDINGS 为准。
 > ⚠️ 11-17 会话开头用了**过期的本地副本**（停在 11-01），先给出了一版错误的现状评估 —— **开场第一步一定 `git fetch` + 看远程最新**（见〇）。
+
+---
+
+## 〇·〇、11-23：补充实验第一批回传与判定（**新会话先读这一节**）
+
+27 个 run 全部有效（`status`：done 112、无 mismatch）；判定脚本回传后没改，结果 `analysis/supp_verdict.json`；用户拍板记 D-136。
+
+| 实验 | 标签（N-015） | 一句话 |
+|---|---|---|
+| D1 块数扫描（F-130） | `inconclusive` | B=1 比几乎不上云（B=4）多保住 0.018–0.022 精度，种子 44 差一点没到 0.02 → 报数字不报方向（不补种子，D-136）。受害边缘 0.996 / 0.281 / 0.046 / 0.027（B = 0 / 1 / 2 / 4），单调 |
+| D2 威胁边界 [9,1,0,0]（F-131） | `clean_protected` + `e1_breached` | 干净边缘降 0.61–0.68；只有 1 个攻击者的边缘照样失守（0.93–1.00）→ 信任域解释「事先预测、被检验」 |
+| D4 逐坐标中位数（F-132） | 三格 `blocks`、云层 · 分散 `not_blocks` | 效应量只有 0.004–0.10，受害边缘仍 0.89–0.99；集中布点下 `weaker_than_b1`；中位数不砍灌入 |
+
+- D1 的闸 ② 通过：B=1 存快照重跑与已有的只记录模式 run 逐位相同 → 「k = 1 下只记录模式不改训练」有了直接证据。
+- 统一对比表 `experiments/thesis/analysis/defense_balance.{json,md}` 已加新臂（块数 2 / 4、两个中位数臂；已有行逐字不变）。
+- 论文图（`3f28fbe`）：6.2 共享深度权衡、6.3 威胁边界、6.9 加中位数两行 → `experiments/thesis/figures/`；其余 14 张重画逐字节不变。`OUTLINE.md` 论点—证据对照表与 M1–M3 已更新。
+- 本地测试（Python 3.11，不装 TF）：2184 passed / 57 skipped / 3 xfailed（无新红）。本批没改训练代码，没重跑含 TF 的全量。
+
+**D0b 快照结构核查**：第一次（`6627ae8`）四条全过（F-133，暂定）；但核查本身有两个盲点（四台边缘上云段完全相同时也会过；拟合只覆盖前 40 万个坐标），
+已补强（D-137）。**集群上重交一次**（只读快照，几分钟）：
+
+```bash
+git pull
+```
+
+```bash
+sbatch experiments/defense/edge-native/tier_structure.sbatch
+```
+
+回传同一个 `analysis/d0_structure.json`；新增的两项（`cloud_is_mixture.rank` = 4、`edge_cloud_segs_pairwise_distinct`）都过才把 F-133 写成最终结论；**任何一条不过 → 停下，6.1 需要重新审视**（PREREG-v2 §二）。
+
+**后续会话顺序**（不变；攻击基线时间盒 2026-12-06）：D3 离线探针（P-a / P-c 用 SNAP 快照，P-b 用 TBS k1-snap 第 60 轮快照；读法 PREREG-v2 §五）→
+静态三种攻击接线 + 探路 → IBA → 自适应攻击者最小版 → Neurotoxin / CerP。
+
+---
+
+## 〇·〇（11-22）、补充实验第一批 —— 规则定稿、代码、登记、判定脚本都已提交
+
+**来历**：用户上传《补充实验预注册规则 v2》，要求完成收尾实验。本会话把原文的「待填」从仓库查实、「待拍板」问用户，
+定稿为 `experiments/thesis/PREREG-v2.md`（预注册 **N-015**，commit `25163a5`，**先于任何判定脚本与新数据**），拍板记 **D-135**。
+用户拍板：D4 加云层中位数臂；精度口径同 D-071（全部 100 个客户端的 fresh 个性化精度）；阈值全部照草案；攻击基线时间盒 **2026-12-06**；
+知道最后一块不上云的自适应攻击者**做最小版**；A2 不做分散布点；**本会话只做第一批**。
+
+**查实后改写原文的三处**（规则文件里标 ✎）：
+- 现有 B=1 run 都没有快照 → D0 拆成 **D0a**（CPU 小联邦真跑，已做：`tests/test_three_tier_personalization.py::test_d0a_structure_after_one_cloud_round`，k = 1 / 2 / 4 都过）
+  与 **D0b**（TBS k1-snap 回传后在快照上核对，脚本 `fedavg/analysis/tier_structure.py` + `tier_structure.sbatch`）；
+- D4 分散布点没有受害边缘 → 判定量用全部良性端池化攻击成功率；
+- B=1 的复用对照（ERP / ERC main-t1）是 observe 模式 → TBS k1-snap（不设防）与它们逐位相同就是闸 ②，同时补上「k = 1 下 observe 不改训练」的直接证据。
+
+**做完的（commit）**：
+1. `25163a5` 规则定稿（PREREG-v2 + N-015 + D-135）。
+2. `8607812` `federation.edge_shared_blocks` 放宽到 0–4（`fedavg/utils/tier_split.py`；k = 4 上云只剩 stem）+ 测试（含 D0a、元素数钉住 [设定6] 实测值）。
+3. `2f8c7c0` `collect_metrics` 记 `run.defense_layers`（中位数两臂只差作用层）；`defense_balance.arm_of` 认中位数 / k = 2、4 / 非标准布点（以前中位数会被当成「不设防」、[9,1,0,0] 会被当成「分散」）；现有统一对比表重算逐字节不变。
+4. `816feae` 登记 **TBS**（D1 块数扫描：集中 × {k1-snap, k2, k4} × 3 种子 = 9）、**TBH**（D2 威胁边界：[9,1,0,0] × {k0, k1} × 3 = 6）、**MED**（D4 中位数：{边缘层, 云层} × {集中, 分散} × 3 = 12）；27 个配置都过启动校验。
+5. `1ca1b5a` 判定脚本 `harness/supp_verdict.py`（D1 / D2 / D4；现有数据上三个都是 insufficient，已有对照全部过闸）+ D0b 脚本。
+
+**本地测试**（Python 3.11）：不装 TF 改动前 2089 passed / 57 skipped / 3 xfailed → 改动后 **2177 / 57 / 3**（多出的 88 条全是新测试）；装 tensorflow-cpu 2.15.1 的全量（CPU，约 11 分钟）**2472 passed / 27 skipped / 3 xfailed / 2 failed**，2 条红 = 一直存在的 Neurotoxin（陷阱 #4）→ 无回归。（第一次全量跑出 `test_edge_ref_tf` 两条红：它复用了三层个性化测试的小模型，被本批改了；`fa79282` 恢复原夹具、D0a / D0b 改用单独的五段模型。）GPU 节点上照旧会多出 F-127 的那几条。
+
+**集群上（仓库根目录）**：
+
+```bash
+git pull
+```
+
+```bash
+PACK=3 RUN_GROUPS="TBS TBH MED" bash experiments/defense/edge-native/submit.sh
+```
+
+9 个三跑包（每格 3 个种子一包），约 9 × 4.3 ≈ 39 GPU 小时；TBS k1-snap 存快照约 3 × 0.32 GB。新配置类型（k = 4、中位数）没有显存数据，提交工具会先按 K = 3 探路，OOM 会自动降档。
+
+**回传后（按顺序）**：
+1. 对账：`python3 harness/status.py experiments/defense/edge-native/registry.yaml`（27 个应为 done、无 mismatch）。
+2. D0b（集群，约几分钟）：`sbatch experiments/defense/edge-native/tier_structure.sbatch` → 回传 `analysis/d0_structure.json`；**任何一条不过 → 停下，6.1 需要重新审视**。
+3. 三个判定（本地或集群，纯标准库）：`python3 harness/supp_verdict.py` → `analysis/supp_verdict.json`；结果写成 FINDINGS 新条目（F-130 起）。
+4. 把新臂加进统一对比表：`harness/defense_balance.py` 的 `GROUPS` 加 `TBS` / `MED`（TBH 是非标准布点，本表不收），出图前按 PREREG-v2 §八 写定口径。
+
+**已知的小问题（没改，不影响训练）**：`fedavg/config_validate.py` 里「backdoor.enabled=false 但 defense.name=…」那条警告的 `elif` 挂在了 `if stop_cfg:` 上 →
+只要 `stopping` 关、又开了任何防御，就会打出这条**不实**的警告（攻击其实开着）。MED 的 12 个配置、以前的 ERP / ERF / CCS 格子都会打。只是一条警告，不改任何行为。
+
+**后续会话顺序**（一个会话一件事；攻击基线时间盒 2026-12-06，到期没接通的写进局限）：
+D3 离线探针脚本（P-a / P-c 可先用 SNAP 快照做，P-b 等 TBS k1-snap 的快照；读法已在 PREREG-v2 §五写定）→
+静态三种攻击（BadNets / Blended / DBA）的「每批投毒」接线 + 探路 → IBA（主线没有实现；`origin/claude/iba-attack-integration-vt3jjm` 有 9 月草稿，早于 P2，只能作起点）→
+自适应攻击者最小版（攻击 mixin 里屏蔽 stage4 梯度；读法 PREREG-v2 §七末）→ Neurotoxin / CerP。每个攻击先出语义对照表再写代码。
+
+---
+
+## 〇·〇′、11-19 晚：转入论文整合
+
+用户决定：**不再开新方向**，把三个阶段的已有实验整合进一篇学位论文。整合方案已确认：`experiments/thesis/INTEGRATION-PLAN.md`；
+提纲 + 论点—证据对照表 + 术语对照：`experiments/thesis/OUTLINE.md`。
+
+**本会话做完的（第一步，零训练）**：`harness/defense_balance.py`（阶段三全部防御臂放进同一把尺子：分边缘的终值、相对不设防的下降、
+每个云周期的「灌入 / 洗掉 / 净增量」，攻击成功率与 margin 两个口径；描述性分析，不是预注册判定）+ `tests/test_defense_balance.py`；
+输出 `experiments/thesis/analysis/defense_balance.{json,md}`。
+
+**新读数（描述性）**：集中布点、前半程，三层个性化把每次云聚合的灌入按攻击成功率砍到 1/3–1/6、按 margin 砍掉约一半；
+上传前加固按攻击成功率几乎不砍、按 margin 也砍掉约三分之一 → F-124「加固不砍灌入」的措辞要改成「主要不是靠砍灌入」；论文以哪个口径为主待定。
+
+**用户决定（11-19）**：
+- 攻击侧**一定要补并做实验**，规模待定：**先做完 Bad-PFL，再做一组比 Bad-PFL 弱的基线攻击**，之后再定规模。
+  ⚠ 正式口径下只有 Bad-PFL 接了按 epoch 重洗的取数路径，静态投毒 / Neurotoxin / CerP 都会被 `config_validate.py` 拒绝 → 较弱的基线攻击要先写接线代码；选哪几种待用户定。
+- 阶段一（另一个仓库）放背景章简述，数字与图由用户提供。
+
+**下一步（每步等用户点头，一个会话一件事）**：见 `INTEGRATION-PLAN.md` 第七节 —— ② 防御侧补充包的代码与登记（三层个性化块数放宽到 0–4、存快照重跑、[9,1,0,0] 布点、预注册）→
+③ 集群约 22 GPU 小时 → ④ 离线探针 → ⑤ 攻击侧基线攻击 → ⑥ 写作。
+
+本会话 L1 基线（Python 3.11、不装 TF）：改动前 **2049 passed / 57 skipped / 3 xfailed**。
+
+**11-20 更新**：用户上传提纲 v2，已存为 `experiments/thesis/OUTLINE.md`（取代 11-19 初稿）。两个决定：
+- **两个口径都报**；正文标题数字默认攻击成功率，对照饱和（≥ 0.95）或贴着底线时改用 margin（规则一律照用，不逐图挑；OUTLINE 第七节第 1 条）；
+- **六种基线攻击**：BadNets、Blended、DBA、Neurotoxin、CerP、IBA（IBA 要新写；先各跑 1 个探路实验；第七节第 2 条）。
+
+**图表方案** `experiments/thesis/FIGURES.md`（批准）。**会话 A 已完成**：`harness/thesis_style.py`（正文宽 5.9 英寸 —— 等用户给模板的 `\the\textwidth`；8 / 7 磅；
+实体颜色 / 线型 / 标记全书固定，配色已用 dataviz 校验）+ `harness/thesis_figures.py`（第 4、5 章 7 张：4.1 划分、4.2 灌入—洗掉示意、5.1 底线、5.2 收敛门控、5.3 锯齿、5.4 衰减、5.5 可观测性）
+→ `experiments/thesis/figures/*.{pdf,png}`；守卫 `tests/test_thesis_figures.py`（数与判定同源、渲染文字不含内部名词且有反向锚点、无硬写颜色、宽度、PDF 字体嵌入）。
+L1：**2081 passed / 57 skipped / 3 xfailed**（+12）。
+
+**会话 B 已完成（11-20）**：第 6 章 8 张图（6.1 共享块轨迹、6.4 上传前加固、6.5 不分层聚类、6.6 参照打分可分性、6.7 在线过滤与反馈循环、6.8 良性端误判分布、6.9 综合比较、6.10 灌入—洗掉分解），数据由 `thesis_figures.digests()` 一次读完阶段三全部结果；测试钉住 REPORT §4.2 的筛选数、F-126 的 0.847、F-129 的 0.07 / 0.57、defense_balance 的逐种子值。L1：**2088 passed / 57 skipped / 3 xfailed**（+7）。**下一步 = 会话 C**：示意图 1.1 + 触发器图库第一版（集群短作业）；防御侧补实验（代价对照、[9,1,0,0]）回来后画 6.2 / 6.3。
 
 ---
 

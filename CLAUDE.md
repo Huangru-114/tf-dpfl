@@ -355,7 +355,7 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
       各格评估网格（有效轮）一致 —— G2 当初三件都漏了（F-046）。
 
 - **3-E 三层个性化**（2026-09-27，Exp3 改版 S8；DECISIONS D-057 … D-059）。
-  `federation.edge_shared_blocks ∈ {0,1,2}`（缺省 0 = FedRep 基线，逐字节不变；`[Checksum]` 反向锚点）：
+  `federation.edge_shared_blocks ∈ {0,1,2,3,4}`（缺省 0 = FedRep 基线，逐字节不变；`[Checksum]` 反向锚点；2026-11-22 D-135 从 0–2 放宽到 0–4，k = 4 上云只剩 stem —— 补充实验 D1 的「几乎不上云」端点；stage1 没有 shortcut）：
   ResNet-10 最后 k 个残差块（层名 `stage{i}_`，含 shortcut 与 BN 统计量）是 **edge 段** —— edge 内照常聚合，
   **不上云**：`CloudServer.aggregate_edges` 把它换回聚合前的值（全局模型里那一段永远是初值），
   `HierFedRepEdgeServer.set_weights` 不让 cloud 广播覆盖它（首次接收除外）。client 与 fresh-PM 都不用改
@@ -569,6 +569,19 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
   - **第二段（2026-11-18，N-014 / D-132 / D-133）**：`defense.edge_ref.mode: filter` + `score` / `threshold`（分数 > τ 的上传丢弃、全被剔则边缘模型不变）；`[EdgeRefScore]` 加 `admitted`；判定 `harness/edge_ref_filter_verdict.py`；登记 ERF（24）/ ERC（12），τ 由守卫钉在 `analysis/edge_ref_probe.json` 上。
     ⚠ 单种子格子 `submit.sh` 不合包 → 用 `pack.sbatch` 手工装包（current-focus 〇·四）。
   - **ERF / ERC 已回传（2026-11-19，F-128 / F-129 / D-134）**：现主线过滤把攻击成功率从约 1.0 压到约 0.6，只有「三层个性化开 + 分散」`protects`；组内同质划分**冷启动死锁**（kl_all 训练初期是后期 2.5 倍 + 全程固定阈值 + 全扔不更新，与干净集无关）；分数可能滞后于后门（反馈循环，provisional）。**方向 2 不再交作业**；下个会话讨论三层个性化（current-focus 〇·一）。
+
+- **论文整合**（2026-11-19 晚，用户：不再开新方向）：方案 `experiments/thesis/INTEGRATION-PLAN.md`，提纲 + 论点—证据对照表 + 术语对照 `experiments/thesis/OUTLINE.md`。
+  叙事 = 后门在云聚合时跨边缘扩散 → 边缘看不出谁在投毒 → 防御的杠杆在机构边界；全部防御按「每个云周期的灌入 − 洗掉」组织。
+  `harness/defense_balance.py`（纯标准库，描述性、不是判定）把阶段三全部臂放进同一张表（分边缘终值、相对不设防的下降、灌入 / 洗掉 / 净增量，攻击成功率与 margin 两个口径）
+  → `experiments/thesis/analysis/defense_balance.{json,md}`；守卫 `tests/test_defense_balance.py`（手算值、与 `g1_verdict.sawtooth` 逐位一致、F-124 的 0.220 / 0.194）。
+  攻击侧一定要补（先 Bad-PFL、再一组更弱的基线攻击；正式口径下只有 Bad-PFL 接了取数路径，其余要先写接线代码）。
+  - 11-20：提纲 v2（用户合并 KTH 论文稿）= `experiments/thesis/OUTLINE.md`；两个口径都报（标题默认攻击成功率、对照饱和或贴底线改 margin）；
+    六种基线攻击 BadNets / Blended / DBA / Neurotoxin / CerP / IBA。图表方案 `experiments/thesis/FIGURES.md`：
+    论文图走 `harness/thesis_style.py`（宽度、字号、实体颜色全书固定 —— **画图代码不许直接写颜色值**）+ `harness/thesis_figures.py`
+    （数据函数复用 report_figures / defense_balance）→ `experiments/thesis/figures/`；守卫 `tests/test_thesis_figures.py`（渲染文字不许有内部名词）。
+  - **11-22 补充实验第一批**（预注册 N-015 = `experiments/thesis/PREREG-v2.md`，D-135）：登记 TBS（块数扫描）/ TBH（威胁边界 [9,1,0,0]）/ MED（边缘层 / 云层中位数，
+    `defense.layers` 区分 → `run.defense_layers`）共 27 run；判定 `harness/supp_verdict.py`，D0b 快照结构核查 `fedavg/analysis/tier_structure.py`。
+    交接与集群命令：`experiments/defense/edge-native/current-focus.md` 〇·〇。后续：D3 探针 → 攻击基线（时间盒 2026-12-06）。
 
 **留了接口但没有实现的**（不要以为它们能用）：
 - 主动防御（需要客户端配合的防御）：接口齐了（`BaseDefense.layers` /
