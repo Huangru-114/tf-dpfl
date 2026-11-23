@@ -1,0 +1,465 @@
+{
+ "preregistered": "N-015（experiments/thesis/PREREG-v2.md @ 25163a5）；判定脚本写于规则之后、数据之前",
+ "d1": {
+  "preregistered": "N-015（experiments/thesis/PREREG-v2.md @ 25163a5）；判定脚本写于规则之后、数据之前",
+  "experiment": "D1 块数扫描",
+  "thresholds": {
+   "meaningful": 0.02,
+   "free": 0.01,
+   "better": -0.01
+  },
+  "gate2": {
+   "s42": {
+    "n_checksums": 60,
+    "n_fields": 4560,
+    "n_diffs": 0,
+    "n_missing": 0,
+    "first_diffs": []
+   },
+   "s43": {
+    "n_checksums": 60,
+    "n_fields": 4560,
+    "n_diffs": 0,
+    "n_missing": 0,
+    "first_diffs": []
+   },
+   "s44": {
+    "n_checksums": 60,
+    "n_fields": 4560,
+    "n_diffs": 0,
+    "n_missing": 0,
+    "first_diffs": []
+   }
+  },
+  "report_invalid": {},
+  "report": {
+   "B=0": {
+    "s42": {
+     "V": 0.995,
+     "B0": 0.9978,
+     "MTA": 0.8619,
+     "stale_acc": 0.8989,
+     "cloud_fraction": 1.0
+    },
+    "s43": {
+     "V": 0.9965,
+     "B0": 1.0,
+     "MTA": 0.8756,
+     "stale_acc": 0.9071,
+     "cloud_fraction": 1.0
+    },
+    "s44": {
+     "V": 0.9963,
+     "B0": 1.0,
+     "MTA": 0.8673,
+     "stale_acc": 0.8985,
+     "cloud_fraction": 1.0
+    }
+   },
+   "B=1": {
+    "s42": {
+     "V": 0.3308,
+     "B0": 0.9642,
+     "MTA": 0.8642,
+     "stale_acc": 0.8905,
+     "cloud_fraction": 0.251139
+    },
+    "s43": {
+     "V": 0.1966,
+     "B0": 1.0,
+     "MTA": 0.8745,
+     "stale_acc": 0.8987,
+     "cloud_fraction": 0.251139
+    },
+    "s44": {
+     "V": 0.3151,
+     "B0": 0.9998,
+     "MTA": 0.8612,
+     "stale_acc": 0.8882,
+     "cloud_fraction": 0.251139
+    }
+   },
+   "B=2": {
+    "s42": {
+     "V": 0.0397,
+     "B0": 0.9611,
+     "MTA": 0.8574,
+     "stale_acc": 0.8803,
+     "cloud_fraction": 0.063611
+    },
+    "s43": {
+     "V": 0.0366,
+     "B0": 1.0,
+     "MTA": 0.8672,
+     "stale_acc": 0.8873,
+     "cloud_fraction": 0.063611
+    },
+    "s44": {
+     "V": 0.0607,
+     "B0": 1.0,
+     "MTA": 0.8509,
+     "stale_acc": 0.876,
+     "cloud_fraction": 0.063611
+    }
+   },
+   "B=4": {
+    "s42": {
+     "V": 0.0286,
+     "B0": 0.9999,
+     "MTA": 0.8441,
+     "stale_acc": 0.8654,
+     "cloud_fraction": 0.001449
+    },
+    "s43": {
+     "V": 0.0248,
+     "B0": 1.0,
+     "MTA": 0.8521,
+     "stale_acc": 0.8719,
+     "cloud_fraction": 0.001449
+    },
+    "s44": {
+     "V": 0.0265,
+     "B0": 1.0,
+     "MTA": 0.8431,
+     "stale_acc": 0.8659,
+     "cloud_fraction": 0.001449
+    }
+   }
+  },
+  "monotone_V_k4_le_k2_le_k1": {
+   "s42": true,
+   "s43": true,
+   "s44": true
+  },
+  "label": "inconclusive",
+  "D_per_seed": {
+   "s42": 0.02019,
+   "s43": 0.0223,
+   "s44": 0.01815
+  },
+  "D_mean": 0.020213,
+  "missing": [],
+  "invalid": {}
+ },
+ "d2": {
+  "preregistered": "N-015（experiments/thesis/PREREG-v2.md @ 25163a5）；判定脚本写于规则之后、数据之前",
+  "experiment": "D2 威胁边界 [9,1,0,0]",
+  "thresholds": {
+   "clean_protected": 0.3,
+   "clean_unprotected": 0.1,
+   "e1_breached": 0.2,
+   "e1_also_protected": 0.1
+  },
+  "report": {
+   "B=0": {
+    "s42": {
+     "E0": 1.0,
+     "E1": 0.9962,
+     "E2": 0.9436,
+     "E3": 0.9958,
+     "MTA": 0.8649,
+     "P": 0.9821
+    },
+    "s43": {
+     "E0": 0.9984,
+     "E1": 0.9976,
+     "E2": 0.8862,
+     "E3": 0.959,
+     "MTA": 0.8685,
+     "P": 0.9562
+    },
+    "s44": {
+     "E0": 0.9999,
+     "E1": 0.9922,
+     "E2": 0.9751,
+     "E3": 0.9918,
+     "MTA": 0.8673,
+     "P": 0.9887
+    }
+   },
+   "B=1": {
+    "s42": {
+     "E0": 0.9907,
+     "E1": 0.931,
+     "E2": 0.2635,
+     "E3": 0.3103,
+     "MTA": 0.8657,
+     "P": 0.584
+    },
+    "s43": {
+     "E0": 0.9995,
+     "E1": 0.9993,
+     "E2": 0.2478,
+     "E3": 0.3004,
+     "MTA": 0.8743,
+     "P": 0.5965
+    },
+    "s44": {
+     "E0": 0.9983,
+     "E1": 0.9412,
+     "E2": 0.2458,
+     "E3": 0.5043,
+     "MTA": 0.8635,
+     "P": 0.637
+    }
+   },
+   "集中布点对照": {
+    "s42": {
+     "V_B0": 0.995,
+     "V_B1": 0.3308
+    },
+    "s43": {
+     "V_B0": 0.9965,
+     "V_B1": 0.1966
+    },
+    "s44": {
+     "V_B0": 0.9963,
+     "V_B1": 0.3151
+    }
+   }
+  },
+  "label": {
+   "clean": "clean_protected",
+   "e1": "e1_breached"
+  },
+  "reading": "符合「信任域」解释：6.1 的机制从「和数据一致」升为「事先预测、被检验」",
+  "delta_clean_per_seed": {
+   "s42": 0.6828,
+   "s43": 0.6485,
+   "s44": 0.6084
+  },
+  "gap_per_seed": {
+   "s42": 0.6441,
+   "s43": 0.7252,
+   "s44": 0.56615
+  },
+  "missing": [],
+  "invalid": {}
+ },
+ "d4": {
+  "preregistered": "N-015（experiments/thesis/PREREG-v2.md @ 25163a5）；判定脚本写于规则之后、数据之前",
+  "experiment": "D4 逐坐标中位数",
+  "thresholds": {
+   "mta": 0.02,
+   "vs_b1": 0.1
+  },
+  "cells": [
+   {
+    "layer": "edge",
+    "placement": "collocated",
+    "asr_quantity": "V（受害边缘）",
+    "report": {
+     "s42": {
+      "ASR": 0.9909,
+      "MTA": 0.8643,
+      "stale_acc": 0.8995,
+      "B0": 0.9998,
+      "jump_first_half": 0.216
+     },
+     "s43": {
+      "ASR": 0.9464,
+      "MTA": 0.8728,
+      "stale_acc": 0.9057,
+      "B0": 0.9999,
+      "jump_first_half": 0.2291
+     },
+     "s44": {
+      "ASR": 0.9919,
+      "MTA": 0.8626,
+      "stale_acc": 0.8976,
+      "B0": 1.0,
+      "jump_first_half": 0.1613
+     }
+    },
+    "label": "blocks",
+    "asr_all_positive": true,
+    "mta_mean_ok": true,
+    "mta_every_seed_ok": true,
+    "d_asr_per_seed": {
+     "s42": 0.004033,
+     "s43": 0.050033,
+     "s44": 0.004367
+    },
+    "d_asr_mean": 0.019478,
+    "d_mta_per_seed": {
+     "s42": -0.00247,
+     "s43": 0.0028,
+     "s44": 0.0047
+    },
+    "d_mta_mean": 0.001677,
+    "missing": [],
+    "invalid": {},
+    "vs_b1": {
+     "label": "weaker_than_b1",
+     "diff_per_seed": {
+      "s42": 0.6601,
+      "s43": 0.7498,
+      "s44": 0.6768
+     }
+    }
+   },
+   {
+    "layer": "edge",
+    "placement": "distributed",
+    "asr_quantity": "P（全部良性端池化）",
+    "report": {
+     "s42": {
+      "ASR": 0.9731,
+      "MTA": 0.8637,
+      "stale_acc": 0.8986,
+      "B0": null,
+      "jump_first_half": null
+     },
+     "s43": {
+      "ASR": 0.9545,
+      "MTA": 0.872,
+      "stale_acc": 0.9054,
+      "B0": null,
+      "jump_first_half": null
+     },
+     "s44": {
+      "ASR": 0.923,
+      "MTA": 0.8692,
+      "stale_acc": 0.8981,
+      "B0": null,
+      "jump_first_half": null
+     }
+    },
+    "label": "blocks",
+    "asr_all_positive": true,
+    "mta_mean_ok": true,
+    "mta_every_seed_ok": true,
+    "d_asr_per_seed": {
+     "s42": 0.0251,
+     "s43": 0.0432,
+     "s44": 0.0384
+    },
+    "d_asr_mean": 0.035567,
+    "d_mta_per_seed": {
+     "s42": 0.00371,
+     "s43": -0.0045,
+     "s44": 0.00286
+    },
+    "d_mta_mean": 0.00069,
+    "missing": [],
+    "invalid": {},
+    "vs_b1": {
+     "label": "comparable_to_b1",
+     "diff_per_seed": {
+      "s42": 0.0343,
+      "s43": -0.0403,
+      "s44": -0.0123
+     }
+    }
+   },
+   {
+    "layer": "cloud",
+    "placement": "collocated",
+    "asr_quantity": "V（受害边缘）",
+    "report": {
+     "s42": {
+      "ASR": 0.9476,
+      "MTA": 0.8632,
+      "stale_acc": 0.8982,
+      "B0": 0.9954,
+      "jump_first_half": 0.1845
+     },
+     "s43": {
+      "ASR": 0.8918,
+      "MTA": 0.8727,
+      "stale_acc": 0.9061,
+      "B0": 0.9997,
+      "jump_first_half": 0.2408
+     },
+     "s44": {
+      "ASR": 0.9658,
+      "MTA": 0.8663,
+      "stale_acc": 0.8976,
+      "B0": 1.0,
+      "jump_first_half": 0.1576
+     }
+    },
+    "label": "blocks",
+    "asr_all_positive": true,
+    "mta_mean_ok": true,
+    "mta_every_seed_ok": true,
+    "d_asr_per_seed": {
+     "s42": 0.047333,
+     "s43": 0.104633,
+     "s44": 0.030433
+    },
+    "d_asr_mean": 0.0608,
+    "d_mta_per_seed": {
+     "s42": -0.00138,
+     "s43": 0.00288,
+     "s44": 0.00105
+    },
+    "d_mta_mean": 0.00085,
+    "missing": [],
+    "invalid": {},
+    "vs_b1": {
+     "label": "weaker_than_b1",
+     "diff_per_seed": {
+      "s42": 0.6168,
+      "s43": 0.6952,
+      "s44": 0.650733
+     }
+    }
+   },
+   {
+    "layer": "cloud",
+    "placement": "distributed",
+    "asr_quantity": "P（全部良性端池化）",
+    "report": {
+     "s42": {
+      "ASR": 0.991,
+      "MTA": 0.8682,
+      "stale_acc": 0.8986,
+      "B0": null,
+      "jump_first_half": null
+     },
+     "s43": {
+      "ASR": 0.9987,
+      "MTA": 0.8697,
+      "stale_acc": 0.9071,
+      "B0": null,
+      "jump_first_half": null
+     },
+     "s44": {
+      "ASR": 0.983,
+      "MTA": 0.8682,
+      "stale_acc": 0.8994,
+      "B0": null,
+      "jump_first_half": null
+     }
+    },
+    "label": "not_blocks",
+    "asr_all_positive": false,
+    "mta_mean_ok": true,
+    "mta_every_seed_ok": true,
+    "d_asr_per_seed": {
+     "s42": 0.0072,
+     "s43": -0.001,
+     "s44": -0.0216
+    },
+    "d_asr_mean": -0.005133,
+    "d_mta_per_seed": {
+     "s42": -0.00082,
+     "s43": -0.00223,
+     "s44": 0.00387
+    },
+    "d_mta_mean": 0.000273,
+    "missing": [],
+    "invalid": {},
+    "vs_b1": {
+     "label": "comparable_to_b1",
+     "diff_per_seed": {
+      "s42": 0.0522,
+      "s43": 0.0039,
+      "s44": 0.0477
+     }
+    }
+   }
+  ]
+ }
+}

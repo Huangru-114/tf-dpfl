@@ -5,7 +5,8 @@ tests/test_supp_verdict.py  —  harness/supp_verdict.py（补充实验第一批
   · 阈值反向锚点：常量 = PREREG-v2 写定的数（改常量就是改预注册，这里红）；
   · 闸：缺文件 → insufficient；块数 / 布点 / 防御名 / 作用层不符、没跑满、非 P2、client_failures → invalid；
     D1 的闸 ②（k1-snap 与已有 B=1 逐位相同）—— checksum 差一个就 invalid；
-  · 真实数据只钉现有 run 算得出的数：SNAP 集中 / ERP + ERC main-t1 集中的受害边缘攻击成功率与精度（current-focus〇·一的 0.996 → 0.281）。
+  · 真实数据（11-23 回传，F-130 … F-132）：三个标签与逐种子量、D1 闸 ② 的逐位相同、入库的 analysis/supp_verdict.json = 脚本现在的输出。
+    （脚本写于 25163a5 之后、数据之前；这些锚点是数据回来之后加的，只防日后脚本或数据被改动。）
 """
 
 import copy
@@ -235,20 +236,52 @@ def test_gate_rejects(mut, needle):
     assert V.gate(_m(), k=0, mpe=[10, 0, 0, 0], defense="none") == []
 
 
-# ── 真实数据（只钉现有 run 算得出的数）────────────────────────────────────
-def test_real_data_controls_reproduce_the_current_focus_numbers():
-    res = V.run_all()
-    d1 = res["d1"]
-    assert d1["label"] == "insufficient" and d1["invalid"] == {}           # 新组还没回传；已有对照都过闸
-    b0 = d1["report"]["B=0"]
-    assert [b0[f"s{s}"]["V"] for s in SEEDS] == [0.995, 0.9965, 0.9963]
-    col = res["d2"]["report"]["集中布点对照"]
-    assert [col[f"s{s}"]["V_B1"] for s in SEEDS] == [0.3308, 0.1966, 0.3151]   # 均值 0.281（current-focus〇·一）
-    for c in res["d4"]["cells"]:
-        assert c["label"] == "insufficient" and c["missing"] == ["arm s42", "arm s43", "arm s44"]
+# ── 真实数据（2026-11-23 回传的 TBS / TBH / MED + 已有对照；F-130 … F-132）──────────────────
+@pytest.fixture(scope="module")
+def real():
+    if not (V.RESULTS / "MED/MED__cloud-collocated__s44.metrics.json").exists():
+        pytest.skip("补充实验结果不在盘上")
+    return V.run_all()
+
+
+def test_real_d1_is_inconclusive_with_gate2_bit_identical(real):
+    d1 = real["d1"]
+    assert d1["label"] == "inconclusive" and d1["invalid"] == {}
+    assert d1["D_per_seed"] == {"s42": 0.02019, "s43": 0.0223, "s44": 0.01815}     # 种子 44 低于 0.02
+    for s in SEEDS:                                                                    # 闸 ②：与 observe 的 B=1 逐位相同
+        g = d1["gate2"][f"s{s}"]
+        assert (g["n_checksums"], g["n_fields"], g["n_diffs"], g["n_missing"]) == (60, 4560, 0, 0)
+    v = {b: [d1["report"][b][f"s{s}"]["V"] for s in SEEDS] for b in ("B=0", "B=1", "B=2", "B=4")}
+    assert v["B=1"] == [0.3308, 0.1966, 0.3151] and v["B=4"] == [0.0286, 0.0248, 0.0265]
+    assert all(d1["monotone_V_k4_le_k2_le_k1"].values())
+
+
+def test_real_d2_is_protected_and_breached(real):
+    d2 = real["d2"]
+    assert d2["label"] == {"clean": "clean_protected", "e1": "e1_breached"}
+    assert d2["delta_clean_per_seed"] == {"s42": 0.6828, "s43": 0.6485, "s44": 0.6084}
+    assert d2["gap_per_seed"] == {"s42": 0.6441, "s43": 0.7252, "s44": 0.56615}
+
+
+def test_real_d4_labels_and_effect_sizes(real):
+    cells = {(c["layer"], c["placement"]): c for c in real["d4"]["cells"]}
+    got = {k: (c["label"], c["vs_b1"]["label"]) for k, c in cells.items()}
+    assert got == {("edge", "collocated"): ("blocks", "weaker_than_b1"),
+                   ("edge", "distributed"): ("blocks", "comparable_to_b1"),
+                   ("cloud", "collocated"): ("blocks", "weaker_than_b1"),
+                   ("cloud", "distributed"): ("not_blocks", "comparable_to_b1")}
+    assert cells[("edge", "collocated")]["d_asr_per_seed"] == {"s42": 0.004033, "s43": 0.050033, "s44": 0.004367}
+    assert cells[("cloud", "collocated")]["d_asr_mean"] == 0.0608
+    assert all(abs(c["d_mta_mean"]) <= 0.005 for c in cells.values())                   # 精度代价都可以忽略
+
+
+def test_committed_verdict_file_is_what_the_script_writes(real):
+    """入库的 analysis/supp_verdict.json = 现在跑出来的（数据或脚本改了而没重写，这里红）。"""
+    on_disk = json.loads(V.OUT.read_text(encoding="utf-8"))
+    assert on_disk == json.loads(json.dumps(real, ensure_ascii=False))
 
 
 def test_cli_writes_json(tmp_path):
     out = tmp_path / "v.json"
     assert V.main(["--only", "d2", "--out", str(out)]) == 0
-    assert json.loads(out.read_text(encoding="utf-8"))["d2"]["label"] == "insufficient"
+    assert set(json.loads(out.read_text(encoding="utf-8"))) == {"preregistered", "d2"}
