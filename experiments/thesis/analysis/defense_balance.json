@@ -1702,6 +1702,602 @@
   },
   {
    "partition": "main",
+   "placement": "collocated",
+   "arm": "三层个性化（末 2 块）",
+   "seeds": [
+    42,
+    43,
+    44
+   ],
+   "sources": [
+    "TBS/TBS__k2__s42",
+    "TBS/TBS__k2__s43",
+    "TBS/TBS__k2__s44"
+   ],
+   "per_seed": {
+    "42": {
+     "V": 0.0397,
+     "B0": 0.9611,
+     "P": 0.1933,
+     "MTA": 0.8574,
+     "victim_asr.first.jump": -0.0025,
+     "victim_asr.first.wash": -0.0011,
+     "victim_asr.first.net": -0.0014,
+     "victim_asr.second.jump": -0.0005,
+     "victim_asr.second.wash": -0.0001,
+     "victim_asr.second.net": -0.0004,
+     "victim_margin.first.jump": 0.1658,
+     "victim_margin.first.wash": 0.2945,
+     "victim_margin.first.net": -0.1287,
+     "victim_margin.second.jump": 0.0846,
+     "victim_margin.second.wash": 0.153,
+     "victim_margin.second.net": -0.0684,
+     "e0_asr.first.jump": -0.0315,
+     "e0_asr.first.wash": -0.0336,
+     "e0_asr.first.net": 0.0022,
+     "e0_asr.second.jump": 0.0021,
+     "e0_asr.second.wash": 0.0041,
+     "e0_asr.second.net": -0.002
+    },
+    "43": {
+     "V": 0.0366,
+     "B0": 1.0,
+     "P": 0.1973,
+     "MTA": 0.8672,
+     "victim_asr.first.jump": 0.0056,
+     "victim_asr.first.wash": 0.0037,
+     "victim_asr.first.net": 0.0019,
+     "victim_asr.second.jump": 0.0028,
+     "victim_asr.second.wash": 0.0044,
+     "victim_asr.second.net": -0.0017,
+     "victim_margin.first.jump": 0.4316,
+     "victim_margin.first.wash": 0.5223,
+     "victim_margin.first.net": -0.0906,
+     "victim_margin.second.jump": 0.2641,
+     "victim_margin.second.wash": 0.3497,
+     "victim_margin.second.net": -0.0856,
+     "e0_asr.first.jump": -0.0603,
+     "e0_asr.first.wash": -0.0685,
+     "e0_asr.first.net": 0.0082,
+     "e0_asr.second.jump": 0.0,
+     "e0_asr.second.wash": 0.0,
+     "e0_asr.second.net": 0.0
+    },
+    "44": {
+     "V": 0.0607,
+     "B0": 1.0,
+     "P": 0.2174,
+     "MTA": 0.8509,
+     "victim_asr.first.jump": 0.0077,
+     "victim_asr.first.wash": 0.006,
+     "victim_asr.first.net": 0.0017,
+     "victim_asr.second.jump": 0.0073,
+     "victim_asr.second.wash": 0.008,
+     "victim_asr.second.net": -0.0007,
+     "victim_margin.first.jump": 0.4097,
+     "victim_margin.first.wash": 0.5047,
+     "victim_margin.first.net": -0.095,
+     "victim_margin.second.jump": 0.3896,
+     "victim_margin.second.wash": 0.4318,
+     "victim_margin.second.net": -0.0422,
+     "e0_asr.first.jump": -0.0531,
+     "e0_asr.first.wash": -0.0532,
+     "e0_asr.first.net": 0.0001,
+     "e0_asr.second.jump": -0.0,
+     "e0_asr.second.wash": -0.0,
+     "e0_asr.second.net": 0.0
+    }
+   },
+   "mean": {
+    "B0": 0.987,
+    "MTA": 0.8585,
+    "P": 0.2027,
+    "V": 0.0457,
+    "e0_asr.first.jump": -0.0483,
+    "e0_asr.first.net": 0.0035,
+    "e0_asr.first.wash": -0.0518,
+    "e0_asr.second.jump": 0.0007,
+    "e0_asr.second.net": -0.0007,
+    "e0_asr.second.wash": 0.0014,
+    "victim_asr.first.jump": 0.0036,
+    "victim_asr.first.net": 0.0007,
+    "victim_asr.first.wash": 0.0029,
+    "victim_asr.second.jump": 0.0032,
+    "victim_asr.second.net": -0.0009,
+    "victim_asr.second.wash": 0.0041,
+    "victim_margin.first.jump": 0.3357,
+    "victim_margin.first.net": -0.1048,
+    "victim_margin.first.wash": 0.4405,
+    "victim_margin.second.jump": 0.2461,
+    "victim_margin.second.net": -0.0654,
+    "victim_margin.second.wash": 0.3115
+   },
+   "delta_vs_control": {
+    "V": {
+     "per_seed": {
+      "42": 0.9553,
+      "43": 0.9599,
+      "44": 0.9356
+     },
+     "mean": 0.9503
+    },
+    "B0": {
+     "per_seed": {
+      "42": 0.0367,
+      "43": 0.0,
+      "44": 0.0
+     },
+     "mean": 0.0122
+    },
+    "P": {
+     "per_seed": {
+      "42": 0.8022,
+      "43": 0.7998,
+      "44": 0.7795
+     },
+     "mean": 0.7938
+    },
+    "MTA": {
+     "per_seed": {
+      "42": 0.0045,
+      "43": 0.0084,
+      "44": 0.0164
+     },
+     "mean": 0.0098
+    }
+   },
+   "online": null,
+   "deadlock": false
+  },
+  {
+   "partition": "main",
+   "placement": "collocated",
+   "arm": "三层个性化（末 4 块）",
+   "seeds": [
+    42,
+    43,
+    44
+   ],
+   "sources": [
+    "TBS/TBS__k4__s42",
+    "TBS/TBS__k4__s43",
+    "TBS/TBS__k4__s44"
+   ],
+   "per_seed": {
+    "42": {
+     "V": 0.0286,
+     "B0": 0.9999,
+     "P": 0.1906,
+     "MTA": 0.8441,
+     "victim_asr.first.jump": -0.0014,
+     "victim_asr.first.wash": 0.0,
+     "victim_asr.first.net": -0.0014,
+     "victim_asr.second.jump": -0.0005,
+     "victim_asr.second.wash": 0.0001,
+     "victim_asr.second.net": -0.0006,
+     "victim_margin.first.jump": -0.0468,
+     "victim_margin.first.wash": 0.1239,
+     "victim_margin.first.net": -0.1706,
+     "victim_margin.second.jump": -0.0179,
+     "victim_margin.second.wash": 0.0557,
+     "victim_margin.second.net": -0.0736,
+     "e0_asr.first.jump": -0.0028,
+     "e0_asr.first.wash": -0.005,
+     "e0_asr.first.net": 0.0022,
+     "e0_asr.second.jump": 0.0,
+     "e0_asr.second.wash": 0.0,
+     "e0_asr.second.net": 0.0
+    },
+    "43": {
+     "V": 0.0248,
+     "B0": 1.0,
+     "P": 0.1874,
+     "MTA": 0.8521,
+     "victim_asr.first.jump": 0.0003,
+     "victim_asr.first.wash": 0.0005,
+     "victim_asr.first.net": -0.0002,
+     "victim_asr.second.jump": -0.0004,
+     "victim_asr.second.wash": -0.0001,
+     "victim_asr.second.net": -0.0003,
+     "victim_margin.first.jump": 0.0042,
+     "victim_margin.first.wash": 0.1699,
+     "victim_margin.first.net": -0.1656,
+     "victim_margin.second.jump": -0.0103,
+     "victim_margin.second.wash": 0.0789,
+     "victim_margin.second.net": -0.0892,
+     "e0_asr.first.jump": -0.0044,
+     "e0_asr.first.wash": -0.0126,
+     "e0_asr.first.net": 0.0082,
+     "e0_asr.second.jump": 0.0,
+     "e0_asr.second.wash": 0.0,
+     "e0_asr.second.net": 0.0
+    },
+    "44": {
+     "V": 0.0265,
+     "B0": 1.0,
+     "P": 0.1887,
+     "MTA": 0.8431,
+     "victim_asr.first.jump": 0.002,
+     "victim_asr.first.wash": 0.0016,
+     "victim_asr.first.net": 0.0004,
+     "victim_asr.second.jump": 0.0001,
+     "victim_asr.second.wash": 0.0007,
+     "victim_asr.second.net": -0.0007,
+     "victim_margin.first.jump": 0.0446,
+     "victim_margin.first.wash": 0.1934,
+     "victim_margin.first.net": -0.1487,
+     "victim_margin.second.jump": -0.0009,
+     "victim_margin.second.wash": 0.0756,
+     "victim_margin.second.net": -0.0765,
+     "e0_asr.first.jump": -0.0027,
+     "e0_asr.first.wash": -0.0028,
+     "e0_asr.first.net": 0.0001,
+     "e0_asr.second.jump": -0.0,
+     "e0_asr.second.wash": -0.0,
+     "e0_asr.second.net": 0.0
+    }
+   },
+   "mean": {
+    "B0": 1.0,
+    "MTA": 0.8464,
+    "P": 0.1889,
+    "V": 0.0266,
+    "e0_asr.first.jump": -0.0033,
+    "e0_asr.first.net": 0.0035,
+    "e0_asr.first.wash": -0.0068,
+    "e0_asr.second.jump": 0.0,
+    "e0_asr.second.net": 0.0,
+    "e0_asr.second.wash": 0.0,
+    "victim_asr.first.jump": 0.0003,
+    "victim_asr.first.net": -0.0004,
+    "victim_asr.first.wash": 0.0007,
+    "victim_asr.second.jump": -0.0003,
+    "victim_asr.second.net": -0.0005,
+    "victim_asr.second.wash": 0.0003,
+    "victim_margin.first.jump": 0.0007,
+    "victim_margin.first.net": -0.1617,
+    "victim_margin.first.wash": 0.1624,
+    "victim_margin.second.jump": -0.0097,
+    "victim_margin.second.net": -0.0798,
+    "victim_margin.second.wash": 0.0701
+   },
+   "delta_vs_control": {
+    "V": {
+     "per_seed": {
+      "42": 0.9664,
+      "43": 0.9717,
+      "44": 0.9698
+     },
+     "mean": 0.9693
+    },
+    "B0": {
+     "per_seed": {
+      "42": -0.0021,
+      "43": 0.0,
+      "44": 0.0
+     },
+     "mean": -0.0007
+    },
+    "P": {
+     "per_seed": {
+      "42": 0.8049,
+      "43": 0.8097,
+      "44": 0.8082
+     },
+     "mean": 0.8076
+    },
+    "MTA": {
+     "per_seed": {
+      "42": 0.0178,
+      "43": 0.0235,
+      "44": 0.0242
+     },
+     "mean": 0.0218
+    }
+   },
+   "online": null,
+   "deadlock": false
+  },
+  {
+   "partition": "main",
+   "placement": "collocated",
+   "arm": "边缘层中位数",
+   "seeds": [
+    42,
+    43,
+    44
+   ],
+   "sources": [
+    "MED/MED__edge-collocated__s42",
+    "MED/MED__edge-collocated__s43",
+    "MED/MED__edge-collocated__s44"
+   ],
+   "per_seed": {
+    "42": {
+     "V": 0.9909,
+     "B0": 0.9998,
+     "P": 0.9923,
+     "MTA": 0.8643,
+     "victim_asr.first.jump": 0.216,
+     "victim_asr.first.wash": 0.1893,
+     "victim_asr.first.net": 0.0268,
+     "victim_asr.second.jump": 0.0272,
+     "victim_asr.second.wash": 0.0225,
+     "victim_asr.second.net": 0.0047,
+     "victim_margin.first.jump": 1.9366,
+     "victim_margin.first.wash": 1.7183,
+     "victim_margin.first.net": 0.2182,
+     "victim_margin.second.jump": 0.8379,
+     "victim_margin.second.wash": 0.7135,
+     "victim_margin.second.net": 0.1245,
+     "e0_asr.first.jump": -0.2382,
+     "e0_asr.first.wash": -0.2422,
+     "e0_asr.first.net": 0.004,
+     "e0_asr.second.jump": -0.0131,
+     "e0_asr.second.wash": -0.0131,
+     "e0_asr.second.net": 0.0
+    },
+    "43": {
+     "V": 0.9464,
+     "B0": 0.9999,
+     "P": 0.9553,
+     "MTA": 0.8728,
+     "victim_asr.first.jump": 0.2291,
+     "victim_asr.first.wash": 0.2003,
+     "victim_asr.first.net": 0.0287,
+     "victim_asr.second.jump": 0.0645,
+     "victim_asr.second.wash": 0.0624,
+     "victim_asr.second.net": 0.0021,
+     "victim_margin.first.jump": 1.9573,
+     "victim_margin.first.wash": 1.7521,
+     "victim_margin.first.net": 0.2052,
+     "victim_margin.second.jump": 1.2347,
+     "victim_margin.second.wash": 1.1657,
+     "victim_margin.second.net": 0.0691,
+     "e0_asr.first.jump": -0.2115,
+     "e0_asr.first.wash": -0.2205,
+     "e0_asr.first.net": 0.009,
+     "e0_asr.second.jump": -0.0007,
+     "e0_asr.second.wash": -0.0007,
+     "e0_asr.second.net": 0.0
+    },
+    "44": {
+     "V": 0.9919,
+     "B0": 1.0,
+     "P": 0.9934,
+     "MTA": 0.8626,
+     "victim_asr.first.jump": 0.1613,
+     "victim_asr.first.wash": 0.1288,
+     "victim_asr.first.net": 0.0325,
+     "victim_asr.second.jump": 0.0196,
+     "victim_asr.second.wash": 0.0189,
+     "victim_asr.second.net": 0.0007,
+     "victim_margin.first.jump": 1.7081,
+     "victim_margin.first.wash": 1.3942,
+     "victim_margin.first.net": 0.3139,
+     "victim_margin.second.jump": 0.8861,
+     "victim_margin.second.wash": 0.7921,
+     "victim_margin.second.net": 0.0941,
+     "e0_asr.first.jump": -0.1231,
+     "e0_asr.first.wash": -0.1235,
+     "e0_asr.first.net": 0.0004,
+     "e0_asr.second.jump": -0.0,
+     "e0_asr.second.wash": -0.0,
+     "e0_asr.second.net": 0.0
+    }
+   },
+   "mean": {
+    "B0": 0.9999,
+    "MTA": 0.8666,
+    "P": 0.9803,
+    "V": 0.9764,
+    "e0_asr.first.jump": -0.191,
+    "e0_asr.first.net": 0.0044,
+    "e0_asr.first.wash": -0.1954,
+    "e0_asr.second.jump": -0.0046,
+    "e0_asr.second.net": 0.0,
+    "e0_asr.second.wash": -0.0046,
+    "victim_asr.first.jump": 0.2021,
+    "victim_asr.first.net": 0.0293,
+    "victim_asr.first.wash": 0.1728,
+    "victim_asr.second.jump": 0.0371,
+    "victim_asr.second.net": 0.0025,
+    "victim_asr.second.wash": 0.0346,
+    "victim_margin.first.jump": 1.8673,
+    "victim_margin.first.net": 0.2458,
+    "victim_margin.first.wash": 1.6215,
+    "victim_margin.second.jump": 0.9863,
+    "victim_margin.second.net": 0.0959,
+    "victim_margin.second.wash": 0.8904
+   },
+   "delta_vs_control": {
+    "V": {
+     "per_seed": {
+      "42": 0.0041,
+      "43": 0.0501,
+      "44": 0.0044
+     },
+     "mean": 0.0195
+    },
+    "B0": {
+     "per_seed": {
+      "42": -0.002,
+      "43": 0.0001,
+      "44": 0.0
+     },
+     "mean": -0.0006
+    },
+    "P": {
+     "per_seed": {
+      "42": 0.0032,
+      "43": 0.0418,
+      "44": 0.0035
+     },
+     "mean": 0.0162
+    },
+    "MTA": {
+     "per_seed": {
+      "42": -0.0024,
+      "43": 0.0028,
+      "44": 0.0047
+     },
+     "mean": 0.0017
+    }
+   },
+   "online": null,
+   "deadlock": false
+  },
+  {
+   "partition": "main",
+   "placement": "collocated",
+   "arm": "云层中位数",
+   "seeds": [
+    42,
+    43,
+    44
+   ],
+   "sources": [
+    "MED/MED__cloud-collocated__s42",
+    "MED/MED__cloud-collocated__s43",
+    "MED/MED__cloud-collocated__s44"
+   ],
+   "per_seed": {
+    "42": {
+     "V": 0.9476,
+     "B0": 0.9954,
+     "P": 0.9557,
+     "MTA": 0.8632,
+     "victim_asr.first.jump": 0.1845,
+     "victim_asr.first.wash": 0.1665,
+     "victim_asr.first.net": 0.018,
+     "victim_asr.second.jump": 0.1028,
+     "victim_asr.second.wash": 0.0903,
+     "victim_asr.second.net": 0.0124,
+     "victim_margin.first.jump": 1.8656,
+     "victim_margin.first.wash": 1.7184,
+     "victim_margin.first.net": 0.1472,
+     "victim_margin.second.jump": 1.2467,
+     "victim_margin.second.wash": 1.0941,
+     "victim_margin.second.net": 0.1526,
+     "e0_asr.first.jump": -0.4057,
+     "e0_asr.first.wash": -0.4079,
+     "e0_asr.first.net": 0.0022,
+     "e0_asr.second.jump": -0.1027,
+     "e0_asr.second.wash": -0.1027,
+     "e0_asr.second.net": 0.0
+    },
+    "43": {
+     "V": 0.8918,
+     "B0": 0.9997,
+     "P": 0.9098,
+     "MTA": 0.8727,
+     "victim_asr.first.jump": 0.2408,
+     "victim_asr.first.wash": 0.2133,
+     "victim_asr.first.net": 0.0275,
+     "victim_asr.second.jump": 0.1258,
+     "victim_asr.second.wash": 0.1227,
+     "victim_asr.second.net": 0.0031,
+     "victim_margin.first.jump": 2.0872,
+     "victim_margin.first.wash": 1.9082,
+     "victim_margin.first.net": 0.179,
+     "victim_margin.second.jump": 1.0068,
+     "victim_margin.second.wash": 0.9522,
+     "victim_margin.second.net": 0.0547,
+     "e0_asr.first.jump": -0.3225,
+     "e0_asr.first.wash": -0.3307,
+     "e0_asr.first.net": 0.0082,
+     "e0_asr.second.jump": -0.0121,
+     "e0_asr.second.wash": -0.0121,
+     "e0_asr.second.net": 0.0
+    },
+    "44": {
+     "V": 0.9658,
+     "B0": 1.0,
+     "P": 0.9716,
+     "MTA": 0.8663,
+     "victim_asr.first.jump": 0.1576,
+     "victim_asr.first.wash": 0.1271,
+     "victim_asr.first.net": 0.0305,
+     "victim_asr.second.jump": 0.0407,
+     "victim_asr.second.wash": 0.0383,
+     "victim_asr.second.net": 0.0024,
+     "victim_margin.first.jump": 1.6997,
+     "victim_margin.first.wash": 1.4094,
+     "victim_margin.first.net": 0.2903,
+     "victim_margin.second.jump": 0.9919,
+     "victim_margin.second.wash": 0.9229,
+     "victim_margin.second.net": 0.0691,
+     "e0_asr.first.jump": -0.2241,
+     "e0_asr.first.wash": -0.2243,
+     "e0_asr.first.net": 0.0001,
+     "e0_asr.second.jump": -0.0023,
+     "e0_asr.second.wash": -0.0023,
+     "e0_asr.second.net": 0.0
+    }
+   },
+   "mean": {
+    "B0": 0.9984,
+    "MTA": 0.8674,
+    "P": 0.9457,
+    "V": 0.9351,
+    "e0_asr.first.jump": -0.3175,
+    "e0_asr.first.net": 0.0035,
+    "e0_asr.first.wash": -0.321,
+    "e0_asr.second.jump": -0.039,
+    "e0_asr.second.net": 0.0,
+    "e0_asr.second.wash": -0.039,
+    "victim_asr.first.jump": 0.1943,
+    "victim_asr.first.net": 0.0253,
+    "victim_asr.first.wash": 0.169,
+    "victim_asr.second.jump": 0.0898,
+    "victim_asr.second.net": 0.006,
+    "victim_asr.second.wash": 0.0838,
+    "victim_margin.first.jump": 1.8842,
+    "victim_margin.first.net": 0.2055,
+    "victim_margin.first.wash": 1.6787,
+    "victim_margin.second.jump": 1.0818,
+    "victim_margin.second.net": 0.0921,
+    "victim_margin.second.wash": 0.9897
+   },
+   "delta_vs_control": {
+    "V": {
+     "per_seed": {
+      "42": 0.0474,
+      "43": 0.1047,
+      "44": 0.0305
+     },
+     "mean": 0.0609
+    },
+    "B0": {
+     "per_seed": {
+      "42": 0.0024,
+      "43": 0.0003,
+      "44": 0.0
+     },
+     "mean": 0.0009
+    },
+    "P": {
+     "per_seed": {
+      "42": 0.0398,
+      "43": 0.0873,
+      "44": 0.0253
+     },
+     "mean": 0.0508
+    },
+    "MTA": {
+     "per_seed": {
+      "42": -0.0013,
+      "43": 0.0029,
+      "44": 0.001
+     },
+     "mean": 0.0009
+    }
+   },
+   "online": null,
+   "deadlock": false
+  },
+  {
+   "partition": "main",
    "placement": "distributed",
    "arm": "不设防",
    "seeds": [
@@ -2077,6 +2673,160 @@
     }
    },
    "deadlock": false
+  },
+  {
+   "partition": "main",
+   "placement": "distributed",
+   "arm": "边缘层中位数",
+   "seeds": [
+    42,
+    43,
+    44
+   ],
+   "sources": [
+    "MED/MED__edge-distributed__s42",
+    "MED/MED__edge-distributed__s43",
+    "MED/MED__edge-distributed__s44"
+   ],
+   "per_seed": {
+    "42": {
+     "V": null,
+     "B0": null,
+     "P": 0.9731,
+     "MTA": 0.8637
+    },
+    "43": {
+     "V": null,
+     "B0": null,
+     "P": 0.9545,
+     "MTA": 0.872
+    },
+    "44": {
+     "V": null,
+     "B0": null,
+     "P": 0.923,
+     "MTA": 0.8692
+    }
+   },
+   "mean": {
+    "B0": null,
+    "MTA": 0.8683,
+    "P": 0.9502,
+    "V": null
+   },
+   "delta_vs_control": {
+    "V": {
+     "per_seed": {
+      "42": null,
+      "43": null,
+      "44": null
+     },
+     "mean": null
+    },
+    "B0": {
+     "per_seed": {
+      "42": null,
+      "43": null,
+      "44": null
+     },
+     "mean": null
+    },
+    "P": {
+     "per_seed": {
+      "42": 0.0251,
+      "43": 0.0432,
+      "44": 0.0384
+     },
+     "mean": 0.0356
+    },
+    "MTA": {
+     "per_seed": {
+      "42": 0.0037,
+      "43": -0.0045,
+      "44": 0.0028
+     },
+     "mean": 0.0007
+    }
+   },
+   "online": null,
+   "deadlock": false
+  },
+  {
+   "partition": "main",
+   "placement": "distributed",
+   "arm": "云层中位数",
+   "seeds": [
+    42,
+    43,
+    44
+   ],
+   "sources": [
+    "MED/MED__cloud-distributed__s42",
+    "MED/MED__cloud-distributed__s43",
+    "MED/MED__cloud-distributed__s44"
+   ],
+   "per_seed": {
+    "42": {
+     "V": null,
+     "B0": null,
+     "P": 0.991,
+     "MTA": 0.8682
+    },
+    "43": {
+     "V": null,
+     "B0": null,
+     "P": 0.9987,
+     "MTA": 0.8697
+    },
+    "44": {
+     "V": null,
+     "B0": null,
+     "P": 0.983,
+     "MTA": 0.8682
+    }
+   },
+   "mean": {
+    "B0": null,
+    "MTA": 0.8687,
+    "P": 0.9909,
+    "V": null
+   },
+   "delta_vs_control": {
+    "V": {
+     "per_seed": {
+      "42": null,
+      "43": null,
+      "44": null
+     },
+     "mean": null
+    },
+    "B0": {
+     "per_seed": {
+      "42": null,
+      "43": null,
+      "44": null
+     },
+     "mean": null
+    },
+    "P": {
+     "per_seed": {
+      "42": 0.0072,
+      "43": -0.001,
+      "44": -0.0216
+     },
+     "mean": -0.0051
+    },
+    "MTA": {
+     "per_seed": {
+      "42": -0.0008,
+      "43": -0.0022,
+      "44": 0.0038
+     },
+     "mean": 0.0003
+    }
+   },
+   "online": null,
+   "deadlock": false
   }
  ],
  "invalid": [],
@@ -2100,6 +2850,36 @@
    ],
    "kept": "SNAP/SNAP__distributed__s42",
    "dropped": "ERP/ERP__main-t0-distributed__s42"
+  },
+  {
+   "key": [
+    "main",
+    "collocated",
+    "三层个性化",
+    42
+   ],
+   "kept": "ERP/ERP__main-t1-collocated__s42",
+   "dropped": "TBS/TBS__k1-snap__s42"
+  },
+  {
+   "key": [
+    "main",
+    "collocated",
+    "三层个性化",
+    43
+   ],
+   "kept": "ERC/ERC__main-t1-collocated__s43",
+   "dropped": "TBS/TBS__k1-snap__s43"
+  },
+  {
+   "key": [
+    "main",
+    "collocated",
+    "三层个性化",
+    44
+   ],
+   "kept": "ERC/ERC__main-t1-collocated__s44",
+   "dropped": "TBS/TBS__k1-snap__s44"
   }
  ],
  "note": "描述性分析，不是预注册判定；各臂的正式标签以各自的判定文件为准。Δ = 同划分、同布点、同种子的不设防对照 − 本臂。灌入 / 洗掉 / 净增量的定义见脚本头注释。"

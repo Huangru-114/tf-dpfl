@@ -225,7 +225,8 @@ def test_real_full_table():
     res = B.analyse()
     assert res["invalid"] == []
     assert {tuple(d["key"][:3]) for d in res["duplicates"]} == {("main", "collocated", "不设防"),
-                                                                ("main", "distributed", "不设防")}
+                                                                ("main", "distributed", "不设防"),
+                                                                ("main", "collocated", "三层个性化")}   # TBS k1-snap（F-130）
     cell = next(c for c in res["cells"] if (c["partition"], c["placement"], c["arm"]) == ("main", "collocated", "三层个性化"))
     assert cell["seeds"] == [42, 43, 44]
     assert round(cell["mean"]["V"], 3) == 0.281 and round(cell["delta_vs_control"]["V"]["mean"], 3) == 0.715
@@ -244,3 +245,23 @@ def test_other_placement_is_not_loaded(tmp_path):
     (d / "b.metrics.json").write_text(json.dumps(_m(seed=43)), encoding="utf-8")
     rows, dups = B.load(tmp_path, groups=("SNAP",))
     assert [r["seed"] for r in rows] == [43] and dups == []
+
+
+def test_supplement_arms_are_in_the_table_with_three_seeds():
+    """N-015 回传后（11-23）：TBS 的 k = 2 / 4、两个中位数臂进表，各 3 个种子；TBS k1-snap 与 ERP / ERC 重复（逐位相同，F-130）
+    → 按 GROUPS 顺序记入 duplicates、表里仍取 ERP / ERC；TBH（[9,1,0,0]）不进表。"""
+    if not (B.RESULTS / "MED/MED__cloud-collocated__s44.metrics.json").exists():
+        pytest.skip("补充实验结果不在盘上")
+    res = B.analyse()
+    cells = {(c["partition"], c["placement"], c["arm"]): c for c in res["cells"]}
+    for place, arm in (("collocated", "三层个性化（末 2 块）"), ("collocated", "三层个性化（末 4 块）"),
+                       ("collocated", "边缘层中位数"), ("collocated", "云层中位数"),
+                       ("distributed", "边缘层中位数"), ("distributed", "云层中位数")):
+        assert cells[("main", place, arm)]["seeds"] == [42, 43, 44], arm
+    tier = cells[("main", "collocated", "三层个性化")]
+    assert all(s.startswith(("ERP/", "ERC/")) for s in tier["sources"])
+    assert {d["dropped"] for d in res["duplicates"]} >= {f"TBS/TBS__k1-snap__s{s}" for s in (42, 43, 44)}
+    assert not any("TBH/" in s for c in res["cells"] for s in c["sources"])
+    # 中位数臂的受害边缘下降 = supp_verdict 的 D4 效应量（同一份数）
+    # 对比表先把每个 run 的量取到 4 位小数再相减 → 与 supp_verdict 的未舍入值差在末位
+    assert cells[("main", "collocated", "云层中位数")]["delta_vs_control"]["V"]["mean"] == pytest.approx(0.0608, abs=2e-4)

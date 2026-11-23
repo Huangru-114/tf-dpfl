@@ -51,7 +51,7 @@ from pilot_a4 import invalid_reasons                # noqa: E402
 ROOT = HERE.parent
 RESULTS = ROOT / "experiments/defense/edge-native/results/P2"
 OUT = ROOT / "experiments/thesis/analysis/defense_balance.json"
-GROUPS = ("SNAP", "P1", "H1", "ERP", "ERC", "ERF")   # 去重优先级：SNAP 在前（main-t0 对照取 SNAP）
+GROUPS = ("SNAP", "P1", "H1", "ERP", "ERC", "ERF", "TBS", "MED")   # 去重优先级：SNAP 在前（main-t0 对照取 SNAP）；TBS 在 ERP / ERC 之后（B=1 集中两者逐位相同，F-130）
 VICTIMS, E0 = (1, 2, 3), 0
 DEADLOCK_FRAC = 0.99
 QUANTS = ("V", "B0", "P", "MTA")
