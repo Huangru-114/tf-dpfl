@@ -125,3 +125,45 @@ def test_module_does_not_import_tensorflow_at_import_time():
     src = (T.__file__ and open(T.__file__, encoding="utf-8").read())
     head = src.split("def index_sets")[0]
     assert "import tensorflow" not in head and "from models" not in head
+
+
+# ── 11-23 补强（D-137）：四台边缘上云段完全相同时 ① 不能再「通过」；拟合覆盖全部上云段坐标 ──────────
+def _degenerate(rnd=6):
+    """快照若存在广播之后：四台边缘的上云段完全相同、全局上云段 = 它（边缘段仍各不相同）。"""
+    s = _snap(rnd)
+    for e in (1, 2, 3):
+        for i in SETS["cloud"]:
+            s["edges"][e][i] = s["edges"][0][i].copy()
+    for i in SETS["cloud"]:
+        s["global"][i] = s["edges"][0][i].copy()
+    return s
+
+
+def test_degenerate_identical_cloud_segments_no_longer_pass():
+    """反向锚点：改动前的判据（只看残差、权重）对这个快照判通过（11-23 实测：权重 0.25 × 4、残差 6e-17）。"""
+    r = T.check_round(_degenerate(), SETS)
+    cm = r["cloud_is_mixture"]
+    assert cm["rel_residual"] < 1e-12 and [round(w, 6) for w in cm["weights"]] == [0.25] * 4     # 旧判据会过的样子
+    assert cm["rank"] == 1 and not cm["pass"]                                                     # 新判据：不满秩 → 不过
+    assert not r["edge_cloud_segs_pairwise_distinct"]["pass"] and not r["pass"]
+    assert r["edge_segs_pairwise_distinct"]["pass"]                                               # 边缘段那条照旧过
+
+
+def test_fit_covers_every_cloud_coordinate_and_reports_rank():
+    r = T.check_round(_snap(6), SETS)
+    cm = r["cloud_is_mixture"]
+    assert cm["n_coords"] == cm["n_coords_total"] == 4 * 4 + 4                                    # 索引 0（4×4）+ 1（4）
+    assert cm["rank"] == 4 and 0 < cm["sv_ratio"] <= 1 and cm["max_abs_dev"] < 1e-6
+    assert r["edge_cloud_segs_pairwise_distinct"]["pass"] and r["pass"]
+
+
+def test_one_pair_of_identical_cloud_segments_is_caught():
+    s = _snap(15)
+    for i in SETS["cloud"]:
+        s["edges"][3][i] = s["edges"][2][i].copy()
+    g = [sum(w * s["edges"][e][i].astype(np.float64) for e, w in enumerate((0.3, 0.2, 0.3, 0.2))).astype(np.float32)
+         for i in SETS["cloud"]]
+    s["global"][0], s["global"][1] = g
+    chk = T.check_round(s, SETS)
+    assert chk["edge_cloud_segs_pairwise_distinct"]["pairs"]["2-3"] is False
+    assert not chk["edge_cloud_segs_pairwise_distinct"]["pass"] and not chk["pass"]

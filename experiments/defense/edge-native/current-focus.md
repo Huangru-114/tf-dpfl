@@ -25,13 +25,18 @@
 - 论文图（`3f28fbe`）：6.2 共享深度权衡、6.3 威胁边界、6.9 加中位数两行 → `experiments/thesis/figures/`；其余 14 张重画逐字节不变。`OUTLINE.md` 论点—证据对照表与 M1–M3 已更新。
 - 本地测试（Python 3.11，不装 TF）：2184 passed / 57 skipped / 3 xfailed（无新红）。本批没改训练代码，没重跑含 TF 的全量。
 
-**还没做的（集群上）**：D0b 快照结构核查 —— TBS k1-snap 的快照已经在 `tfdpfl-dumps` 里：
+**D0b 快照结构核查**：第一次（`6627ae8`）四条全过（F-133，暂定）；但核查本身有两个盲点（四台边缘上云段完全相同时也会过；拟合只覆盖前 40 万个坐标），
+已补强（D-137）。**集群上重交一次**（只读快照，几分钟）：
+
+```bash
+git pull
+```
 
 ```bash
 sbatch experiments/defense/edge-native/tier_structure.sbatch
 ```
 
-回传 `analysis/d0_structure.json`；**任何一条不过 → 停下，6.1 需要重新审视**（PREREG-v2 §二）。
+回传同一个 `analysis/d0_structure.json`；新增的两项（`cloud_is_mixture.rank` = 4、`edge_cloud_segs_pairwise_distinct`）都过才把 F-133 写成最终结论；**任何一条不过 → 停下，6.1 需要重新审视**（PREREG-v2 §二）。
 
 **后续会话顺序**（不变；攻击基线时间盒 2026-12-06）：D3 离线探针（P-a / P-c 用 SNAP 快照，P-b 用 TBS k1-snap 第 60 轮快照；读法 PREREG-v2 §五）→
 静态三种攻击接线 + 探路 → IBA → 自适应攻击者最小版 → Neurotoxin / CerP。

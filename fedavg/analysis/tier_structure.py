@@ -8,8 +8,10 @@ analysis/tier_structure.py  —  补充实验 D0b（N-015 / D-135）：在三层
 `BackdoorCloudServer._snapshot`），所以「广播后上云段四个边缘逐位相同」在快照上看不到（那一半由 D0a 在 CPU 小联邦上真跑核对，
 `tests/test_three_tier_personalization.py::test_d0a_structure_after_one_cloud_round`）。快照上能核对、且只有真实 run 才能给出的是：
 
-  ① 全局模型的上云段 = 四个边缘上云段的加权平均：对上云段的坐标做最小二乘，拟合 4 个权重；
-     残差相对值 ≤ 1e-5、权重全为正、和为 1（±1e-4）→ 云聚合确实只聚合了上云段、而且是平均；
+  ① 全局模型的上云段 = 四个边缘上云段的加权平均：对上云段的**全部**坐标做最小二乘，拟合 4 个权重；
+     残差相对值 ≤ 1e-5、权重全为正、和为 1（±1e-4）、拟合矩阵满秩 → 云聚合确实只聚合了上云段、而且是平均；
+     另一条 ①′ 四台边缘的上云段两两不同（11-23 补强，D-137）：四台边缘上云段完全相同时（比如快照其实存在广播之后），
+     最小二乘也会给出 0.25 × 4、残差近零 —— 不加这两条（满秩 + 两两不同），① 分不开「是平均」与「本来就一样」；
   ② 全局模型的边缘段在各快照轮逐位不变（永远是初值），且与每个边缘的边缘段都不同 → 边缘段不上云；
   ③ 四个边缘的边缘段两两不同 → 各边缘各训各的；
   ④ 客户端私有部分（分类头 + BN 统计量）两两不同，且私有索引不含边缘段的可训练权重。
@@ -32,7 +34,7 @@ import numpy as np
 
 REL_RESIDUAL_MAX = 1e-5
 WEIGHT_SUM_TOL = 1e-4
-MAX_FIT_COORDS = 400_000          # 最小二乘只取上云段的前这么多个坐标（k = 1 时上云段约 123 万个元素）
+MAX_FIT_COORDS = None             # 最小二乘用上云段全部坐标（11-23 补强；第一次只取了前 40 万个，k = 1 时上云段 1 227 712 个元素）
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -63,12 +65,15 @@ def _flat(ws, idx, limit=None) -> np.ndarray:
 
 
 def fit_mixture(target: np.ndarray, parts: list) -> dict:
-    """target ≈ Σ w_e · parts[e] 的最小二乘：→ {weights, rel_residual}。"""
+    """target ≈ Σ w_e · parts[e] 的最小二乘：→ {weights, rel_residual, rank, sv_ratio, max_abs_dev, n_coords}。
+    rank < 列数（各部分线性相关，如四台边缘完全相同）时权重不唯一，最小二乘给的是最小范数解 —— 调用方据此判不通过。"""
     A = np.stack(parts, axis=1)
-    w, *_ = np.linalg.lstsq(A, target, rcond=None)
+    w, _, rank, sv = np.linalg.lstsq(A, target, rcond=None)
     res = target - A @ w
     denom = float(np.linalg.norm(target)) or 1.0
-    return {"weights": [float(x) for x in w], "rel_residual": float(np.linalg.norm(res)) / denom}
+    return {"weights": [float(x) for x in w], "rel_residual": float(np.linalg.norm(res)) / denom,
+            "rank": int(rank), "sv_ratio": float(sv[-1] / sv[0]) if len(sv) and sv[0] > 0 else 0.0,
+            "max_abs_dev": float(np.max(np.abs(res))) if res.size else 0.0, "n_coords": int(target.size)}
 
 
 def _equal(a, b, idx) -> bool:
@@ -87,7 +92,12 @@ def check_round(snap: dict, sets: dict) -> dict:
     w = fit["weights"]
     out["cloud_is_mixture"] = {
         **{k: (v if k != "weights" else [round(x, 6) for x in v]) for k, v in fit.items()},
-        "pass": bool(fit["rel_residual"] <= REL_RESIDUAL_MAX and min(w) > 0 and abs(sum(w) - 1) <= WEIGHT_SUM_TOL)}
+        "n_coords_total": int(sum(np.asarray(g[i]).size for i in cloud_idx)),
+        "pass": bool(fit["rel_residual"] <= REL_RESIDUAL_MAX and min(w) > 0 and abs(sum(w) - 1) <= WEIGHT_SUM_TOL
+                     and fit["rank"] == len(eids))}
+
+    cpairs = {f"{a}-{b}": not _equal(snap["edges"][a], snap["edges"][b], cloud_idx) for a, b in combinations(eids, 2)}
+    out["edge_cloud_segs_pairwise_distinct"] = {"pairs": cpairs, "pass": bool(cloud_idx) and all(cpairs.values())}
 
     diff_from_edges = {e: not _equal(g, snap["edges"][e], edge_idx) for e in eids}
     out["global_edge_seg_differs_from_every_edge"] = {"per_edge": diff_from_edges,
