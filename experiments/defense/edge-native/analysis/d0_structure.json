@@ -1,0 +1,442 @@
+{
+ "preregistered": "N-015 D0b（experiments/thesis/PREREG-v2.md §二）",
+ "thresholds": {
+  "rel_residual_max": 1e-05,
+  "weight_sum_tol": 0.0001
+ },
+ "runs": {
+  "TBS__k1-snap__s42": {
+   "rounds": {
+    "6": {
+     "cloud_is_mixture": {
+      "weights": [
+       0.25,
+       0.25,
+       0.25,
+       0.25
+      ],
+      "rel_residual": 3.7776067551168334e-08,
+      "pass": true
+     },
+     "global_edge_seg_differs_from_every_edge": {
+      "per_edge": {
+       "0": true,
+       "1": true,
+       "2": true,
+       "3": true
+      },
+      "pass": true
+     },
+     "edge_segs_pairwise_distinct": {
+      "pairs": {
+       "0-1": true,
+       "0-2": true,
+       "0-3": true,
+       "1-2": true,
+       "1-3": true,
+       "2-3": true
+      },
+      "pass": true
+     },
+     "private_distinct": {
+      "n_clients_with_private": 95,
+      "n_pairs": 4465,
+      "duplicate_head_pairs": 0,
+      "duplicate_stat_pairs": 0,
+      "clients_with_edge_trainables_in_private": [],
+      "pass": true
+     },
+     "pass": true
+    },
+    "15": {
+     "cloud_is_mixture": {
+      "weights": [
+       0.25,
+       0.25,
+       0.25,
+       0.25
+      ],
+      "rel_residual": 4.005942915770456e-08,
+      "pass": true
+     },
+     "global_edge_seg_differs_from_every_edge": {
+      "per_edge": {
+       "0": true,
+       "1": true,
+       "2": true,
+       "3": true
+      },
+      "pass": true
+     },
+     "edge_segs_pairwise_distinct": {
+      "pairs": {
+       "0-1": true,
+       "0-2": true,
+       "0-3": true,
+       "1-2": true,
+       "1-3": true,
+       "2-3": true
+      },
+      "pass": true
+     },
+     "private_distinct": {
+      "n_clients_with_private": 100,
+      "n_pairs": 4950,
+      "duplicate_head_pairs": 0,
+      "duplicate_stat_pairs": 0,
+      "clients_with_edge_trainables_in_private": [],
+      "pass": true
+     },
+     "pass": true
+    },
+    "60": {
+     "cloud_is_mixture": {
+      "weights": [
+       0.25,
+       0.25,
+       0.25,
+       0.25
+      ],
+      "rel_residual": 3.6892236309308784e-08,
+      "pass": true
+     },
+     "global_edge_seg_differs_from_every_edge": {
+      "per_edge": {
+       "0": true,
+       "1": true,
+       "2": true,
+       "3": true
+      },
+      "pass": true
+     },
+     "edge_segs_pairwise_distinct": {
+      "pairs": {
+       "0-1": true,
+       "0-2": true,
+       "0-3": true,
+       "1-2": true,
+       "1-3": true,
+       "2-3": true
+      },
+      "pass": true
+     },
+     "private_distinct": {
+      "n_clients_with_private": 100,
+      "n_pairs": 4950,
+      "duplicate_head_pairs": 0,
+      "duplicate_stat_pairs": 0,
+      "clients_with_edge_trainables_in_private": [],
+      "pass": true
+     },
+     "pass": true
+    }
+   },
+   "global_edge_seg_frozen": {
+    "digest_per_round": {
+     "6": "b1900ddc500c",
+     "15": "b1900ddc500c",
+     "60": "b1900ddc500c"
+    },
+    "pass": true
+   },
+   "pass": true,
+   "k": 1,
+   "n_edge_tensors": 15,
+   "n_cloud_tensors": 45,
+   "snapshot_sha": {
+    "6": "278f37899892",
+    "15": "1eef4bc3490e",
+    "60": "2733f1e3acf4"
+   }
+  },
+  "TBS__k1-snap__s43": {
+   "rounds": {
+    "6": {
+     "cloud_is_mixture": {
+      "weights": [
+       0.25,
+       0.25,
+       0.25,
+       0.25
+      ],
+      "rel_residual": 3.855423180161463e-08,
+      "pass": true
+     },
+     "global_edge_seg_differs_from_every_edge": {
+      "per_edge": {
+       "0": true,
+       "1": true,
+       "2": true,
+       "3": true
+      },
+      "pass": true
+     },
+     "edge_segs_pairwise_distinct": {
+      "pairs": {
+       "0-1": true,
+       "0-2": true,
+       "0-3": true,
+       "1-2": true,
+       "1-3": true,
+       "2-3": true
+      },
+      "pass": true
+     },
+     "private_distinct": {
+      "n_clients_with_private": 98,
+      "n_pairs": 4753,
+      "duplicate_head_pairs": 0,
+      "duplicate_stat_pairs": 0,
+      "clients_with_edge_trainables_in_private": [],
+      "pass": true
+     },
+     "pass": true
+    },
+    "15": {
+     "cloud_is_mixture": {
+      "weights": [
+       0.25,
+       0.25,
+       0.25,
+       0.25
+      ],
+      "rel_residual": 3.7968029360966147e-08,
+      "pass": true
+     },
+     "global_edge_seg_differs_from_every_edge": {
+      "per_edge": {
+       "0": true,
+       "1": true,
+       "2": true,
+       "3": true
+      },
+      "pass": true
+     },
+     "edge_segs_pairwise_distinct": {
+      "pairs": {
+       "0-1": true,
+       "0-2": true,
+       "0-3": true,
+       "1-2": true,
+       "1-3": true,
+       "2-3": true
+      },
+      "pass": true
+     },
+     "private_distinct": {
+      "n_clients_with_private": 100,
+      "n_pairs": 4950,
+      "duplicate_head_pairs": 0,
+      "duplicate_stat_pairs": 0,
+      "clients_with_edge_trainables_in_private": [],
+      "pass": true
+     },
+     "pass": true
+    },
+    "60": {
+     "cloud_is_mixture": {
+      "weights": [
+       0.25,
+       0.25,
+       0.25,
+       0.25
+      ],
+      "rel_residual": 3.811736923728995e-08,
+      "pass": true
+     },
+     "global_edge_seg_differs_from_every_edge": {
+      "per_edge": {
+       "0": true,
+       "1": true,
+       "2": true,
+       "3": true
+      },
+      "pass": true
+     },
+     "edge_segs_pairwise_distinct": {
+      "pairs": {
+       "0-1": true,
+       "0-2": true,
+       "0-3": true,
+       "1-2": true,
+       "1-3": true,
+       "2-3": true
+      },
+      "pass": true
+     },
+     "private_distinct": {
+      "n_clients_with_private": 100,
+      "n_pairs": 4950,
+      "duplicate_head_pairs": 0,
+      "duplicate_stat_pairs": 0,
+      "clients_with_edge_trainables_in_private": [],
+      "pass": true
+     },
+     "pass": true
+    }
+   },
+   "global_edge_seg_frozen": {
+    "digest_per_round": {
+     "6": "2be9a6e083ec",
+     "15": "2be9a6e083ec",
+     "60": "2be9a6e083ec"
+    },
+    "pass": true
+   },
+   "pass": true,
+   "k": 1,
+   "n_edge_tensors": 15,
+   "n_cloud_tensors": 45,
+   "snapshot_sha": {
+    "6": "80f2cad3c95b",
+    "15": "c093188a91b6",
+    "60": "d8e50994264e"
+   }
+  },
+  "TBS__k1-snap__s44": {
+   "rounds": {
+    "6": {
+     "cloud_is_mixture": {
+      "weights": [
+       0.25,
+       0.25,
+       0.25,
+       0.25
+      ],
+      "rel_residual": 3.709032778790232e-08,
+      "pass": true
+     },
+     "global_edge_seg_differs_from_every_edge": {
+      "per_edge": {
+       "0": true,
+       "1": true,
+       "2": true,
+       "3": true
+      },
+      "pass": true
+     },
+     "edge_segs_pairwise_distinct": {
+      "pairs": {
+       "0-1": true,
+       "0-2": true,
+       "0-3": true,
+       "1-2": true,
+       "1-3": true,
+       "2-3": true
+      },
+      "pass": true
+     },
+     "private_distinct": {
+      "n_clients_with_private": 96,
+      "n_pairs": 4560,
+      "duplicate_head_pairs": 0,
+      "duplicate_stat_pairs": 0,
+      "clients_with_edge_trainables_in_private": [],
+      "pass": true
+     },
+     "pass": true
+    },
+    "15": {
+     "cloud_is_mixture": {
+      "weights": [
+       0.25,
+       0.25,
+       0.25,
+       0.25
+      ],
+      "rel_residual": 3.9155771303059336e-08,
+      "pass": true
+     },
+     "global_edge_seg_differs_from_every_edge": {
+      "per_edge": {
+       "0": true,
+       "1": true,
+       "2": true,
+       "3": true
+      },
+      "pass": true
+     },
+     "edge_segs_pairwise_distinct": {
+      "pairs": {
+       "0-1": true,
+       "0-2": true,
+       "0-3": true,
+       "1-2": true,
+       "1-3": true,
+       "2-3": true
+      },
+      "pass": true
+     },
+     "private_distinct": {
+      "n_clients_with_private": 100,
+      "n_pairs": 4950,
+      "duplicate_head_pairs": 0,
+      "duplicate_stat_pairs": 0,
+      "clients_with_edge_trainables_in_private": [],
+      "pass": true
+     },
+     "pass": true
+    },
+    "60": {
+     "cloud_is_mixture": {
+      "weights": [
+       0.25,
+       0.25,
+       0.25,
+       0.25
+      ],
+      "rel_residual": 3.627260417955407e-08,
+      "pass": true
+     },
+     "global_edge_seg_differs_from_every_edge": {
+      "per_edge": {
+       "0": true,
+       "1": true,
+       "2": true,
+       "3": true
+      },
+      "pass": true
+     },
+     "edge_segs_pairwise_distinct": {
+      "pairs": {
+       "0-1": true,
+       "0-2": true,
+       "0-3": true,
+       "1-2": true,
+       "1-3": true,
+       "2-3": true
+      },
+      "pass": true
+     },
+     "private_distinct": {
+      "n_clients_with_private": 100,
+      "n_pairs": 4950,
+      "duplicate_head_pairs": 0,
+      "duplicate_stat_pairs": 0,
+      "clients_with_edge_trainables_in_private": [],
+      "pass": true
+     },
+     "pass": true
+    }
+   },
+   "global_edge_seg_frozen": {
+    "digest_per_round": {
+     "6": "03ac251ebdb3",
+     "15": "03ac251ebdb3",
+     "60": "03ac251ebdb3"
+    },
+    "pass": true
+   },
+   "pass": true,
+   "k": 1,
+   "n_edge_tensors": 15,
+   "n_cloud_tensors": 45,
+   "snapshot_sha": {
+    "6": "c628f14f0147",
+    "15": "953349b9a62a",
+    "60": "c6057efbb30e"
+   }
+  }
+ },
+ "pass": true
+}
