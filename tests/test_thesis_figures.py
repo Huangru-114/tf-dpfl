@@ -289,3 +289,32 @@ def test_comparison_adds_the_median_baselines_from_defense_balance():
         assert c["cols"]["dispersed"][key] == {s: q["P"] for s, q in cells[("main", "distributed", lab)]["per_seed"].items()}
         assert c["cols"]["compute"][key] == {42: 0.0, 43: 0.0, 44: 0.0}                                       # 中位数不加计算
     assert T.ARM_ORDER == ("none", "tier", "harden", "filter", "filter+tier")                                # 别的图的行序不变
+
+
+# ── 逐图说明（experiments/thesis/FIGURE-NOTES.md）与登记表同步 ───────────────
+
+NOTES = ROOT / "experiments" / "thesis" / "FIGURE-NOTES.md"
+
+
+def notes_problems(figures: dict, text: str, fig_dir: Path) -> list:
+    """登记表里每张图都要在说明里出现（`文件名` 形式）；说明里提到的每个图文件都要在登记表里、且 PDF / PNG 都存在。"""
+    names = {v[0] for v in figures.values()}
+    problems = [f"缺说明：{n}" for n in sorted(names) if f"`{n}`" not in text]
+    for ref in sorted(set(re.findall(r"`(fig\d+_\d+_[a-z0-9_]+)`", text))):
+        if ref not in names:
+            problems.append(f"说明里有、登记表里没有：{ref}")
+        elif not ((fig_dir / f"{ref}.pdf").exists() and (fig_dir / f"{ref}.png").exists()):
+            problems.append(f"图文件不存在：{ref}")
+    return problems
+
+
+def test_every_figure_has_a_notes_section():
+    text = NOTES.read_text(encoding="utf-8")
+    assert notes_problems(T.FIGURES, text, TS.OUT) == []
+    assert text.count("\n## 图 ") == len(T.FIGURES)
+
+
+def test_notes_check_catches_a_missing_section():
+    figs = dict(T.FIGURES)
+    figs["fig9_9"] = ("fig9_9_planted", None, None)                 # 反向锚点：登记了却没写说明
+    assert notes_problems(figs, NOTES.read_text(encoding="utf-8"), TS.OUT) == ["缺说明：fig9_9_planted"]

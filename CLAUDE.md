@@ -579,6 +579,7 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
     六种基线攻击 BadNets / Blended / DBA / Neurotoxin / CerP / IBA。图表方案 `experiments/thesis/FIGURES.md`：
     论文图走 `harness/thesis_style.py`（宽度、字号、实体颜色全书固定 —— **画图代码不许直接写颜色值**）+ `harness/thesis_figures.py`
     （数据函数复用 report_figures / defense_balance）→ `experiments/thesis/figures/`；守卫 `tests/test_thesis_figures.py`（渲染文字不许有内部名词）。
+    **逐图说明** `experiments/thesis/FIGURE-NOTES.md`（2026-11-23：含义、各面板、关键数字与出处、数据来源、注意事项、英文图注草稿、改图入口）；**新增或改名一张图必须同时补说明一节**，否则 `test_every_figure_has_a_notes_section` 会红。
   - **11-22 补充实验第一批**（预注册 N-015 = `experiments/thesis/PREREG-v2.md`，D-135）：登记 TBS（块数扫描）/ TBH（威胁边界 [9,1,0,0]）/ MED（边缘层 / 云层中位数，
     `defense.layers` 区分 → `run.defense_layers`）共 27 run；判定 `harness/supp_verdict.py`，D0b 快照结构核查 `fedavg/analysis/tier_structure.py`。
     交接与集群命令：`experiments/defense/edge-native/current-focus.md` 〇·〇。后续：D3 探针 → 攻击基线（时间盒 2026-12-06）。
