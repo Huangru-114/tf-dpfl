@@ -3,6 +3,7 @@
 > 依据 `OUTLINE.md`（提纲 v2）。主口径规则与六种基线攻击的决定见 `OUTLINE.md` 第七节第 1、2 条。
 > 代码：`harness/thesis_style.py`（尺寸、字号、实体颜色 / 线型 / 标记）+ `harness/thesis_figures.py`（每张图一个数据函数 + 一个画图函数）；
 > 输出 `experiments/thesis/figures/`（矢量 PDF + 300 dpi PNG）；守卫 `tests/test_thesis_figures.py`。
+> **逐图说明**（含义、各面板、关键数字与出处、数据来源、注意事项、英文图注草稿、改图入口、改图时怎么交互）见同目录 `FIGURE-NOTES.md`（2026-11-23）。
 
 ## 一、现有图为什么不能直接放进论文
 阶段二的 16 张图（`experiments/attack/hfl-mechanism/figures/final/`，`harness/report_figures.py` 生成）是给屏幕看的报告图：
