@@ -117,7 +117,7 @@
 1. ✅ **零训练整合分析**（2026-11-19）：`harness/defense_balance.py` + `tests/test_defense_balance.py`；输出 `analysis/defense_balance.{json,md}`；提纲与对照表 `OUTLINE.md`。
 2. ✅ **防御侧补充包的代码与登记**（2026-11-22）：规则定稿 `PREREG-v2.md`（N-015 / D-135，比本节原计划多了中位数两臂与 D0 结构核查）；块数放宽到 0–4、登记 TBS / TBH / MED（27 run）、判定 `harness/supp_verdict.py`、D0b `fedavg/analysis/tier_structure.py`；交接与集群命令见 `experiments/defense/edge-native/current-focus.md` 〇·〇。原计划：`fedavg/utils/tier_split.py` 的块数放宽到 0–4（连带 `fedavg/config_validate.py` 与 `tests/test_tier_split.py`）；
    登记块数扫描（含存快照）与 [9, 1, 0, 0] 布点（`experiments/defense/edge-native/registry.yaml`）；判定规则写成新的预注册条目，先于数据提交。
-3. **集群**：交补充 1、2（约 22 GPU 小时，三跑合包）。
+3. ✅ **集群**（2026-11-23 回传）：补充 1、2 与中位数基线共 27 个 run（约 36 GPU 小时）；判定 F-130（块数扫描 inconclusive）/ F-131（威胁边界 clean_protected + e1_breached）/ F-132（中位数三格 blocks 但效应量小）；论文图 6.2 / 6.3 / 6.9 已画。D0b 快照结构核查还没交。原计划：交补充 1、2（约 22 GPU 小时，三跑合包）。
 4. **离线探针脚本**（补充 3）：复用 `fedavg/analysis/p0_snapshot.py`、`fedavg/hardening/core.py`、`fedavg/defense/edge_ref.py`、`fedavg/analysis/functional_score.py`；新配置另起清单，不改被测试锁定的 `p0_configs.yaml`。
 5. **攻击侧**：用户选定基线攻击后，先出语义对照表，再写接线代码（一个攻击一个会话）。
 6. **写作**（与 3–5 并行）：实验框架与机制章 → 防御章（按第二节的框架）→ 综合比较 → 讨论 → 引言与摘要。

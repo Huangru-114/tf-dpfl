@@ -21,7 +21,9 @@
 | D4 逐坐标中位数（F-132） | 三格 `blocks`、云层 · 分散 `not_blocks` | 效应量只有 0.004–0.10，受害边缘仍 0.89–0.99；集中布点下 `weaker_than_b1`；中位数不砍灌入 |
 
 - D1 的闸 ② 通过：B=1 存快照重跑与已有的只记录模式 run 逐位相同 → 「k = 1 下只记录模式不改训练」有了直接证据。
-- 统一对比表 `experiments/thesis/analysis/defense_balance.{json,md}` 已加新臂（块数 2 / 4、两个中位数臂）；论文图 6.2 / 6.3 / 6.9 见本节末尾的提交。
+- 统一对比表 `experiments/thesis/analysis/defense_balance.{json,md}` 已加新臂（块数 2 / 4、两个中位数臂；已有行逐字不变）。
+- 论文图（`3f28fbe`）：6.2 共享深度权衡、6.3 威胁边界、6.9 加中位数两行 → `experiments/thesis/figures/`；其余 14 张重画逐字节不变。`OUTLINE.md` 论点—证据对照表与 M1–M3 已更新。
+- 本地测试（Python 3.11，不装 TF）：2184 passed / 57 skipped / 3 xfailed（无新红）。本批没改训练代码，没重跑含 TF 的全量。
 
 **还没做的（集群上）**：D0b 快照结构核查 —— TBS k1-snap 的快照已经在 `tfdpfl-dumps` 里：
 
