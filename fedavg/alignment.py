@@ -32,7 +32,7 @@ class Switch(NamedTuple):
     choices: tuple      # 合法取值；() = 不在这里校验（model.arch 由 build_model 校验）
     row: str            # AUDIT 行号
     decision: str       # DECISIONS 编号
-    scope: str | None   # 只对哪类配置有意义："hier_fedrep" / "badpfl" / None（全部）
+    scope: str | None   # 只对哪类配置有意义："hier_fedrep" / "badpfl" / "badpfl_or_static"（D-141）/ None（全部）
 
 
 # ── 进模板的：AUDIT 里全部 `align` 行，外加 A08（D-023，候选方案，由 D-029 验证）──
@@ -42,7 +42,7 @@ SWITCHES = (
     Switch("backdoor.eval_xi_model",       "victim",     "fixed_attacker",
            ("victim", "fixed_attacker"),            "A02", "D-015/D-033", "badpfl"),
     Switch("backdoor.poison_sampling",     "exact_k",    "bernoulli",
-           ("exact_k", "bernoulli"),                "A03", "D-016", "badpfl"),
+           ("exact_k", "bernoulli"),                "A03", "D-016", "badpfl_or_static"),   # static 逐批投毒也读它（D-141）
     Switch("backdoor.badpfl_bn_mode",      "inference",  "official",
            ("inference", "official"),               "A05", "D-018", "badpfl"),
     Switch("evaluation.asr_columns",       "filtered",   "four_way",
@@ -116,7 +116,7 @@ EXTRA_SWITCHES = (
     Switch("evaluation.update_sketch_dim", 4096,         None,
            (),                                      "A28", "D-085", "hier_fedrep"),
     Switch("evaluation.post_agg_eval",     False,        None,
-           (),                                      "A28", "D-085", "badpfl"),
+           (),                                      "A28", "D-085", "badpfl_or_static"),   # static 用静态触发器（D-141）
     Switch("evaluation.frozen_trigger",    False,        None,
            (),                                      "A28", "D-085", "badpfl"),
     # S6b / D-087：在线 c_k（功能分数，3-D 的第二类分数；模块 B 的打分器）。只读记录，不得改变训练。

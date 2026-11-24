@@ -122,6 +122,10 @@ CCS_SETTINGS_KEYS = ("at", "cluster", "kl", "mmd", "steps", "step", "eps", "radi
 #      第一段的 ERP / ERPB 文件没有这三项 → None。只加字段、不改已有字段的含义，所以不升版本。）
 #     （同 schema 16，N-015 / D-135：run.defense_layers —— 从已有的 `[Defense] enabled: … @ <layer>` 行收集，排序去重；
 #      没有这一行 → None。只加字段，不升版本。）
+#     （同 schema 16，D-141：run.static / trigger / dba_n_patterns / poison_sampling —— [设定15]，static 策略的
+#      静态触发器逐批投毒；static=false = 不是 static（其余三列 None，与之前的 run 同一种 run），老日志 → 全 None；
+#      新表 poison_counts（[Poison]：每个恶意端累计「被投毒张数 / 经过钩子的张数」—— 恶意端真的投了毒的直接证据），
+#      没有这类行 → []。只加字段，不升版本。）
 SCHEMA_VERSION = 16
 RE_DEFENSE_LAYER = re.compile(r"\[Defense\] enabled: \S+ @ (\w+)")
 # [设定14] / [EdgeRefScore] / [EdgeRefNull] 的字段（= fedavg/defense/edge_ref_spec 的同名常量；抄一份是为了不 import
@@ -377,6 +381,7 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
     setg12 = None
     setg13 = None
     setg14 = None
+    setg15 = None
     malshare = None
     data = None
     data_edges = []
@@ -414,6 +419,9 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
         d = parse_kv(ln, "[设定14]")
         if d is not None:
             setg14 = d
+        d = parse_kv(ln, "[设定15]")
+        if d is not None:
+            setg15 = d
         d = parse_kv(ln, "[MalShare]")
         if d is not None:
             malshare = d
@@ -500,6 +508,12 @@ def _collect_run_info(log_text: str, lines: list) -> dict:
         # 阶段三方向 2 参照打分（[设定14]，schema 16）。None = 老日志（不知道）；false = 没开。参数平铺成 edge_ref_*（status 核对）。
         "edge_ref":          setg14.get("edge_ref") if setg14 else None,
         **{f"edge_ref_{k}": (setg14.get(k) if setg14 else None) for k in EDGE_REF_SETTINGS_KEYS},
+        # 静态触发器逐批投毒（[设定15]，D-141）。None = 老日志（不知道）；static=false = 不是 static 策略。
+        # trigger 是 runs_table 的因素键（三种静态攻击靠它区分）；非 static 恒为 None → 与之前的文件同格。
+        "static":            setg15.get("static") if setg15 else None,
+        "trigger":           setg15.get("trigger") if setg15 else None,
+        "dba_n_patterns":    setg15.get("dba_n_patterns") if setg15 else None,
+        "poison_sampling":   setg15.get("poison_sampling") if setg15 else None,
         # 恶意端训练数据占比（[MalShare]，schema 13）；旧 noniid 下不等于名义比例（D-098）。None = 老日志。
         "malicious_data_share": malshare.get("share") if malshare else None,
         # ── 自适应轮数：这一格跑到第几轮、为什么停 ──────────────────────
@@ -883,6 +897,21 @@ def _collect_ccs_stop(lines) -> list:
             for d in collect_kv(lines, "[CCSStop]")]
 
 
+def _collect_poison_counts(lines) -> list:
+    """[Poison] Round N | client | n_poisoned | n_seen | n_batches（D-141，static 策略每次本地训练一行）
+    → 每个恶意端一行累计 {client, reports, n_poisoned, n_seen}，按 client 排序。没有这类行 → []。"""
+    acc = {}
+    for d in collect_kv(lines, "[Poison]"):
+        c = d.get("client")
+        if c is None:
+            continue
+        a = acc.setdefault(int(c), {"client": int(c), "reports": 0, "n_poisoned": 0, "n_seen": 0})
+        a["reports"] += 1
+        a["n_poisoned"] += int(d.get("n_poisoned") or 0)
+        a["n_seen"] += int(d.get("n_seen") or 0)
+    return [acc[c] for c in sorted(acc)]
+
+
 def _collect_harden_agg(lines) -> list:
     """[HardenAgg] → harden_agg[]：{round, unhardened}。哈希按字符串读（十六进制可能长得像数字）。"""
     out = []
@@ -1087,6 +1116,8 @@ def collect(log_text: str) -> dict:
         # 阶段三 SA1（schema 12）：上传前加固的逐次记录 + P1 的闸（没洗过的上传物聚合后的短哈希）
         "harden": _collect_harden(lines),
         "harden_agg": _collect_harden_agg(lines),
+        # D-141：static 策略的逐恶意端投毒计数（「真的投了毒」的直接证据）
+        "poison_counts": _collect_poison_counts(lines),
         # 阶段三 SA-C（schema 13）：CCS 每次 edge 聚合的聚类判决（本轮有谁 + 剔了谁）
         "edge_ref_scores": _collect_edge_ref_scores(lines),
         "edge_ref_null": _collect_edge_ref_null(lines),

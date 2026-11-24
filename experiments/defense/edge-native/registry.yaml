@@ -29,7 +29,7 @@ base: ../../attack/hfl-mechanism/base.yaml
 overlays:
   - ../../../fedavg/config/alignment_p2.yaml        # 「P2 对齐」模板（同 hfl-mechanism）
 audit: ../../attack/hfl-mechanism/AUDIT.md
-available: [supp-prereg, tier-0to4, d0-prereg, sa1-pre, SA-C, ccs-space, ccsb-attack-ok, bns-prereg, ccsd-prereg, ccsd5-prereg, ccsdp-prereg, edge-ref-code, n013-prereg, n014-prereg, edge-ref-filter-code]   # supp-prereg：补充实验预注册 N-015 用户拍板（2026-11-22，D-135）； tier-0to4：三层个性化块数放宽到 0–4（2026-11-22，8607812）； edge-ref-filter-code：第二段过滤代码完成（2026-11-18）； n014-prereg：N-014 用户确认（2026-11-18，D-132）； n013-prereg：N-013 用户确认（2026-11-17，D-131）； edge-ref-code：方向 2 第一段代码完成（2026-11-17）； ccsdp-prereg：N-012 用户确认（2026-11-07，D-127）； ccsd5-prereg：N-011 用户确认（2026-11-02，D-124）； ccsd-prereg：N-010 用户确认（2026-11-01，D-122）； bns-prereg：N-009 经用户确认（2026-11-01，D-120）； ccsb-attack-ok：CCSBOFF 良性端 0.796 ≥ 0.5，用户放行（2026-10-31，D-119）； sa1-pre：D-108（2026-10-28）； d0-prereg：N-008 用户确认（2026-10-10，D-101）。阶段三的代码会话（SA0 / SA1 / SA-C / …）完成时把 token 加进来
+available: [atk-static-code, supp-prereg, tier-0to4, d0-prereg, sa1-pre, SA-C, ccs-space, ccsb-attack-ok, bns-prereg, ccsd-prereg, ccsd5-prereg, ccsdp-prereg, edge-ref-code, n013-prereg, n014-prereg, edge-ref-filter-code]   # atk-static-code：攻击基线第一档的接线完成（static 策略，2026-11-24，D-141）； supp-prereg：补充实验预注册 N-015 用户拍板（2026-11-22，D-135）； tier-0to4：三层个性化块数放宽到 0–4（2026-11-22，8607812）； edge-ref-filter-code：第二段过滤代码完成（2026-11-18）； n014-prereg：N-014 用户确认（2026-11-18，D-132）； n013-prereg：N-013 用户确认（2026-11-17，D-131）； edge-ref-code：方向 2 第一段代码完成（2026-11-17）； ccsdp-prereg：N-012 用户确认（2026-11-07，D-127）； ccsd5-prereg：N-011 用户确认（2026-11-02，D-124）； ccsd-prereg：N-010 用户确认（2026-11-01，D-122）； bns-prereg：N-009 经用户确认（2026-11-01，D-120）； ccsb-attack-ok：CCSBOFF 良性端 0.796 ≥ 0.5，用户放行（2026-10-31，D-119）； sa1-pre：D-108（2026-10-28）； d0-prereg：N-008 用户确认（2026-10-10，D-101）。阶段三的代码会话（SA0 / SA1 / SA-C / …）完成时把 token 加进来
 
 # ── D-base（PLAN §3.1）= G1R5 的 set 去掉 update_geometry / update_ck*，加 post_agg_eval + frozen_trigger ──
 # YAML 锚点只为少抄一遍；展开后每组的 set 是完整的（registry.py 读的是展开结果）。
@@ -452,3 +452,40 @@ groups:
       - {cell: edge-distributed, set: {defense.layers: [edge],  backdoor.malicious_per_edge: [3, 3, 2, 2]}}
       - {cell: cloud-collocated,  set: {defense.layers: [cloud], backdoor.malicious_per_edge: [10, 0, 0, 0]}}
       - {cell: cloud-distributed, set: {defense.layers: [cloud], backdoor.malicious_per_edge: [3, 3, 2, 2]}}
+
+# ── 论文收尾：攻击基线第一档（PREREG-v2 第七节 A1；D-141）—— 静态三种攻击 BadNets / Blended / DBA ──────────────
+# malicious_strategy: static = 在 on_batch 里逐批加静态触发器（fedavg/client/client_static.py）：每批按 poison_sampling
+#   （P2 = 每张独立 0.2，与 Bad-PFL 对照同一个开关）抽、先增强再加触发器、强制串行（用户 11-24 拍板）。
+# 与 SNAP__collocated 只差：攻击策略、触发器、冻结触发器列关（静态触发器不漂移，那一列恒等于主列）；
+#   DBA 格另写官方 4 块局部触发器（AI-secure/DBA cifar_params.yaml；base.yaml 只有前 2 块，改 base 会改所有已有配置的 sha）。
+# 分流判定 harness/atk_route.py（写于数据之前）。单种子格子 → submit.sh 不合包，用 pack.sbatch 手工装包（current-focus 〇·四）。
+# 守卫 tests/test_static_poison.py（与 SNAP 只差哪几个键）+ test_edge_native_registry（三件核对）。
+  ATKP:
+    purpose: "D-141 探路（GPU 上才会出的问题先暴露）：三种静态攻击 × s42 × 4 云轮 + badnet 重复一次（同配置两次，[Checksum] 必须逐位相同）"
+    requires: [audit, supp-prereg, atk-static-code]
+    seeds: [42]
+    set:
+      <<: *d_base
+      federation.n_rounds: 4                   # 4 云轮 × R5 = 20 有效轮（第 2 云轮起有云聚合后评估点）
+      evaluation.frozen_trigger: false
+      backdoor.malicious_strategy: static
+      backdoor.malicious_per_edge: [10, 0, 0, 0]
+    cells:
+      - {cell: badnet,     set: {backdoor.trigger: badnet}}
+      - {cell: badnet-rep, set: {backdoor.trigger: badnet}}
+      - {cell: blended,    set: {backdoor.trigger: blended}}
+      - {cell: dba,        set: {backdoor.trigger: dba, backdoor.dba_patterns: [[[0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [0, 5]], [[0, 9], [0, 10], [0, 11], [0, 12], [0, 13], [0, 14]], [[4, 0], [4, 1], [4, 2], [4, 3], [4, 4], [4, 5]], [[4, 9], [4, 10], [4, 11], [4, 12], [4, 13], [4, 14]]]}}
+
+  ATK:
+    purpose: "PREREG-v2 第七节 A1 探路与分流：三种静态攻击 × s42 × 不设防 × 集中 × 主线划分 × 300 有效轮；对照 = SNAP__collocated__s42（Bad-PFL）"
+    requires: [audit, supp-prereg, atk-static-code, atkp-ok]   # atkp-ok：ATKP 回传、闸都过之后加进 available
+    seeds: [42]
+    set:
+      <<: *d_base
+      evaluation.frozen_trigger: false
+      backdoor.malicious_strategy: static
+      backdoor.malicious_per_edge: [10, 0, 0, 0]
+    cells:
+      - {cell: badnet,  set: {backdoor.trigger: badnet}}
+      - {cell: blended, set: {backdoor.trigger: blended}}
+      - {cell: dba,     set: {backdoor.trigger: dba, backdoor.dba_patterns: [[[0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [0, 5]], [[0, 9], [0, 10], [0, 11], [0, 12], [0, 13], [0, 14]], [[4, 0], [4, 1], [4, 2], [4, 3], [4, 4], [4, 5]], [[4, 9], [4, 10], [4, 11], [4, 12], [4, 13], [4, 14]]]}}

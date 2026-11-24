@@ -99,6 +99,8 @@ def test_three_checks_for_every_declared_set(reg):
         assert len(cfg["backdoor"]["malicious_per_edge"]) == fed["n_edges"], run["run_id"]
         # CCSA（D-113 的消融）刻意只跑 30 轮：第 10 轮主任务就已分开（F-109），对照是 CCSF / 旧 FedRep 版的前 30 轮
         want = 30 if run["group"] in ("CCSA", "CCSR30", "CCSB30") else 300   # 30 轮的诊断组：只看前 30 轮主任务
+        if run["group"] == "ATKP":                    # D-141 的 GPU 探路：4 云轮（只看能不能跑、确定性、投没投毒）
+            want = 20
         assert fed["n_rounds"] * fed["edge_rounds"] == want, run["run_id"]
         assert cfg.get("stopping") is None, run["run_id"]
         grids.add(ev["eval_grid"])

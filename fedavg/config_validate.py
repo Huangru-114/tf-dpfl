@@ -90,14 +90,19 @@ VALID_DEFENSES       = ({"none"} | AGGREGATION_DEFENSES | POST_HOC_DEFENSES | CL
                         | REFERENCE_DEFENSES)
 
 # ── 攻击轴 ───────────────────────────────────────────────────────────────
-VALID_STRATEGIES = {"vanilla", "neurotoxin", "cerp", "badpfl"}
+VALID_STRATEGIES = {"vanilla", "neurotoxin", "cerp", "badpfl", "static"}
 VALID_TRIGGERS   = {"badnet", "blended", "dba"}
 
 # 需要行为 mixin 的攻击策略（vanilla 只换数据集，不需要 mixin）。
+# static（D-141）= 同样三种静态触发器，在 on_batch 里逐批投毒（P2 每轮重洗取数路径用它；与 vanilla 按取数路径互斥）。
 # CLAUDE.md 陷阱 #1 已修复：这些策略现在是 mixin，与 PFL 方法类**组合**而非替换
 # （main.py:resolve_client_classes + client/compose.py），因此配任何方法都可解释。
 # 守卫：tests/test_attack_method_orthogonality.py
-MIXIN_STRATEGIES = {"neurotoxin", "cerp", "badpfl"}
+MIXIN_STRATEGIES = {"neurotoxin", "cerp", "badpfl", "static"}
+
+# alignment.Switch.scope 里「只对某些攻击有意义」的取值 → 对应的攻击策略。
+# badpfl_or_static（D-141）：逐批投毒的抽样开关与云聚合后评估点，Bad-PFL 与 static 共用。
+SCOPE_STRATEGIES = {"badpfl": ("badpfl",), "badpfl_or_static": ("badpfl", "static")}
 
 # 防御可作用的层。用户在 defense.layers 里选，缺省 ["edge"]。
 VALID_DEFENSE_LAYERS = {"client", "edge", "cloud", "post_hoc"}
@@ -516,11 +521,20 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
                   f"「所有 edge 都跑完第 er 个 edge 轮」的时刻做。")
     if _s6.get("update_geometry") and method != "hier_fedrep":
         _fail("evaluation.update_geometry 只对 hier_fedrep 实现（需要 body 索引）。")
-    if (_s6.get("post_agg_eval") or _s6.get("frozen_trigger")):
-        if not (bd_enabled and str(bd.get("malicious_strategy", "vanilla")).lower() == "badpfl"):
-            _fail("evaluation.post_agg_eval / frozen_trigger 要求 backdoor.malicious_strategy = badpfl。")
+    _s6_strategy = str(bd.get("malicious_strategy", "vanilla")).lower() if bd_enabled else None
+    if _s6.get("post_agg_eval") and _s6_strategy != "static":
+        # static（D-141）：静态触发器不依赖模型、评估不耗随机数 → 云聚合后评估点直接用它（不需要固定攻击者）
+        if _s6_strategy != "badpfl":
+            _fail("evaluation.post_agg_eval 要求 backdoor.malicious_strategy ∈ {badpfl, static}。")
         if _gs(config, "backdoor.eval_xi_model") != "fixed_attacker":
-            _fail("evaluation.post_agg_eval / frozen_trigger 要求 backdoor.eval_xi_model = fixed_attacker。")
+            _fail("evaluation.post_agg_eval + Bad-PFL 要求 backdoor.eval_xi_model = fixed_attacker。")
+    if _s6.get("frozen_trigger"):
+        # 冻结触发器列只对会漂移的触发器有意义（Bad-PFL 的生成器 + 攻击者 PM）；静态触发器那一列恒等于主列
+        if _s6_strategy != "badpfl":
+            _fail("evaluation.frozen_trigger 要求 backdoor.malicious_strategy = badpfl"
+                  "（静态触发器不会漂移，那一列恒等于主列）。")
+        if _gs(config, "backdoor.eval_xi_model") != "fixed_attacker":
+            _fail("evaluation.frozen_trigger 要求 backdoor.eval_xi_model = fixed_attacker。")
     _grid_now = _gs(config, "evaluation.eval_grid")
     if config.get("stopping") and _grid_now is not None and _grid_now != 5:
         _fail(f"stopping 与 evaluation.eval_grid={_grid_now} 不能同开：停止判据的斜率容差 0.0010 是按"
@@ -607,15 +621,22 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
         if sw.scope == "hier_fedrep" and method != "hier_fedrep":
             warnings.append(f"{sw.key}={val!r} 只对 hier_fedrep 生效，"
                             f"当前方法 {method!r} 下无效（AUDIT {sw.row}）。")
-        if sw.scope == "badpfl" and _strategy != "badpfl":
-            warnings.append(f"{sw.key}={val!r} 只对 Bad-PFL 攻击生效，"
+        if sw.scope in SCOPE_STRATEGIES and _strategy not in SCOPE_STRATEGIES[sw.scope]:
+            _who = " / ".join("Bad-PFL" if s == "badpfl" else s for s in SCOPE_STRATEGIES[sw.scope])
+            warnings.append(f"{sw.key}={val!r} 只对 {_who} 攻击生效，"
                             f"当前攻击 {_strategy!r} 下无效（AUDIT {sw.row}）。")
     if (get_switch(config, "data.batch_pipeline") == "per_epoch" and bd_enabled
-            and _strategy != "badpfl"):
-        _fail(f"data.batch_pipeline = 'per_epoch' 目前只接了 Bad-PFL 的取数"
+            and _strategy not in ("badpfl", "static")):
+        _fail(f"data.batch_pipeline = 'per_epoch' 目前只接了 Bad-PFL 与 static 的取数"
               f"（malicious_strategy={_strategy!r}）：静态投毒（vanilla / neurotoxin）会被"
               f"per_epoch 绕过（它从原始数组取数，不读 build_poisoned_dataset 替换的数据集）"
-              f" → 恶意端静默变成良性端；CerP 的触发器训练仍读 tf.data（AUDIT A25）。")
+              f" → 恶意端静默变成良性端；CerP 的触发器训练仍读 tf.data（AUDIT A25）。"
+              f"同样的三种静态触发器（badnet / blended / dba）在 per_epoch 下请用 static（D-141）。")
+    if (bd_enabled and _strategy == "static"
+            and get_switch(config, "data.batch_pipeline") != "per_epoch"):
+        _fail("backdoor.malicious_strategy = 'static' 只配 data.batch_pipeline = 'per_epoch'（D-141）："
+              "旧取数路径下请用 vanilla（开跑前一次性固定投毒集）—— 两种语义按取数路径互斥，"
+              "同一个策略名不在两条路径下表示两件事。")
     if get_switch(config, "evaluation.pm_model") == "fresh" and method not in PM_FRESH_METHODS:
         _fail(f"evaluation.pm_model = 'fresh' 需要方法定义「私有部分」（client.private_state），"
               f"目前只有 {sorted(PM_FRESH_METHODS)}；{method!r} 没有定义 → "
@@ -896,4 +917,26 @@ def validate_config(config: dict, strict_orthogonality: bool = False) -> list:
     #   独立 kv 行。edge_ref=false = 没开（与方向 2 之前的 run 是同一种 run）。
     from defense.edge_ref_spec import settings_row as _er_row
     print(format_kv("[设定14]", _er_row(config), digits=10))      # threshold 要全精度回读（缺省 4 位会把 0.004079 打成 0.0041 → status 判 mismatch）
+
+    # ── 6m. 静态触发器逐批投毒（[设定15]，D-141）──────────────────────────────────────
+    #   独立 kv 行。static=false = 不是 static 策略（与 D-141 之前的 run 是同一种 run，trigger 等列不打）。
+    #   为什么要记触发器：run 块原来只有 attack=<策略>，三种静态攻击（badnet / blended / dba）在 run 块里
+    #   长得一模一样 → runs_table 会把它们并成一格、status 也核对不出触发器写错。
+    print(format_kv("[设定15]", static_settings_row(config)))
     return warnings
+
+
+def static_settings_row(config: dict) -> dict:
+    """[设定15] 的内容。不是 static → {"static": False}（其余列不打，与之前的 run 同一种 run）。"""
+    bd = config.get("backdoor") or {}
+    if not (bool(bd.get("enabled", False))
+            and str(bd.get("malicious_strategy", "vanilla")).lower() == "static"):
+        return {"static": False}
+    from alignment import get_switch as _gs
+    trig = str(bd.get("trigger", "badnet")).lower()
+    return {
+        "static": True,
+        "trigger": trig,
+        "dba_n_patterns": len(bd.get("dba_patterns") or []) if trig == "dba" else None,
+        "poison_sampling": _gs(config, "backdoor.poison_sampling"),
+    }

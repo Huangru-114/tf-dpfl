@@ -114,7 +114,7 @@ FACTOR_COLUMNS = ("protocol", "method", "attack", "defense", "n_clients", "n_edg
                   "attack_stop_round", "attack_start_round", "generator_schedule",
                   "edge_shared_blocks",
                   "partition", "partition_condition", "partition_alpha_edge",
-                  "eval_grid")
+                  "eval_grid", "trigger")      # trigger：D-141，static 的三种静态攻击不许混在一组里画
 
 
 def heterogeneous_factors(groups) -> dict:

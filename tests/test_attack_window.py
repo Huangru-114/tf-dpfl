@@ -159,7 +159,8 @@ def test_attack_window_module_rejects_unknown_schedules():
 # 钩子里读 `self.is_malicious` 作为**投毒闸门**的写法必须绝迹 ——
 # 漏掉任何一个，那个攻击的时间窗就静默失效（数据照跑，衰减段是假的）。
 GATED_HOOKS = ("on_round_start", "on_batch", "on_extra_loss", "on_upload")
-ATTACK_MIXIN_FILES = ("client_badpfl.py", "client_neurotoxin.py", "client_cerp.py")
+ATTACK_MIXIN_FILES = ("client_badpfl.py", "client_neurotoxin.py", "client_cerp.py",
+                      "client_static.py")           # D-141：静态触发器逐批投毒
 
 
 def _body_source(fn: ast.FunctionDef) -> str:

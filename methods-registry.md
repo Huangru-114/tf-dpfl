@@ -15,9 +15,9 @@
 
 | 方法 | 源仓库 | commit | 一句话 | 状态 | 备注 |
 |---|---|---|---|---|---|
-| badnet | — | — | 右下角固定方块触发器 + 改标签 | done | 静态投毒，走 `build_poisoned_dataset` |
-| blended | — | — | 整图混合图案（hello_kitty，α=0.2） | done | 静态投毒 |
-| dba | github.com/AI-secure/DBA | ? | 分布式触发器：每个恶意端一个局部 pattern，评估用全局 | done | pattern 取自官方 `cifar_params.yaml` |
+| badnet | — | — | 右下角固定方块触发器 + 改标签 | done | 旧路径 `vanilla`（`build_poisoned_dataset`）；P2 每轮重洗取数路径用 `static`（`on_batch` 逐批投毒，D-141） |
+| blended | — | — | 整图混合图案（hello_kitty，α=0.2） | done | 同上：`vanilla` 旧路径 / `static` P2 路径（D-141） |
+| dba | github.com/AI-secure/DBA | ? | 分布式触发器：每个恶意端一个局部 pattern，评估用全局 | done | pattern 取自官方 `cifar_params.yaml`（4 块；11-24 核对，F-138）；P2 用 `static`，不做官方的放大 100 倍 |
 | **neurotoxin** | github.com/jhcknzzm/Federated-Learning-Backdoor | ? | 把后门藏进良性梯度最小的坐标 → 持久 | **porting** | 陷阱 #4：mask 语义疑似反向；陷阱 #1：接线 |
 | cerp | ? | ? | 可训练触发器 + 模型距离 + peer 余弦正则 | backlog | 动态投毒；官方仓库待确认 |
 | **bad-pfl** | github.com/fmy266/Bad-PFL | ? | 生成器扰动 δ + FGSM 破坏性噪声 ξ，T(x)=x+ξ+δ | **porting** | 陷阱 #5 + 陷阱 #1 |

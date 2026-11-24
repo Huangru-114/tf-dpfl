@@ -42,6 +42,7 @@ from attack.backdoor        import (get_malicious_ids, resolve_malicious_ids,
 from client.client_neurotoxin import NeurotoxinMixin
 from client.client_cerp        import CerPMixin
 from client.client_badpfl      import BadPFLMixin
+from client.client_static      import StaticPoisonMixin
 from client.compose            import compose_client_class
 from utils.provenance          import config_sha, flat_diff, print_provenance
 from utils.kvline              import format_kv
@@ -117,12 +118,14 @@ def select_attack_mixin(strategy: str):
     攻击策略对应的**行为 mixin**（不继承任何 Client 类，与 PFL 方法轴正交）。
 
     返回 None 表示不需要 mixin（vanilla：badnet/blended/dba 走方法类 + 投毒数据，
-    保持与既有实验一致的行为）。
+    保持与既有实验一致的行为）。static（D-141）：同样三种静态触发器，在 on_batch 里逐批投毒
+    （P2 的每轮重洗取数路径用它；vanilla 只配旧路径）。
     """
     return {
         "neurotoxin": NeurotoxinMixin,
         "cerp":       CerPMixin,
         "badpfl":     BadPFLMixin,
+        "static":     StaticPoisonMixin,
     }.get(str(strategy).lower())
 
 
@@ -522,8 +525,10 @@ def build_clients(images_np, labels_np, global_model, config, s3_out=None):
     # DBA：每个恶意客户端分到一个**局部**触发器用于投毒（评估侧用全局触发器）
     dba_triggers  = (make_dba_local_triggers(bd_cfg, malicious_ids, config=config)
                      if (bd_enabled and trigger_kind == "dba") else {})
-    # 动态投毒策略（Phase 2 CerP/Bad-PFL）：恶意客户端保留 clean 数据，训练时动态投毒
-    dynamic_poison = strategy in ("cerp", "badpfl")
+    # 动态投毒策略（Phase 2 CerP/Bad-PFL）：恶意客户端保留 clean 数据，训练时动态投毒。
+    # static（D-141）也在这一组：它保留干净数据、在 on_batch 里逐批加静态触发器（不调 build_poisoned_dataset），
+    # 并且与 Bad-PFL 一样强制串行收集（用户 11-24 拍板：此前所有 P2 run 都是串行，执行路径与 Bad-PFL 对照相同）。
+    dynamic_poison = strategy in ("cerp", "badpfl", "static")
 
     # 安全防护：CerP/Bad-PFL 的恶意客户端用自定义 eager 训练（可训练触发器 / generator），
     # 与良性客户端的 @tf.function 路径在线程池里并发**可能**互相污染 TF 图（reshape/形状错乱）。
@@ -580,6 +585,9 @@ def build_clients(images_np, labels_np, global_model, config, s3_out=None):
         client = use_cls(client_id=i, dataset=ds, model=client_model,
                          config=config, n_samples=len(indices))
         client.is_malicious = is_mal
+        # static（D-141）：投毒侧触发器 —— DBA = 本端局部触发器，其余 = 统一触发器（与旧路径同一个表达式）
+        if is_mal and hasattr(client, "set_static_trigger"):
+            client.set_static_trigger(dba_triggers.get(i, bd_trigger))
         # P4：把同一个共享 generator+optimizer 注入每个恶意端（未启用时 shared_gen=None）
         if is_mal and shared_gen is not None and hasattr(client, "set_shared_generator"):
             client.set_shared_generator(shared_gen, shared_opt)
@@ -589,6 +597,7 @@ def build_clients(images_np, labels_np, global_model, config, s3_out=None):
         # A25 per_epoch 管线的数据源（只存全局数组的引用 + 本端训练索引，不复制）。
         # legacy 管线下不会被读到。静态投毒（vanilla/neurotoxin）与 per_epoch 不兼容，
         # config_validate 已拒绝 —— 否则恶意端会绕过投毒数据集、静默变成良性端。
+        # 同样的三种静态触发器在 per_epoch 下请用 static（on_batch 逐批投毒，D-141）。
         client.set_train_source(images_np, labels_np, indices)
         if client_test_datasets is not None:
             client.set_test_dataset(client_test_datasets[i])

@@ -1319,3 +1319,25 @@ A = E0 良性端主列攻击成功率（ξ 在当前攻击者模型上重求）�
 - **注意（没有证据区分）**：精度崩掉的一个可能原因是评估用的个性化模型 = 新主干 + 各客户端**没重训的私有分类头**，主干一大动、旧头就对不上；
   所以「能清掉的档都伴随精度崩」**不能**读成「后门与主任务功能缠在一起」，只能读成「在这种探针设置下，清掉后门的同时模型也坏了」。
 - 按 N-016：不交正式作业；冻结清单 `analysis/d3pa2_frozen.json`（label = not_removable，标定文件 sha `037cb810ba2c`），`judge` 输出 `analysis/d3pa2_verdict.json` 同为 not_removable。
+
+### F-138 `confirmed`（代码核对 + 接线，D-141）—— 静态三种攻击接到每轮重洗的取数路径；DBA 官方设置核对；与官方的已知偏离
+
+- **为什么要接线**：P2 的每轮重洗取数路径（`data.batch_pipeline: per_epoch`）从原始数组按索引取数，不读旧 `vanilla` 策略在开跑前替换进去的投毒数据集
+  → 恶意端会**静默变成良性端**（`config_validate` 因此一直拒绝 vanilla + per_epoch）。现在的 `static` 策略在 `on_batch` 里逐批投毒（`fedavg/client/client_static.py`）。
+- **DBA 官方代码核对**（AI-secure/DBA，`utils/cifar_params.yaml` / `image_helper.py` / `image_train.py`，11-24 读 master 分支）：
+  - 4 块局部触发器，每块 1×6 像素：第 0 / 4 行 × 第 0–5 / 9–14 列；评估用 4 块合起来（`centralized_test_trigger: True`），评估集剔除目标类；
+    触发器像素在原始 [0,1] 空间置 1（CIFAR 的变换只有 `ToTensor`）—— 与本仓库 `trigger_space` 换算后等价。
+  - 每批**前 5 张**投毒（批 64，约 7.8%；批顺序随机）；投毒学习率 0.05、6 个投毒 epoch、**更新放大 100 倍**（`scale_weights_poison: 100`，模型替换）、
+    目标类 2、只在指定轮投毒（`0–3_poison_epochs`）；4 个攻击者；CIFAR 路径对谁都不做数据增强。
+  - 本仓库 `fedavg/config/config.yaml` 的 4 块与官方逐字相同；**`hfl-mechanism/base.yaml` 只有前 2 块**（阶段三的登记表从它继承）→ 只在 ATK / ATKP 的 DBA 格里写全 4 块（改 base 会改所有已有配置的 config_sha）。
+- **与官方的已知偏离（写进论文的方法与局限）**：投毒率 0.2（每张独立抽）、10 个攻击者、全程投毒、目标类 0、学习率与本地轮数、先增强后加触发器 —— 全部同 Bad-PFL 对照，
+  这样几种攻击之间只差触发器（预注册 PREREG-v2 第七节「投毒率与攻击者数默认同 Bad-PFL」）；**不做放大 100 倍**：它是另一种攻击成分（模型替换），
+  在 FedRep + 边缘内每轮 2–3 个参与者的平均下会直接把边缘模型炸掉，Bad-PFL 对照也没有它。BadNets / Blended 没有单一的联邦学习官方实现，
+  照通行做法（3×3 白块右下角；hello_kitty 以 α = 0.2 混合，训练与评估同一个 α）。
+- **评估**：静态触发器没有 `eval_xi` → `select_eval_attacker` 返回 None → 服务器退回静态触发器（全量点、轻评估点、云聚合后评估点三处，测试钉住）；
+  白盒列与冻结触发器列自然不算。P2 模板里只属于 Bad-PFL 的四个开关（`badpfl_xi` / `eval_xi_model` / `badpfl_bn_mode` / `badpfl_generator`）对 static 只出警告；
+  `poison_sampling` 与 `post_agg_eval` 的适用范围扩到 static（`alignment.py` 的 scope `badpfl_or_static`），不再误报。
+- **证据**（本地 Python 3.11）：`tests/test_static_poison.py`（纯算术、配置放 / 拒、登记差异、打印 ↔ 解析）、`tests/test_atk_route.py`（分流规则与闸）、
+  `tests/test_static_poison_tf.py`（tensorflow-cpu 2.15.1：每批恰好掩码行带触发器、窗口外不耗随机数、ρ = 0 时与良性端上传逐位相同、DBA 3/3/2/2 与 24 像素并集、
+  小 HFL 跑 3 云轮无被吞异常且云聚合后点有攻击成功率、同配置两次 `[Checksum]` 逐位相同、`main.build_clients` 的触发器注入 / 不建投毒数据集 / 强制串行 —— 后者两个反向锚点实测会红）。
+  **GPU 上的确定性与显存没有证据**，等 ATKP 回传。

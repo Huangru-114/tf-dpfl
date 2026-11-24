@@ -337,6 +337,11 @@ class Registry:
     def expected_run_block(self, run: dict) -> dict:
         cfg = self.intended_config(run)
         exp = {rk: get_dotted(cfg, ck) for rk, ck in EXPECT_KEYS}
+        # D-141：static 策略的触发器（[设定15] → run.trigger）。只对 static 核对 —— 其余策略的 backdoor.trigger
+        # 只是个标签（Bad-PFL 的触发器是生成的），而 base 里人人都写着 trigger: badnet，无条件核对会让所有
+        # 已有 run 变 mismatch。
+        if str(get_dotted(cfg, "backdoor.malicious_strategy") or "").lower() == "static":
+            exp["trigger"] = get_dotted(cfg, "backdoor.trigger")
         exp["seed"] = run["seed"]
         return exp
 

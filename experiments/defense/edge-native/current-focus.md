@@ -1,6 +1,6 @@
-# 交接 —— 阶段三（edge 原生防御）· 2026-11-24 晚：**下个会话 = 攻击基线（先做静态三种攻击的接线）**，见〇·攻击基线；D3 已全部收尾并写进论文材料（F-134 … F-137，见〇·〇·〇·〇·〇·〇）
+# 交接 —— 阶段三（edge 原生防御）· 2026-11-24 深夜：**攻击基线第一档（静态三种攻击）接线完成，下一步 = 集群上交探路组 ATKP**，见〇·攻击基线·接线完成；D3 已全部收尾并写进论文材料（F-134 … F-137）
 
-> 过程与数字：本目录 `FINDINGS.md`（到 F-137；预注册 N-008 … N-016 都已生效）与 `DECISIONS.md`（到 D-140）。
+> 过程与数字：本目录 `FINDINGS.md`（到 F-138；预注册 N-008 … N-016 都已生效）与 `DECISIONS.md`（到 D-141）。
 > 阶段性总结报告：本目录 `REPORT.md`（11-07；结果、CCS 线、术语表）；文献：`LITERATURE.md` 第 3 部分（11-17 新颖性核查 + 三篇全文读数）。
 > ⚠️ 阶段三的实验全部做完之前，不要把分支合并到 main（用户 2026-10-10）。分支 `claude/eloquent-faraday-b9kmop`。
 > ⚠️ 用户要求（2026-11-01、11-17 重申）：**文档和回复里不要用不加解释的缩写、编号、专有名词**；第一次出现时说清楚是什么。用户隔了一段时间回来，偏好「把前因后果讲清楚」的说明。
@@ -10,7 +10,60 @@
 
 ---
 
-## 〇·攻击基线、下个会话要做的事（11-24 晚写；**新会话先读这一节**）
+## 〇·攻击基线·接线完成（11-24 深夜；**新会话先读这一节**）
+
+**做完的**（D-141，F-138；语义对照表的四个拍板全部选推荐项）：BadNets / Blended / DBA 接到 P2 的每轮重洗取数路径。
+- 新策略名 **`static`**（`fedavg/client/client_static.py` 的 `StaticPoisonMixin`，纯算术在 `fedavg/attack/static_poison.py`）：在 `on_batch` 里逐批投毒；
+  旧 `vanilla` 只配旧取数路径，两者在 `config_validate` 里按取数路径互斥。
+  - 每批按 `backdoor.poison_sampling` 抽（P2 = 每张独立 0.2，与 Bad-PFL 对照同一个开关、同一个函数）；先增强、再加触发器；与 Bad-PFL 一样强制串行（`main.py` 的 `dynamic_poison`）。
+  - DBA 用官方 4 块局部触发器（只写在登记组里；`hfl-mechanism/base.yaml` 只有前 2 块，不动），10 个攻击者轮流分到 3/3/2/2；评估用 24 像素的并集。
+  - 不做 DBA 官方的放大 100 倍 / 投毒学习率 / 投毒 epoch / 目标类 2 / 指定轮投毒（其余全部同 Bad-PFL 对照，理由见 F-138）。
+  - 评估：没有固定攻击者 → 服务器退回静态触发器；云聚合后评估点对 static 放开，冻结触发器列仍只给 Bad-PFL（登记组里关掉）。
+  - 自描述 `[设定15]`（static / trigger / dba_n_patterns / poison_sampling → `run.*`；trigger 是 `runs_table` 的因素键、`status` 只对 static 核对）
+    + 每次本地训练一行 `[Poison]`（被投毒张数 / 经过钩子的张数）→ `poison_counts`。collect_metrics 只加字段、**不升 schema（仍 16）**。
+- **登记**：`ATKP`（探路：badnet / badnet-rep / blended / dba × s42 × **4 云轮**；badnet-rep 与 badnet 同配置，验 GPU 上的确定性）已放行、配置已生成；
+  `ATK`（正式：三格 × s42 × 60 云轮）挂 **`atkp-ok`**（ATKP 过了放行检查再加进 available）。与 SNAP__collocated__s42 只差攻击设置（守卫 `tests/test_static_poison.py`）。
+- **分流判定脚本** `harness/atk_route.py`（写于数据之前，PREREG-v2 @ 25163a5 第七节）：闸 = supp_verdict 的闸 + attack/trigger/static 对得上 + 每个参与过的攻击者真的投了毒；
+  分流 propagates / local_only / no_implant（阈值 0.30，带 1e-9 容差）；参照列「干净样本被判成目标类的比例」只报告。
+  `--probe` = ATKP 的放行检查（四格过闸（轮数 4）、有云聚合后评估点、badnet 与 badnet-rep `instrumentation_check.compare` 逐位相同）。
+- **本地测试**（Python 3.11）：不装 TF 基线 2308 passed / 62 skipped / 3 xfailed（开工前实测）→ 改完 **2379 passed / 63 skipped / 3 xfailed**（多出的全是新测试）；装 tensorflow-cpu 2.15.1 的全量基线（干净 HEAD 实测）2631 passed / 30 skipped / 3 xfailed / 2 failed（陷阱 #4）；TF（tensorflow-cpu 2.15.1）新测试 `tests/test_static_poison_tf.py` 11 条全过
+  （含 `main.build_clients` 真接线 + 两个反向锚点：把注入改成统一触发器、把 static 移出 `dynamic_poison` 都会红）。**GPU 上的确定性与显存没有证据**，等 ATKP。
+
+**集群上的下一步（按顺序；在集群仓库根目录）**
+1. `git pull`；`bash run_l1.sh 2>&1 | tail -3`（登录节点可跑；预期红同以前：陷阱 #4 的 2 条，GPU 节点上另见 F-127）。
+2. 交 ATKP：4 个单种子格子 → `submit.sh` 不合包，用 `pack.sbatch` 手工装成 **两个两跑包**（显存没测过的新配置类型一包最多 2 个，D-069；
+   badnet 与 badnet-rep 放在同一包 = 同一张卡上并行时也要逐位相同）。
+   函数 `sub` 照〇·四（4 核 / run、24G 主机内存 / run、comment 防重交）：
+
+   ```bash
+   sub() {  # sub <tag> <run_id …>
+     local tag=$1; shift; local a=() r g E=experiments/defense/edge-native
+     for r in "$@"; do g=${r%%__*}; a+=("$E/configs/$r.yaml" "$r" "$E/results/P2/$g/$r.metrics.json"); done
+     sbatch -c $((4*$#)) --mem=$((24*$#))G --job-name=exp3v2-pack$# --comment="exp3v2:$(IFS=,; echo "$*")" \
+       experiments/attack/hfl-mechanism/pack.sbatch "$tag" "${a[@]}"
+   }
+   ```
+
+   ```bash
+   sub ATKP__mix-badnet+badnet-rep__pack-k2-s42 ATKP__badnet__s42 ATKP__badnet-rep__s42
+   sub ATKP__mix-blended+dba__pack-k2-s42 ATKP__blended__s42 ATKP__dba__s42
+   ```
+3. 开跑十几分钟后看一个日志：`grep -m3 -E "\[Poison\]|Traceback|Error" ../tfdpfl-logs/exp3v2_ATKP__dba__s42.*.log`
+   —— 有 `[Poison]` 行（n_poisoned > 0）、没有 Traceback 即正常（`ERROR:absl:` 是已知噪音）。
+4. 回传后（本地或集群）：`python3 harness/atk_route.py --probe` → `pass` 才继续；同时看 gpu.json 的 `run_peak_mib`（定 ATK 的装包）。
+   `pass` → 登记表 `available` 加 `atkp-ok`、**不带 `--group`** 全量 materialize、提交；然后交 ATK（`run_peak_mib` 约 ≤ 17 GiB 时三格一个三跑包，否则 2 + 1）：
+
+   ```bash
+   sub ATK__mix-badnet+blended+dba__pack-k3-s42 ATK__badnet__s42 ATK__blended__s42 ATK__dba__s42
+   ```
+5. ATK 回传后只运行 `python3 harness/atk_route.py`（→ `analysis/atk_route.json`）：propagates 的进第二阶段；local_only / no_implant 的补种子 43、44（不设防）——
+   补种子要另登记（例如 ATK3 组：同 set、seeds [43, 44]），判定脚本已支持读 s43 / s44。
+
+**之后的顺序**（PREREG-v2 第七节，时间盒 2026-12-06）：② IBA（照官方代码写成 mixin，草稿见下面 (e)）→ ②½ 自适应攻击者最小版 → ③ Neurotoxin / CerP。
+
+---
+
+## 〇·攻击基线、下个会话要做的事（11-24 晚写；接线前写的任务说明；(c)(d)(f) 的第 1–4 步已按它做完，见上一节）
 
 **规则的出处**：`experiments/thesis/PREREG-v2.md` 第七节（预注册 N-015，2026-11-22 用户拍板，决定 D-135）。下面 (a)(b) 是那一节的摘要，**规则以原文为准、不改**。
 **时间盒：2026-12-06**（D-135 ③；今天 11-24，还剩 12 天）。到期还没接通的攻击写进论文的局限，不再追。

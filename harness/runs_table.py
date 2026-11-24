@@ -66,7 +66,8 @@ FACTOR_KEYS = ("method", "attack", "defense", "n_clients", "n_edges", "edge_roun
                "edge_shared_blocks",
                "partition", "partition_condition", "partition_alpha_edge",
                "partition_profile", "partition_lambda",
-               "eval_grid")
+               "eval_grid", "trigger")
+# trigger（D-141，[设定15]）：只有 static 策略打 → 三种静态攻击靠它分格；其余策略 / 老文件为 None，同格不变。
 # partition_profile / partition_lambda（阶段三 D-130，[Partition] 行）：Dirichlet 客户端层不打 → None，与之前的文件同格。
 # eval_grid（S5，[设定8]）：没开网格打 n/a → None，与 S5 之前的文件同格（不需要 FACTOR_DEFAULTS）。
 # partition*（S3，[Partition] 行）：旧划分不打这一行 → None，与 S3 之前的文件同格。
