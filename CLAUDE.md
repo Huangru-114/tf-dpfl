@@ -587,6 +587,7 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
     结果：P-a `mainly_earlier_layers` 但**阳性对照（训全部主干）也是 0 → 没有分辨力，不能照字面读**；P-b `not_transmitted`（支持 6.1 隔离传播）；P-c `feedback_moderate`（Spearman 0.91，6.3）。
     ⚠ 快照里的私有 BN 统计量是陈旧的：精确重估后 E0 良性端干净精度第 15 轮升 0.075–0.14（探索性）。
     **P-a 追加探针**（2026-11-24；预注册 N-016、D-140）：加大训练量（12 档）先标定「训全部主干」能清除的最小一档、再三臂正式跑；`fedavg/analysis/d3_pa2.py`、清单 `d3pa2_configs.yaml`、作业 `d3pa2.sbatch` / `d3pa2_submit.sh`、判定 `harness/d3pa2_verdict.py`（select / judge）。**标定判 `not_removable`**（F-137）：学习率 ≤ 0.03 后门一点不掉；学习率 0.1 能清掉但干净精度同时掉 0.18–0.43 → P-a 定位不了，6.1 的「后门存在最后一块」写成未验证。交接见 current-focus。
+  - **下一步 = 攻击基线**（2026-11-24 晚交接；PREREG-v2 第七节，时间盒 2026-12-06）：先做静态三种攻击（BadNets / Blended / DBA）在 P2 每轮重洗取数路径下的接线 ——第一步是语义对照表（策略名、每批投毒 vs 固定投毒集、增强先后、DBA 局部 / 全局触发器、评估退回静态触发器、放开云聚合后评估点的校验），用户确认后才写代码。交接、代码位置与坑见 `experiments/defense/edge-native/current-focus.md` 最上一节「〇·攻击基线」。
 
 **留了接口但没有实现的**（不要以为它们能用）：
 - 主动防御（需要客户端配合的防御）：接口齐了（`BaseDefense.layers` /

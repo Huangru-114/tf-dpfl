@@ -1,4 +1,4 @@
-# 交接 —— 阶段三（edge 原生防御）· 2026-11-24 晚：**D3 全部收尾并写进论文材料**（F-134 … F-137；图 6.1b / 6.7b / A.1 + 英文正文草稿，见〇·〇·〇·〇·〇·〇）；下一步 = 攻击基线接线（时间盒 2026-12-06）
+# 交接 —— 阶段三（edge 原生防御）· 2026-11-24 晚：**下个会话 = 攻击基线（先做静态三种攻击的接线）**，见〇·攻击基线；D3 已全部收尾并写进论文材料（F-134 … F-137，见〇·〇·〇·〇·〇·〇）
 
 > 过程与数字：本目录 `FINDINGS.md`（到 F-137；预注册 N-008 … N-016 都已生效）与 `DECISIONS.md`（到 D-140）。
 > 阶段性总结报告：本目录 `REPORT.md`（11-07；结果、CCS 线、术语表）；文献：`LITERATURE.md` 第 3 部分（11-17 新颖性核查 + 三篇全文读数）。
@@ -10,7 +10,74 @@
 
 ---
 
-## 〇·〇·〇·〇·〇·〇、11-24 晚：P-a 追加探针标定回传 → `not_removable`，D3 全部收尾（**新会话先读这一节**）
+## 〇·攻击基线、下个会话要做的事（11-24 晚写；**新会话先读这一节**）
+
+**规则的出处**：`experiments/thesis/PREREG-v2.md` 第七节（预注册 N-015，2026-11-22 用户拍板，决定 D-135）。下面 (a)(b) 是那一节的摘要，**规则以原文为准、不改**。
+**时间盒：2026-12-06**（D-135 ③；今天 11-24，还剩 12 天）。到期还没接通的攻击写进论文的局限，不再追。
+
+### (a) 为什么做：要回答的两个问题
+- **问题一（刻画，进第 5 章一小节）**：比 Bad-PFL 弱的攻击，在三层分层 + FedRep 下能不能植入、能不能跨边缘传播？它回答「为什么必须研究 Bad-PFL」，并在分层设定下复核 Qin 等（KDD 2023）与 ACISP 2026 的结论（弱攻击在个性化联邦学习里难以存活）。
+- **问题二（泛化，进 6.5）**：对能传播的攻击，6.1 的「最后一块只在边缘内平均、不上云」（三层个性化，块数 B=1）和 6.2 的「上传前加固」是否仍然有效？
+
+### (b) 两个阶段与分流规则
+- **第一阶段（探路）**：6 种攻击（BadNets、Blended、DBA、Neurotoxin、CerP、IBA）× 种子 42 × 不设防 × 集中布点（10 个攻击者全在边缘 0：`malicious_per_edge: [10, 0, 0, 0]`）× 主线划分 × 300 有效轮。
+  投毒率与攻击者数默认同 Bad-PFL（ρ = 0.2，10 个）；攻击设计要求不同的，在语义对照表里写明理由。Bad-PFL 在同条件下的对照 = 已有的 `SNAP__collocated__s42`。
+- **分流**（看末 10 个评估点的原始攻击成功率；这是路由决定，不是论文结论）：
+
+  | 分支 | 规则 | 去向 |
+  |---|---|---|
+  | 能传播 `propagates` | 受害边缘（边缘 1–3）良性端 ≥ 0.30 | 进第二阶段 |
+  | 只在本地 `local_only` | 被攻陷边缘（边缘 0）良性端 ≥ 0.30，受害边缘 < 0.30 | 补种子 43、44（不设防），作问题一的证据 |
+  | 没植入 `no_implant` | 被攻陷边缘良性端 < 0.30 | 补种子 43、44（不设防），作问题一的证据 |
+
+  三个种子都落在同一分支才写成结论，否则写成单种子观察。静态触发器没有 Bad-PFL 那种「投毒率 0 的影子攻击者」底线 → 原始攻击成功率旁边附上「干净样本被判成目标类的比例」作参照（报告里约 0.011–0.020；`[EvalDetail]` 已经在记这一列）。
+- **第二阶段（只对能传播的攻击）**：{不设防（复用第一阶段 + 补 2 个种子）, B=1, 上传前加固} × 集中 × 3 种子；判定同 D-071（`blocks`），并报告与 Bad-PFL 下效应量的对照。**不做分散布点**（D-135 ⑤）。
+- **优先级**：① BadNets / Blended / DBA（共用静态投毒路径，一个接线会话搞定三个）→ ② IBA（主线没有实现；与 Bad-PFL 最接近，最可能能传播，问题二主要靠它）→ ②½ 自适应攻击者最小版（直接检验 6.1，答辩最可能被问）→ ③ Neurotoxin / CerP。
+
+### (c) 第一步：静态三种攻击的语义对照表（交互约定：先出表，用户确认之后才写代码）
+表的格式照 `CLAUDE.md`「交互约定」（论文公式/步骤 | 官方实现 | 本仓库实现 | 差异 | 怎么验证）。下面这几处**必须写进表、由用户拍板**：
+1. **策略名**：新起一个名字（例如 `static`），还是让 `vanilla` 在每轮重洗的取数路径（P2 模板的 `data.batch_pipeline: per_epoch`）下改走新的投毒钩子。
+   前者旧配置逐字节不变、校验好写（`static` + 旧取数路径直接拒绝）；后者少一个名字，但 `vanilla` 一个词在两条路径下语义不同。我的建议是前者。
+2. **投毒样本怎么选**：旧路径在开跑前**一次性固定** 20% 的样本（`attack/backdoor.py:173` `build_poisoned_dataset`，之后每轮都是同一批图带触发器）；
+   新路径照 Bad-PFL **每批**按 `poison_mask` 抽（`attack/poison_mask.py`，`exact_k` = 每批恰好 round(0.2 × 批大小) 张 / `bernoulli` = 每张独立以 0.2 的概率；由开关 `backdoor.poison_sampling` 决定，P2 模板取 `bernoulli`；它在 `fedavg/alignment.py:44` 登记为只对 Bad-PFL 生效，新钩子若也读它，要把适用范围一并改掉，否则启动时会误报「无效」警告）。两者「投毒率 0.2」的含义不同，要写明选哪种、为什么。
+3. **增强与触发器的先后**：旧路径的恶意端**完全不做数据增强**（怕翻转、裁剪把右下角的触发器弄坏）；新路径的钩子在 `epoch_batches` 做完增强**之后**才加触发器（与 Bad-PFL 相同）——触发器不会被弄坏，但恶意端的干净样本也做了增强（与良性端一致）。
+4. **DBA**：每个攻击者按编号顺序分到一个**局部**触发器去投毒，评估用四块合起来的**全局**触发器（`attack/backdoor.py:20` `make_dba_local_triggers`；坐标在 `experiments/attack/hfl-mechanism/base.yaml:100` 的 `dba_patterns`）。
+5. **评估触发器**：静态触发器不依赖模型，P2 的「固定评估攻击者」对它没有意义 —— `main.py:187` 的 `select_eval_attacker` 只挑带 `eval_xi` 的客户端，静态攻击下返回空 → 服务器自动退回静态触发器（`main.py:171` `build_eval_trigger`）。要在测试里钉住这条退路。
+6. **云聚合后评估点要打开**（否则进不了论文的「每个云周期的灌入 − 洗掉」表）：服务器代码本身已经通用 —— `server/server.py:637` 的 `_post_agg_eval` 调 `_light_asr`，不是固定攻击者时就用静态触发器；
+   **只是校验拦着**：`fedavg/config_validate.py:521-523` 要求 Bad-PFL + 固定攻击者 → 对静态策略放开并加测试。**冻结触发器那一列关掉**（`frozen_trigger`；静态触发器不会漂移，那一列恒等于主列）。
+
+### (d) 已经查实的代码事实（11-24 只读核对过）
+- **第一道闸** `fedavg/config_validate.py:613-618`：每轮重洗的取数路径只放行 Bad-PFL。理由写在报错里：静态投毒的数据集会被这条路径绕过（它从原始数组按索引取数，不读 `build_poisoned_dataset` 替换进去的数据集）→ 恶意端**静默变成良性端**。新钩子接上之后对新策略放开。
+- `fedavg/config_validate.py:284`：攻击时间窗（`attack_start_round` / `attack_stop_round`）对 `vanilla` 拒绝 → 新钩子只要读基类刷新的 `_attack_active` 闸门，时间窗就自动可用。
+- **模板**：`fedavg/client/client_badpfl.py:253` 的 `on_batch`（先 `super()`，闸门关就原样返回 → `poison_mask(self.rng, …)` → `tf.where` 混合干净与投毒样本；闸门关时**不消耗**投毒随机数）；钩子协议见 `fedavg/client/client_base.py:261-280`。
+- `fedavg/main.py:115` `select_attack_mixin`：`vanilla` 返回 None（没有 mixin）；`main.py:563-575` 旧路径在构造客户端前用投毒数据集替换；`main.py:592` 所有客户端都已注入每轮重洗的数据源（`set_train_source`）。
+- **触发器**：`fedavg/attack/triggers.py:105` `build_trigger`（像素值跟随 `data.normalize`，见同文件 `trigger_space`）；`hello_kitty.png` 在 `fedavg/attack/triggers/`；`hfl-mechanism/base.yaml` 里 BadNets 3×3、值 1.0，Blended α = 0.2。
+- **登记表**：本目录 `registry.yaml` 的公共底座 `d_base` 开着 `post_agg_eval: true` 与 `frozen_trigger: true`，base 里 `malicious_strategy: badpfl` → 新组的 `set:` 要写攻击策略与 `backdoor.trigger`，并把 `frozen_trigger` 关掉。
+- P2 模板里只属于 Bad-PFL 的五个开关（`fedavg/alignment.py:40-51`）对别的攻击只出警告、**不**拒绝启动。
+- **并行**：动态攻击（CerP / Bad-PFL）会被强制 `n_workers=1`（`main.py` 构造客户端之前）；静态钩子不求梯度，可以照 base 的 4 线程跑 —— 但要在 GPU 短作业里确认确定性（同配置跑两次，前几轮 `[Checksum]` 逐位相同）。
+
+### (e) 后面几档的现状
+- **IBA**：主线没有。草稿只在分支 `origin/claude/iba-attack-integration-vt3jjm`（2026-09-03 / 04，早于 P2 口径与攻击时间窗；与本分支**没有共同历史，不能合并**）：
+  `fedavg/client/client_iba.py`（196 行）、`tests/test_iba_trigger.py`、`experiments/attack/iba/`。用 `git show origin/claude/iba-attack-integration-vt3jjm:<路径>` 读，照官方代码重写成 mixin（读每轮重洗的取数路径）。
+- **自适应攻击者最小版**：知道最后一块不上云的 Bad-PFL 攻击者 —— 投毒训练时把最后一块（`fedavg/utils/tier_split.py` 给出的边缘段索引）的梯度置零，生成器照常。集中 × B=1 × 3 种子。
+  闸 = 被攻陷边缘良性端 ≥ 0.5（否则「攻击本身植不进去」，不能读成 B=1 守住了）；判定量与规则（`b1_breached` / `b1_holds`）见 PREREG-v2 第七节。
+- **Neurotoxin**：掩码方向未证实（`CLAUDE.md` 陷阱 #4，那 2 条已知红测试就是它）；算掩码用的干净数据还读旧的 tf.data 数据集（`set_clean_dataset`）。
+- **CerP**：触发器微调与干净参照遍历 `self.dataset`（旧路径，`fedavg/client/client_cerp.py:118, 138`），要改读 `epoch_batches`。
+
+### (f) 建议的会话内顺序
+1. 开场照「〇、新会话开场」：`git fetch` 看远程、建 Python 3.11 环境、测一次本地基线；
+2. 出静态三种攻击的语义对照表 → **等用户确认**；
+3. 写新钩子 + 放开两处校验 + 测试（纯算术部分本地无 TF 测；TF 测试至少钉住：开钩子后恶意端每批恰好 ρ 比例带触发器、窗口外不耗投毒随机数、良性端与不开攻击时逐位相同、静态策略下评估触发器 = 静态触发器、云聚合后评估点能跑）；
+4. **分流判定脚本先于数据提交**（预注册纪律：规则 → 脚本 → 数据；有数据但闸不过记 `invalid`）；
+5. 登记新组（3 个 run，每个约 2.3 GPU 小时，共约 7 GPU 小时）→ 先交一个短作业探路（GPU 上才会出的问题先暴露）→ 正式交。
+
+### (g) 环境与基线
+- 本地 Python 3.11 不装 TF：最近一次 **2308 passed / 62 skipped / 3 xfailed**（11-24）；装 tensorflow-cpu 2.15.1 全量：**2623 passed / 31 skipped / 3 xfailed / 2 failed**（2 条 = 陷阱 #4；11-24 下午，之后只加了不依赖 TF 的测试）。
+- 现在**没有待交、待回传的作业**。
+
+---
+
+## 〇·〇·〇·〇·〇·〇、11-24 晚：P-a 追加探针标定回传 → `not_removable`，D3 全部收尾
 
 标定作业（`3889c0a`）的闸都过；按 N-016 机械运行 `select` → **`not_removable`**（F-137）：12 档里没有一档能在「干净精度降幅 ≤ 0.05」的约束下让「训全部主干」把后门清掉一半。
 - 学习率 0.01 / 0.03：模型几乎不动、后门一点不掉（f ≤ 0.013）；
