@@ -1,12 +1,51 @@
-# 交接 —— 阶段三（edge 原生防御）· 2026-11-24 深夜：**攻击基线第一档（静态三种攻击）接线完成，下一步 = 集群上交探路组 ATKP**，见〇·攻击基线·接线完成；D3 已全部收尾并写进论文材料（F-134 … F-137）
+# 交接 —— 阶段三（edge 原生防御）· 2026-11-24 深夜（二）：**边缘内中位数的公平检验 MEDF 已登记、判定脚本已写，等用户确认预注册 N-017 后放行**，见〇·MEDF；攻击基线（ATKP）的集群步骤不变，见〇·攻击基线·接线完成
 
-> 过程与数字：本目录 `FINDINGS.md`（到 F-138；预注册 N-008 … N-016 都已生效）与 `DECISIONS.md`（到 D-141）。
+> 过程与数字：本目录 `FINDINGS.md`（到 F-139；预注册 N-008 … N-016 都已生效，N-017 是草案、待用户确认）与 `DECISIONS.md`（到 D-142）。
 > 阶段性总结报告：本目录 `REPORT.md`（11-07；结果、CCS 线、术语表）；文献：`LITERATURE.md` 第 3 部分（11-17 新颖性核查 + 三篇全文读数）。
 > ⚠️ 阶段三的实验全部做完之前，不要把分支合并到 main（用户 2026-10-10）。分支 `claude/eloquent-faraday-b9kmop`。
 > ⚠️ 用户要求（2026-11-01、11-17 重申）：**文档和回复里不要用不加解释的缩写、编号、专有名词**；第一次出现时说清楚是什么。用户隔了一段时间回来，偏好「把前因后果讲清楚」的说明。
 > ⚠️ **CCS 组件拆分（只开对抗训练 / 只开聚类剔除）已经做完**：组名 **CCSD**（种子 42）/ **CCSDA3**（只开对抗训练 43–44）/ **CCSDC5**（只开聚类 43–46）/ **CCSDP**（只开聚类 + 缓存池 43、46），结论见第一节与 F-117 … F-120。
 >    计划里叫 **CCSP** 的是「分层设置下的三臂」，还没做；名叫「消融」的 **CCSA** 比的是 FedPer / FedRep 与训练量，**不是**组件拆分。`CLAUDE.md` 与 `PLAN.md` 只是摘要、可能落后，以本文件与 FINDINGS 为准。
 > ⚠️ 11-17 会话开头用了**过期的本地副本**（停在 11-01），先给出了一版错误的现状评估 —— **开场第一步一定 `git fetch` + 看远程最新**（见〇）。
+
+---
+
+## 〇·MEDF：公平的边缘内中位数（11-24 深夜二；**新会话先读这一节**）
+
+**来龙去脉**（用户 11-24 的讨论链，D-142）：
+1. 问「SAU + 三层个性化做过没有、对分散攻击者有没有用」→ **没做过**（PLAN H2 的 `k1-A` 从没登记）；而且**现有实现直接一起打开会静默只加固前三段**：
+   `hardening/online.py` 只改上传给云的拷贝，B=1 下 `CloudServer.aggregate_edges`（`tier_split.keep_segment`）把洗过的最后一块换回聚合前的值，边缘留着自己没洗过的最后一块；
+   `config_validate` 不拦这个组合。证据面：SAU 碰不到攻击者所在边缘（F-104）、干净数据重训清不掉（F-137）、一个攻击者就攻破所在边缘（F-131）、分散布点 B=1 无效 → 不推荐。
+2. 本会话只读日志否掉的两个想法（数字未单独入库）：参照过滤 +「被扔够次数就永久排除」（ERF 回放：种子 42 集中布点攻击者几乎不被排除，全程误伤 9–44 / 90 个正常端 —— 分数滞后于后门）；
+   事后按类先验校准（攻击者所在边缘良性端 margin 中位数 5–10，校准只能挪约 2–3）。用户另否掉 FedPer 方向（「当时算没能完成复现」）与按客户端累积上传历史的方向。
+3. 用户：「边缘内防后门几乎就是普通联邦学习防后门；Bad-PFL 原文 Median 相对较好」→ 查实 **MED 的边缘层中位数每次只有 2–3 个上传（F-139）**，不是公平检验；
+   用户再要求降机时 → 只做分散布点、参与率 0.2、30 云轮、一个两跑包。
+
+**做完的（本会话）**：
+- 登记 **MEDF**（`registry.yaml`）：分散 × B=1 × s42 × {`ctrl-t1-distributed` 不设防, `edge-t1-distributed` 边缘层中位数}；参与率 0.2（每次边缘聚合 5 个上传）、30 云轮（150 有效轮）、
+  云聚合后评估 / 冻结触发器关。与 ERP main-t1-distributed 只差这几个键（守卫 `tests/test_edge_native_registry.py` 的 MEDF 四条；两个配置都过 `config_validate`）。
+- 预注册 **N-017**（FINDINGS 末尾，**草案 · 待用户确认**）+ **F-139**（MED 只有 2–3 个上传；F-132 / 论文 6.9 的写法要带上参与者数）+ D-142。
+- 判定 `harness/medf_verdict.py`（纯标准库，写于数据之前）+ `tests/test_medf_verdict.py`（23 条）。没有数据时输出 `insufficient`。
+
+**等用户做的一件事**：读 FINDINGS 的 N-017，确认后在 `registry.yaml` 的 `available` 里加 `medf-prereg`（Claude 代加被权限检查拦下：放行标记表示「用户已确认预注册」）。
+加完之后**不带 `--group`** 全量 materialize（生成 `configs/MEDF__*.yaml` 与 INDEX 行），跑一次本地测试，提交、推送。
+
+```bash
+python3 harness/registry.py experiments/defense/edge-native/registry.yaml --materialize
+```
+
+**集群上（仓库根目录，materialize 并推送之后）**：两个单种子格子 → `submit.sh` 不合包，用〇·攻击基线一节的 `sub` 函数手工装成一个两跑包（4 核 / run、24G 主机内存 / run）：
+
+```bash
+sub MEDF__mix-ctrl+edge__pack-k2-s42 MEDF__ctrl-t1-distributed__s42 MEDF__edge-t1-distributed__s42
+```
+
+- 机时估计约 3.3–3.5 GPU 小时（往期 60 云轮的包墙钟 3.9–4.35 小时；参与率 ×2、轮数 ×0.5），**没实测**；显存每 run 约 17 GiB 主要来自 100 个客户端各存一份模型，参与率变化不应改变它（推断）。
+- 开跑十几分钟后看日志：`grep -m3 -E "\[Decision\]|Traceback" ../tfdpfl-logs/exp3v2_MEDF__edge-t1-distributed__s42.*.log` —— `[Decision]` 行应是 `coordinate-wise | n=5`。
+- 回传后：`python3 harness/status.py experiments/defense/edge-native/registry.yaml`（MEDF 两格 done）→ `python3 harness/medf_verdict.py`（→ `analysis/medf_verdict.json`）→ 结果写 FINDINGS 新条目；
+  `useful` 才登记种子 43 / 44。
+
+**本地测试**（Python 3.11、不装 TF）：开工前 2379 passed / 63 skipped / 3 xfailed → 改完 **2406 passed / 63 skipped / 3 xfailed**（多出的 27 条全是新测试，无新红）。本会话没改训练代码，没跑含 TF 的全量。
 
 ---
 

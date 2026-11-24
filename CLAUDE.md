@@ -596,6 +596,9 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
     `registry.expected_run_block` 只对 static 核对它）+ `[Poison]` → `poison_counts`（collect_metrics 仍 schema 16，只加字段）。
     登记 `ATKP`（4 云轮探路，badnet 重复一次验确定性）/ `ATK`（正式，挂 `atkp-ok`）；分流 `harness/atk_route.py`（`--probe` = ATKP 放行检查）。
     守卫 `tests/test_static_poison.py` / `test_atk_route.py`（本地）+ `test_static_poison_tf.py`（TF，含 `build_clients` 真接线）。集群命令见 current-focus 最上一节。
+  - **公平的边缘内中位数 MEDF**（2026-11-24 深夜；D-142 / F-139 / 预注册 N-017 **草案、待用户确认**）：MED 的边缘层中位数每次边缘聚合只有 2–3 个上传（参与率 0.1 × 25 端；2 个数的中位数 = 平均）→ 不是公平检验。
+    MEDF = 参与率 0.2（每次 5 个上传）× 分散 × B=1 × 30 云轮 × {不设防, 边缘层中位数} × s42，挂 `medf-prereg`（用户确认 N-017 后加进 `available`）；判定 `harness/medf_verdict.py`，守卫 `tests/test_medf_verdict.py` + `test_edge_native_registry.py`。
+    ⚠ `defense.edge_harden` + `edge_shared_blocks > 0` 现在**不被拒绝**，但加固洗过的边缘段会被 `aggregate_edges` 丢掉（只加固了上云段）—— 要做这个组合先改语义 / 校验。
 
 **留了接口但没有实现的**（不要以为它们能用）：
 - 主动防御（需要客户端配合的防御）：接口齐了（`BaseDefense.layers` /

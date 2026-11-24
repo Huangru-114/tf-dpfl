@@ -453,6 +453,27 @@ groups:
       - {cell: cloud-collocated,  set: {defense.layers: [cloud], backdoor.malicious_per_edge: [10, 0, 0, 0]}}
       - {cell: cloud-distributed, set: {defense.layers: [cloud], backdoor.malicious_per_edge: [3, 3, 2, 2]}}
 
+  # 公平的边缘内中位数（预注册 N-017 / D-142，2026-11-24）：MED 的边缘层臂每次边缘聚合只有 2–3 个上传（F-139：2 个数的中位数 = 平均），
+  #   不能代表「边缘内 = 25 端的普通联邦学习」里的鲁棒聚合。这里把参与率提到 0.2（每台边缘每个边缘轮 5 个上传；分散布点下 5 个里攻击者过半的概率 ≤ 0.004），
+  #   只做分散布点 × B=1，30 云轮（150 有效轮：往期分散布点不设防第 25–30 云轮后门已近饱和），关掉分散布点下无定义的云聚合后评估 / 冻结触发器。
+  #   不设防对照必须同参与率、同轮数（不能拿 SNAP / ERP 当对照）。与 ERP main-t1-distributed 只差哪几个键：守卫 tests/test_edge_native_registry.py。
+  #   判定 harness/medf_verdict.py（写于数据之前）。两个单种子格子 → submit.sh 不合包，用 pack.sbatch 手工装成一个两跑包（current-focus 最上一节）。
+  MEDF:
+    purpose: "N-017：公平的边缘内中位数 —— 参与率 0.2（每次边缘聚合 5 个上传）× 分散 × B=1 × 30 云轮 × {不设防, 边缘层中位数} × s42"
+    requires: [audit, supp-prereg, medf-prereg]
+    seeds: [42]
+    set:
+      <<: *d_base
+      federation.client_fraction: 0.2            # 每台边缘每个边缘轮 0.2 × 25 = 5 个上传（base 0.1 → 2–3 个）
+      federation.n_rounds: 30                    # 30 云轮 × R5 = 150 有效轮
+      federation.edge_shared_blocks: 1
+      evaluation.post_agg_eval: false            # 分散布点没有受害边缘：灌入 / 洗掉无定义
+      evaluation.frozen_trigger: false
+      backdoor.malicious_per_edge: [3, 3, 2, 2]
+    cells:
+      - {cell: ctrl-t1-distributed}
+      - {cell: edge-t1-distributed, set: {defense.name: median, defense.layers: [edge]}}
+
 # ── 论文收尾：攻击基线第一档（PREREG-v2 第七节 A1；D-141）—— 静态三种攻击 BadNets / Blended / DBA ──────────────
 # malicious_strategy: static = 在 on_batch 里逐批加静态触发器（fedavg/client/client_static.py）：每批按 poison_sampling
 #   （P2 = 每张独立 0.2，与 Bad-PFL 对照同一个开关）抽、先增强再加触发器、强制串行（用户 11-24 拍板）。

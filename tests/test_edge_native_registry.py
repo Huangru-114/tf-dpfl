@@ -101,6 +101,8 @@ def test_three_checks_for_every_declared_set(reg):
         want = 30 if run["group"] in ("CCSA", "CCSR30", "CCSB30") else 300   # 30 轮的诊断组：只看前 30 轮主任务
         if run["group"] == "ATKP":                    # D-141 的 GPU 探路：4 云轮（只看能不能跑、确定性、投没投毒）
             want = 20
+        if run["group"] == "MEDF":                    # D-142：公平的边缘内中位数，30 云轮（分散布点第 25–30 云轮后门已近饱和）
+            want = 150
         assert fed["n_rounds"] * fed["edge_rounds"] == want, run["run_id"]
         assert cfg.get("stopping") is None, run["run_id"]
         grids.add(ev["eval_grid"])
@@ -612,3 +614,42 @@ def test_supplement_configs_pass_startup_validation():
     for p in sorted((HERE / "configs").glob("*.yaml")):
         if p.name.split("__")[0] in ("TBS", "TBH", "MED"):
             validate_config(yaml.safe_load(p.read_text(encoding="utf-8")))
+
+
+# ── 公平的边缘内中位数（N-017 / D-142）：MEDF ─────────────────────────────────
+MEDF_SETTING = {"federation.client_fraction", "federation.n_rounds",
+                "evaluation.post_agg_eval", "evaluation.frozen_trigger"}
+
+
+def test_medf_has_two_runs_and_waits_for_the_user_confirmed_prereg(reg):
+    runs = sorted(r["run_id"] for r in reg.runs() if r["group"] == "MEDF")
+    assert runs == ["MEDF__ctrl-t1-distributed__s42", "MEDF__edge-t1-distributed__s42"]
+    assert "medf-prereg" in reg.groups["MEDF"]["requires"]
+
+
+def test_medf_ctrl_differs_from_the_b1_distributed_run_only_in_participation_length_and_recording(reg):
+    """不设防对照 = ERP main-t1-distributed（B=1、分散、observe）换成 defense none，再改参与率 / 轮数 / 两个记录开关。"""
+    a = _cfg(reg, "MEDF__ctrl-t1-distributed__s42")
+    b = _cfg(reg, "ERP__main-t1-distributed__s42")
+    assert _diff(a, b) == {"defense.name", "defense.edge_ref.mode"} | MEDF_SETTING | META
+    f = a["federation"]
+    assert (f["client_fraction"], f["n_rounds"], f["edge_shared_blocks"]) == (0.2, 30, 1)
+    assert a["backdoor"]["malicious_per_edge"] == [3, 3, 2, 2] and a["defense"]["name"] == "none"
+    assert a["evaluation"]["post_agg_eval"] is False and a["evaluation"]["frozen_trigger"] is False
+    # 每台边缘每个边缘轮 5 个上传（0.2 × 25 端），与判定脚本的闸同一个数
+    assert round(f["client_fraction"] * f["n_clients"] / f["n_edges"]) == 5
+
+
+def test_medf_median_arm_differs_from_its_control_only_in_the_defense(reg):
+    a = _cfg(reg, "MEDF__edge-t1-distributed__s42")
+    b = _cfg(reg, "MEDF__ctrl-t1-distributed__s42")
+    assert _diff(a, b) == {"defense.name", "defense.layers", "meta.run_id"}
+    assert a["defense"]["name"] == "median" and a["defense"]["layers"] == ["edge"]
+
+
+def test_medf_configs_pass_startup_validation(reg):
+    """B=1 + 边缘层中位数（§4e 只拒绝云层防御）、参与率 0.2、30 云轮都不被拒绝。"""
+    from config_validate import validate_config
+    for r in reg.runs():
+        if r["group"] == "MEDF":
+            validate_config(reg.declared_config(r))
