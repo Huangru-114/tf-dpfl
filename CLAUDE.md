@@ -547,7 +547,7 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
   **CCS 剔除非有限上传物**：`[CCS]` 报 `n_valid` / `nonfinite`，有效占比 < `defense.ccs.min_valid_frac`（0.5）→ `[CCSStop]` 并停止；collect_metrics **schema 15**。守卫 `tests/test_fedrep_proj_phase_tf.py`、`test_ccs_spec`。
 
 - **阶段三 CCS 线：统计量共享 + 组件拆分 + 缓存池**（2026-10-31 … 11-07；`experiments/defense/edge-native/` FINDINGS F-113 … F-121、DECISIONS D-117 … D-128）。
-  ⚠ **新会话先读 `experiments/defense/edge-native/current-focus.md` 与 `REPORT.md` §0 / §7.4**；本条只是摘要，可能落后。全部在**不分层**设置（1 edge × 100 端、FedRep、300 轮、旧 `noniid` 划分 → **没有 edge 干净集**）。
+  ⚠ **新会话先读 `experiments/defense/edge-native/current-focus.md` 与 `REPORT.md` §0 / §12**（11-24 更新：实验设定与超参数在 §3，全部结果图在 §0.1）；本条只是摘要，可能落后。全部在**不分层**设置（1 edge × 100 端、FedRep、300 轮、旧 `noniid` 划分 → **没有 edge 干净集**）。
   - 统计量共享（`training.fedrep_bn_stats: shared`，组口径 `P2-ablation`）：FedRep + CCS 的主任务崩坏来自客户端私有统计量与新主干失配（F-113）；
     CCSB（两个组件都开）`partial_repro`：攻击成功率降 0.684、精度降 0.112（F-115）；BNS（统计量私有 vs 共享 × 3 种子）`not_established`（F-116）。
   - **CCS 组件拆分已做完**：**CCSD**（种子 42，只开对抗训练 / 只开聚类）+ **CCSDA3**（只开对抗训练 43–44）+ **CCSDC5**（只开聚类 43–46），对照 CCSOFF5 / CCSB3 / BNS 共享格。
