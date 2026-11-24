@@ -26,6 +26,9 @@ defense_balance、partition_preview、判定脚本），图上的数与判定输
 | fig6_8 | 6.3 | 良性端误判分布：每个良性端被丢弃上传的比例（经验分布） |
 | fig6_9 | 6.4 | 综合比较：受害边缘 / 被攻陷边缘 / 分散布点 / 精度下降 / 防御计算量 |
 | fig6_10 | 6.4 | 灌入—洗掉按防御分解（前半程；攻击成功率与 margin 两行） |
+| fig6_1b | 6.1 | 受害边缘残余的攻击成功率从哪来：评估触发器 vs 在受害者自己模型上求的白盒触发器（D3 P-b） |
+| fig6_7b | 6.3 | 统计量偏移随后门强度：108 个边缘模型的散点 + 预注册的 Spearman 读数（D3 P-c） |
+| figA_1 | 附录 A | 重训探针：后门清除比例 vs 干净精度代价，两次探针（D3 P-a 与追加探针） |
 第 6 章的数据由 digests() 一次读完阶段三全部结果、每个文件压成摘要后即丢（同时只占一个 metrics.json 的内存）。
 """
 
@@ -1090,6 +1093,224 @@ def plot_balance(d: dict):
     return fig
 
 
+# ── D3 离线探针（F-134 … F-137）：6.1b 白盒扰动、6.7b 统计量偏移、附录 A.1 重训探针 ───────────────
+
+EDGE_ANALYSIS = ROOT / "experiments/defense/edge-native/analysis"
+D3_VERDICT = EDGE_ANALYSIS / "d3_verdict.json"
+D3PA2_FROZEN = EDGE_ANALYSIS / "d3pa2_frozen.json"
+# 6.1b 的行：触发器怎么构造（d3_probes 的列名 → 图上用语）；顺序 = 从主列到参照
+WHITEBOX_ROWS = (("main", "evaluation trigger"),
+                 ("whitebox", "white-box trigger"),
+                 ("delta_only", "generator part only"),
+                 ("xi_only_victim", "noise part only (victim model)"),
+                 ("xi_only_attacker", "noise part only (attacker model)"),
+                 ("clean", "no trigger"))
+
+
+def data_whitebox() -> dict | None:
+    """
+    受害边缘（三台均值）在 6 种触发器构造下的攻击成功率 / margin：
+    {"asr" | "margin": {列: {"none" | "tier": {种子: 值}}}}。攻击成功率 = d3_verdict 的 P-b 行（隔离 1 块）与参照行（不设防）；
+    margin 读同一批探针 JSON 的 `pb.margin_V`（判定里没有 margin）。
+    """
+    v = _load(D3_VERDICT)
+    if v is None:
+        return None
+    pb = v.get("pb") or {}
+    arms = {"tier": pb.get("rows") or [], "none": pb.get("reference") or []}
+    if any(len(rows) < len(SEEDS) for rows in arms.values()):
+        return None
+    out = {"asr": {}, "margin": {}, "rows": [c for c, _ in WHITEBOX_ROWS], "labels": dict(WHITEBOX_ROWS)}
+    for arm, rows in arms.items():
+        for r in rows:
+            seed = int(r["seed"])
+            j = _load(EDGE_ANALYSIS / "d3" / f"{r['run']}.json")
+            mv = ((((j or {}).get("rounds") or {}).get(str(r["round"])) or {}).get("pb") or {}).get("margin_V") or {}
+            for col, _ in WHITEBOX_ROWS:
+                out["asr"].setdefault(col, {}).setdefault(arm, {})[seed] = r["V"].get(col)
+                out["margin"].setdefault(col, {}).setdefault(arm, {})[seed] = mv.get(col)
+    return out
+
+
+def _pair_rows(ax, values: dict, rows, xlim):
+    """行 = 触发器构造；每行两组点（不设防在上、共享块在下），空心 = 种子，竖短线 = 均值。"""
+    n = len(rows)
+    for i, col in enumerate(rows):
+        for arm, dy in (("none", 0.17), ("tier", -0.17)):
+            st = TS.ARM[arm]
+            y = n - 1 - i + dy
+            vals = {s: x for s, x in (values.get(col, {}).get(arm) or {}).items() if x is not None}
+            for s, x in sorted(vals.items()):
+                ax.plot([x], [y], linewidth=0, marker=TS.SEED_MARKER.get(int(s), "o"), markersize=3.5,
+                        color=st["color"], markerfacecolor="none", markeredgewidth=0.8)
+            if vals:
+                mu = _mean(list(vals.values()))
+                ax.plot([mu, mu], [y - 0.13, y + 0.13], color=st["color"], linewidth=1.6)
+    ax.set_xlim(*xlim)
+    ax.set_ylim(-0.6, n - 0.4)
+    ax.grid(axis="y", visible=False)
+
+
+def plot_whitebox(d: dict):
+    fig, axes = TS.figure(1, 2, height=2.4, sharey=True)
+    rows = d["rows"]
+    mvals = [x for col in d["margin"].values() for a in col.values() for x in a.values() if x is not None]
+    lo = min(mvals + [0.0]) - 0.8
+    hi = max(mvals + [0.0]) + 0.8
+    for ax, key, xlim, lab in ((axes[0][0], "asr", (0, 1.03), "attack success rate, victim edges"),
+                               (axes[0][1], "margin", (lo, hi), "trigger margin, victim edges")):
+        _pair_rows(ax, d[key], rows, xlim)
+        ax.set_xlabel(lab)
+    axes[0][1].axvline(0, color=TS.NEUTRAL["floor"], linewidth=TS.LW_THIN)
+    axes[0][0].set_yticks(range(len(rows)))
+    axes[0][0].set_yticklabels([d["labels"][c] for c in reversed(rows)])
+    TS.panel(axes[0][0], "a")
+    TS.panel(axes[0][1], "b")
+    _fig_legend(fig, ("none", "tier"))
+    return fig
+
+
+def _role_of(unit: dict) -> str:
+    if "distributed" in str(unit["run"]):
+        return "dispersed"
+    return "compromised" if int(unit["edge"]) == 0 else "victim"
+
+
+def data_shift() -> dict | None:
+    """
+    108 个边缘模型：后门强度 S（该边缘良性端触发 margin 中位数的记录值）vs 加触发器前后的统计量偏移 Δ（各批归一化层输入矩的
+    高斯 KL 的层均值），按边缘角色与快照轮分组；(b) 的 Spearman 全部是 d3_verdict 里预注册写定的读数（同一份）。
+    """
+    v = _load(D3_VERDICT)
+    pc = (v or {}).get("pc") or {}
+    units = pc.get("units") or []
+    if len(units) < pc.get("n_expected", 108) or pc.get("pooled_spearman") is None:
+        return None
+    pts = [{"S": u["S"], "delta": u["delta"], "role": _role_of(u), "round": int(u["round"]), "seed": int(u["seed"])}
+           for u in units]
+    desc = pc.get("descriptive") or {}
+    rho = [("all edge models", pc["pooled_spearman"])]
+    rho += [(f"seed {s}", pc["per_seed_spearman"][str(s)]) for s in SEEDS]
+    rho += [(f"cloud round {t}", desc["within_round_spearman"][str(t)]) for t in sorted(TS.ROUND_MARKER)]
+    return {"points": pts, "rho": rho, "threshold": 0.5, "perm_p": pc.get("perm_p")}
+
+
+def plot_shift(d: dict):
+    import matplotlib.lines as mlines
+    fig, axes = TS.figure(1, 2, height=2.6, gridspec_kw={"width_ratios": [1.55, 1]})
+    ax = axes[0][0]
+    for role in ("dispersed", "victim", "compromised"):
+        for t, mk in TS.ROUND_MARKER.items():
+            sel = [p for p in d["points"] if p["role"] == role and p["round"] == t]
+            if sel:
+                ax.plot([p["S"] for p in sel], [p["delta"] for p in sel], linewidth=0, marker=mk, markersize=3.6,
+                        color=TS.ROLE[role]["color"], markeredgecolor=TS.NEUTRAL["surface"], markeredgewidth=0.4)
+    ax.set_yscale("log")
+    ax.axvline(0, color=TS.NEUTRAL["floor"], linewidth=TS.LW_THIN)
+    ax.set_xlabel("backdoor strength: " + MARGIN_LABEL + " of the edge")
+    ax.set_ylabel("trigger-induced shift of\nnormalisation statistics")
+    TS.panel(ax, "a")
+    ax2 = axes[0][1]
+    n = len(d["rho"])
+    for i, (lab, r) in enumerate(d["rho"]):
+        y = n - 1 - i
+        ax2.plot([r], [y], linewidth=0, marker="o", markersize=3.8, color=TS.NEUTRAL["ink"])
+        ax2.annotate(f"{r:.2f}", (r, y), xytext=(4, 0), textcoords="offset points", va="center",
+                     fontsize=TS.FS_SMALL, color=TS.NEUTRAL["ink2"])
+    TS.threshold(ax2, d["threshold"], horizontal=False)
+    ax2.set_yticks(range(n))
+    ax2.set_yticklabels([lab for lab, _ in reversed(d["rho"])])
+    ax2.set_xlim(0, 1.08)
+    ax2.set_ylim(-0.6, n - 0.4)
+    ax2.grid(axis="y", visible=False)
+    ax2.set_xlabel("Spearman rank correlation")
+    TS.panel(ax2, "b")
+    hs = [mlines.Line2D([], [], linewidth=0, marker="o", markersize=4, color=TS.ROLE[r]["color"], label=lab)
+          for r, lab in (("victim", "victim edges"), ("compromised", "compromised edge"),
+                         ("dispersed", "edges, dispersed placement"))]
+    hs += [mlines.Line2D([], [], linewidth=0, marker=mk, markersize=4, color=TS.NEUTRAL["ink"],
+                         label=f"cloud round {t}") for t, mk in TS.ROUND_MARKER.items()]
+    fig.legend(handles=hs, loc="outside upper center", ncol=3, fontsize=TS.FS_SMALL, columnspacing=1.2,
+               handletextpad=0.3)
+    return fig
+
+
+def _budget_of(bid: str) -> dict:
+    """「lr0.03-e20-reinit」→ {lr, epochs, head}（d3_spec.pa2_budget_id 的逆）。"""
+    lr, ep, head = bid.split("-")
+    return {"lr": float(lr[2:]), "epochs": int(ep[1:]), "head": head}
+
+
+def data_retraining() -> dict | None:
+    """
+    附录 A.1：每个 (轮, 训练设置) 的「后门清除比例 f」与「干净精度代价」。
+    追加探针 = d3pa2_frozen.json 的 12 档 × 两轮（只训全部主干）；原探针 = d3_verdict 的 P-a 行（三臂 × 3 种子 × 两轮，lr = 客户端 × 0.1、75 步）。
+    可接受区 = f ≥ 0.5 且代价 ≤ 0.05（追加探针的选择规则）。
+    """
+    fz = _load(D3PA2_FROZEN)
+    v = _load(D3_VERDICT)
+    if fz is None or v is None or not fz.get("table"):
+        return None
+    pts = []
+    for row in fz["table"]:
+        b = _budget_of(row["id"])
+        for t, r in (row.get("rounds") or {}).items():
+            if r.get("diverged"):
+                continue
+            pts.append({**b, "id": row["id"], "round": int(t), "f": r["f"], "cost": r["acc_drop"]})
+    orig = []
+    for r in (v.get("pa") or {}).get("rows") or []:
+        arms = {"stage4": {"f": r.get("f"), "acc_drop": r.get("acc_drop")}, **(r.get("controls") or {})}
+        for arm, a in arms.items():
+            orig.append({"arm": arm, "seed": int(r["seed"]), "round": int(r["round"]), "f": a.get("f"),
+                         "cost": a.get("acc_drop")})
+    return {"points": pts, "orig": orig, "f_min": 0.5, "cost_max": 0.05, "label": fz.get("label"),
+            "rounds": sorted({p["round"] for p in pts})}
+
+
+RETRAIN_HEAD = {"probe": ("o", "circle: fitted linear head"), "reinit": ("s", "square: re-initialised head")}
+
+
+def plot_retraining(d: dict):
+    import matplotlib.lines as mlines
+    import matplotlib.patches as mpatches
+    fig, axes = TS.figure(1, len(d["rounds"]), height=2.9, sharey=True)
+    lrs = sorted({p["lr"] for p in d["points"]})
+    shade = dict(zip(lrs, TS.ramp("gray", len(lrs))))
+    for ax, t in zip(axes[0], d["rounds"]):
+        ax.add_patch(mpatches.Rectangle((-1, d["f_min"]), 1 + d["cost_max"], 2, facecolor=TS.NEUTRAL["grid"],
+                                        linewidth=0, zorder=0))
+        TS.threshold(ax, d["f_min"])
+        TS.threshold(ax, d["cost_max"], horizontal=False)
+        for p in [q for q in d["orig"] if q["round"] == t and q["f"] is not None and q["cost"] is not None]:
+            ax.plot([p["cost"]], [p["f"]], linewidth=0, marker="x", markersize=3.5, color=TS.NEUTRAL["ink"],
+                    markeredgewidth=0.7, zorder=5)
+        for p in [q for q in d["points"] if q["round"] == t]:
+            mk = RETRAIN_HEAD[p["head"]][0]
+            filled = p["epochs"] >= 20
+            ax.plot([p["cost"]], [p["f"]], linewidth=0, marker=mk, markersize=4.2, color=shade[p["lr"]],
+                    markerfacecolor=shade[p["lr"]] if filled else "none", markeredgewidth=0.9)
+        ax.set_xlim(-0.03, 0.46)
+        ax.set_ylim(-0.05, 1.05)
+        ax.set_title(f"cloud round {t}", fontsize=TS.FS_SMALL, color=TS.NEUTRAL["ink"])
+        ax.set_xlabel("clean-accuracy cost")
+    axes[0][0].set_ylabel("share of the backdoor removed")
+    for i, ax in enumerate(axes[0]):
+        TS.panel(ax, "ab"[i])
+    hs = [mlines.Line2D([], [], linewidth=0, marker="o", markersize=4, color=shade[lr], label=f"lr {lr:g}") for lr in lrs]
+    hs += [mlines.Line2D([], [], linewidth=0, marker="o", markersize=4, color=TS.NEUTRAL["ink"], label="filled: 300 steps"),
+           mlines.Line2D([], [], linewidth=0, marker="o", markersize=4, color=TS.NEUTRAL["ink"],
+                         markerfacecolor="none", label="open: 75 steps")]
+    hs += [mlines.Line2D([], [], linewidth=0, marker=m, markersize=4, color=TS.NEUTRAL["ink"], markerfacecolor="none",
+                         label=lab) for m, lab in RETRAIN_HEAD.values()]
+    hs += [mlines.Line2D([], [], linewidth=0, marker="x", markersize=4, color=TS.NEUTRAL["ink"],
+                         label="first probe (lr x0.1)"),
+           mpatches.Patch(facecolor=TS.NEUTRAL["grid"], label="acceptable region")]
+    fig.legend(handles=hs, loc="outside upper center", ncol=3, fontsize=TS.FS_SMALL, columnspacing=1.5,
+               handletextpad=0.3)
+    return fig
+
+
 # ══════════════════════════════════════════════════════════════════════════
 
 FIGURES = {
@@ -1110,6 +1331,9 @@ FIGURES = {
     "fig6_8": ("fig6_8_benign_misjudgement", data_misjudgement, plot_misjudgement),
     "fig6_9": ("fig6_9_comparison", data_comparison, plot_comparison),
     "fig6_10": ("fig6_10_injection_washing", data_balance, plot_balance),
+    "fig6_1b": ("fig6_1b_whitebox_transfer", data_whitebox, plot_whitebox),
+    "fig6_7b": ("fig6_7b_shift_vs_strength", data_shift, plot_shift),
+    "figA_1": ("figA_1_retraining_probe", data_retraining, plot_retraining),
 }
 
 

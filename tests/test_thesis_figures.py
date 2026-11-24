@@ -11,6 +11,7 @@ tests/test_thesis_figures.py  —  论文图（harness/thesis_figures.py + harne
 结果不在盘上 → 相应的测试 skip；渲染需要 matplotlib（没有就 skip）。
 """
 
+import json
 import re
 import sys
 from pathlib import Path
@@ -300,7 +301,7 @@ def notes_problems(figures: dict, text: str, fig_dir: Path) -> list:
     """登记表里每张图都要在说明里出现（`文件名` 形式）；说明里提到的每个图文件都要在登记表里、且 PDF / PNG 都存在。"""
     names = {v[0] for v in figures.values()}
     problems = [f"缺说明：{n}" for n in sorted(names) if f"`{n}`" not in text]
-    for ref in sorted(set(re.findall(r"`(fig\d+_\d+_[a-z0-9_]+)`", text))):
+    for ref in sorted(set(re.findall(r"`(fig[0-9A-Z]+_\d+[a-z]?_[a-z0-9_]+)`", text))):
         if ref not in names:
             problems.append(f"说明里有、登记表里没有：{ref}")
         elif not ((fig_dir / f"{ref}.pdf").exists() and (fig_dir / f"{ref}.png").exists()):
@@ -318,3 +319,58 @@ def test_notes_check_catches_a_missing_section():
     figs = dict(T.FIGURES)
     figs["fig9_9"] = ("fig9_9_planted", None, None)                 # 反向锚点：登记了却没写说明
     assert notes_problems(figs, NOTES.read_text(encoding="utf-8"), TS.OUT) == ["缺说明：fig9_9_planted"]
+
+
+# ── D3 离线探针的三张图（2026-11-24；F-134 … F-137）──────────────────────────
+D3_VERDICT = ROOT / "experiments/defense/edge-native/analysis/d3_verdict.json"
+D3PA2_FROZEN = ROOT / "experiments/defense/edge-native/analysis/d3pa2_frozen.json"
+
+
+def test_whitebox_figure_is_the_pb_verdict():
+    d = _need(T.data_whitebox())
+    v = json.loads(D3_VERDICT.read_text(encoding="utf-8"))["pb"]
+    for arm, rows in (("tier", v["rows"]), ("none", v["reference"])):
+        for r in rows:
+            for col in T.WHITEBOX_ROWS:
+                assert d["asr"][col[0]][arm][int(r["seed"])] == r["V"][col[0]]
+    assert [round(d["asr"]["whitebox"]["tier"][s] - d["asr"]["main"]["tier"][s], 4) for s in T.SEEDS] \
+        == [r["gap"] for r in v["rows"]] == [-0.0719, -0.011, -0.0684]
+    assert all(x is not None for col in d["margin"].values() for a in col.values() for x in a.values())
+
+
+def test_shift_figure_is_the_pc_units_and_spearman():
+    d = _need(T.data_shift())
+    pc = json.loads(D3_VERDICT.read_text(encoding="utf-8"))["pc"]
+    assert len(d["points"]) == 108 == pc["n_units"]
+    assert [(p["S"], p["delta"]) for p in d["points"]] == [(u["S"], u["delta"]) for u in pc["units"]]
+    rho = dict(d["rho"])
+    assert rho["all edge models"] == pc["pooled_spearman"] == 0.9106
+    assert [rho[f"seed {s}"] for s in T.SEEDS] == [pc["per_seed_spearman"][str(s)] for s in T.SEEDS]
+    assert [rho[f"cloud round {t}"] for t in (6, 15, 60)] == [0.7797, 0.8903, 0.8816]
+    roles = {p["role"] for p in d["points"]}
+    assert roles == {"victim", "compromised", "dispersed"}
+    assert sum(p["role"] == "compromised" for p in d["points"]) == 18      # 6 个集中布点的 run × 3 轮
+
+
+def test_retraining_figure_has_no_point_in_the_acceptable_region():
+    d = _need(T.data_retraining())
+    fz = json.loads(D3PA2_FROZEN.read_text(encoding="utf-8"))
+    assert fz["label"] == d["label"] == "not_removable"
+    assert len(d["points"]) == 24 and len(d["orig"]) == 18
+    inside = [p for p in d["points"] + d["orig"]
+              if p["f"] is not None and p["f"] >= d["f_min"] and p["cost"] <= d["cost_max"]]
+    assert inside == []                                                       # 与 not_removable 一致
+    best = max(d["points"], key=lambda p: p["f"])
+    assert (best["id"], best["round"], round(best["f"], 4), round(best["cost"], 4)) == ("lr0.1-e5-probe", 15, 0.9923, 0.4256)
+    assert max(p["f"] for p in d["orig"]) < 0.001                            # 第一次探针：全是 0
+
+
+def test_drafts_have_no_internal_names_below_the_separator():
+    drafts = sorted((ROOT / "experiments/thesis/drafts").glob("*.md"))
+    assert drafts
+    pats = [p for p in BANNED if p != r"[一-鿿]"] + [r"[一-鿿]"]
+    for f in drafts:
+        body = f.read_text(encoding="utf-8").split("\n---\n", 1)
+        assert len(body) == 2, f"{f.name} 缺「---」分隔线"
+        hits = [(p, m.group(0)) for p in pats for m in re.finditer(p, body[1])]
+        assert hits == [], f"{f.name}: {hits[:5]}"

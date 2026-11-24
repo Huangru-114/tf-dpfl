@@ -75,6 +75,13 @@ PARTITION = {
     "main": {"color": SERIES[2], "ls": "-", "marker": "s", "label": "institution-style partition"},
     "old": {"color": GRAY_RAMP[2], "ls": "--", "marker": "o", "label": "Dirichlet partition (earlier protocol)"},
 }
+# 图 6.7b（统计量偏移 vs 后门强度，D3 / F-136）：分散布点的边缘（每台都有攻击者）既不是受害边缘也不是被攻陷边缘 → 中性灰，不占类别色。
+# 用浅一档的灰（GRAY_RAMP[1]），与图例里训练轮的黑色形状分开。
+# 校验（dataviz validate_palette.js "#2a78d6,#eb6834,#8f8e89" --pairs all，2026-11-24）：CVD 最差 ΔE 10.9、正常视觉 17.3、对比度都 ≥ 3:1；
+# 唯一的 FAIL 是灰色「色度低于下限」—— 它本来就是刻意的中性色，不当类别色用。
+ROLE["dispersed"] = {"color": GRAY_RAMP[1], "label": "edges with attackers (dispersed placement)"}
+# 训练进度（快照所在的云轮）用**实心**标记形状区分；全书「空心标记 = 种子」的约定不受影响（图注写明）。
+ROUND_MARKER = {6: "o", 15: "D", 60: "s"}
 
 
 def ramp(kind: str, n: int) -> list:

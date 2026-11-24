@@ -1,4 +1,4 @@
-# 交接 —— 阶段三（edge 原生防御）· 2026-11-24 晚：**D3 全部收尾**（P-a 追加探针判 `not_removable`，F-137；见〇·〇·〇·〇·〇·〇）；**待用户决定**：D3 结论怎么写进论文 6.1 / 6.3；之后 = 攻击基线接线（时间盒 2026-12-06）
+# 交接 —— 阶段三（edge 原生防御）· 2026-11-24 晚：**D3 全部收尾并写进论文材料**（F-134 … F-137；图 6.1b / 6.7b / A.1 + 英文正文草稿，见〇·〇·〇·〇·〇·〇）；下一步 = 攻击基线接线（时间盒 2026-12-06）
 
 > 过程与数字：本目录 `FINDINGS.md`（到 F-137；预注册 N-008 … N-016 都已生效）与 `DECISIONS.md`（到 D-140）。
 > 阶段性总结报告：本目录 `REPORT.md`（11-07；结果、CCS 线、术语表）；文献：`LITERATURE.md` 第 3 部分（11-17 新颖性核查 + 三篇全文读数）。
@@ -27,7 +27,11 @@
 
 ⚠ F-137 的精度崩可能部分来自「新主干 + 没重训的私有分类头」对不上，**不能**读成「后门与主任务缠在一起」。
 
-**待用户决定**：D3 结论怎么写进 6.1 / 6.3、要不要出图（OUTLINE 对照表、FIGURE-NOTES 都还没更新）；`ISSUE-sharing-value.md` 的「块内切分」P-a 没给出依据。
+**已写进论文材料**（用户 11-24：要写、要出图）：
+- 图 `experiments/thesis/figures/fig6_1b_whitebox_transfer`（6.1 机制）、`fig6_7b_shift_vs_strength`（6.3 反馈循环）、`figA_1_retraining_probe`（附录 A）；代码 `harness/thesis_figures.py` 的 `data_whitebox / data_shift / data_retraining`，数与判定 JSON 同源（`tests/test_thesis_figures.py` 钉住，A.1 的可接受区为空）；
+- `experiments/thesis/OUTLINE.md`（6.1 / 6.3 要点、对照表新增两行、反馈循环 弱 → 中、O1 / O2 完成）、`FIGURES.md`、`FIGURE-NOTES.md`（三节，含英文图注草稿）；
+- 英文正文草稿 `experiments/thesis/drafts/d3-probes.md`（6.1 机制小节、6.3 反馈循环证据、附录 A），分隔线以下不含内部名词（测试守着）。
+`ISSUE-sharing-value.md` 的「块内切分」P-a 没给出依据。
 **之后的顺序不变**：攻击基线接线（时间盒 2026-12-06）。
 
 ---

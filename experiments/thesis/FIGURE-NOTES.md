@@ -1,4 +1,4 @@
-# 论文图说明（2026-11-23）
+# 论文图说明（2026-11-23；11-24 加图 6.1b / 6.7b / A.1）
 
 > 每张图一节：文件、论文位置、一句话结论、各面板含义、关键数字（带出处）、数据来源、证据强度与注意事项、英文图注草稿、改图入口。
 > 图文件都在 `experiments/thesis/figures/`（`.pdf` 矢量版放进 LaTeX；`.png` 是 300 dpi 预览），由 `python3 harness/thesis_figures.py` 生成
@@ -105,6 +105,19 @@
 - **英文图注草稿**：*Edge-shared block with concentrated attackers. Attack success rate of benign clients in the victim edges (left) and in the compromised edge (right), for the institution-style partition (top) and its more homogeneous variant (bottom). Keeping the last residual block within each edge (green, dashed) suppresses the cross-edge spread; benign clients of the compromised edge remain unprotected.*
 - **改图入口**：`plot_tier`。
 
+## 图 6.1b 受害边缘的残余从哪来：白盒触发器 — `fig6_1b_whitebox_transfer`
+
+- **论文位置**：6.1（机制：为什么边缘级共享块有效）。
+- **一句话**：共享块下受害边缘还剩 0.27–0.41 的攻击成功率；让受害客户端在**自己的**模型上求扰动（白盒）并不更强、反而略低 → 剩下的就是传过去的那部分后门，「后门其实在、只是触发器迁移不过去」被排除。
+- **面板**：行 = 触发器怎么构造：评估用的触发器（扰动在攻击者模型上求 + 生成器扰动，= 正文的主列）、白盒触发器（扰动在受害者自己的模型上求）、只用生成器扰动、只用对抗噪声（受害者模型 / 攻击者模型）、不加触发器；
+  (a) 受害边缘攻击成功率（三台均值），(b) 触发 margin；灰 = 不设防、绿 = 边缘级共享块（隔离 1 块）；空心 = 种子，竖短线 = 均值；第 60 云轮。
+- **关键数字**（种子 42 / 43 / 44）：共享块 评估触发器 0.401 / 0.272 / 0.410、白盒 0.329 / 0.261 / 0.342，白盒 − 评估 = −0.072 / −0.011 / −0.068（预注册判定 `not_transmitted`，三个种子 |差| < 0.10）；
+  只用生成器扰动 0.21–0.24、只用对抗噪声 0.09–0.17、不加触发器 0.015–0.024。不设防参照：两列都约 1.0（差 ≤ 0.003），只用生成器扰动就到 0.998–1.000。出处：F-135。
+- **数据来源**：块数扫描组隔离 1 块存快照的那一格（备查：TBS k1-snap）与不设防对照（备查：SNAP 集中）各 3 种子的第 60 轮快照，离线重算（备查：D3 P-b）；数据函数 `data_whitebox`（攻击成功率 = `analysis/d3_verdict.json` 的 P-b 行；margin = `analysis/d3/*.json` 的 `pb.margin_V`）。
+- **强度与注意**：预注册判定、3 个种子；每个受害客户端的两列用同一批图、同一个随机起点、同一个生成器扰动（配对）。只测了第 60 轮、集中布点；白盒扰动是与评估同预算的单步 PGD，更强的白盒搜索可能找到更多。
+- **英文图注草稿**：*Where the residual vulnerability of the victim edges comes from (cloud round 60, concentrated placement). Attack success rate (a) and trigger margin (b) in the victim edges for six ways of building the trigger, without defense (grey) and with the edge-shared block (green). Optimising the adversarial noise on the victim's own personalized model (white-box) is not more effective than the evaluation trigger, so what remains in the victim edges is the part of the backdoor that was transmitted. Open markers are seeds, bars are means.*
+- **改图入口**：`plot_whitebox`；行名在 `WHITEBOX_ROWS`。
+
 ## 图 6.2 共享深度的权衡 — `fig6_2_sharing_depth`
 
 - **论文位置**：6.1（排除「只是少共享」的平凡解释）。
@@ -171,6 +184,19 @@
 - **英文图注草稿**：*Online filtering with edge-reference scores. (a, b) Attack success rate in the victim edges and in the compromised edge for four settings. (c) Seed 42 with filtering: median suspicion score per cloud round of attackers' and benign uploads in the compromised edge; dotted line: threshold. (d) Attackers' median score against the attack success rate of the compromised edge in the previous cloud round, with scoring only (open, r = 0.07) and with filtering (filled, r = 0.57).*
 - **改图入口**：`plot_filtering`；四种设置的图例在图上方一行。
 
+## 图 6.7b 统计量偏移随后门强度 — `fig6_7b_shift_vs_strength`
+
+- **论文位置**：6.3（反馈循环的直接证据）。
+- **一句话**：同一批干净图、同一个触发器，模型里的后门越强，触发器引起的批归一化统计量偏移越大 —— 所以参照打分测的是「模型已有后门」，过滤压住后门、攻击者就显得正常，这正是 6.7 里看到的反馈循环。
+- **面板**：(a) 108 个边缘模型（不设防集中 / 分散布点与隔离 1 块 × 3 种子 × 第 6 / 15 / 60 轮 × 4 台边缘）；横轴 = 该边缘良性端触发 margin 中位数（后门强度，取训练时的记录值），纵轴 = 边缘 500 张干净图加触发器前后各批归一化层输入矩的高斯 KL 的层均值（对数）；
+  颜色 = 边缘角色（蓝 受害边缘、橙 被攻陷边缘、浅灰 分散布点的边缘），**实心**形状 = 训练轮（圆 6、菱形 15、方 60）。(b) 预注册写定的 Spearman：全部、每个种子、每轮内部；点线 = 0.5 门槛。
+- **关键数字**：合并 Spearman 0.911；每个种子 0.901 / 0.933 / 0.903；每轮内部 0.780 / 0.890 / 0.882；自由置换单侧 p = 0.0001（10 000 次的最小可报值），按轮分层置换 p = 0.0001；去掉目标类图片后 0.908。
+  预注册判定 `feedback_moderate`（反馈循环的证据从「弱」升为「中」）。探索性（看过数据之后才算，图上没画）：只看受害边缘 0.845、只看分散布点 0.900。出处：F-136。
+- **数据来源**：三组 run 的快照（备查：SNAP 集中 / 分散、TBS k1-snap），离线重算（备查：D3 P-c）；数据函数 `data_shift`（点 = `analysis/d3_verdict.json` 的 P-c 单位，后门强度读已入库的 metrics.json）。
+- **强度与注意**：预注册判定、3 个种子、每轮内部也成立（不是「两者都随训练变大」）；但仍是**相关性**证据；偏移测在裸边缘模型的训练模式整批前向上，后门强度测在各客户端的评估用个性化模型上（两者共用同一个边缘主干）；同一个 run 的 4 台边缘共用一个生成器，单位不完全独立。正文用「有直接的相关性证据」，不说「证明」。
+- **英文图注草稿**：*Trigger-induced shift of the normalisation statistics against backdoor strength. (a) 108 edge models (three settings x three seeds x cloud rounds 6, 15 and 60 x four edges): horizontal axis, median trigger margin of the edge's benign clients; vertical axis, mean Gaussian divergence of the batch-normalisation inputs between the edge's clean images with and without the trigger (log scale). Colour: edge role; filled shape: cloud round. (b) Spearman rank correlations specified before the analysis (dotted: 0.5 threshold).*
+- **改图入口**：`plot_shift`；角色颜色 `thesis_style.ROLE`，训练轮形状 `thesis_style.ROUND_MARKER`。
+
 ## 图 6.8 良性端的误判分布 — `fig6_8_benign_misjudgement`
 
 - **论文位置**：6.3（公平性）。
@@ -217,6 +243,19 @@
 - **改图入口**：`plot_balance`；坐标范围在函数里的 `lims`。
 
 ---
+
+## 图 A.1 重训探针：后门清不掉 — `figA_1_retraining_probe`
+
+- **论文位置**：附录 A（正文 6.1 只写一句：「后门主要存在最后一块」这一前提未能验证）。
+- **一句话**：在攻击者所在边缘上用干净图重训，要么后门一点不掉（学习率 ≤ 0.03，或原探针的学习率 = 客户端 × 0.1），要么后门掉了但模型也坏了（学习率 0.1 + 临时线性头：精度降 0.18–0.43）；可接受区（清除 ≥ 0.5 且精度代价 ≤ 0.05）里一个点都没有 → 定位不了后门存在哪一层。
+- **面板**：(a) 第 15 云轮、(b) 第 60 云轮；横轴 = 攻击者所在边缘良性端的干净精度代价（相对「不重训、只重估统计量」的基线），纵轴 = 后门清除比例（清到底线 = 1）；
+  灰阶 = 学习率（0.01 / 0.03 / 0.1），实心 = 300 步、空心 = 75 步，圆 = 临时线性头、方 = 重新初始化的头（追加探针，只训全部主干，种子 42）；× = 第一次探针（只训最后一块 / 只训前面几层 / 训全部主干 × 3 种子，学习率 = 客户端 × 0.1、75 步）；浅灰阴影 = 可接受区。
+- **关键数字**：第一次探针 18 个点的清除比例全是 0.000（最大 0.0006）；追加探针学习率 ≤ 0.03 的 16 个点 ≤ 0.013；学习率 0.1 + 临时线性头 0.992 / 0.728（75 步，精度降 0.426 / 0.248）、0.696 / 0.808（300 步，精度降 0.328 / 0.182）；学习率 0.1 + 重新初始化头 0.025–0.175（精度降 0.056–0.096）。
+  判定：第一次 `mainly_earlier_layers` 但阳性对照也失败（没有分辨力）；追加探针 `not_removable`。出处：F-134、F-137。
+- **数据来源**：不设防对照（备查：SNAP 集中）第 15 / 60 轮快照，离线重训（备查：D3 P-a 与追加探针）；数据函数 `data_retraining`（点 = `analysis/d3_verdict.json` 的 P-a 行与 `analysis/d3pa2_frozen.json` 的 12 档 × 两轮）。
+- **强度与注意**：两次探针的规则都在跑之前写定（追加探针是**看过第一次结果之后**设计的，图注写明）；精度崩可能部分来自「新主干 + 各客户端没重训的私有分类头」对不上，**不能**读成「后门与主任务功能缠在一起」，只能读成「在这种探针设置下，清掉后门的同时模型也坏了」。追加探针的网格只在种子 42 上跑（按预注册，没有合格的一档就不跑正式阶段）。
+- **英文图注草稿**：*Retraining probe on the compromised edge (appendix). Share of the backdoor removed against the clean-accuracy cost, at cloud rounds 15 (a) and 60 (b). Crosses: first probe (last block only, earlier layers only, whole backbone; learning rate one tenth of the client rate, 75 steps; three seeds). Other markers: follow-up probe on the whole backbone (seed 42) with learning rate (grey level), number of steps (filled: 300, open: 75) and classification head (circle: fitted linear head, square: re-initialised head); the follow-up was designed after the first probe. Shaded: acceptable region (removed >= 0.5, cost <= 0.05), which no setting reaches.*
+- **改图入口**：`plot_retraining`；分类头的形状在 `RETRAIN_HEAD`。
 
 ## 改图时怎么和我交互（建议）
 
