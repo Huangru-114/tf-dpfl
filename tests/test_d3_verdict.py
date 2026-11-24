@@ -364,3 +364,43 @@ def test_cli_writes_the_verdict(tmp_path, capsys):
 def test_verdict_does_not_import_tensorflow():
     src = (ROOT / "harness/d3_verdict.py").read_text(encoding="utf-8")
     assert "tensorflow" not in src.split('"""', 2)[2]
+
+
+# ── 真实数据的锚点（D3 回传之后加，2026-11-24；F-134 … F-136）────────────────
+REAL_OUT = EN / "analysis/d3_verdict.json"
+
+
+def test_committed_verdict_equals_the_script_output():
+    """入库的 d3_verdict.json 就是判定脚本对入库数据的输出（同 g1_scores 的做法）。"""
+    got = json.loads(json.dumps(V.run_all(), ensure_ascii=False))
+    assert got == json.loads(REAL_OUT.read_text(encoding="utf-8"))
+
+
+def test_real_labels_and_key_numbers():
+    res = json.loads(REAL_OUT.read_text(encoding="utf-8"))
+    assert "problems" not in res and res["config_sha"] == "89160c6203b99416"
+    # P-a（F-134）：标签是规则输出，但阳性对照（训全部主干）也是 0 —— 这次重训没有分辨力
+    assert res["pa"]["label"] == "mainly_earlier_layers"
+    assert all(r["f"] == 0.0 and r["gate_ok"] for r in res["pa"]["rows"]) and len(res["pa"]["rows"]) == 6
+    assert max(r["controls"]["body"]["f"] for r in res["pa"]["rows"]) < 0.001
+    # P-b（F-135）
+    assert res["pb"]["label"] == "not_transmitted"
+    assert [r["gap"] for r in res["pb"]["rows"]] == [-0.0719, -0.011, -0.0684]
+    assert [r["V"]["whitebox"] for r in res["pb"]["rows"]] == [0.3293, 0.2609, 0.3418]
+    # P-c（F-136）
+    pc = res["pc"]
+    assert pc["label"] == "feedback_moderate" and pc["n_units"] == 108
+    assert pc["pooled_spearman"] == 0.9106 and pc["perm_p"] == pytest.approx(1 / 10001, abs=1e-6)
+    assert pc["per_seed_spearman"] == {"42": 0.9012, "43": 0.9328, "44": 0.9027}
+    assert pc["descriptive"]["within_round_spearman"] == {"6": 0.7797, "15": 0.8903, "60": 0.8816}
+
+
+def test_all_27_reproduce_gates_passed_on_the_real_data():
+    n = 0
+    for run in S.all_runs(REAL_CFG):
+        j = json.loads((EN / f"analysis/d3/{run}.json").read_text(encoding="utf-8"))
+        assert j["config_sha"] == S.content_sha(REAL_CFG)
+        for R in j["rounds"].values():
+            assert R["reproduce"]["pass"] and R["reproduce"]["max_abs_diff"] <= 0.001
+            n += 1
+    assert n == 27

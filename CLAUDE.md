@@ -582,7 +582,10 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
     **逐图说明** `experiments/thesis/FIGURE-NOTES.md`（2026-11-23：含义、各面板、关键数字与出处、数据来源、注意事项、英文图注草稿、改图入口）；**新增或改名一张图必须同时补说明一节**，否则 `test_every_figure_has_a_notes_section` 会红。
   - **11-22 补充实验第一批**（预注册 N-015 = `experiments/thesis/PREREG-v2.md`，D-135）：登记 TBS（块数扫描）/ TBH（威胁边界 [9,1,0,0]）/ MED（边缘层 / 云层中位数，
     `defense.layers` 区分 → `run.defense_layers`）共 27 run；判定 `harness/supp_verdict.py`，D0b 快照结构核查 `fedavg/analysis/tier_structure.py`。
-    交接与集群命令：`experiments/defense/edge-native/current-focus.md` 〇·〇。后续：D3 探针 → 攻击基线（时间盒 2026-12-06）。
+    交接与集群命令：`experiments/defense/edge-native/current-focus.md` 〇·〇。后续：攻击基线（时间盒 2026-12-06）。
+  - **D3 离线探针**（2026-11-23 / 24；D-138 / D-139，FINDINGS F-134 … F-136）：`fedavg/analysis/d3_spec.py`（不 import TF）+ `d3_probes.py`（TF，只读快照）、清单 `experiments/defense/edge-native/d3_configs.yaml`（内容 sha 由 `tests/test_d3_spec.py` 锁住）、作业 `d3.sbatch` / `d3_submit.sh`、判定 `harness/d3_verdict.py`。
+    结果：P-a `mainly_earlier_layers` 但**阳性对照（训全部主干）也是 0 → 没有分辨力，不能照字面读**；P-b `not_transmitted`（支持 6.1 隔离传播）；P-c `feedback_moderate`（Spearman 0.91，6.3）。
+    ⚠ 快照里的私有 BN 统计量是陈旧的：精确重估后 E0 良性端干净精度第 15 轮升 0.075–0.14（探索性）。
 
 **留了接口但没有实现的**（不要以为它们能用）：
 - 主动防御（需要客户端配合的防御）：接口齐了（`BaseDefense.layers` /
