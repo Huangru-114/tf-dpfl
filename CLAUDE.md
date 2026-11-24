@@ -586,7 +586,7 @@ run 真的死掉时，杀死它的是别的东西 —— 去看 traceback，不�
   - **D3 离线探针**（2026-11-23 / 24；D-138 / D-139，FINDINGS F-134 … F-136）：`fedavg/analysis/d3_spec.py`（不 import TF）+ `d3_probes.py`（TF，只读快照）、清单 `experiments/defense/edge-native/d3_configs.yaml`（内容 sha 由 `tests/test_d3_spec.py` 锁住）、作业 `d3.sbatch` / `d3_submit.sh`、判定 `harness/d3_verdict.py`。
     结果：P-a `mainly_earlier_layers` 但**阳性对照（训全部主干）也是 0 → 没有分辨力，不能照字面读**；P-b `not_transmitted`（支持 6.1 隔离传播）；P-c `feedback_moderate`（Spearman 0.91，6.3）。
     ⚠ 快照里的私有 BN 统计量是陈旧的：精确重估后 E0 良性端干净精度第 15 轮升 0.075–0.14（探索性）。
-    **P-a 追加探针**（2026-11-24；预注册 N-016、D-140）：加大训练量（12 档）先标定「训全部主干」能清除的最小一档、再三臂正式跑；`fedavg/analysis/d3_pa2.py`、清单 `d3pa2_configs.yaml`、作业 `d3pa2.sbatch` / `d3pa2_submit.sh`、判定 `harness/d3pa2_verdict.py`（select / judge）。交接见 current-focus。
+    **P-a 追加探针**（2026-11-24；预注册 N-016、D-140）：加大训练量（12 档）先标定「训全部主干」能清除的最小一档、再三臂正式跑；`fedavg/analysis/d3_pa2.py`、清单 `d3pa2_configs.yaml`、作业 `d3pa2.sbatch` / `d3pa2_submit.sh`、判定 `harness/d3pa2_verdict.py`（select / judge）。**标定判 `not_removable`**（F-137）：学习率 ≤ 0.03 后门一点不掉；学习率 0.1 能清掉但干净精度同时掉 0.18–0.43 → P-a 定位不了，6.1 的「后门存在最后一块」写成未验证。交接见 current-focus。
 
 **留了接口但没有实现的**（不要以为它们能用）：
 - 主动防御（需要客户端配合的防御）：接口齐了（`BaseDefense.layers` /

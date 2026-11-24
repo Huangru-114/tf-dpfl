@@ -1,0 +1,512 @@
+{
+ "schema": 1,
+ "preregistered": "N-016（experiments/defense/edge-native/FINDINGS.md）；D-140；判定脚本写于标定与正式数据之前",
+ "config_sha": "79d915ec7703b4ca",
+ "rule": "标定 SNAP__collocated__s42 × 第 [15, 60] 轮 × body：两轮都 f ≥ 0.5、精度降幅 ≤ 0.05、没发散 → 合格；取网格顺序（学习率 × 步数 → 学习率 → probe 先于 reinit）第一个合格的",
+ "calibration_file": "SNAP__collocated__s42.calibrate.json",
+ "calibration_sha": "037cb810ba2c",
+ "selected": null,
+ "table": [
+  {
+   "id": "lr0.01-e5-probe",
+   "index": 0,
+   "rounds": {
+    "15": {
+     "diverged": false,
+     "asr_base": 1.0,
+     "asr": 1.0,
+     "f": 0.0,
+     "f_fixed_xi": 0.0,
+     "acc_base": 0.8432,
+     "acc": 0.8395,
+     "acc_drop": 0.0037333333333332552,
+     "margin_base": 6.2416,
+     "margin": 5.6883,
+     "steps": 75,
+     "lr": 0.01,
+     "dw_body_absmax": 0.019745
+    },
+    "60": {
+     "diverged": false,
+     "asr_base": 1.0,
+     "asr": 1.0,
+     "f": 0.0,
+     "f_fixed_xi": 0.0,
+     "acc_base": 0.8992,
+     "acc": 0.9077,
+     "acc_drop": -0.00853333333333317,
+     "margin_base": 10.0339,
+     "margin": 9.8032,
+     "steps": 75,
+     "lr": 0.01,
+     "dw_body_absmax": 0.014393
+    }
+   },
+   "eligible": false,
+   "why_not": [
+    "第 15 轮 f = 0.0",
+    "第 60 轮 f = 0.0"
+   ]
+  },
+  {
+   "id": "lr0.01-e5-reinit",
+   "index": 1,
+   "rounds": {
+    "15": {
+     "diverged": false,
+     "asr_base": 1.0,
+     "asr": 1.0,
+     "f": 0.0,
+     "f_fixed_xi": 0.0,
+     "acc_base": 0.8432,
+     "acc": 0.84,
+     "acc_drop": 0.0032000000000000917,
+     "margin_base": 6.2416,
+     "margin": 5.915,
+     "steps": 75,
+     "lr": 0.01,
+     "dw_body_absmax": 0.012065
+    },
+    "60": {
+     "diverged": false,
+     "asr_base": 1.0,
+     "asr": 1.0,
+     "f": 0.0,
+     "f_fixed_xi": 0.0,
+     "acc_base": 0.8992,
+     "acc": 0.9056,
+     "acc_drop": -0.00639999999999985,
+     "margin_base": 10.0339,
+     "margin": 9.9349,
+     "steps": 75,
+     "lr": 0.01,
+     "dw_body_absmax": 0.00874
+    }
+   },
+   "eligible": false,
+   "why_not": [
+    "第 15 轮 f = 0.0",
+    "第 60 轮 f = 0.0"
+   ]
+  },
+  {
+   "id": "lr0.03-e5-probe",
+   "index": 2,
+   "rounds": {
+    "15": {
+     "diverged": false,
+     "asr_base": 1.0,
+     "asr": 0.9989,
+     "f": 0.001201304587481933,
+     "f_fixed_xi": 0.0,
+     "acc_base": 0.8432,
+     "acc": 0.808,
+     "acc_drop": 0.03520000000000001,
+     "margin_base": 6.2416,
+     "margin": 4.8035,
+     "steps": 75,
+     "lr": 0.03,
+     "dw_body_absmax": 0.046446
+    },
+    "60": {
+     "diverged": false,
+     "asr_base": 1.0,
+     "asr": 0.9883,
+     "f": 0.01299948297510899,
+     "f_fixed_xi": 0.015953910923997307,
+     "acc_base": 0.8992,
+     "acc": 0.8848,
+     "acc_drop": 0.01440000000000008,
+     "margin_base": 10.0339,
+     "margin": 8.4789,
+     "steps": 75,
+     "lr": 0.03,
+     "dw_body_absmax": 0.039561
+    }
+   },
+   "eligible": false,
+   "why_not": [
+    "第 15 轮 f = 0.001201304587481933",
+    "第 60 轮 f = 0.01299948297510899"
+   ]
+  },
+  {
+   "id": "lr0.03-e5-reinit",
+   "index": 3,
+   "rounds": {
+    "15": {
+     "diverged": false,
+     "asr_base": 1.0,
+     "asr": 1.0,
+     "f": 0.0,
+     "f_fixed_xi": 0.0,
+     "acc_base": 0.8432,
+     "acc": 0.8395,
+     "acc_drop": 0.0037333333333332552,
+     "margin_base": 6.2416,
+     "margin": 5.371,
+     "steps": 75,
+     "lr": 0.03,
+     "dw_body_absmax": 0.020375
+    },
+    "60": {
+     "diverged": false,
+     "asr_base": 1.0,
+     "asr": 1.0,
+     "f": 0.0,
+     "f_fixed_xi": 0.0,
+     "acc_base": 0.8992,
+     "acc": 0.9019,
+     "acc_drop": -0.002666666666666706,
+     "margin_base": 10.0339,
+     "margin": 9.7929,
+     "steps": 75,
+     "lr": 0.03,
+     "dw_body_absmax": 0.017855
+    }
+   },
+   "eligible": false,
+   "why_not": [
+    "第 15 轮 f = 0.0",
+    "第 60 轮 f = 0.0"
+   ]
+  },
+  {
+   "id": "lr0.01-e20-probe",
+   "index": 4,
+   "rounds": {
+    "15": {
+     "diverged": false,
+     "asr_base": 1.0,
+     "asr": 1.0,
+     "f": 0.0,
+     "f_fixed_xi": 0.0,
+     "acc_base": 0.8432,
+     "acc": 0.8528,
+     "acc_drop": -0.009600000000000164,
+     "margin_base": 6.2416,
+     "margin": 5.5239,
+     "steps": 300,
+     "lr": 0.01,
+     "dw_body_absmax": 0.017786
+    },
+    "60": {
+     "diverged": false,
+     "asr_base": 1.0,
+     "asr": 1.0,
+     "f": 0.0,
+     "f_fixed_xi": 0.0,
+     "acc_base": 0.8992,
+     "acc": 0.8971,
+     "acc_drop": 0.0021333333333334314,
+     "margin_base": 10.0339,
+     "margin": 9.5822,
+     "steps": 300,
+     "lr": 0.01,
+     "dw_body_absmax": 0.018864
+    }
+   },
+   "eligible": false,
+   "why_not": [
+    "第 15 轮 f = 0.0",
+    "第 60 轮 f = 0.0"
+   ]
+  },
+  {
+   "id": "lr0.01-e20-reinit",
+   "index": 5,
+   "rounds": {
+    "15": {
+     "diverged": false,
+     "asr_base": 1.0,
+     "asr": 1.0,
+     "f": 0.0,
+     "f_fixed_xi": 0.0,
+     "acc_base": 0.8432,
+     "acc": 0.8416,
+     "acc_drop": 0.0016000000000000458,
+     "margin_base": 6.2416,
+     "margin": 5.3275,
+     "steps": 300,
+     "lr": 0.01,
+     "dw_body_absmax": 0.019681
+    },
+    "60": {
+     "diverged": false,
+     "asr_base": 1.0,
+     "asr": 1.0,
+     "f": 0.0,
+     "f_fixed_xi": 0.0,
+     "acc_base": 0.8992,
+     "acc": 0.8923,
+     "acc_drop": 0.006933333333333347,
+     "margin_base": 10.0339,
+     "margin": 9.7523,
+     "steps": 300,
+     "lr": 0.01,
+     "dw_body_absmax": 0.015964
+    }
+   },
+   "eligible": false,
+   "why_not": [
+    "第 15 轮 f = 0.0",
+    "第 60 轮 f = 0.0"
+   ]
+  },
+  {
+   "id": "lr0.1-e5-probe",
+   "index": 6,
+   "rounds": {
+    "15": {
+     "diverged": false,
+     "asr_base": 1.0,
+     "asr": 0.1043,
+     "f": 0.9923064926437319,
+     "f_fixed_xi": 0.9826712630573473,
+     "acc_base": 0.8432,
+     "acc": 0.4176,
+     "acc_drop": 0.4255999999999999,
+     "margin_base": 6.2416,
+     "margin": -1.8839,
+     "steps": 75,
+     "lr": 0.1,
+     "dw_body_absmax": 0.146038
+    },
+    "60": {
+     "diverged": false,
+     "asr_base": 1.0,
+     "asr": 0.3427,
+     "f": 0.7282488246643323,
+     "f_fixed_xi": 0.7562500172309182,
+     "acc_base": 0.8992,
+     "acc": 0.6512,
+     "acc_drop": 0.24800000000000033,
+     "margin_base": 10.0339,
+     "margin": -1.6924,
+     "steps": 75,
+     "lr": 0.1,
+     "dw_body_absmax": 0.093889
+    }
+   },
+   "eligible": false,
+   "why_not": [
+    "第 15 轮精度降 0.4255999999999999",
+    "第 60 轮精度降 0.24800000000000033"
+   ]
+  },
+  {
+   "id": "lr0.1-e5-reinit",
+   "index": 7,
+   "rounds": {
+    "15": {
+     "diverged": false,
+     "asr_base": 1.0,
+     "asr": 0.9777,
+     "f": 0.02472143862865704,
+     "f_fixed_xi": 0.0302812872296996,
+     "acc_base": 0.8432,
+     "acc": 0.7691,
+     "acc_drop": 0.07413333333333338,
+     "margin_base": 6.2416,
+     "margin": 3.2876,
+     "steps": 75,
+     "lr": 0.1,
+     "dw_body_absmax": 0.050199
+    },
+    "60": {
+     "diverged": false,
+     "asr_base": 1.0,
+     "asr": 0.969,
+     "f": 0.03432274556273821,
+     "f_fixed_xi": 0.036634906566216145,
+     "acc_base": 0.8992,
+     "acc": 0.8432,
+     "acc_drop": 0.05600000000000016,
+     "margin_base": 10.0339,
+     "margin": 6.9375,
+     "steps": 75,
+     "lr": 0.1,
+     "dw_body_absmax": 0.047635
+    }
+   },
+   "eligible": false,
+   "why_not": [
+    "第 15 轮 f = 0.02472143862865704",
+    "第 15 轮精度降 0.07413333333333338",
+    "第 60 轮 f = 0.03432274556273821",
+    "第 60 轮精度降 0.05600000000000016"
+   ]
+  },
+  {
+   "id": "lr0.03-e20-probe",
+   "index": 8,
+   "rounds": {
+    "15": {
+     "diverged": false,
+     "asr_base": 1.0,
+     "asr": 0.9914,
+     "f": 0.009525084200002166,
+     "f_fixed_xi": 0.008394694376079832,
+     "acc_base": 0.8432,
+     "acc": 0.8123,
+     "acc_drop": 0.030933333333333368,
+     "margin_base": 6.2416,
+     "margin": 4.2623,
+     "steps": 300,
+     "lr": 0.03,
+     "dw_body_absmax": 0.044939
+    },
+    "60": {
+     "diverged": false,
+     "asr_base": 1.0,
+     "asr": 1.0,
+     "f": 0.0,
+     "f_fixed_xi": 0.0005908855897776142,
+     "acc_base": 0.8992,
+     "acc": 0.8917,
+     "acc_drop": 0.0074666666666668435,
+     "margin_base": 10.0339,
+     "margin": 8.2386,
+     "steps": 300,
+     "lr": 0.03,
+     "dw_body_absmax": 0.038149
+    }
+   },
+   "eligible": false,
+   "why_not": [
+    "第 15 轮 f = 0.009525084200002166",
+    "第 60 轮 f = 0.0"
+   ]
+  },
+  {
+   "id": "lr0.03-e20-reinit",
+   "index": 9,
+   "rounds": {
+    "15": {
+     "diverged": false,
+     "asr_base": 1.0,
+     "asr": 1.0,
+     "f": 0.0,
+     "f_fixed_xi": 0.0005908855897776142,
+     "acc_base": 0.8432,
+     "acc": 0.8224,
+     "acc_drop": 0.02079999999999982,
+     "margin_base": 6.2416,
+     "margin": 4.4403,
+     "steps": 300,
+     "lr": 0.03,
+     "dw_body_absmax": 0.038588
+    },
+    "60": {
+     "diverged": false,
+     "asr_base": 1.0,
+     "asr": 0.9989,
+     "f": 0.0011817711795553516,
+     "f_fixed_xi": 0.0011817711795553516,
+     "acc_base": 0.8992,
+     "acc": 0.8923,
+     "acc_drop": 0.006933333333333347,
+     "margin_base": 10.0339,
+     "margin": 9.0426,
+     "steps": 300,
+     "lr": 0.03,
+     "dw_body_absmax": 0.026599
+    }
+   },
+   "eligible": false,
+   "why_not": [
+    "第 15 轮 f = 0.0",
+    "第 60 轮 f = 0.0011817711795553516"
+   ]
+  },
+  {
+   "id": "lr0.1-e20-probe",
+   "index": 10,
+   "rounds": {
+    "15": {
+     "diverged": false,
+     "asr_base": 1.0,
+     "asr": 0.3716,
+     "f": 0.6962493848568915,
+     "f_fixed_xi": 0.7800957574520697,
+     "acc_base": 0.8432,
+     "acc": 0.5157,
+     "acc_drop": 0.3274666666666667,
+     "margin_base": 6.2416,
+     "margin": -0.8374,
+     "steps": 300,
+     "lr": 0.1,
+     "dw_body_absmax": 0.25669
+    },
+    "60": {
+     "diverged": false,
+     "asr_base": 1.0,
+     "asr": 0.2704,
+     "f": 0.8083247668394693,
+     "f_fixed_xi": 0.8336365662783854,
+     "acc_base": 0.8992,
+     "acc": 0.7173,
+     "acc_drop": 0.18186666666666695,
+     "margin_base": 10.0339,
+     "margin": -2.2503,
+     "steps": 300,
+     "lr": 0.1,
+     "dw_body_absmax": 0.210052
+    }
+   },
+   "eligible": false,
+   "why_not": [
+    "第 15 轮精度降 0.3274666666666667",
+    "第 60 轮精度降 0.18186666666666695"
+   ]
+  },
+  {
+   "id": "lr0.1-e20-reinit",
+   "index": 11,
+   "rounds": {
+    "15": {
+     "diverged": false,
+     "asr_base": 1.0,
+     "asr": 0.8423,
+     "f": 0.17467253735808655,
+     "f_fixed_xi": 0.1999899610535702,
+     "acc_base": 0.8432,
+     "acc": 0.7472,
+     "acc_drop": 0.09599999999999997,
+     "margin_base": 6.2416,
+     "margin": 1.5896,
+     "steps": 300,
+     "lr": 0.1,
+     "dw_body_absmax": 0.081277
+    },
+    "60": {
+     "diverged": false,
+     "asr_base": 1.0,
+     "asr": 0.9546,
+     "f": 0.05033940539892435,
+     "f_fixed_xi": 0.0602703301573233,
+     "acc_base": 0.8992,
+     "acc": 0.8411,
+     "acc_drop": 0.05813333333333337,
+     "margin_base": 10.0339,
+     "margin": 6.2987,
+     "steps": 300,
+     "lr": 0.1,
+     "dw_body_absmax": 0.076791
+    }
+   },
+   "eligible": false,
+   "why_not": [
+    "第 15 轮 f = 0.17467253735808655",
+    "第 15 轮精度降 0.09599999999999997",
+    "第 60 轮 f = 0.05033940539892435",
+    "第 60 轮精度降 0.05813333333333337"
+   ]
+  }
+ ],
+ "floor_e0": 0.0974,
+ "label": "not_removable",
+ "reasons": [
+  "12 档里没有一档在两轮都能让训全部主干 f ≥ 0.5 且精度降幅 ≤ 0.05"
+ ]
+}

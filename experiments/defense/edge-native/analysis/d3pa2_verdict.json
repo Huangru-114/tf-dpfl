@@ -1,0 +1,21 @@
+{
+ "preregistered": "N-016（experiments/defense/edge-native/FINDINGS.md）；D-140；判定脚本写于标定与正式数据之前",
+ "config_sha": "79d915ec7703b4ca",
+ "thresholds": {
+  "remove": 0.5,
+  "early": 0.25,
+  "acc_gate": 0.05,
+  "tol": 1e-09
+ },
+ "rule": "阳性对照：body 6 个 f 都 ≥ 0.5（否则 uninformative）；stage4 6 个 f 都 ≥ 0.5 → last_block_suffices，都 < 0.25 → last_block_insufficient；闸：清单 / 冻结 sha、重现、两臂未发散且精度降 ≤ 0.05",
+ "frozen": {
+  "label": "not_removable",
+  "selected": null,
+  "calibration_sha": "037cb810ba2c"
+ },
+ "rows": [],
+ "label": "not_removable",
+ "reasons": [
+  "标定判 not_removable：P-a 到此为止，不跑正式阶段"
+ ]
+}

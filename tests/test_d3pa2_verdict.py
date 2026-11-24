@@ -241,3 +241,33 @@ def test_cli_select_then_judge(tmp_path, capsys):
 def test_verdict_does_not_import_tensorflow():
     src = (ROOT / "harness/d3pa2_verdict.py").read_text(encoding="utf-8")
     assert "tensorflow" not in src.split('"""', 2)[2]
+
+
+# ── 真实数据的锚点（标定回传之后加，2026-11-24；F-137）────────────────────────
+REAL_CAL = EN / "analysis/d3pa2/SNAP__collocated__s42.calibrate.json"
+REAL_FROZEN = EN / "analysis/d3pa2_frozen.json"
+REAL_VERDICT = EN / "analysis/d3pa2_verdict.json"
+
+
+def test_committed_frozen_list_equals_select_on_the_committed_calibration():
+    got = V.select(json.loads(REAL_CAL.read_text(encoding="utf-8")), CFG, calib_path=REAL_CAL)
+    assert json.loads(json.dumps(got, ensure_ascii=False)) == json.loads(REAL_FROZEN.read_text(encoding="utf-8"))
+    assert got["label"] == "not_removable" and got["selected"] is None and got["calibration_sha"] == "037cb810ba2c"
+
+
+def test_real_calibration_key_numbers():
+    fz = json.loads(REAL_FROZEN.read_text(encoding="utf-8"))
+    rows = {r["id"]: r for r in fz["table"]}
+    assert len(rows) == 12 and not any(r["eligible"] for r in rows.values())
+    r = rows["lr0.1-e5-probe"]["rounds"]
+    assert round(r["15"]["f"], 4) == 0.9923 and round(r["15"]["acc_drop"], 4) == 0.4256      # 清掉了，但精度崩了
+    assert round(r["60"]["f"], 4) == 0.7282 and round(r["60"]["acc_drop"], 4) == 0.248
+    small = [rd["f"] for bid, row in rows.items() if not bid.startswith("lr0.1") for rd in row["rounds"].values()]
+    assert max(small) < 0.02                                                                 # 学习率 ≤ 0.03 时一点不掉
+
+
+def test_committed_verdict_equals_judge_output():
+    fz = json.loads(REAL_FROZEN.read_text(encoding="utf-8"))
+    got = V.judge(CFG, fz, {}, frozen_sha=V.sha12(REAL_FROZEN))
+    assert got["label"] == "not_removable"
+    assert json.loads(json.dumps(got, ensure_ascii=False)) == json.loads(REAL_VERDICT.read_text(encoding="utf-8"))
