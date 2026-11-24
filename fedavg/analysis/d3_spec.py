@@ -279,3 +279,101 @@ def jsonable(x):
     if isinstance(x, float) and not np.isfinite(x):
         return None
     return x
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# P-a 追加探针（加大训练量；预注册 N-016、决定 D-140）
+# 清单 experiments/defense/edge-native/d3pa2_configs.yaml（内容 sha 由 tests/test_d3_spec.py 锁住）
+# ══════════════════════════════════════════════════════════════════════════
+
+PA2_HEADS = ("probe", "reinit")          # 临时线性探针头（P0 原样）/ 随机重新初始化的头
+PA2_STAGES = ("calibrate", "main")
+
+
+def load_pa2_config(path) -> dict:
+    import yaml
+    cfg = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+    validate_pa2_config(cfg)
+    return cfg
+
+
+def validate_pa2_config(cfg: dict):
+    errs = []
+    if int(cfg.get("schema", 0)) != SCHEMA:
+        errs.append(f"schema = {cfg.get('schema')!r}，本工具只认 {SCHEMA}")
+    b = cfg.get("budget") or {}
+    if not b.get("lr") or not b.get("epochs") or not b.get("head"):
+        errs.append("budget 要有 lr / epochs / head 三个列表")
+    if any(float(x) <= 0 for x in b.get("lr") or []) or any(int(x) <= 0 for x in b.get("epochs") or []):
+        errs.append("budget 的 lr / epochs 必须 > 0")
+    bad = [h for h in b.get("head") or [] if h not in PA2_HEADS]
+    if bad:
+        errs.append(f"budget.head 只认 {PA2_HEADS}：{bad}")
+    cal, main = cfg.get("calibrate") or {}, cfg.get("main") or {}
+    if not cal.get("run") or not cal.get("rounds") or not cal.get("arm"):
+        errs.append("calibrate 要有 run / rounds / arm")
+    arms = main.get("arms") or {}
+    if not main.get("runs") or not main.get("rounds") or not arms:
+        errs.append("main 要有 runs / rounds / arms")
+    for k in ("label_arm", "control_arm"):
+        if main.get(k) not in arms:
+            errs.append(f"main.{k} = {main.get(k)!r} 不在 arms {sorted(arms)} 里")
+    if cal.get("arm") not in arms or cal.get("arm") != main.get("control_arm"):
+        errs.append("calibrate.arm 必须就是 main.control_arm（标定只看阳性对照那一臂）")
+    if "none" in arms:
+        errs.append("main.arms 不能叫 none（none 是「不重训、只重估」的基线）")
+    re_ = cfg.get("reestimate") or {}
+    if re_.get("method") != "precise" or bool(re_.get("augment")):
+        errs.append("reestimate 只实现了 method=precise、augment=false（D-138 ①）")
+    th = cfg.get("thresholds") or {}
+    if set(th) != {"remove", "early", "acc_gate"}:
+        errs.append(f"thresholds 要恰好有 remove / early / acc_gate：{sorted(th)}")
+    if errs:
+        raise ValueError("d3pa2_configs.yaml 不合法：\n  " + "\n  ".join(errs))
+
+
+def pa2_budget_id(lr, epochs, head) -> str:
+    return f"lr{float(lr):g}-e{int(epochs)}-{head}"
+
+
+def pa2_grid(cfg: dict) -> list:
+    """
+    全部训练量档，**按选择顺序**排好：学习率 × epoch 数升序（每 epoch 的步数相同，所以等价于学习率 × 步数），
+    再按学习率升序，再按分类头（probe 在 reinit 之前）。每档 {id, index, lr, epochs, head, order_key}；
+    index 是这一档在网格里的位置 —— 训练的随机数键用它，所以标定与正式两步里同一档的「训全部主干」逐位可复现。
+    """
+    b = cfg["budget"]
+    items = [{"lr": float(lr), "epochs": int(ep), "head": str(h)}
+             for lr in b["lr"] for ep in b["epochs"] for h in b["head"]]
+    items.sort(key=lambda d: (round(d["lr"] * d["epochs"], 12), d["lr"], PA2_HEADS.index(d["head"])))
+    for i, d in enumerate(items):
+        d["id"] = pa2_budget_id(d["lr"], d["epochs"], d["head"])
+        d["index"] = i
+        d["order_key"] = [round(d["lr"] * d["epochs"], 12), d["lr"], PA2_HEADS.index(d["head"])]
+    return items
+
+
+def pa2_budget(cfg: dict, budget_id: str) -> dict:
+    for d in pa2_grid(cfg):
+        if d["id"] == budget_id:
+            return d
+    raise KeyError(f"训练量档 {budget_id!r} 不在网格里")
+
+
+def pa2_steps(epochs: int, n: int, batch: int) -> int:
+    """`spec.epoch_batches` 丢尾：每 epoch ⌊n / batch⌋ 步。"""
+    return int(epochs) * (int(n) // int(batch))
+
+
+PA2_ARM_INDEX = {"stage4": 0, "stem_stage3": 1, "body": 2}     # 训练随机数键里的「臂」号（与清单顺序无关、固定）
+
+
+def pa2_arm_prefixes(cfg: dict) -> dict:
+    return {k: (None if v is None else tuple(str(p) for p in v)) for k, v in (cfg["main"]["arms"] or {}).items()}
+
+
+def pa2_all_runs(cfg: dict) -> list:
+    seen = {cfg["calibrate"]["run"]: None}
+    for r in cfg["main"]["runs"]:
+        seen.setdefault(r, None)
+    return list(seen)

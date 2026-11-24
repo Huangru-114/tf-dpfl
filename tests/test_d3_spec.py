@@ -218,3 +218,82 @@ def test_submit_script_lists_exactly_the_configured_runs(cfg):
     m = re.search(r'RUNS="([^"]+)"', code)
     assert m and m.group(1).split() == S.all_runs(cfg)
     assert 'sbatch "$HERE/d3.sbatch"' in code and "python" not in code
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# P-a 追加探针（N-016 / D-140）：d3pa2_configs.yaml + 网格
+# ══════════════════════════════════════════════════════════════════════════
+PA2_CFG = HERE / "d3pa2_configs.yaml"
+# 写于标定与正式数据之前（D-140）。改了清单的任何取值 → 这里红：先在 DECISIONS 留记录，再更新这个数。
+PA2_FROZEN_CONTENT_SHA = "79d915ec7703b4ca"
+
+
+@pytest.fixture(scope="module")
+def pa2():
+    return S.load_pa2_config(PA2_CFG)
+
+
+def test_pa2_config_content_sha_is_frozen(pa2):
+    assert S.content_sha(pa2) == PA2_FROZEN_CONTENT_SHA
+
+
+def test_pa2_config_matches_the_user_choices(pa2):
+    """用户 11-24：学习率 {0.01, 0.03, 0.1} × epoch {5, 20} × 头 {probe, reinit} = 12 档；标定 s42 × 第 15 / 60 轮只看训全部主干。"""
+    assert pa2["budget"] == {"lr": [0.01, 0.03, 0.1], "epochs": [5, 20], "head": ["probe", "reinit"]}
+    assert pa2["calibrate"] == {"run": "SNAP__collocated__s42", "rounds": [15, 60], "arm": "body"}
+    assert pa2["main"]["runs"] == [f"SNAP__collocated__s{s}" for s in (42, 43, 44)] and pa2["main"]["rounds"] == [15, 60]
+    assert S.pa2_arm_prefixes(pa2) == S.arm_prefixes(S.load_config(CFG))      # 三臂与 D3 P-a 完全相同
+    assert (pa2["main"]["label_arm"], pa2["main"]["control_arm"]) == ("stage4", "body")
+    assert pa2["thresholds"] == {"remove": 0.5, "early": 0.25, "acc_gate": 0.05}
+    assert pa2["base_config"] == "cft-train-high" and pa2["reestimate"] == S.load_config(CFG)["pa"]["reestimate"]
+
+
+def test_pa2_grid_order_is_smallest_budget_first(pa2):
+    g = S.pa2_grid(pa2)
+    assert [d["id"] for d in g] == [
+        "lr0.01-e5-probe", "lr0.01-e5-reinit", "lr0.03-e5-probe", "lr0.03-e5-reinit",
+        "lr0.01-e20-probe", "lr0.01-e20-reinit", "lr0.1-e5-probe", "lr0.1-e5-reinit",
+        "lr0.03-e20-probe", "lr0.03-e20-reinit", "lr0.1-e20-probe", "lr0.1-e20-reinit"]
+    assert [d["index"] for d in g] == list(range(12))
+    keys = [tuple(d["order_key"]) for d in g]
+    assert keys == sorted(keys) and len(set(keys)) == 12
+    assert S.pa2_budget(pa2, "lr0.03-e20-reinit")["index"] == 9
+    with pytest.raises(KeyError):
+        S.pa2_budget(pa2, "lr0.5-e5-probe")
+
+
+def test_pa2_steps_and_runs(pa2):
+    assert S.pa2_steps(5, 500, 32) == 75 and S.pa2_steps(20, 500, 32) == 300 and S.pa2_steps(1, 16, 8) == 2
+    assert S.pa2_all_runs(pa2) == [f"SNAP__collocated__s{s}" for s in (42, 43, 44)]
+    assert set(S.PA2_ARM_INDEX) == set(S.pa2_arm_prefixes(pa2)) and len(set(S.PA2_ARM_INDEX.values())) == 3
+
+
+@pytest.mark.parametrize("bad", [
+    {"budget": {"lr": [0.01], "epochs": [5], "head": ["random"]}},
+    {"budget": {"lr": [0.0], "epochs": [5], "head": ["probe"]}},
+    {"calibrate": {"run": "SNAP__collocated__s42", "rounds": [15], "arm": "stage4"}},
+    {"thresholds": {"remove": 0.5, "early": 0.25}},
+    {"reestimate": {"method": "precise", "batch": 32, "augment": True}},
+    {"schema": 2},
+])
+def test_pa2_validate_rejects(pa2, bad):
+    c = json.loads(json.dumps(pa2))
+    c.update(bad)
+    with pytest.raises(ValueError):
+        S.validate_pa2_config(c)
+
+
+def test_pa2_job_scripts():
+    import re
+    code = _code(HERE / "d3pa2.sbatch")
+    assert 'source "$ROOT/cluster_env.sh"' in code and 'cd "$ROOT/fedavg"' in code
+    assert "$PY -m analysis.d3_pa2" in code and "--frozen" in code
+    assert "--override" not in code and "--defense" not in code and "--seed" not in code
+    sub = _code(HERE / "d3pa2_submit.sh")
+    runs = dict(re.findall(r'(calibrate|main)\)\s*\n?\s*RUNS="([^"]+)"', sub))
+    cfg = S.load_pa2_config(PA2_CFG)
+    assert runs["calibrate"].split() == [cfg["calibrate"]["run"]]
+    assert runs["main"].split() == cfg["main"]["runs"]
+    assert '"label": "selected"' in sub and "python" not in sub
+    # select 写的冻结清单正好让这个 grep 命中（json.dumps(indent=1) 的分隔符）
+    assert '"label": "selected"' in json.dumps({"label": "selected"}, indent=1)

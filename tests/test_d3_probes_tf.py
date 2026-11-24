@@ -112,6 +112,7 @@ def restored(mp_model, source):
     w = _world()
     snap = P0.load_snapshot(source["snap"], w)
     P0.restore(w, snap)
+    P0.set_edges(w, snap["edges"])            # 与驱动里的状态一致（重现闸之后边缘就是快照的）→ 各测试与执行顺序无关
     return w, snap
 
 
@@ -424,3 +425,159 @@ def test_main_reproduce_failure_exits_3_but_still_writes_everything(e2e):
     rc, out, _ = e2e(bump=0.5)
     R = out["rounds"]["1"]
     assert rc == 3 and not R["reproduce"]["pass"] and "pa" in R
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# P-a 追加探针（加大训练量；N-016 / D-140）：analysis/d3_pa2.py
+# ══════════════════════════════════════════════════════════════════════════
+from analysis import d3_pa2 as PA2                           # noqa: E402
+
+
+@pytest.fixture(scope="module")
+def pa2cfg():
+    """真实清单，只把网格缩小（CPU 小世界上跑得快）：lr 0.05 × epoch {1, 2} × 两种头 = 4 档。"""
+    c = S.load_pa2_config(HERE / "d3pa2_configs.yaml")
+    c = copy.deepcopy(c)
+    c["budget"] = {"lr": [0.05], "epochs": [1, 2], "head": ["probe", "reinit"]}
+    S.validate_pa2_config(c)
+    return c
+
+
+def test_harden_subset_default_head_is_unchanged_and_given_head_is_used(restored, hardener):
+    w, snap = restored
+    h, base = hardener
+    E = int(w.cloud.eval_attacker.assigned_edge)
+    x, y = w.clean[E]
+    a, ia = D3.harden_subset(h, snap["edges"][E], x, y, base, ("stage4_",), rng=np.random.default_rng(3), lr=0.05)
+    b, ib = D3.harden_subset(h, snap["edges"][E], x, y, base, ("stage4_",), rng=np.random.default_rng(3), lr=0.05,
+                             head_init=None)
+    assert all(np.array_equal(p, q) for p, q in zip(a, b)) and ia["probe_acc"] is not None
+    head = PA2.reinit_head(h, np.random.default_rng(5))
+    c, ic = D3.harden_subset(h, snap["edges"][E], x, y, base, ("stage4_",), rng=np.random.default_rng(3), lr=0.05,
+                             head_init=head)
+    assert ic["probe_acc"] is None and ic.get("head") == "given"
+    assert any(not np.array_equal(p, q) for p, q in zip(a, c))     # 换了头，训练轨迹就不同
+
+
+def test_reinit_head_is_glorot_and_reproducible(hardener):
+    h, _ = hardener
+    W, b = PA2.reinit_head(h, np.random.default_rng([1, 2]))
+    W2, _ = PA2.reinit_head(h, np.random.default_rng([1, 2]))
+    d = int(h.feat.output_shape[-1])
+    assert W.shape == (d, TEI.NCLS) and b.shape == (TEI.NCLS,) and not b.any()
+    assert np.abs(W).max() <= np.sqrt(6.0 / (d + TEI.NCLS)) and np.array_equal(W, W2)
+
+
+def test_train_arm_overrides_lr_and_epochs_and_is_reproducible(restored, hardener, pa2cfg):
+    w, snap = restored
+    h, base = hardener
+    E = int(w.cloud.eval_attacker.assigned_edge)
+    bud = S.pa2_budget(pa2cfg, "lr0.05-e2-reinit")
+    a, ia = PA2.train_arm(w, snap, 1, E, h, base, bud, "body", None)
+    b, _ = PA2.train_arm(w, snap, 1, E, h, base, bud, "body", None)
+    assert ia["lr"] == 0.05 and ia["steps"] == S.pa2_steps(2, 16, 8) == 4 and ia["head"] == "reinit"
+    assert all(np.array_equal(p, q) for p, q in zip(a, b))      # 标定与正式里同一档的「训全部主干」逐位相同
+
+
+def test_pa2_calibration_round_runs_restores_state_and_matches_d3_baseline(restored, hardener, pa2cfg, d3cfg):
+    w, snap = restored
+    h, base = hardener
+    before = _state(w)
+    arm = pa2cfg["calibrate"]["arm"]
+    out = PA2.run_round(w, snap, 1, pa2cfg, h, base, S.pa2_grid(pa2cfg), {arm: S.pa2_arm_prefixes(pa2cfg)[arm]})
+    assert _same_state(before, _state(w))
+    assert list(out["budgets"]) == [b["id"] for b in S.pa2_grid(pa2cfg)]
+    for bid, row in out["budgets"].items():
+        a = row["arms"]["body"]
+        assert not a["diverged"] and a["harden"]["n_vars"] == 15 and a["harden"]["lr"] == 0.05
+        assert a["harden"]["steps"] == S.pa2_steps(row["budget"]["epochs"], 16, 8)
+    # 基线 = D3 P-a 的 none 臂（同一组随机数键、同一个重估）
+    d3 = D3.probe_pa(w, snap, 1, d3cfg, h, base)
+    assert out["baseline"]["main"] == d3["arms"]["none"]["main"] and out["baseline"]["fixed"] == d3["arms"]["none"]["fixed"]
+    json.dumps(S.jsonable(out))
+
+
+def test_pa2_main_round_runs_three_arms(restored, hardener, pa2cfg):
+    w, snap = restored
+    h, base = hardener
+    before = _state(w)
+    out = PA2.run_round(w, snap, 1, pa2cfg, h, base, [S.pa2_budget(pa2cfg, "lr0.05-e1-probe")],
+                        S.pa2_arm_prefixes(pa2cfg))
+    assert _same_state(before, _state(w))
+    arms = out["budgets"]["lr0.05-e1-probe"]["arms"]
+    assert {k: v["harden"]["n_vars"] for k, v in arms.items()} == {"stage4": 3, "stem_stage3": 12, "body": 15}
+    assert all(v["main"]["acc"] is not None for v in arms.values())
+
+
+def test_pa2_plan_refuses_bad_inputs(pa2cfg):
+    with pytest.raises(ValueError, match="标定只跑"):
+        PA2.plan(pa2cfg, "calibrate", "SNAP__collocated__s43", None)
+    with pytest.raises(ValueError, match="没有选出"):
+        PA2.plan(pa2cfg, "main", "SNAP__collocated__s43", {"label": "not_removable", "selected": None})
+    with pytest.raises(ValueError, match="sha"):
+        PA2.plan(pa2cfg, "main", "SNAP__collocated__s43",
+                 {"label": "selected", "selected": "lr0.05-e1-probe", "config_sha": "0" * 16})
+    r, b, a = PA2.plan(pa2cfg, "main", "SNAP__collocated__s43",
+                       {"label": "selected", "selected": "lr0.05-e1-probe", "config_sha": S.content_sha(pa2cfg)})
+    assert r == [15, 60] and [x["id"] for x in b] == ["lr0.05-e1-probe"] and list(a) == ["stage4", "stem_stage3", "body"]
+
+
+@pytest.fixture()
+def pa2_e2e(source, restored, tmp_path, monkeypatch, pa2cfg):
+    import shutil
+    import yaml
+    from hardening import spec as HS
+    w, _ = restored
+    monkeypatch.setattr(P0, "build_world", lambda path: w)
+    run = "TEST__cell__s42"
+    here = tmp_path / "here"
+    (here / "configs").mkdir(parents=True)
+    (here / "configs" / f"{run}.yaml").write_text("unused: true\n")
+    shutil.copy(HERE / "p0_configs.yaml", here / "p0_configs.yaml")
+    c = copy.deepcopy(pa2cfg)
+    c["calibrate"]["run"], c["calibrate"]["rounds"] = run, [1]
+    c["main"]["runs"], c["main"]["rounds"] = [run], [1]
+    (here / "d3pa2_configs.yaml").write_text(yaml.safe_dump(c, allow_unicode=True))
+    snap = Path(source["snap"])
+    m = copy.deepcopy(source["metrics"])
+    m["dumps"] = {"snapshots": [{"round": 1, "path": snap.name, "sha": HS.sha12(snap)}]}
+    (here / "results/P2/TEST").mkdir(parents=True)
+    (here / "results/P2/TEST" / f"{run}.metrics.json").write_text(json.dumps(m))
+
+    def call(stage, frozen=None):
+        out = tmp_path / f"{stage}.json"
+        argv = ["--stage", stage, "--run", run, "--here", str(here), "--dumps-root", str(snap.parent), "--out", str(out)]
+        if frozen is not None:
+            fz = tmp_path / "frozen.json"
+            fz.write_text(json.dumps(frozen))
+            argv += ["--frozen", str(fz)]
+        return PA2.main(argv), json.loads(out.read_text()), c
+    return call
+
+
+def test_pa2_main_entry_runs_both_stages(pa2_e2e):
+    rc, cal, c = pa2_e2e("calibrate")
+    assert rc == 0 and cal["stage"] == "calibrate" and cal["config_sha"] == S.content_sha(c)
+    R = cal["rounds"]["1"]
+    assert R["reproduce"]["pass"] and set(R["budgets"]) == {b["id"] for b in S.pa2_grid(c)}
+    assert all(set(row["arms"]) == {"body"} for row in R["budgets"].values())
+    rc, main, _ = pa2_e2e("main", {"label": "selected", "selected": "lr0.05-e2-probe", "config_sha": S.content_sha(c)})
+    assert rc == 0 and main["frozen_selected"] == "lr0.05-e2-probe" and main["frozen_sha"]
+    assert set(main["rounds"]["1"]["budgets"]["lr0.05-e2-probe"]["arms"]) == {"stage4", "stem_stage3", "body"}
+
+
+def test_pa2_restores_whatever_edge_weights_were_there_before(restored, hardener, pa2cfg):
+    """边缘模型原来不是快照的权重时，跑完也要原样换回（不是设成快照）。"""
+    w, snap = restored
+    h, base = hardener
+    other = {int(e.edge_id): [np.array(a) * 0 + 0.5 if a.ndim == 0 else np.array(a) for a in snap["global"]]
+             for e in w.edges}
+    P0.set_edges(w, other)
+    before = [e.model.get_weights() for e in w.edges]
+    try:
+        PA2.run_round(w, snap, 1, pa2cfg, h, base, [S.pa2_budget(pa2cfg, "lr0.05-e1-probe")],
+                      {"body": None})
+        after = [e.model.get_weights() for e in w.edges]
+        assert all(np.array_equal(a, b) for x, y in zip(before, after) for a, b in zip(x, y))
+    finally:
+        P0.set_edges(w, snap["edges"])

@@ -1,0 +1,37 @@
+# P-a 追加探针（加大训练量）的参数清单 —— 预注册 N-016（本目录 FINDINGS.md）、决定 D-140；写于标定与正式数据之前。
+# 读它的是 fedavg/analysis/d3_pa2.py（集群，TF）与 harness/d3pa2_verdict.py（本地，纯标准库）。
+# 内容 sha 由 tests/test_d3_spec.py 锁住 —— 改这里就是改预注册：先在 DECISIONS 留记录、说明在数据之前还是之后。
+# 起因：D3 的 P-a（F-134）三臂清除比例全是 0（lr = 客户端 × 0.1、75 步，权重几乎没动）→ 没有分辨力。
+schema: 1
+prereg: "N-016 · experiments/defense/edge-native/FINDINGS.md（P-a 追加探针；写于标定与正式数据之前）"
+decisions: "D-140"
+
+reproduce_tol: 0.01                   # 重现闸（同 D3）：离线重算第 t 轮主列与 metrics.json 记录逐 edge 相差 ≤ 0.01
+grid: p0_configs.yaml                 # 只读；取 base_config 那一项的其余设置
+base_config: cft-train-high           # 批 32、SGD（无动量）、BN 训练模式、带增强；学习率 / epoch / 分类头由 budget 覆盖
+reestimate: {method: precise, batch: 32, augment: false}     # 同 D-138 ①
+
+budget:                               # 用户 11-24 定：12 档；学习率固定（不随轮次衰减）
+  lr: [0.01, 0.03, 0.1]
+  epochs: [5, 20]                     # 500 张、批 32、丢尾 → 每 epoch 15 步 → 75 / 300 步
+  head: [probe, reinit]               # 临时线性探针头（P0 原样）/ 随机重新初始化（Glorot 均匀、偏置 0）
+
+calibrate:                            # 第 1 步：只看阳性对照（训全部主干），按规则选最小的能清除的训练量
+  run: SNAP__collocated__s42
+  rounds: [15, 60]
+  arm: body
+
+main:                                 # 第 2 步：选定的那一档 × 三臂
+  runs: [SNAP__collocated__s42, SNAP__collocated__s43, SNAP__collocated__s44]
+  rounds: [15, 60]
+  arms:
+    stage4: [stage4_]
+    stem_stage3: [stem_, stage1_, stage2_, stage3_]
+    body: null
+  label_arm: stage4
+  control_arm: body
+
+thresholds:                           # 判定脚本里的常数必须与这里一致（测试核对）
+  remove: 0.5                         # 清除比例 f ≥ 0.5 = 清掉了（阳性对照与 last_block_suffices 都用它）
+  early: 0.25                         # 都 f < 0.25 → last_block_insufficient
+  acc_gate: 0.05                      # E0 良性端干净精度降幅（相对不重训基线）> 0.05 → 那一档不合格 / 正式 invalid

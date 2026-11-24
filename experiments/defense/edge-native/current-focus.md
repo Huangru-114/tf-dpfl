@@ -1,6 +1,6 @@
-# 交接 —— 阶段三（edge 原生防御）· 2026-11-24：**D3 离线探针已判定**（F-134 … F-136，见〇·〇·〇·〇）；**待用户决定**：P-a 要不要做加大训练量的追加探针；之后 = 攻击基线接线（时间盒 2026-12-06）
+# 交接 —— 阶段三（edge 原生防御）· 2026-11-24 晚：**P-a 追加探针（加大训练量）代码已就绪，等集群跑第 1 步（标定）**（见〇·〇·〇·〇·〇）；D3 已判定（F-134 … F-136）
 
-> 过程与数字：本目录 `FINDINGS.md`（到 F-136；预注册 N-008 … N-015 都已生效）与 `DECISIONS.md`（到 D-139）。
+> 过程与数字：本目录 `FINDINGS.md`（到 F-136；预注册 N-008 … N-016 都已生效）与 `DECISIONS.md`（到 D-140）。
 > 阶段性总结报告：本目录 `REPORT.md`（11-07；结果、CCS 线、术语表）；文献：`LITERATURE.md` 第 3 部分（11-17 新颖性核查 + 三篇全文读数）。
 > ⚠️ 阶段三的实验全部做完之前，不要把分支合并到 main（用户 2026-10-10）。分支 `claude/eloquent-faraday-b9kmop`。
 > ⚠️ 用户要求（2026-11-01、11-17 重申）：**文档和回复里不要用不加解释的缩写、编号、专有名词**；第一次出现时说清楚是什么。用户隔了一段时间回来，偏好「把前因后果讲清楚」的说明。
@@ -10,7 +10,50 @@
 
 ---
 
-## 〇·〇·〇·〇、11-24：D3 离线探针回传并判定（**新会话先读这一节**）
+## 〇·〇·〇·〇·〇、11-24 晚：P-a 追加探针（加大训练量）—— 预注册、代码、作业脚本都已提交，等集群（**新会话先读这一节**）
+
+**为什么**：D3 的 P-a（F-134）三臂清除比例全是 0（lr 只有客户端的 0.1 倍、75 步），没有分辨力 → 6.1 的「只改最后一块就足以让后门失效」仍没有证据。
+用户 11-24 决定补做；规则写成预注册 **N-016**（FINDINGS 末尾）、决定 **D-140**，**在交任何作业之前**提交。这是看过 F-134 之后设计的追加分析，论文里如实标注。
+
+**两步**（用户定：分两步交）：
+1. **标定**：SNAP 集中 s42 × 第 15 / 60 轮，**只跑「训全部主干」**，12 档 = 学习率 {0.01, 0.03, 0.1}（固定）× epoch {5, 20}（75 / 300 步）× 分类头 {临时线性头, 随机重新初始化}；
+   规则选「两轮都清除比例 ≥ 0.5、精度降幅 ≤ 0.05」的最小一档并冻结；没有合格的 → `not_removable`，P-a 到此为止。
+2. **正式**：选定那一档 × 三臂 × s42–44 × 两轮；阳性对照（训全部主干 6 个都 ≥ 0.5）不过 → `uninformative`；
+   只训最后一块 6 个都 ≥ 0.5 → `last_block_suffices`（支持 6.1），都 < 0.25 → `last_block_insufficient`（6.1 要改写）。
+
+**新文件**：`fedavg/analysis/d3_pa2.py`（TF）、`d3_spec.py` 加网格函数、清单 `d3pa2_configs.yaml`（内容 sha `79d915ec7703b4ca`，测试锁住）、
+作业 `d3pa2.sbatch` / `d3pa2_submit.sh`、判定 `harness/d3pa2_verdict.py`（`select` / `judge`）；测试 `tests/test_d3pa2_verdict.py`、`test_d3_spec.py` / `test_d3_probes_tf.py` 增补。
+`d3_probes.harden_subset` 只多了缺省为 None 的 `head_init`（D3 已有行为不变）。
+
+**集群上（仓库根目录）—— 第 1 步**：
+
+```bash
+git pull
+```
+
+```bash
+bash experiments/defense/edge-native/d3pa2_submit.sh calibrate
+```
+
+1 个作业（1 张卡、限时 2 小时、32G），估计 15 分钟左右，**没实测过**。回传 `experiments/defense/edge-native/analysis/d3pa2/SNAP__collocated__s42.calibrate.json`。
+
+**回传后（本地）**：
+
+```bash
+python3 harness/d3pa2_verdict.py select experiments/defense/edge-native/analysis/d3pa2/SNAP__collocated__s42.calibrate.json
+```
+
+→ `analysis/d3pa2_frozen.json`：`selected` 就提交、推送，然后集群上 `git pull` + `bash experiments/defense/edge-native/d3pa2_submit.sh main`（3 个作业，各约 5–10 分钟）；
+`not_removable` 就停在这里、写 FINDINGS。第 2 步回传后 `python3 harness/d3pa2_verdict.py judge` → FINDINGS F-137。
+
+**本会话的本地测试**（Python 3.11）：不装 TF **2301 passed / 62 skipped / 3 xfailed**（比上一批多的全是新测试）；装 tensorflow-cpu 2.15.1 全量 **2623 passed / 31 skipped / 3 xfailed / 2 failed**（2 条 = 陷阱 #4）→ 无回归。
+
+**顺带记下的小问题（不影响已有结论）**：`harness/d3_verdict.py` 先把 f / V / 每种子 Spearman 舍入到 4 位再和阈值比；D3 的实际数离阈值都很远（最近的是 P-b 差值 0.07 对 0.10），标签不受影响。
+新的 `d3pa2_verdict.py` 已改成用原值比（带反向锚点测试）；D3 的脚本是数据之后用过的，没有改。
+
+---
+
+## 〇·〇·〇·〇、11-24：D3 离线探针回传并判定（11-24 上午）
 
 用户在 11-24 确认了 D-138 里待定的三处（D-139；确认时数据已回传、Claude 没有打开过），之后才运行判定 `python3 harness/d3_verdict.py` → `analysis/d3_verdict.json`。
 9 个 JSON 的参数清单 sha 都对；**重现闸 27 / 27 全过**（离线重算的主列与记录最大差 0.0005）。

@@ -181,15 +181,16 @@ def owner_names(model, variables) -> list:
     return [own.get(id(v)) for v in variables]
 
 
-def harden_subset(hardener, weights, x, y, base_cfg, prefixes, *, rng, lr):
-    """只训名字以 prefixes 开头的层的主干可训练变量（None = 全部主干）；其余照 `EdgeHardener.harden`。"""
+def harden_subset(hardener, weights, x, y, base_cfg, prefixes, *, rng, lr, head_init=None):
+    """只训名字以 prefixes 开头的层的主干可训练变量（None = 全部主干）；其余照 `EdgeHardener.harden`。
+    head_init = (W, b)：用它当分类头的初值、不拟合临时探针（P-a 追加探针的「重新初始化」头，N-016）；None = 原样。"""
     full = list(hardener.body_vars)
     sel = S.select_by_prefix(owner_names(hardener.model, full), prefixes)
     if not sel:
         raise ValueError(f"前缀 {prefixes} 没有选中任何主干变量")
     hardener.body_vars = [full[j] for j in sel]
     try:
-        new, info = hardener.harden(weights, x, y, base_cfg, rng=rng, lr=lr)
+        new, info = hardener.harden(weights, x, y, base_cfg, rng=rng, lr=lr, head_init=head_init)
     finally:
         hardener.body_vars = full
     info["n_vars"] = len(sel)
