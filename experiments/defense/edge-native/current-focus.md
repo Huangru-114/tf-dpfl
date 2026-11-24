@@ -1,6 +1,6 @@
-# 交接 —— 阶段三（edge 原生防御）· 2026-11-24 深夜（二）：**边缘内中位数的公平检验 MEDF 已登记、判定脚本已写，等用户确认预注册 N-017 后放行**，见〇·MEDF；攻击基线（ATKP）的集群步骤不变，见〇·攻击基线·接线完成
+# 交接 —— 阶段三（edge 原生防御）· 2026-11-24 深夜（二）：**边缘内中位数的公平检验 MEDF 已登记、预注册 N-017 已确认、已放行，等集群交作业**，见〇·MEDF；攻击基线（ATKP）的集群步骤不变，见〇·攻击基线·接线完成
 
-> 过程与数字：本目录 `FINDINGS.md`（到 F-139；预注册 N-008 … N-016 都已生效，N-017 是草案、待用户确认）与 `DECISIONS.md`（到 D-142）。
+> 过程与数字：本目录 `FINDINGS.md`（到 F-139；预注册 N-008 … N-016 都已生效，N-017 已确认）与 `DECISIONS.md`（到 D-142）。
 > 阶段性总结报告：本目录 `REPORT.md`（11-07；结果、CCS 线、术语表）；文献：`LITERATURE.md` 第 3 部分（11-17 新颖性核查 + 三篇全文读数）。
 > ⚠️ 阶段三的实验全部做完之前，不要把分支合并到 main（用户 2026-10-10）。分支 `claude/eloquent-faraday-b9kmop`。
 > ⚠️ 用户要求（2026-11-01、11-17 重申）：**文档和回复里不要用不加解释的缩写、编号、专有名词**；第一次出现时说清楚是什么。用户隔了一段时间回来，偏好「把前因后果讲清楚」的说明。
@@ -24,17 +24,13 @@
 **做完的（本会话）**：
 - 登记 **MEDF**（`registry.yaml`）：分散 × B=1 × s42 × {`ctrl-t1-distributed` 不设防, `edge-t1-distributed` 边缘层中位数}；参与率 0.2（每次边缘聚合 5 个上传）、30 云轮（150 有效轮）、
   云聚合后评估 / 冻结触发器关。与 ERP main-t1-distributed 只差这几个键（守卫 `tests/test_edge_native_registry.py` 的 MEDF 四条；两个配置都过 `config_validate`）。
-- 预注册 **N-017**（FINDINGS 末尾，**草案 · 待用户确认**）+ **F-139**（MED 只有 2–3 个上传；F-132 / 论文 6.9 的写法要带上参与者数）+ D-142。
+- 预注册 **N-017**（FINDINGS 末尾，**用户 11-24 确认、已生效**）+ **F-139**（MED 只有 2–3 个上传；F-132 / 论文 6.9 的写法要带上参与者数）+ D-142。
 - 判定 `harness/medf_verdict.py`（纯标准库，写于数据之前）+ `tests/test_medf_verdict.py`（23 条）。没有数据时输出 `insufficient`。
 
-**等用户做的一件事**：读 FINDINGS 的 N-017，确认后在 `registry.yaml` 的 `available` 里加 `medf-prereg`（Claude 代加被权限检查拦下：放行标记表示「用户已确认预注册」）。
-加完之后**不带 `--group`** 全量 materialize（生成 `configs/MEDF__*.yaml` 与 INDEX 行），跑一次本地测试，提交、推送。
+**已放行**：用户 11-24 确认 N-017 → `available` 加了 `medf-prereg`，已全量 materialize（`configs/MEDF__*.yaml` 两个 + INDEX 两行）。
+⚠ 本分支（`claude/exciting-lovelace-ue0m12`）没合进 main，集群要先检出它：`git fetch origin claude/exciting-lovelace-ue0m12 && git checkout claude/exciting-lovelace-ue0m12`。
 
-```bash
-python3 harness/registry.py experiments/defense/edge-native/registry.yaml --materialize
-```
-
-**集群上（仓库根目录，materialize 并推送之后）**：两个单种子格子 → `submit.sh` 不合包，用〇·攻击基线一节的 `sub` 函数手工装成一个两跑包（4 核 / run、24G 主机内存 / run）：
+**集群上（仓库根目录）**：两个单种子格子 → `submit.sh` 不合包，用〇·攻击基线一节的 `sub` 函数手工装成一个两跑包（4 核 / run、24G 主机内存 / run）：
 
 ```bash
 sub MEDF__mix-ctrl+edge__pack-k2-s42 MEDF__ctrl-t1-distributed__s42 MEDF__edge-t1-distributed__s42

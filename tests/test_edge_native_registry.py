@@ -653,3 +653,7 @@ def test_medf_configs_pass_startup_validation(reg):
     for r in reg.runs():
         if r["group"] == "MEDF":
             validate_config(reg.declared_config(r))
+
+
+def test_medf_is_released_after_the_n017_confirmation(reg):
+    assert reg.unmet_requires("MEDF") == []

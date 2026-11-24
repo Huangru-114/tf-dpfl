@@ -1357,10 +1357,9 @@ A = E0 良性端主列攻击成功率（ξ 在当前攻击者模型上重求）�
   6.9 的正文要带上这一条（参与者数），公平的边缘内中位数见 N-017 / MEDF。
 - 原文对照（`LITERATURE.md` 表 2，Bad-PFL 行）：FedRep 不设防 80.29 / 97.95 → Median 70.23 / 77.21（Acc / ASR）；FedBN 80.72 / 82.22 → 74.44 / 50.52 ——「相对较好」，但 FedRep 下攻击成功率仍 0.77、精度降约 0.10。
 
-### N-017 `草案 · 待用户确认`（预注册，写于任何 MEDF 数据与判定之前；方案 = D-142）—— 公平的边缘内中位数（MEDF）
+### N-017 `已确认 · 生效`（预注册，写于任何 MEDF 数据与判定之前；方案 = D-142；2026-11-24 用户确认）—— 公平的边缘内中位数（MEDF）
 
-> 用户 2026-11-24 批准了方案（含下面的判定规则）；按惯例「用户确认预注册」后才在 `registry.yaml` 的 `available` 加 `medf-prereg` 放行 MEDF。
-> Claude 尝试代加时被权限检查拦下（放行标记应由用户确认后添加）→ **现在 MEDF 挂着 `medf-prereg`，等用户确认这一节后再加**。
+> 2026-11-24 用户确认本节（「确认」），之后才在 `registry.yaml` 的 `available` 加 `medf-prereg` 放行 MEDF（此前 Claude 代加被权限检查拦下）。
 
 - **问题**：把「边缘内 = 一个 25 端的普通联邦学习」当真时，参与者数足够的边缘层中位数能不能压低**分散布点**下良性端的后门、代价多大？
 - **设定**（登记组 MEDF，`registry.yaml`；与 ERP main-t1-distributed 只差：防御块、`federation.client_fraction` 0.1 → **0.2**、`federation.n_rounds` 60 → **30**、`evaluation.post_agg_eval` / `frozen_trigger` 关）：
