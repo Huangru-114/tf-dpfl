@@ -26,7 +26,7 @@
 - **分流判定脚本** `harness/atk_route.py`（写于数据之前，PREREG-v2 @ 25163a5 第七节）：闸 = supp_verdict 的闸 + attack/trigger/static 对得上 + 每个参与过的攻击者真的投了毒；
   分流 propagates / local_only / no_implant（阈值 0.30，带 1e-9 容差）；参照列「干净样本被判成目标类的比例」只报告。
   `--probe` = ATKP 的放行检查（四格过闸（轮数 4）、有云聚合后评估点、badnet 与 badnet-rep `instrumentation_check.compare` 逐位相同）。
-- **本地测试**（Python 3.11）：不装 TF 基线 2308 passed / 62 skipped / 3 xfailed（开工前实测）→ 改完 **2379 passed / 63 skipped / 3 xfailed**（多出的全是新测试）；装 tensorflow-cpu 2.15.1 的全量基线（干净 HEAD 实测）2631 passed / 30 skipped / 3 xfailed / 2 failed（陷阱 #4）；TF（tensorflow-cpu 2.15.1）新测试 `tests/test_static_poison_tf.py` 11 条全过
+- **本地测试**（Python 3.11）：不装 TF 基线 2308 passed / 62 skipped / 3 xfailed（开工前实测）→ 改完 **2379 passed / 63 skipped / 3 xfailed**（多出的全是新测试）；装 tensorflow-cpu 2.15.1 的全量基线（干净 HEAD 实测）2631 passed / 30 skipped / 3 xfailed / 2 failed（陷阱 #4）→ 改完 **2713 passed / 30 skipped / 3 xfailed / 2 failed**（同样只有陷阱 #4 的 2 条，无回归）；TF（tensorflow-cpu 2.15.1）新测试 `tests/test_static_poison_tf.py` 11 条全过
   （含 `main.build_clients` 真接线 + 两个反向锚点：把注入改成统一触发器、把 static 移出 `dynamic_poison` 都会红）。**GPU 上的确定性与显存没有证据**，等 ATKP。
 
 **集群上的下一步（按顺序；在集群仓库根目录）**
